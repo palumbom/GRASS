@@ -4,7 +4,7 @@ CurrentModule = GRASS
 
 # GRASS
 
-Documentation for [GRASS](https://github.com/palumbom/GRASS.jl).
+Documentation for [GRASS](https://github.com/palumbom/GRASS).
 
 ```@index
 ```
