@@ -1,5 +1,4 @@
 using Test
-using LsqFit
 using Random
 using Statistics
 import EchelleCCFs
