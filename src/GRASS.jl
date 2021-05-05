@@ -2,7 +2,7 @@ module GRASS
 
 # import external modules
 using CSV
-using LsqFit
+# using LsqFit
 using FITSIO
 using Random
 # using Debugger
