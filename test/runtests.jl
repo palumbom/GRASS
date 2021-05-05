@@ -1,6 +1,9 @@
 using GRASS
 using Test
 
-@testset "GRASS.jl" begin
-    # Write your tests here.
-end
+# run the tests
+include("test_geometry.jl")
+include("test_physics.jl")
+include("test_ccf.jl")
+include("test_interpolations.jl")
+include("test_synthesis.jl")
