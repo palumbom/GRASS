@@ -5,7 +5,7 @@ using Interpolations
 @testset "Testing in-place interpolation" begin
     # make Gaussian line
     x1 = range(5434.0, 5435.0, step=0.01)
-    y1 = SS.absorption_line.(x1, mid=5434.5, width=0.1, depth=1.0)
+    y1 = GRASS.absorption_line.(x1, mid=5434.5, width=0.1, depth=1.0)
 
     # new grid to re-sample on
     x2 = range(5433.5, 5435.5, step=0.05)

@@ -6,8 +6,8 @@ import EchelleCCFs
 @testset "CCF" begin
 
 @testset "Testing function definitions" begin
-    @test isdefined(SS, :calc_ccf)
-    @test isdefined(SS, :calc_rvs_from_ccf)
+    @test isdefined(GRASS, :calc_ccf)
+    @test isdefined(GRASS, :calc_rvs_from_ccf)
     @test isdefined(EchelleCCFs, :calc_doppler_factor)
 end
 
@@ -23,12 +23,12 @@ end
     ccfs = []
     v_grid = []
     for i in eachindex(λvs)
-        ys = SS.absorption_line.(xs, mid=λvs[i], width=0.1, depth=1.0)
+        ys = GRASS.absorption_line.(xs, mid=λvs[i], width=0.1, depth=1.0)
         v_grid, ccf = calc_ccf(xs, ys, [5434.5], [1.0], res, normalize=true)
         push!(ccfs, ccf)
     end
     ccfs = cat(ccfs..., dims=2)
-    rvs, sigs = SS.calc_rvs_from_ccf(v_grid, ccfs)
+    rvs, sigs = GRASS.calc_rvs_from_ccf(v_grid, ccfs)
     delta = vel .- rvs
 
     # now actually test
