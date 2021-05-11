@@ -1,9 +1,3 @@
-"""
-Author: Michael Palumbo
-Created: April 2019
-Contact: mlp95@psu.edu
-"""
-
 # pull out DataFrames w/ file names and obs parameters
 function sort_bisector_data(;dir::String=soldir, write::Bool=false)
     # glob the files
