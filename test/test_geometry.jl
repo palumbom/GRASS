@@ -1,5 +1,3 @@
-using Test
-
 @testset "Geometry" begin
 
 @testset "Testing function definitions" begin

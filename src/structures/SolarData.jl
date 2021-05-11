@@ -1,6 +1,3 @@
-"""
-
-"""
 abstract type AbstractSolarData end
 struct SolarData{T1<:AF} <: AbstractSolarData
     wav::Dict{Tuple{Symbol,Symbol}, AbstractArray{T1,2}}
@@ -11,9 +8,6 @@ struct SolarData{T1<:AF} <: AbstractSolarData
     line::AbstractLineProperties
 end
 
-"""
-
-"""
 function clean_input(wavall::AA{T,2}, bisall::AA{T,2}, depall::AA{T,2}, widall::AA{T,2}) where T<:AF
     @assert size(wavall) == size(bisall)
     @assert size(depall) == size(widall)
@@ -54,9 +48,6 @@ function clean_input(wavall::AA{T,2}, bisall::AA{T,2}, depall::AA{T,2}, widall::
            strip_columns(depall, badcols), strip_columns(widall, badcols)
 end
 
-"""
-
-"""
 function extrapolate_bisector(wavall::AA{T,2}, bisall::AA{T,2}; top::T=0.8) where T<:AF
     for i in 1:size(wavall,2)
         # take a slice for one time snapshot
@@ -74,9 +65,6 @@ function extrapolate_bisector(wavall::AA{T,2}, bisall::AA{T,2}; top::T=0.8) wher
     return nothing
 end
 
-"""
-
-"""
 function extrapolate_width(depall::AA{T,2}, widall::AA{T,2}) where T<:AF
     for i in 1:size(widall,2)
         # take slice for one time snapshot
@@ -92,9 +80,6 @@ function extrapolate_width(depall::AA{T,2}, widall::AA{T,2}) where T<:AF
     return nothing
 end
 
-"""
-
-"""
 function relative_bisector_wavelengths(wav::AA{T,2}, lp::LineProperties) where T<:AF
     # allocate array of size(wav)
     relwav = similar(wav)
@@ -106,7 +91,13 @@ function relative_bisector_wavelengths(wav::AA{T,2}, lp::LineProperties) where T
 end
 
 """
+    SolarData(; dir=soldir, relative=true, ...)
 
+Construct a `SpecParams` composite type instance.
+
+# Arguments
+- `dir::String=soldir`: Directory containing the pre-processed input data. Default directory is set in src/config.jl
+- `relative::Bool=true`: Set whether wavelengths are on absolute scale or expressed relative to rest wavelength.
 """
 function SolarData(;dir::String=soldir, relative::Bool=true,
                    fixed_width::Bool=false, fixed_bisector::Bool=false,
@@ -188,7 +179,7 @@ end
 function calc_fixed_width(;λ::T1=5434.5232, M::T1=26.0, T::T1=5778.0, v_turb::T1=3.5e5) where T1<:AF
     wid = width_thermal(λ=λ, M=M, T=T, v_turb=v_turb)
     λs = collect(range(λ - 1.0, λ + 1.0, step=λ/7e5))
-    prof = absorption_line.(λs, mid=λ, width=wid, depth=0.86)
+    prof = gaussian_line.(λs, mid=λ, width=wid, depth=0.86)
     depall, widall = calc_width_at_depth(λs, prof, len=100)
     widall[1] = 0.01
     return depall, widall
