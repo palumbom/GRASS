@@ -1,4 +1,3 @@
-
 function calculate_bisector_span(λrest::T, wav::AA{T,1}) where T<:AF
     minw = minimum(filter(!isnan, wav))
     return abs(minw - wav[1])/wav[1] * (c /100.0)
