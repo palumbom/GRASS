@@ -1,3 +1,12 @@
+"""
+    synthesize_spectra(spec, disk; seed_rng=false, verbose=true, top=NaN)
+
+Synthesize spectra given parameters in `spec` and `disk` instances.
+
+# Arguments
+- `spec::SpecParams`: SpecParams instance
+- `disk::DiskParams`: DiskParams instance
+"""
 function synthesize_spectra(spec::SpecParams, disk::DiskParams;
                             seed_rng::Bool=false, verbose::Bool=true,
                             top::Float64=NaN)
