@@ -1,4 +1,3 @@
-using Test
 using Random
 using Statistics
 import EchelleCCFs
