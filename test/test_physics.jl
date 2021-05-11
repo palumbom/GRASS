@@ -1,5 +1,3 @@
-using Test
-
 @testset "Physics" begin
 
 @testset "Testing function definitions" begin
@@ -50,6 +48,10 @@ end
     ys = GRASS.absorption_line.(xs, mid=5434.5, width=0.1, depth=1.0)
     @test minimum(ys) ≈ 0.0 atol=1e-5
     @test maximum(ys) ≈ 1.0 atol=1e-5
+
+    # ys = GRASS.absorption_line.(xs, mid=5434.5, width=0.1, depth=0.5)
+    # @test minimum(ys) ≈ 0.0 atol=1e-5
+    # @test maximum(ys) ≈ 0.5 atol=1e-5
 end
 
 end
