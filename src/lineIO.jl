@@ -1,14 +1,9 @@
-"""
-Author: Michael Palumbo
-Created: April 2019
-Contact: mlp95@psu.edu
-"""
-
 # pull out DataFrames w/ file names and obs parameters
 function sort_bisector_data(;dir::String=soldir, write::Bool=false)
     # glob the files
     @assert isdir(dir)
     files = glob("*.bisect.fits", dir * "bisectors")
+    @assert !isempty(files)
 
     # extract file parametersl put in data frame
     df = DataFrame(fpath=String[], fname=String[], datetime=DateTime[],
@@ -129,7 +124,9 @@ end
 
 function sort_spectrum_data(;dir::String=soldir, write::Bool=false)
     # glob the files
+    @assert isdir(dir)
     files = glob("*.chvtt.fits", dir * "spectra/")
+    @assert !isempty(files)
 
     # extract file parametersl put in data frame
     df = DataFrame(fpath=String[], fname=String[], datetime=DateTime[],
@@ -150,7 +147,9 @@ end
 
 function sort_width_data(;dir::String=soldir, write::Bool=false)
     # glob the files
+    @assert isdir(dir)
     files = glob("*widths.fits", dir * "widths/")
+    @assert !isempty(files)
 
     # extract file parametersl put in data frame
     df = DataFrame(fpath=String[], fname=String[], datetime=DateTime[],
