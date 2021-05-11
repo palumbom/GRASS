@@ -1,4 +1,3 @@
-using Test
 using Random
 using Statistics
 import EchelleCCFs
@@ -23,7 +22,7 @@ end
     ccfs = []
     v_grid = []
     for i in eachindex(λvs)
-        ys = GRASS.absorption_line.(xs, mid=λvs[i], width=0.1, depth=1.0)
+        ys = GRASS.gaussian_line.(xs, mid=λvs[i], width=0.1, depth=1.0)
         v_grid, ccf = calc_ccf(xs, ys, [5434.5], [1.0], res, normalize=true)
         push!(ccfs, ccf)
     end
