@@ -47,15 +47,15 @@ version = "0.8.4"
 
 [[CategoricalArrays]]
 deps = ["DataAPI", "Future", "JSON", "Missings", "Printf", "Statistics", "StructTypes", "Unicode"]
-git-tree-sha1 = "18d7f3e82c1a80dd38c16453b8fd3f0a7db92f23"
+git-tree-sha1 = "2ac27f59196a68070e132b25713f9a5bbc5fa0d2"
 uuid = "324d7699-5711-5eae-9e2f-1d82baa6b597"
-version = "0.9.7"
+version = "0.8.3"
 
 [[ChainRulesCore]]
 deps = ["Compat", "LinearAlgebra", "SparseArrays"]
-git-tree-sha1 = "bd0cc939d94b8bd736dce5bbbe0d635db9f94af7"
+git-tree-sha1 = "e6b23566e025d3b0d9ccc397f5c7a134af552e27"
 uuid = "d360d2e6-b24c-11e9-a2a3-2a2ae2dbcce4"
-version = "0.9.41"
+version = "0.9.42"
 
 [[CommonSubexpressions]]
 deps = ["MacroTools", "Test"]
@@ -73,21 +73,16 @@ version = "3.28.0"
 deps = ["Artifacts", "Libdl"]
 uuid = "e66e0078-7015-5450-92f7-15fbd957f2ae"
 
-[[Crayons]]
-git-tree-sha1 = "3f71217b538d7aaee0b69ab47d9b7724ca8afa0d"
-uuid = "a8cc5b0e-0ffa-5ad4-8c14-923d3ee1735f"
-version = "4.0.4"
-
 [[DataAPI]]
 git-tree-sha1 = "dfb3b7e89e395be1e25c2ad6d7690dc29cc53b1d"
 uuid = "9a962f9c-6df0-11e9-0e5d-c546b8b5ee8a"
 version = "1.6.0"
 
 [[DataFrames]]
-deps = ["CategoricalArrays", "Compat", "DataAPI", "Future", "InvertedIndices", "IteratorInterfaceExtensions", "LinearAlgebra", "Markdown", "Missings", "PooledArrays", "PrettyTables", "Printf", "REPL", "Reexport", "SortingAlgorithms", "Statistics", "TableTraits", "Tables", "Unicode"]
-git-tree-sha1 = "d50972453ef464ddcebdf489d11885468b7b83a3"
+deps = ["CategoricalArrays", "Compat", "DataAPI", "Future", "InvertedIndices", "IteratorInterfaceExtensions", "Missings", "PooledArrays", "Printf", "REPL", "Reexport", "SortingAlgorithms", "Statistics", "TableTraits", "Tables", "Unicode"]
+git-tree-sha1 = "ecd850f3d2b815431104252575e7307256121548"
 uuid = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
-version = "0.22.7"
+version = "0.21.8"
 
 [[DataStructures]]
 deps = ["Compat", "InteractiveUtils", "OrderedCollections"]
@@ -148,9 +143,9 @@ uuid = "f43a241f-c20a-4ad4-852c-f6b1247861c6"
 
 [[EchelleCCFs]]
 deps = ["CSV", "DataFrames", "Dates", "FITSIO", "ForwardDiff", "LinearAlgebra", "LsqFit", "NaNMath", "NamedTupleTools", "Optim", "OrderedCollections", "PDMats", "Pkg", "QuadGK", "Query", "RvSpectMLBase", "SpecialFunctions", "StaticArrays", "Statistics", "StatsBase", "ThreadedIterables"]
-git-tree-sha1 = "c0e525e8d6ac5b61835dd2f1c9b39829b57e3b9a"
+git-tree-sha1 = "3fd6cc1fe86ac4bdb5a833586b4bd4d3314771fa"
 uuid = "5d9f57b1-d7b5-417c-8d79-eedbcaad0187"
-version = "0.2.2"
+version = "0.2.0"
 
 [[FITSIO]]
 deps = ["CFITSIO", "Printf", "Reexport", "Tables"]
@@ -169,12 +164,6 @@ deps = ["ArrayInterface", "LinearAlgebra", "Requires", "SparseArrays", "StaticAr
 git-tree-sha1 = "f6f80c8f934efd49a286bb5315360be66956dfc4"
 uuid = "6a86dc24-6348-571c-b903-95158fe2bd41"
 version = "2.8.0"
-
-[[Formatting]]
-deps = ["Printf"]
-git-tree-sha1 = "8339d61043228fdd3eb658d86c926cb282ae72a8"
-uuid = "59287772-0a20-5a39-b81b-1366585eb4c0"
-version = "0.4.2"
 
 [[ForwardDiff]]
 deps = ["CommonSubexpressions", "DiffResults", "DiffRules", "LinearAlgebra", "NaNMath", "Printf", "Random", "SpecialFunctions", "StaticArrays"]
@@ -202,9 +191,9 @@ uuid = "b77e0a4c-d291-57a0-90e8-8db25a27a240"
 
 [[Interpolations]]
 deps = ["AxisAlgorithms", "LinearAlgebra", "OffsetArrays", "Random", "Ratios", "SharedArrays", "SparseArrays", "StaticArrays", "WoodburyMatrices"]
-git-tree-sha1 = "eb1dd6d5b2275faaaa18533e0fc5f9171cec25fa"
+git-tree-sha1 = "d2ff0813f0f110918db2537201686575fcf8d345"
 uuid = "a98d9a8b-a2ab-59e6-89dd-64a1c18fca59"
-version = "0.13.1"
+version = "0.13.0"
 
 [[InvertedIndices]]
 deps = ["Test"]
@@ -326,9 +315,9 @@ uuid = "ca575930-c2e3-43a9-ace4-1e988b2c1908"
 
 [[OffsetArrays]]
 deps = ["Adapt"]
-git-tree-sha1 = "87a728aebb76220bd72855e1c85284c5fdb9774c"
+git-tree-sha1 = "47b443d2ccc8297a4c538f55f8fd828ad58599ab"
 uuid = "6fe1bfb0-de20-5000-8ca7-80f57d26f881"
-version = "1.7.0"
+version = "1.8.0"
 
 [[OpenSpecFun_jll]]
 deps = ["Artifacts", "CompilerSupportLibraries_jll", "JLLWrappers", "Libdl", "Pkg"]
@@ -349,9 +338,9 @@ uuid = "87e2bd06-a317-5318-96d9-3ecbac512eee"
 version = "2.0.1"
 
 [[OrderedCollections]]
-git-tree-sha1 = "4fa2ba51070ec13fcc7517db714445b4ab986bdf"
+git-tree-sha1 = "85f8e6578bf1f9ee0d11e7bb1b1456435479d47c"
 uuid = "bac558e1-5e72-5ebc-8fee-abe8a469f55d"
-version = "1.4.0"
+version = "1.4.1"
 
 [[PDMats]]
 deps = ["LinearAlgebra", "SparseArrays", "SuiteSparse"]
@@ -376,10 +365,10 @@ deps = ["Artifacts", "Dates", "Downloads", "LibGit2", "Libdl", "Logging", "Markd
 uuid = "44cfe95a-1eb2-52ea-b672-e2afdf69b78f"
 
 [[PooledArrays]]
-deps = ["DataAPI", "Future"]
-git-tree-sha1 = "cde4ce9d6f33219465b55162811d8de8139c0414"
+deps = ["DataAPI"]
+git-tree-sha1 = "b1333d4eced1826e15adbdf01a4ecaccca9d353c"
 uuid = "2dfb63ee-cc39-5dd5-95bd-886bf059d720"
-version = "1.2.1"
+version = "0.5.3"
 
 [[PositiveFactorizations]]
 deps = ["LinearAlgebra"]
@@ -389,15 +378,9 @@ version = "0.2.4"
 
 [[Preferences]]
 deps = ["TOML"]
-git-tree-sha1 = "ea79e4c9077208cd3bc5d29631a26bc0cff78902"
+git-tree-sha1 = "00cfd92944ca9c760982747e9a1d0d5d86ab1e5a"
 uuid = "21216c6a-2e73-6563-6e65-726566657250"
-version = "1.2.1"
-
-[[PrettyTables]]
-deps = ["Crayons", "Formatting", "Markdown", "Reexport", "Tables"]
-git-tree-sha1 = "574a6b3ea95f04e8757c0280bb9c29f1a5e35138"
-uuid = "08abe8d2-0d0c-5749-adfa-8a2ac140af0d"
-version = "0.11.1"
+version = "1.2.2"
 
 [[Printf]]
 deps = ["Unicode"]
@@ -460,9 +443,9 @@ version = "0.3.0+0"
 
 [[RvSpectMLBase]]
 deps = ["CSV", "DataFrames", "Dates", "Interpolations", "LinearAlgebra", "NaNMath", "Query", "SpecialFunctions", "Statistics"]
-git-tree-sha1 = "bcd25dc592a387dcefe6b00cf903825cd284459f"
+git-tree-sha1 = "99c4e90082a77c6b767427e453548ec01fd37484"
 uuid = "c48404b2-35ea-40e7-ac7f-06a53de703d6"
-version = "0.2.0"
+version = "0.1.9"
 
 [[SHA]]
 uuid = "ea8e919c-243c-51af-8825-aaa63cd721ce"
@@ -507,9 +490,9 @@ version = "0.2.4"
 
 [[StaticArrays]]
 deps = ["LinearAlgebra", "Random", "Statistics"]
-git-tree-sha1 = "2653e9c769343808781a8bd5010ee7a17c01152e"
+git-tree-sha1 = "da4cf579416c81994afd6322365d00916c79b8ae"
 uuid = "90137ffa-7385-5640-81b9-e52037218182"
-version = "1.1.2"
+version = "0.12.5"
 
 [[Statistics]]
 deps = ["LinearAlgebra", "SparseArrays"]
