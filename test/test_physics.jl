@@ -2,10 +2,10 @@
 
 @testset "Testing function definitions" begin
     @test isdefined(GRASS, :absorption_line)
+    @test isdefined(GRASS, :gaussian_line)
     @test isdefined(GRASS, :lorentzian_line)
     @test isdefined(GRASS, :width_thermal)
     @test isdefined(GRASS, :quad_limb_darkening)
-    @test isdefined(GRASS, :calc_intensity_normalization)
     @test isdefined(GRASS, :rotation_period)
     @test isdefined(GRASS, :patch_velocity_los)
 end
@@ -45,13 +45,13 @@ end
 
 @testset "Testing Gaussian line" begin
     xs = range(5434.0, 5435.0, step=0.01)
-    ys = GRASS.absorption_line.(xs, mid=5434.5, width=0.1, depth=1.0)
+    ys = GRASS.gaussian_line.(xs, mid=5434.5, width=0.1, depth=1.0)
     @test minimum(ys) ≈ 0.0 atol=1e-5
     @test maximum(ys) ≈ 1.0 atol=1e-5
 
-    # ys = GRASS.absorption_line.(xs, mid=5434.5, width=0.1, depth=0.5)
-    # @test minimum(ys) ≈ 0.0 atol=1e-5
-    # @test maximum(ys) ≈ 0.5 atol=1e-5
+    ys = GRASS.gaussian_line.(xs, mid=5434.5, width=0.1, depth=0.5)
+    @test minimum(ys) ≈ 0.5 atol=1e-5
+    @test maximum(ys) ≈ 1.0 atol=1e-5
 end
 
 end
