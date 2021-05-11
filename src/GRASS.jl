@@ -2,15 +2,12 @@ module GRASS
 
 # import external modules
 using CSV
-# using LsqFit
 using FITSIO
 using Random
-# using Debugger
 using StatsBase
 using DataFrames
 using Statistics
 using SharedArrays
-# using LinearAlgebra
 using Interpolations
 import Glob.glob
 import Dates.DateTime
