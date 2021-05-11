@@ -18,3 +18,5 @@ end
         @test size(soldat.bis[k], 2) == size(soldat.wav[k], 2)
     end
 end
+
+end
