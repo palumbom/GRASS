@@ -1,9 +1,3 @@
-"""
-Author: Michael Palumbo
-Created: April 2019
-Contact: mlp95@psu.edu
-"""
-
 # constants in cgs units
 const c = 2.997824582e10     # cm s^-1
 const σ = 5.6704e-5          # erg cm^-2 s^-1 K^-4
