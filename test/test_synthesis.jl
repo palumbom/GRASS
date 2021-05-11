@@ -1,4 +1,3 @@
-using Test
 using CSV
 using DataFrames
 
@@ -8,6 +7,7 @@ using DataFrames
     @test isdefined(GRASS, :trim_bisector_chop!)
     @test isdefined(GRASS, :line_profile!)
     @test isdefined(GRASS, :line_from_bis!)
+    @test isdefined(GRASS, :synthesize_spectra)
 end
 
 @testset "Testing line trimming" begin
@@ -101,5 +101,15 @@ end
     # test that output bisector matches input bisector
     @test all(isapprox.(wavo[2:99], wavt[2:99], atol=1e-3))
 end
+
+# @testset "Testing disk-integrated spectrum synthesis"
+#     spec = SpecParams(lines=[5434.5], depths=[0.8], resolution=7e8)
+#     disk = DiskParams(N=64, Nt=10)
+#     wavs, flux = synthesize_spectra(spec, disk)
+
+#     @test minimum(flux) == 1.0
+#     @test minimum(flux) ≈ 0.2 atol=1e-5
+
+# end
 
 end

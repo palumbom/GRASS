@@ -1,9 +1,3 @@
-"""
-Author: Michael Palumbo & Others
-Contact: mlp95@psu.edu
-Purpose: Various ancillary functions.
-"""
-
 function ismononotonic(A::AA{T,1}) where T<:AF
     return (all(diff(A) .>= zero(T)) | all(diff(A) .<= zero(T)))
 end
@@ -13,9 +7,7 @@ function strip_columns(A::AA{T,2}, cols::AA{Bool,1}) where T<:AF
     return A[:, .!cols]
 end
 
-"""
-https://stackoverflow.com/questions/50899973/indices-of-unique-elements-of-vector-in-julia
-"""
+# credit: https://stackoverflow.com/questions/50899973/indices-of-unique-elements-of-vector-in-julia
 function uniqueidx(x::AA{T}) where T
     uniqueset = Set{T}()
     ex = eachindex(x)
@@ -46,9 +38,8 @@ function isunique(x::AA{T}) where T
     return idxs
 end
 
-"""
-Credit: traktofon @ https://discourse.julialang.org/t/findnearest-function/4143/4
-"""
+
+# credit: traktofon @ https://discourse.julialang.org/t/findnearest-function/4143/4
 function searchsortednearest(a::AbstractVector{T}, x::T) where T
     idx = searchsortedfirst(a,x)
     if (idx==1); return idx; end
@@ -66,8 +57,12 @@ function searchsortednearest(x::T, a::AbstractVector{T}) where T
 end
 
 """
-TODO: this docstring
-calc rms about the observed mean
+    calc_rms(A)
+
+Calculate the RMS of given data about the observed mean.
+
+# Arguments
+- `A::AbstractArray{Float64,1}`: 1D array containing data for RMS calculation
 """
 function calc_rms(A::AA{T,1}) where T<:AF
     return sqrt(sum((A.-mean(A)).^2)/length(A))
