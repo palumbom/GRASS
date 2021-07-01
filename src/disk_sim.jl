@@ -12,8 +12,8 @@ function synthesize_spectra(spec::SpecParams, disk::DiskParams;
                             top::Float64=NaN)
     # allocate memory for synthesis
     Nλ = length(spec.lambdas)
-    prof = ones(Nλ)
-    outspec = zeros(Nλ, disk.Nt)
+    prof = ones(SVector{Nλ})
+    outspec = zeros(SMatrix{Nλ, disk.Nt})
 
     # run the simulation (outspec modified in place)
     disk_sim(spec, disk, prof, outspec, seed_rng=seed_rng, verbose=verbose, top=top)
