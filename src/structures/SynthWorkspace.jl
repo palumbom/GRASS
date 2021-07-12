@@ -10,13 +10,13 @@ struct SynthWorkspace{T<:AF}
 end
 
 function SynthWorkspace(; ndepths::Integer=100)
-    lwavgrid = zeros(SVector{ndepths})
-    rwavgrid = zeros(SVector{ndepths})
-    allwavs  = zeros(SVector{2 * ndepths})
-    allints  = zeros(SVector{2 * ndepths})
-    wavt     = zeros(SVector{ndepths})
-    bist     = zeros(SVector{ndepths})
-    dept     = zeros(SVector{ndepths})
-    widt     = zeros(SVector{ndepths})
+    lwavgrid = zeros(ndepths)
+    rwavgrid = zeros(ndepths)
+    allwavs  = zeros(2 * ndepths)
+    allints  = zeros(2 * ndepths)
+    wavt     = zeros(ndepths)
+    bist     = zeros(ndepths)
+    dept     = zeros(ndepths)
+    widt     = zeros(ndepths)
     return SynthWorkspace(lwavgrid, rwavgrid, allwavs, allints, wavt, bist, dept, widt)
 end

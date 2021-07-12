@@ -8,7 +8,6 @@ using StatsBase
 using DataFrames
 using Statistics
 using SharedArrays
-using StaticArrays
 using Interpolations
 import Glob.glob
 import Dates.DateTime
