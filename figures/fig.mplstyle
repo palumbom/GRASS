@@ -1,0 +1,9 @@
+font.size                : 15
+lines.linewidth          : 2
+lines.linestyle          : -
+axes.grid                : True
+grid.linestyle           : :
+figure.autolayout        : True
+savefig.bbox             : tight
+axes.formatter.useoffset : False
+text.usetex              : True
