@@ -47,6 +47,7 @@ function plot_input_cleaned(ncurves)
         plt.clf(); plt.close()
     else
         plt.show()
+        plt.clf(); plt.close()
     end
 
     # plot the widths
@@ -66,6 +67,7 @@ function plot_input_cleaned(ncurves)
         plt.clf(); plt.close()
     else
         plt.show()
+        plt.clf(); plt.close()
     end
     return nothing
 end
