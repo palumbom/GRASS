@@ -13,7 +13,7 @@ using LsqFit
 
 # plotting packages
 import PyPlot; plt = PyPlot; mpl = plt.matplotlib; plt.ioff()
-mpl.style.use("GRASS.moddir * "figures/fig.mplstyle"")
+mpl.style.use(GRASS.moddir * "figures/fig.mplstyle")
 
 # define rms loop function
 include(GRASS.moddir * "figures/rms_loop.jl")
