@@ -3,16 +3,16 @@ using Distributed
 @everywhere using Pkg
 @everywhere Pkg.activate(".")
 @everywhere using Statistics
-@everywhere using SynthSpectra
-@everywhere SS=SynthSpectra
+@everywhere using GRASS
 @everywhere using SharedArrays
 @everywhere using EchelleCCFs
 using CSV
 using DataFrames
 using LaTeXStrings
+using LsqFit
 
-# define rms loop
-include(string(@__DIR__) * "/rms_loop.jl")
+# define rms loop function
+include(GRASS.moddir * "figures/rms_loop.jl")
 
 # some global stuff
 const N = 256
