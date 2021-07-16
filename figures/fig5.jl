@@ -62,7 +62,7 @@ function depth(;write=false)
 
     # write to CSV
     if write
-        fname = "rms_vs_depth_" * string(N) * ".csv"
+        fname = GRASS.moddir * "rms_vs_depth_" * string(N) * ".csv"
         CSV.write(fname, df)
     end
     return df
@@ -82,7 +82,7 @@ ax1.set_xlim(0.0, 1.0)
 ax1.set_ylim(0.19, 0.36)
 ax1.annotate("Shallow", xy=(0.85,0.202), xytext=(0.05,0.2), arrowprops=arrowprops)
 ax1.annotate("Deep", xy=(0.86, 0.2))
-fig.savefig("rms_vs_depth.pdf")
+fig.savefig(GRASS.moddir * "rms_vs_depth.pdf")
 plt.clf(); plt.close()
 
 fig, ax1 = plt.subplots()
@@ -90,5 +90,5 @@ ax1.errorbar(df.depths, df.avg_avg, yerr=df.avg_std, capsize=3.0, color="black",
 ax1.set_xlabel(L"{\rm Line\ Depth}")
 ax1.set_ylabel(L"{\rm RV\ (m s}^{-1})")
 ax1.set_xlim(0.0, 1.0)
-fig.savefig("avg_vs_depth.pdf")
+fig.savefig(GRASS.moddir * "avg_vs_depth.pdf")
 plt.clf(); plt.close()
