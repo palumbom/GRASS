@@ -65,7 +65,7 @@ plt.loglog(freqs, power, label="Input data")
 
 # set up stuff for lines
 N = 256
-Nt = 500
+Nt = 1000
 lines = [5434.5]
 depths = [0.8]
 variability = [true]
@@ -92,7 +92,8 @@ freqs = FFTW.fftfreq(length(rvs), 1.0/15.0) |> FFTW.fftshift
 
 # plot it
 plt.loglog(freqs, abs.(fourier), label="Synthetic")
-plt.title("Sampling = 15s, total time = " * string(Nt * 15) * " s")
 plt.xlabel("Frequency (Hz)")
-plt.ylabel("Power (units = ?)")
-plt.show()
+plt.ylabel("Power (m/s)/Hz")
+plt.legend()
+plt.savefig("/Users/michael/Desktop/compare_ft.pdf")
+plt.clf(); plt.close()
