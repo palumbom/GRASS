@@ -51,17 +51,25 @@ function power_spec_for_input(; mu::Symbol=:mu10, ax::Symbol=:c)
     v_grid, ccfs = calc_ccf(lambdas, flux, [5434.5232], [1-minimum(flux)], 7e5, normalize=true)
     rvs, sigs = calc_rvs_from_ccf(v_grid, ccfs)
 
-    # do a fourier transform
-    fourier = FFTW.fft(rvs) |> FFTW.fftshift
-    freqs = FFTW.fftfreq(length(rvs), 1.0/15.0) |> FFTW.fftshift
-    return freqs, abs.(fourier)
+    # get the power spectrum and return
+    return power_spectrum(15.0, rvs)
+end
+
+function power_spectrum(period, signal)
+    # do fourier transform and get frequencies
+    fourier = FFTW.fft(signal) |> FFTW.fftshift
+    freqs = FFTW.fftfreq(length(signal), 1.0/period) |> FFTW.fftshift
+
+    # get power
+    power = abs.(fourier).^2 ./ (freqs[2] - freqs[1])
+    return freqs, power
 end
 
 # now get the power spec for each disk position
 mu = :mu10
 ax = :c
-freqs, power = power_spec_for_input(mu=mu, ax=ax)
-plt.loglog(freqs, power, label="Input data")
+freqs_dat, power_dat = power_spec_for_input(mu=mu, ax=ax)
+plt.loglog(freqs_dat, power_dat, label="Input data")
 
 # set up stuff for lines
 N = 256
@@ -87,11 +95,10 @@ rvs, sigs = calc_rvs_from_ccf(v_grid, ccf1)
 
 # get frequencies to sample and then power
 println(">>> Getting periodogram...")
-fourier = FFTW.fft(rvs) |> FFTW.fftshift
-freqs = FFTW.fftfreq(length(rvs), 1.0/15.0) |> FFTW.fftshift
+freqs_sim, power_sim = power_spectrum(15.0, rvs)
 
 # plot it
-plt.loglog(freqs, abs.(fourier), label="Synthetic")
+plt.loglog(freqs_sim, power_sim, label="Synthetic")
 plt.xlabel("Frequency (Hz)")
 plt.ylabel("Power (m/s)/Hz")
 plt.legend()
