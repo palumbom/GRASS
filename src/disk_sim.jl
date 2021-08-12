@@ -87,7 +87,6 @@ function disk_sim(spec::SpecParams{T}, disk::DiskParams{T,Int64}, prof::AA{T,1},
             rot_shift = patch_velocity_los(i, j, pole=disk.pole)
             norm_term = calc_norm_term(i, j, disk)
 
-
             # loop over time, starting at random epoch
             t = 0
             t_loop = rand(0:len-1)
