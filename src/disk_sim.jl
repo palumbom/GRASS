@@ -83,8 +83,10 @@ function disk_sim(spec::SpecParams{T}, disk::DiskParams{T,Int64}, prof::AA{T,1},
             key = get_key_for_pos(i, j)
             len = spec.soldata.len[key]
 
-            # get redshift z for location on disk
+            # get redshift z and norm term for location on disk
             rot_shift = patch_velocity_los(i, j, pole=disk.pole)
+            norm_term = calc_norm_term(i, j, disk)
+
 
             # loop over time, starting at random epoch
             t = 0
@@ -101,10 +103,10 @@ function disk_sim(spec::SpecParams{T}, disk::DiskParams{T,Int64}, prof::AA{T,1},
 
                 # apply normalization term and add to outspec
                 # TODO: sqrt for variance spectrum
-                outspec[:,t] .+= (prof .* norm_term(i, j, disk))
+                outspec[:,t] .+= (prof .* norm_term)
 
                 # iterate t_loop
-                t_loop = mod(t_loop + 1, len-1)
+                t_loop = mod(t_loop+1, len-1)
             end
         end
     end
