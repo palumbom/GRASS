@@ -22,7 +22,7 @@ function clean_input(wavall::AA{T,2}, bisall::AA{T,2}, depall::AA{T,2}, widall::
     # loop through checking for bad columns
     for i in 1:size(wavall,2)
         # check for monotinicity
-        if !ismononotonic(widall[:,i])
+        if !ismonotonic(widall[:,i])
             badcols[i] = true
         end
 
