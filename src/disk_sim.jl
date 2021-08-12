@@ -21,23 +21,21 @@ function synthesize_spectra(spec::SpecParams, disk::DiskParams;
 end
 
 # line loop function, update prof in place
-function line_loop(i::T, j::T, prof::AA{T,1}, line::T,
-                   depth::T, blueshift::T, lambdas::AA{T,1},
-                   wsp::SynthWorkspace{T}; top::T=NaN,
-                   pole::Tuple{T,T,T}=(zero(T),one(T),zero(T))) where T<:AF
+function line_loop(prof::AA{T,1}, mid::T, depth::T,
+                   rot_shift::T, conv_blueshift::T,
+                   lambdas::AA{T,1}, wsp::SynthWorkspace{T}; top::T=NaN) where T<:AF
     # first trim the bisectors to the correct depth
     trim_bisector_chop!(depth, wsp.wavt, wsp.bist, wsp.dept, wsp.widt, top=top)
 
     # update the line profile
-    line_profile!(i, j, line, blueshift, lambdas, prof, wsp, pole=pole)
+    line_profile!(mid, rot_shift, conv_blueshift, lambdas, prof, wsp)
     return nothing
 end
 
 # TODO: @code_warntype
-function time_loop(i::T, j::T, t_loop::Int, prof::AA{T,1},
+function time_loop(t_loop::Int, prof::AA{T,1}, rot_shift::T,
                    key::Tuple{Symbol, Symbol}, liter::UnitRange{Int},
-                   spec::SpecParams{T}, wsp::SynthWorkspace{T}; top::T=NaN,
-                   pole::Tuple{T,T,T}=(zero(T),one(T),zero(T))) where T<:AF
+                   spec::SpecParams{T}, wsp::SynthWorkspace{T}; top::T=NaN) where T<:AF
     # some assertions
     @assert all(prof .== one(T))
 
@@ -50,9 +48,8 @@ function time_loop(i::T, j::T, t_loop::Int, prof::AA{T,1},
     # loop over specified synthetic lines
     for l in liter
         wsp.wavt .*= spec.variability[l]
-        line_loop(i, j, prof, spec.lines[l], spec.depths[l],
-                  spec.blueshifts[l], spec.lambdas, wsp,
-                  pole=pole, top=top)
+        line_loop(prof, spec.lines[l], spec.depths[l], rot_shift,
+                  spec.conv_blueshifts[l], spec.lambdas, wsp, top=top)
     end
     return nothing
 end
@@ -86,11 +83,11 @@ function disk_sim(spec::SpecParams{T}, disk::DiskParams{T,Int64}, prof::AA{T,1},
             key = get_key_for_pos(i, j)
             len = spec.soldata.len[key]
 
+            # get redshift z for location on disk
+            rot_shift = patch_velocity_los(i, j, pole=disk.pole)
+
             # loop over time, starting at random epoch
             t = 0
-
-            # TODO: this is weird, breaks overall seeding
-            # Random.seed!(abs(rand(Int)))
             t_loop = rand(0:len-1)
             cont = true
             while cont
@@ -100,9 +97,7 @@ function disk_sim(spec::SpecParams{T}, disk::DiskParams{T,Int64}, prof::AA{T,1},
 
                 # update profile in place
                 prof .= one(T)
-                time_loop(i, j, t_loop + 1, prof, key,
-                          liter, spec, wsp, top=top,
-                          pole=disk.pole)
+                time_loop(t_loop + 1, prof, rot_shift, key, liter, spec, wsp, top=top)
 
                 # apply normalization term and add to outspec
                 # TODO: sqrt for variance spectrum
