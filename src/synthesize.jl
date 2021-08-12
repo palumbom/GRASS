@@ -1,3 +1,5 @@
+using PyPlot; plt=PyPlot
+
 # function to calc intensity at given x,y coord.
 function line_profile!(i::T, j::T, mid::T, blueshift::T, lambdas::AA{T,1},
                        prof::AA{T,1}, wsp::SynthWorkspace{T};
@@ -16,9 +18,8 @@ function line_from_bis!(mid::T, lambdas::AA{T,1}, prof::AA{T,1},
                         lwavgrid::AA{T,1}, rwavgrid::AA{T,1},
                         allwavs::AA{T,1}, allints::AA{T,1}) where T<:AF
     # set wavgrids to line center to start
-    # TODO: test one liner
     lwavgrid .= (mid .- (0.5 .* widm .- wavm))
-    rwavgrid .= (mid .+ (0.5 .* widm .+ wavm))
+    rwavgrid .= (mid .+ (0.5 .* widm .+ wavm) .- (lwavgrid[2] - lwavgrid[1]))
 
     # concatenate into one big array
     len = length(rwavgrid)
@@ -28,14 +29,11 @@ function line_from_bis!(mid::T, lambdas::AA{T,1}, prof::AA{T,1},
     allwavs[1:len] .= view(lwavgrid, itr)
     allints[1:len] .= view(depm, itr)
 
-    # now make sure there is no cross-over
-    # TODO: figure out why not sorted
-    if !issorted(allwavs)
-        sort!(allwavs)
-    end
-
     # interpolate onto original lambda grid, extrapolate to continuum
     itp1 = extrapolate(interpolate!(T, (allwavs,), allints, Gridded(Linear())), 1.0)
     prof .*= itp1.(lambdas)
     return nothing
 end
+
+
+
