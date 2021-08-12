@@ -92,3 +92,5 @@ ax1.set_ylabel(L"{\rm RV\ (m s}^{-1})")
 ax1.set_xlim(0.0, 1.0)
 fig.savefig(GRASS.moddir * "avg_vs_depth.pdf")
 plt.clf(); plt.close()
+
+println("\n>>> Figure saved to: " * GRASS.moddir * "avg_vs_depth.pdf")
