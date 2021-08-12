@@ -100,7 +100,7 @@ freqs_sim, power_sim = power_spectrum(15.0, rvs)
 # plot it
 plt.loglog(freqs_sim, power_sim, label="Synthetic")
 plt.xlabel("Frequency (Hz)")
-plt.ylabel("Power (m/s)/Hz")
+plt.ylabel("Power (m/s/Hz)")
 plt.legend()
 plt.savefig("/Users/michael/Desktop/compare_ft.pdf")
 plt.clf(); plt.close()
