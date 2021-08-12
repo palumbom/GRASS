@@ -42,7 +42,7 @@ function calc_norm_term(x::T, y::T, N::Integer, u1::T, u2::T) where T<:AF
 end
 
 function calc_norm_term(x::T, y::T, disk::DiskParams) where T<:AF
-    return norm_term(x, y, disk.N, disk.u1, disk.u2)
+    return calc_norm_term(x, y, disk.N, disk.u1, disk.u2)
 end
 
 
