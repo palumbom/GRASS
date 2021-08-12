@@ -1,8 +1,8 @@
 using Pkg; Pkg.activate(".")
-using Statistics
-using GRASS
-using EchelleCCFs
 using FFTW
+using GRASS
+using Statistics
+using EchelleCCFs
 
 # plotting
 using LaTeXStrings
@@ -102,5 +102,5 @@ plt.loglog(freqs_sim, power_sim, label="Synthetic")
 plt.xlabel("Frequency (Hz)")
 plt.ylabel("Power (m/s/Hz)")
 plt.legend()
-plt.savefig("/Users/michael/Desktop/compare_ft.pdf")
+plt.savefig(abspath(homedir() * "/Desktop/compare_ft.pdf"))
 plt.clf(); plt.close()
