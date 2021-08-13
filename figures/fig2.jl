@@ -10,7 +10,7 @@ using PyCall; animation = pyimport("matplotlib.animation");
 mpl.style.use(GRASS.moddir * "figures/fig.mplstyle")
 
 # set boolean for writing plot
-write = false
+write = true
 
 # figure 2 -- cleaned + extrapolated input data
 function plot_input_cleaned(ncurves)
@@ -43,7 +43,7 @@ function plot_input_cleaned(ncurves)
 
     # write the file or show it
     if write
-        fig.savefig("fig2b.pdf")
+        fig.savefig(abspath(homedir() * "/fig2a.pdf"))
         plt.clf(); plt.close()
     else
         plt.show()
@@ -63,7 +63,7 @@ function plot_input_cleaned(ncurves)
 
     # write the file or show it
     if write
-        fig.savefig("fig2b.pdf")
+        fig.savefig(abspath(homedir() * "/fig2b.pdf"))
         plt.clf(); plt.close()
     else
         plt.show()
