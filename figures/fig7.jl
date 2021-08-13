@@ -92,27 +92,17 @@ function observe()
     return nothing
 end
 
-# run only if on ACI, else just plot the saved results
-if SS.moddir == "/storage/work/m/mlp95/SynthSpectra/"
-    observe()
-    plot_observe = false
-else
-    plot_observe = true
-end
 
 # plotting code block
 if plot_observe
+    # plotting imports
     import PyPlot; plt = PyPlot; mpl = plt.matplotlib; plt.ioff()
     using PyCall; animation = pyimport("matplotlib.animation")
-    mpl.style.use("my.mplstyle")
+    mpl.style.use(GRASS.moddir * "figures/fig.mplstyle")
+
+    # other imports for plotting
     using LsqFit
     using HypothesisTests
-
-    # set Desktop directory
-    outdir = "/Users/michael/Desktop/"
-    if !isdir(outdir)
-        outdir = "/Users/mlp95/Desktop/"
-    end
 
     # read in the data
     d = load("scripts/out/observe_" * string(N) * "_loop_" * string(Nloop) * ".jld2")
