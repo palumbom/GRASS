@@ -10,12 +10,15 @@ using PyCall; animation = pyimport("matplotlib.animation");
 mpl.style.use(GRASS.moddir * "figures/fig.mplstyle")
 
 # set boolean for writing plot
-write = false
+write = true
 
 # figure 1b -- input bisectors w/ variability
 function plot_input_variability()
     # get input data
     bisinfo = GRASS.SolarData(relative=true)
+
+    # initialize plot objects
+    fig, ax1 = plt.subplots()
 
     # loop and plot
     keyz = [(:c, :mu10), (:w, :mu06), (:w, :mu03)]
@@ -45,22 +48,21 @@ function plot_input_variability()
         x2 = reshape(avg_wav .- std_wav, length(avg_bis))
 
         # plot the curve
-        plt.fill_betweenx(y, x1, x2, color="C"*string(i-1), alpha=0.5)
-        plt.plot(avg_wav, avg_bis, color="C"*string(i-1), label=labels[i])
+        ax1.fill_betweenx(y, x1, x2, color="C"*string(i-1), alpha=0.5)
+        ax1.plot(avg_wav, avg_bis, color="C"*string(i-1), label=labels[i])
     end
-    plt.legend(loc="upper right")
-    plt.xlabel(L"{\rm Doppler\ Velocity\ (ms}^{-1} {\rm )}")
-    plt.ylabel(L"{\rm Normalized\ Flux}")
+    ax1.legend(loc="upper right")
+    ax1.set_xlabel(L"{\rm Doppler\ Velocity\ (ms}^{-1} {\rm )}")
+    ax1.set_ylabel(L"{\rm Normalized\ Flux}")
 
     # write the file or show it
     if write
-        fig.savefig("fig2b.pdf")
+        fig.savefig(abspath(homedir() * "/fig2b.pdf"))
         plt.clf(); plt.close()
     else
         plt.show()
         plt.clf(); plt.close()
     end
-
     return nothing
 end
 
