@@ -8,4 +8,4 @@
 .ipynb_checkpoints
 /docs/build/
 *.gz
-Mainfest.toml
+Manifest.toml
