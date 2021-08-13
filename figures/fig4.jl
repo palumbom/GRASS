@@ -19,6 +19,12 @@ const N = [8, 16, 32, 64, 128, 256, 512, 1024, 2048]
 const Nt = 100
 const Nloop = 12
 
+# set plotting boolean
+plot = true
+
+# check directories
+grassdir, plotdir, datadir = check_plot_dirs()
+
 function resolution()
     # set up parameters for lines
     lines = [5434.5]
@@ -26,8 +32,8 @@ function resolution()
     res = 700000.0
     top = NaN
     contiguous_only=true
-    spec = SpecParams(lines=lines, depths=depths, resolution=res, extrapolate=true,
-                      contiguous_only=contiguous_only)
+    spec = SpecParams(lines=lines, depths=depths, resolution=res,
+                      extrapolate=true, contiguous_only=contiguous_only)
 
     # allocate shared arrays
     rms_res = SharedArray{Float64}(length(N))
@@ -49,33 +55,23 @@ function resolution()
     df[!,:std_res] = std_res
 
     # write to CSV
-    fname = SS.moddir * "scripts/out/rms_vs_res.csv"
+    fname = datadir * "rms_vs_res.csv"
     CSV.write(fname, df)
     return nothing
 end
 
-# run only if on ACI, else just plot the saved results
-if SS.moddir == "/storage/work/m/mlp95/SynthSpectra/"
-    resolution()
-    plot_resolution = false
-else
-    plot_resolution = true
-end
+# run the simulation
+resolution()
 
 # plotting code block
-if plot_resolution
+if plot
+    # plotting imports
     import PyPlot; plt = PyPlot; mpl = plt.matplotlib; plt.ioff()
     using PyCall; animation = pyimport("matplotlib.animation")
-    mpl.style.use("my.mplstyle")
-
-    # set Desktop directory
-    outdir = "/Users/michael/Desktop/"
-    if !isdir(outdir)
-        outdir = "/Users/mlp95/Desktop/"
-    end
+    mpl.style.use(GRASS.moddir * "figures/fig.mplstyle")
 
     # read in the data
-    fname = SS.moddir * "scripts/out/rms_vs_res.csv"
+    fname = datadir * "rms_vs_res.csv"
     df = CSV.read(fname, DataFrame)
     res = df.res
     rms_res = df.rms_res
@@ -109,6 +105,6 @@ if plot_resolution
     ax1.set_xlabel(L"N")
     ax1.set_ylabel(L"{\rm RMS\ RV\ (m s}^{-1})")
     ax1.legend()
-    fig.savefig(outdir * "res.pdf")
+    fig.savefig(plotdir * "res.pdf")
     plt.clf(); plt.close()
 end

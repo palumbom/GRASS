@@ -25,3 +25,19 @@ end
     end
     return mean(avg0), std(avg0)
 end
+
+# small function to check and create file structure
+function check_plot_dirs()
+    # directories
+    dirs = [homedir() * "/grass_output/",
+            homedir() * "/grass_output/plots/",
+            homedir() * "/grass_output/data/"]
+
+    # create dirs if they dont exist, and return dir names
+    for dir in dirs
+        if !isdir(dir)
+            mkdir(dir)
+        end
+    end
+    return dirs
+end
