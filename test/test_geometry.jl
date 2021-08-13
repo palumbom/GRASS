@@ -28,7 +28,7 @@ end
     N = 50
     u1 = 0.0
     u2 = 0.0
-    @test GRASS.norm_term(0.0, 0.0, N, u1, u2) == pi ./ (2.0 * N^2)
+    @test GRASS.calc_norm_term(0.0, 0.0, N, u1, u2) == pi ./ (2.0 * N^2)
 end
 
 end
