@@ -1,3 +1,5 @@
+import PyPlot; plt = PyPlot; mpl = plt.matplotlib; plt.ioff()
+
 # function to calc intensity at given x,y coord.
 function line_profile!(mid::T, rot_shift::T, conv_blueshift::T, lambdas::AA{T,1},
                        prof::AA{T,1}, wsp::SynthWorkspace{T}) where T<:AF
@@ -16,7 +18,8 @@ function line_from_bis!(mid::T, lambdas::AA{T,1}, prof::AA{T,1},
                         allwavs::AA{T,1}, allints::AA{T,1}) where T<:AF
     # set wavgrids to line center to start
     lwavgrid .= (mid .- (0.5 .* widm .- wavm))
-    rwavgrid .= (mid .+ (0.5 .* widm .+ wavm) .- (lwavgrid[2] - lwavgrid[1]))
+    rwavgrid .= (mid .+ (0.5 .* widm .+ wavm))
+    rwavgrid[1] = lwavgrid[1] + 1e-3            # TODO: fix to deal with nodes
 
     # concatenate into one big array
     len = length(rwavgrid)

@@ -1,7 +1,18 @@
-using CSV
 using DataFrames
 
+
 @testset "Synthesis" begin
+
+# get data for use in tests
+data = GRASS.SolarData()
+wavt = data.wav[(:c, :mu10)][:,1]
+bist = data.bis[(:c, :mu10)][:,1]
+dept = data.dep[(:c, :mu10)][:,1]
+widt = data.wid[(:c, :mu10)][:,1]
+
+# set trimming parameters
+top = NaN
+dep = 0.75
 
 @testset "Testing function definitions" begin
     @test isdefined(GRASS, :trim_bisector_chop!)
@@ -11,42 +22,36 @@ using DataFrames
 end
 
 @testset "Testing line trimming" begin
-    # read in data
-    df = CSV.read(GRASS.moddir * "test/synth_data.csv", DataFrame)
-    wavt = copy(df.wavt)
-    bist = copy(df.bist)
-    dept = copy(df.dept)
-    widt = copy(df.widt)
+    # copy the data
+    wavt1 = copy(wavt)
+    bist1 = copy(bist)
+    dept1 = copy(dept)
+    widt1 = copy(widt)
 
     # do the trimming
-    depth = 0.75
-    top = 0.9
-    GRASS.trim_bisector_chop!(depth, wavt, bist, dept, widt, top=top)
+    GRASS.trim_bisector_chop!(dep, wavt1, bist1, dept1, widt1, top=top)
 
     # test that it wasn't changed
-    @test wavt !== df.wavt
-    @test bist !== df.bist
-    @test dept !== df.dept
-    @test widt !== df.widt
+    @test wavt1 !== wavt
+    @test bist1 !== bist
+    @test dept1 !== dept
+    @test widt1 !== widt
 
     # top and bottom
-    @test bist[1] == 1.0 - depth
-    @test bist[end] == 1.0
-    @test wavt[1] == df.wavt[findfirst(df.bist .>= 1.0 - depth)]
+    @test bist1[1] == 1.0 - dep
+    @test bist1[end] == 1.0
+    @test wavt1[1] == wavt[findfirst(bist .>= 1.0 - dep)]
 end
 
 @testset "Testing line synthesis" begin
-    # read in data
-    df = CSV.read(GRASS.moddir * "test/synth_data.csv", DataFrame)
-    wavt = copy(df.wavt)
-    bist = copy(df.bist)
-    dept = copy(df.dept)
-    widt = copy(df.widt)
+    # copy the data
+    wavt1 = copy(wavt)
+    bist1 = copy(bist)
+    dept1 = copy(dept)
+    widt1 = copy(widt)
 
     # do the trimming
-    depth = 0.75
-    top = 0.9
-    GRASS.trim_bisector_chop!(depth, wavt, bist, dept, widt, top=top)
+    GRASS.trim_bisector_chop!(dep, wavt1, bist1, dept1, widt1, top=top)
 
     # allocate memory for line
     λs = range(5434.0, 5435.0, length=1000)
@@ -58,29 +63,25 @@ end
 
     # synthesize line
     mid = 5434.5
-    dep = 0.75
-    GRASS.line_from_bis!(mid, λs, prof, wavt, dept, widt, lwavgrid, rwavgrid, allwavs, allints)
+    GRASS.line_from_bis!(mid, λs, prof, wavt1, dept1, widt1, lwavgrid, rwavgrid, allwavs, allints)
 
     # test it
     @test !all(prof .== 1.0)
     @test prof[1] == 1.0
     @test prof[end] == 1.0
-    @test minimum(prof) == 1.0 - depth
+    @test minimum(prof) == 1.0 - dep
     @test maximum(prof) == 1.0
 end
 
 @testset "Testing bisector in/out" begin
     # read in data
-    df = CSV.read(GRASS.moddir * "test/synth_data.csv", DataFrame)
-    wavt = copy(df.wavt)
-    bist = copy(df.bist)
-    dept = copy(df.dept)
-    widt = copy(df.widt)
+    wavt1 = copy(wavt)
+    bist1 = copy(bist)
+    dept1 = copy(dept)
+    widt1 = copy(widt)
 
     # do the trimming
-    depth = 0.75
-    top = 0.9
-    GRASS.trim_bisector_chop!(depth, wavt, bist, dept, widt, top=top)
+    GRASS.trim_bisector_chop!(dep, wavt1, bist1, dept1, widt1, top=top)
 
     # allocate memory for line
     λs = range(5434.0, 5435.0, length=1000)
@@ -92,24 +93,31 @@ end
 
     # synthesize line
     mid = 5434.5
-    GRASS.line_from_bis!(mid, λs, prof, wavt, dept, widt, lwavgrid, rwavgrid, allwavs, allints)
+    GRASS.line_from_bis!(mid, λs, prof, wavt1, dept1, widt1, lwavgrid, rwavgrid, allwavs, allints)
 
     # measure the bisector of synth line
     wavo, biso = GRASS.measure_bisector(λs, prof, interpolate=false)
     wavo .-= mid
 
     # test that output bisector matches input bisector
-    @test all(isapprox.(wavo[2:99], wavt[2:99], atol=1e-3))
+    @test all(isapprox.(wavo[2:99], wavt1[2:99], atol=1e-3))
 end
 
-# @testset "Testing disk-integrated spectrum synthesis"
-#     spec = SpecParams(lines=[5434.5], depths=[0.8], resolution=7e8)
-#     disk = DiskParams(N=64, Nt=10)
-#     wavs, flux = synthesize_spectra(spec, disk)
+@testset "Testing disk-integrated spectrum synthesis" begin
+    # set params
+    N = 256
+    Nt = 5
+    res = 7e5
 
-#     @test minimum(flux) == 1.0
-#     @test minimum(flux) ≈ 0.2 atol=1e-5
+    # simulate spectra
+    spec = SpecParams(lines=[5434.5], depths=[dep], resolution=res)
+    disk = DiskParams(N=N, Nt=Nt)
+    wavs, flux = synthesize_spectra(spec, disk)
 
-# end
+    # ensure spectra have correct properties
+    @test size(flux,2) == 5
+    @test maximum(flux[:,1]) == 1.0
+    # @test isapprox(minimum(flux[:,1]), 1.0 - dep, atol=1e-1) # TODO: fix?
+end
 
 end
