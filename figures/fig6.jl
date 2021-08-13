@@ -77,9 +77,10 @@ end
 
 # plotting code block
 if plot_inclination
+    # plotting imports
     import PyPlot; plt = PyPlot; mpl = plt.matplotlib; plt.ioff()
     using PyCall; animation = pyimport("matplotlib.animation")
-    mpl.style.use("my.mplstyle")
+    mpl.style.use(GRASS.moddir * "figures/fig.mplstyle")
 
     # set Desktop directory
     outdir = "/Users/michael/Desktop/"
