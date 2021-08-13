@@ -1,5 +1,3 @@
-import PyPlot; plt = PyPlot; mpl = plt.matplotlib; plt.ioff()
-
 # function to calc intensity at given x,y coord.
 function line_profile!(mid::T, rot_shift::T, conv_blueshift::T, lambdas::AA{T,1},
                        prof::AA{T,1}, wsp::SynthWorkspace{T}) where T<:AF
