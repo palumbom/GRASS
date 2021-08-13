@@ -15,6 +15,9 @@ import PyPlot; plt = PyPlot; mpl = plt.matplotlib; plt.ioff()
 using PyCall; animation = pyimport("matplotlib.animation");
 mpl.style.use(GRASS.moddir * "figures/fig.mplstyle")
 
+# set boolean for writing plot
+write = true
+
 function download_iag()
     println(">>> Downloading IAG atlas...")
     file = HTTP.download("https://cdsarc.unistra.fr/ftp/J/A+A/587/A65/spvis.dat.gz",
@@ -145,7 +148,7 @@ vel_sim, bis_sim = GRASS.measure_bisector(v_grid, ccfm, interpolate=false, top=b
 
 # model the line blends out of the IAG spectrum
 println(">>> Modeling out line blends in IAG spectrum...")
-flux_iag_cor = model_iag_blends(lambdas1, outspec1, wavs_iag, flux_iag, plot=true)
+flux_iag_cor = model_iag_blends(lambdas1, outspec1, wavs_iag, flux_iag, plot=false)
 
 # get offsets to align the spectra in wavelength
 off1 = wavs_iag[argmin(flux_iag)] - lambdas1[argmin(outspec1[:,1]), 1]
@@ -197,8 +200,15 @@ function comparison_plots()
     ax2.set_ylabel(L"{\rm IAG\ -\ Synthetic}")
     ax1.legend()
     fig.tight_layout()
-    plt.show()
-    plt.clf(); plt.close()
+
+    # write or show spectra
+    if write
+        fig.savefig(abspath(homedir() * "/fig3a.pdf"))
+        plt.clf(); plt.close()
+    else
+        plt.show()
+        plt.clf(); plt.close()
+    end
 
     # align bisectors to arbitrary point
     vel_sim .-= mean(vel_sim)
@@ -224,8 +234,15 @@ function comparison_plots()
     ax1.set_ylabel(L"{\rm Normalized\ Intensity}")
     ax2.set_xlabel(L"{\rm IAG\ -\ Synthetic\ (ms^{-1})}")
     ax1.legend()
-    plt.show()
-    plt.clf(); plt.close()
+
+    # write or show spectra
+    if write
+        fig.savefig(abspath(homedir() * "/fig3b.pdf"))
+        plt.clf(); plt.close()
+    else
+        plt.show()
+        plt.clf(); plt.close()
+    end
     return nothing
 end
 
