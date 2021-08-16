@@ -102,7 +102,7 @@ end
 
 
 # plotting code block
-if plot_observe
+if plot
     # plotting imports
     import PyPlot; plt = PyPlot; mpl = plt.matplotlib; plt.ioff()
     using PyCall; animation = pyimport("matplotlib.animation")
