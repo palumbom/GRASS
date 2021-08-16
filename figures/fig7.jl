@@ -3,8 +3,7 @@ using Distributed
 @everywhere using Pkg
 @everywhere Pkg.activate(".")
 @everywhere using Statistics
-@everywhere using SynthSpectra
-@everywhere SS=SynthSpectra
+@everywhere using GRASS
 @everywhere using SharedArrays
 @everywhere using EchelleCCFs
 using CSV
@@ -16,6 +15,12 @@ using LaTeXStrings
 # some global stuff
 const N = 256
 const Nloop = 800
+
+# set plotting boolean
+plot = true
+
+# check directories
+grassdir, plotdir, datadir = check_plot_dirs()
 
 function observe()
     contiguous_only=false
@@ -51,19 +56,19 @@ function observe()
 
         # loop over each plan
         for j in eachindex(N_obs)
-            obs_shortdead = SS.ObservationPlan(N_obs=N_obs[j],
-                                               obs_per_night=N_obs[j],
-                                               time_per_obs=exp_time,
-                                               dead_time=short_dead)
-            obs_longdead = SS.ObservationPlan(N_obs=N_obs[j],
-                                              obs_per_night=N_obs[j],
-                                              time_per_obs=exp_time,
-                                              dead_time=long_dead)
+            obs_shortdead = GRASS.ObservationPlan(N_obs=N_obs[j],
+                                                    obs_per_night=N_obs[j],
+                                                    time_per_obs=exp_time,
+                                                    dead_time=short_dead)
+            obs_longdead = GRASS.ObservationPlan(N_obs=N_obs[j],
+                                                   obs_per_night=N_obs[j],
+                                                   time_per_obs=exp_time,
+                                                   dead_time=long_dead)
 
             # loop repeatedly to get good stats
             for k in 1:Nloop
-                vels1 = SS.simulate_observations(obs_shortdead, spec1, N=N, snr=snr, new_res=new_res)
-                vels2 = SS.simulate_observations(obs_longdead, spec1, N=N, snr=snr, new_res=new_res)
+                vels1 = GRASS.simulate_observations(obs_shortdead, spec1, N=N, snr=snr, new_res=new_res)
+                vels2 = GRASS.simulate_observations(obs_longdead, spec1, N=N, snr=snr, new_res=new_res)
                 avg_shortdead[i, j, k] = mean(vels1)
                 avg_longdead[i, j, k] = mean(vels2)
                 rms_shortdead[i, j, k] = calc_rms(vels1)
@@ -79,7 +84,7 @@ function observe()
     rms_longdead = Array{Float64}(rms_longdead)
 
     # save the output
-    outfile = SS.moddir * "scripts/out/observe_" * string(N) * "_loop_" * string(Nloop) * ".jld2"
+    outfile = datadir * "observe_" * string(N) * "_loop_" * string(Nloop) * ".jld2"
     save(outfile,
          "avg_shortdead", avg_shortdead,
          "avg_longdead", avg_longdead,
@@ -105,7 +110,8 @@ if plot_observe
     using HypothesisTests
 
     # read in the data
-    d = load("scripts/out/observe_" * string(N) * "_loop_" * string(Nloop) * ".jld2")
+    outfile = datadir * "observe_" * string(N) * "_loop_" * string(Nloop) * ".jld2"
+    d = load(datadir)
     avg_shortdead = d["avg_shortdead"]
     avg_longdead = d["avg_longdead"]
     # rms_shortdead = d["rms_shortdead"]
@@ -148,7 +154,7 @@ if plot_observe
         axs[1].legend(loc="upper left")
         # axs[2].yaxis.set_label_position("right")
         # axs[2].yaxis.tick_right()
-        fig.savefig(outdir * "fig7.pdf")
+        fig.savefig(plotdir * "fig7.pdf")
         plt.clf(); plt.close()
         println(">>> Figure written to: " * plotdir * "fig7.pdf")
     end
