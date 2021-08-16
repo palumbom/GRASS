@@ -105,6 +105,7 @@ if plot
     ax1.set_xlabel(L"N")
     ax1.set_ylabel(L"{\rm RMS\ RV\ (m s}^{-1})")
     ax1.legend()
-    fig.savefig(plotdir * "res.pdf")
+    fig.savefig(plotdir * "fig4.pdf")
     plt.clf(); plt.close()
+    println(">>> Figure written to: " * plotdir * "fig4.pdf")
 end

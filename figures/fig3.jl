@@ -209,6 +209,7 @@ function comparison_plots()
     if write
         fig.savefig(plotdir * "fig3a.pdf")
         plt.clf(); plt.close()
+        println(">>> Figure written to: " * plotdir * "fig3a.pdf")
     else
         plt.show()
         plt.clf(); plt.close()
@@ -243,6 +244,7 @@ function comparison_plots()
     if write
         fig.savefig(plotdir * "fig3b.pdf")
         plt.clf(); plt.close()
+        println(">>> Figure written to: " * plotdir * "fig3b.pdf")
     else
         plt.show()
         plt.clf(); plt.close()

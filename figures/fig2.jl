@@ -49,6 +49,7 @@ function plot_input_cleaned(ncurves)
     if write
         fig.savefig(plotdir * "fig2a.pdf")
         plt.clf(); plt.close()
+        println(">>> Figure written to: " * plotdir * "fig2a.pdf")
     else
         plt.show()
         plt.clf(); plt.close()
@@ -69,6 +70,7 @@ function plot_input_cleaned(ncurves)
     if write
         fig.savefig(plotdir * "fig2b.pdf")
         plt.clf(); plt.close()
+        println(">>> Figure written to: " * plotdir * "fig2b.pdf")
     else
         plt.show()
         plt.clf(); plt.close()
