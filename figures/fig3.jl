@@ -207,7 +207,7 @@ function comparison_plots()
 
     # write or show spectra
     if write
-        fig.savefig(plotdir * "fig3a.pdf"))
+        fig.savefig(plotdir * "fig3a.pdf")
         plt.clf(); plt.close()
     else
         plt.show()
@@ -241,7 +241,7 @@ function comparison_plots()
 
     # write or show spectra
     if write
-        fig.savefig(plotdir * "fig3b.pdf"))
+        fig.savefig(plotdir * "fig3b.pdf")
         plt.clf(); plt.close()
     else
         plt.show()
