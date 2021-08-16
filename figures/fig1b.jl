@@ -11,6 +11,7 @@ mpl.style.use(GRASS.moddir * "figures/fig.mplstyle")
 
 # set boolean for writing plot
 write = true
+grassdir, plotdir, datadir = check_plot_dirs()
 
 # figure 1b -- input bisectors w/ variability
 function plot_input_variability()
@@ -57,7 +58,7 @@ function plot_input_variability()
 
     # write the file or show it
     if write
-        fig.savefig(abspath(homedir() * "/fig2b.pdf"))
+        fig.savefig(plotdir * "fig1b.pdf"))
         plt.clf(); plt.close()
     else
         plt.show()
