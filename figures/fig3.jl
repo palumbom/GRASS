@@ -17,6 +17,7 @@ mpl.style.use(GRASS.moddir * "figures/fig.mplstyle")
 
 # set boolean for writing plot
 write = true
+grassdir, plotdir, datadir = check_plot_dirs()
 
 function download_iag()
     println(">>> Downloading IAG atlas...")
@@ -203,7 +204,7 @@ function comparison_plots()
 
     # write or show spectra
     if write
-        fig.savefig(abspath(homedir() * "/fig3a.pdf"))
+        fig.savefig(plotdir * "fig3a.pdf"))
         plt.clf(); plt.close()
     else
         plt.show()
@@ -237,7 +238,7 @@ function comparison_plots()
 
     # write or show spectra
     if write
-        fig.savefig(abspath(homedir() * "/fig3b.pdf"))
+        fig.savefig(plotdir * "fig3b.pdf"))
         plt.clf(); plt.close()
     else
         plt.show()
