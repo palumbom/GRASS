@@ -9,6 +9,9 @@ import PyPlot; plt = PyPlot; mpl = plt.matplotlib; plt.ioff()
 using PyCall; animation = pyimport("matplotlib.animation");
 mpl.style.use(GRASS.moddir * "figures/fig.mplstyle")
 
+# define rms loop function
+include(GRASS.moddir * "figures/rms_loop.jl")
+
 # set boolean for writing plot
 write = true
 grassdir, plotdir, datadir = check_plot_dirs()
