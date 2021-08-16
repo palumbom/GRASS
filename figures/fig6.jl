@@ -107,7 +107,8 @@ if plot
     ax1.set_ylim(0.2,0.345)
     ax1.annotate("Pole-on", xy=(77.5, 0.207), xytext=(0.5,0.205), arrowprops=arrowprops)
     ax1.annotate("Equator-on", xy=(78.0, 0.205))
-    fig.savefig(plotdir * "inc_rms.pdf")
+    fig.savefig(plotdir * "fig6.pdf")
     plt.clf(); plt.close()
+    println(">>> Figure written to: " * plotdir * "fig6.pdf")
 end
 

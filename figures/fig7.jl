@@ -148,7 +148,8 @@ if plot_observe
         axs[1].legend(loc="upper left")
         # axs[2].yaxis.set_label_position("right")
         # axs[2].yaxis.tick_right()
-        fig.savefig(outdir * "obs_hist_" * string(i) * ".pdf")
+        fig.savefig(outdir * "fig7.pdf")
         plt.clf(); plt.close()
+        println(">>> Figure written to: " * plotdir * "fig7.pdf")
     end
 end
