@@ -11,6 +11,7 @@ mpl.style.use(GRASS.moddir * "figures/fig.mplstyle")
 
 # set boolean for writing plot
 write = true
+grassdir, plotdir, datadir = check_plot_dirs()
 
 # figure 2 -- cleaned + extrapolated input data
 function plot_input_cleaned(ncurves)
@@ -43,7 +44,7 @@ function plot_input_cleaned(ncurves)
 
     # write the file or show it
     if write
-        fig.savefig(abspath(homedir() * "/fig2a.pdf"))
+        fig.savefig(plotdir * "fig2a.pdf"))
         plt.clf(); plt.close()
     else
         plt.show()
@@ -63,7 +64,7 @@ function plot_input_cleaned(ncurves)
 
     # write the file or show it
     if write
-        fig.savefig(abspath(homedir() * "/fig2b.pdf"))
+        fig.savefig(plotdir * "fig2b.pdf"))
         plt.clf(); plt.close()
     else
         plt.show()
