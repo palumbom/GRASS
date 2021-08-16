@@ -1,3 +1,5 @@
+using Distributed
+
 # parallelized for loop
 @everywhere function rms_loop(spec::SpecParams, disk::DiskParams, Nloop::T; top::Float64=NaN) where T<:Integer
     rms0 = zeros(Nloop)
