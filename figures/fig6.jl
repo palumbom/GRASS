@@ -19,6 +19,12 @@ const N = 256
 const Nt = 200
 const Nloop = 100
 
+# set plotting boolean
+plot = true
+
+# check directories
+grassdir, plotdir, datadir = check_plot_dirs()
+
 function inclination()
     # set up stuff for lines
     lines = [5434.5]
@@ -62,21 +68,16 @@ function inclination()
     df[!,:std] = pstd
 
     # write results to CSV
-    fname = SS.moddir * "scripts/out/inclination_" *  string(N) * ".csv"
+    fname = datadir * "inclination_" *  string(N) * ".csv"
     CSV.write(fname, df)
     return nothing
 end
 
-# run only if on ACI, else just plot the saved results
-if SS.moddir == "/storage/work/m/mlp95/SynthSpectra/"
-    inclination()
-    plot_inclination = false
-else
-    plot_inclination = true
-end
+# run the simulation
+inclination()
 
 # plotting code block
-if plot_inclination
+if plot
     # plotting imports
     import PyPlot; plt = PyPlot; mpl = plt.matplotlib; plt.ioff()
     using PyCall; animation = pyimport("matplotlib.animation")
@@ -89,7 +90,7 @@ if plot_inclination
     end
 
     # read in the data
-    fname = SS.moddir * "scripts/out/inclination_" *  string(N) * ".csv"
+    fname = datadir * "inclination_" *  string(N) * ".csv"
     dat = CSV.read(fname, DataFrame)
     ang = dat.inc .* (180.0/π)
     rms = dat.rms
@@ -106,7 +107,7 @@ if plot_inclination
     ax1.set_ylim(0.2,0.345)
     ax1.annotate("Pole-on", xy=(77.5, 0.207), xytext=(0.5,0.205), arrowprops=arrowprops)
     ax1.annotate("Equator-on", xy=(78.0, 0.205))
-    fig.savefig(outdir * "inc_rms.pdf")
+    fig.savefig(plotdir * "inc_rms.pdf")
     plt.clf(); plt.close()
 end
 
