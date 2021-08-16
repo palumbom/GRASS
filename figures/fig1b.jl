@@ -63,7 +63,6 @@ function plot_input_variability()
     if write
         fig.savefig(plotdir * "fig1b.pdf")
         plt.clf(); plt.close()
-        println(">>> Figure written to: " * plotdir * "fig1b.pdf")
     else
         plt.show()
         plt.clf(); plt.close()
