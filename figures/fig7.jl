@@ -100,6 +100,8 @@ function observe()
     return nothing
 end
 
+# run the simulation
+observe()
 
 # plotting code block
 if plot
