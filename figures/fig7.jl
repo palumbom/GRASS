@@ -13,7 +13,7 @@ using FileIO
 using LaTeXStrings
 
 # define rms loop function
-include(GRASS.moddir * "figures/rms_loop.jl")
+include(GRASS.moddir * "figures/fig_functions.jl")
 
 # some global stuff
 const N = 256

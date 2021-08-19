@@ -12,7 +12,7 @@ using LaTeXStrings
 using LsqFit
 
 # define rms loop function
-include(GRASS.moddir * "figures/rms_loop.jl")
+include(GRASS.moddir * "figures/fig_functions.jl")
 
 # some global stuff
 const N = 256
@@ -46,21 +46,20 @@ function depth()
         println("running depth = " * string(depths[i]))
         spec2 = SpecParams(lines=lines, depths=[depths[i]], resolution=resolution,
                            extrapolate=true, contiguous_only=contiguous_only)
-        rms2, std2 = rms_loop(spec2, disk, Nloop, top=top)
-        avg_avg, avg_std = avg_loop(spec2, disk, Nloop, top=top)
-        depth_rms[i] = rms2
-        depth_std[i] = std2
-        depth_avg_avg[i] = avg_avg
-        depth_avg_std[i] = avg_std
+        avg_avg1, std_avg1, avg_rms1, std_rms1 = spec_loop(spec, disk, Nloop, top=top)
+        avg_avg_depth[i] = avg_avg1
+        std_avg_depth[i] = std_avg1
+        avg_rms_depth[i] = avg_rms1
+        std_rms_depth[i] = std_rms1
     end
 
     # make data frame
     df = DataFrame()
     df[!,:depths] = depths
-    df[!,:rms] = depth_rms
-    df[!,:std] = depth_std
-    df[!,:avg_avg] = depth_avg_avg
-    df[!,:avg_std] = depth_avg_std
+    df[!,:avg_avg_depth] = avg_avg_depth
+    df[!,:std_avg_depth] = std_avg_depth
+    df[!,:avg_rms_depth] = avg_rms_depth
+    df[!,:std_rms_depth] = std_rms_depth
 
     # write to CSV
     fname = datadir * "rms_vs_depth_" * string(N) * ".csv"
@@ -80,11 +79,16 @@ if plot
     # read in the data
     fname = datadir * "rms_vs_depth_" * string(N) * ".csv"
     df = CSV.read(fname, DataFrame)
+    depths = df.depths
+    avg_avg_depth = df.avg_avg_depth
+    std_avg_depth = df.std_avg_depth
+    avg_rms_depth = df.avg_rms_depth
+    std_rms_depth = df.std_rms_depth
 
     # plot the results
     arrowprops = Dict("facecolor"=>"black", "shrink"=>0.05, "width"=>2.0,"headwidth"=>8.0)
     fig, ax1 = plt.subplots()
-    ax1.errorbar(df.depths, df.rms, yerr=df.std, capsize=3.0, color="black", fmt=".")
+    ax1.errorbar(depths, avg_rms_depth, yerr=std_rms_depth, capsize=3.0, color="black", fmt=".")
     ax1.fill_betweenx(range(0.0, 1.0, length=5), zeros(5), zeros(5) .+ 0.2, color="k", alpha=0.25)
     ax1.set_xlabel(L"{\rm Line\ Depth}")
     ax1.set_ylabel(L"{\rm RMS\ RV\ (m s}^{-1})")
@@ -97,7 +101,7 @@ if plot
     println(">>> Figure written to: " * plotdir * "fig5a.pdf")
 
     fig, ax1 = plt.subplots()
-    ax1.errorbar(df.depths, df.avg_avg, yerr=df.avg_std, capsize=3.0, color="black", fmt=".")
+    ax1.errorbar(depths, avg_avg_depth, yerr=std_avg_depth, capsize=3.0, color="black", fmt=".")
     ax1.set_xlabel(L"{\rm Line\ Depth}")
     ax1.set_ylabel(L"{\rm RV\ (m s}^{-1})")
     ax1.set_xlim(0.0, 1.0)

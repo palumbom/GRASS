@@ -11,8 +11,8 @@ using DataFrames
 using LaTeXStrings
 using LsqFit
 
-# define rms loop function
-include(GRASS.moddir * "figures/rms_loop.jl")
+# define some functions
+include(GRASS.moddir * "figures/fig_functions.jl")
 
 # some global stuff
 const N = [8, 16, 32, 64, 128, 256, 512, 1024, 2048]
@@ -36,23 +36,29 @@ function resolution()
                       extrapolate=true, contiguous_only=contiguous_only)
 
     # allocate shared arrays
-    rms_res = SharedArray{Float64}(length(N))
-    std_res = SharedArray{Float64}(length(N))
+    avg_avg_res = SharedArray{Float64}(length(N))
+    std_avg_res = SharedArray{Float64}(length(N))
+    avg_rms_res = SharedArray{Float64}(length(N))
+    std_rms_res = SharedArray{Float64}(length(N))
 
     # calculate
     @sync @distributed for i in 1:length(N)
     	println("running resolution N = " * string(N[i]))
         disk = DiskParams(N=N[i], Nt=Nt)
-    	rms1, std1 = rms_loop(spec, disk, Nloop, top=top)
-    	rms_res[i] = rms1
-    	std_res[i] = std1
+    	avg_avg1, std_avg1, avg_rms1, std_rms1 = spec_loop(spec, disk, Nloop, top=top)
+        avg_avg_res[i] = avg_avg1
+        std_avg_res[i] = std_avg1
+    	avg_rms_res[i] = avg_rms1
+    	std_rms_res[i] = std_rms1
     end
 
     # make data frame
     df = DataFrame()
     df[!,:res] = N
-    df[!,:rms_res] = rms_res
-    df[!,:std_res] = std_res
+    df[!,:avg_avg_res] = avg_avg_res
+    df[!,:std_avg_res] = std_avg_res
+    df[!,:avg_rms_res] = avg_rms_res
+    df[!,:std_rms_res] = std_rms_res
 
     # write to CSV
     fname = datadir * "rms_vs_res.csv"
@@ -74,8 +80,8 @@ if plot
     fname = datadir * "rms_vs_res.csv"
     df = CSV.read(fname, DataFrame)
     res = df.res
-    rms_res = df.rms_res
-    std_res = df.std_res
+    rms_res = df.avg_rms_res
+    std_res = df.std_rms_res
 
     # fit the data
     @. power_law(x, p) = p[1] * x^(-p[2])
@@ -88,8 +94,8 @@ if plot
     # plot it
     fig = plt.figure()
     ax1 = fig.add_subplot()
-    ax1.set_xscale("log", base=2)
-    ax1.set_yscale("log", base=10)
+    ax1.set_xscale("log", basex=2)
+    ax1.set_yscale("log", basey=10)
     ax1.errorbar(res, rms_res, yerr=std_res, capsize=3.0, color="black", fmt=".")
     ax1.plot(res_fit, power_law(res_fit, fit.param), "k--", alpha=0.4,
              label = L"{\rm Power\ law\ index\ } \approx\ %$x ")
