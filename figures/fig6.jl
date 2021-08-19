@@ -12,7 +12,7 @@ using LaTeXStrings
 using LsqFit
 
 # define rms loop function
-include(GRASS.moddir * "figures/rms_loop.jl")
+include(GRASS.moddir * "figures/fig_functions.jl")
 
 # some global stuff
 const N = 256
@@ -56,16 +56,20 @@ function inclination()
         spec = SpecParams(lines=lines, depths=depths, resolution=resolution,
                           extrapolate=true, contiguous_only=contiguous_only)
         disk = DiskParams(N=N, Nt=Nt, pole=poles[i])
-        rms1, std1 = rms_loop(spec, disk, Nloop, top=top)
-        prms[i] = rms1
-        pstd[i] = std1
+        avg_avg1, std_avg1, avg_rms1, std_rms1 = spec_loop(spec, disk, Nloop, top=top)
+        avg_avg_inc[i] = avg_avg1
+        std_avg_inc[i] = std_avg1
+        avg_rms_inc[i] = avg_rms1
+        std_rms_inc[i] = std_rms1
     end
 
     # make data frame
     df = DataFrame()
     df[!,:inc] = incls
-    df[!,:rms] = prms
-    df[!,:std] = pstd
+    df[!,:avg_avg_inc] = avg_avg_inc
+    df[!,:std_avg_inc] = std_avg_inc
+    df[!,:avg_rms_inc] = avg_rms_inc
+    df[!,:std_rms_inc] = std_rms_inc
 
     # write results to CSV
     fname = datadir * "inclination_" *  string(N) * ".csv"
@@ -83,24 +87,20 @@ if plot
     using PyCall; animation = pyimport("matplotlib.animation")
     mpl.style.use(GRASS.moddir * "figures/fig.mplstyle")
 
-    # set Desktop directory
-    outdir = "/Users/michael/Desktop/"
-    if !isdir(outdir)
-        outdir = "/Users/mlp95/Desktop/"
-    end
-
     # read in the data
     fname = datadir * "inclination_" *  string(N) * ".csv"
-    dat = CSV.read(fname, DataFrame)
-    ang = dat.inc .* (180.0/π)
-    rms = dat.rms
-    tstd = dat.std
+    df = CSV.read(fname, DataFrame)
+    ang = df.inc .* (180.0/π)
+    avg_avg_inc = df.avg_avg_inc
+    std_avg_inc = df.std_avg_inc
+    avg_rms_inc = df.avg_rms_inc
+    std_rms_inc = df.std_rms_inc
 
     arrowprops=Dict("facecolor"=>"black", "shrink"=>0.05, "width"=>2.0,"headwidth"=>8.0)
 
     fig = plt.figure()
     ax1 = fig.add_subplot()
-    ax1.errorbar(ang, rms, yerr=tstd, capsize=3.0, color="black", fmt=".")
+    ax1.errorbar(ang, avg_rms_inc, yerr=std_rms_inc, capsize=3.0, color="black", fmt=".")
     ax1.set_xlabel(L"{\rm Inclination\ (deg)}")
     ax1.set_ylabel(L"{\rm RMS\ RV\ (m s}^{-1})")
     ax1.set_xticks(range(0, 90, length=10))
