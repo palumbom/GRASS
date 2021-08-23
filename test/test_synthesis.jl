@@ -118,6 +118,13 @@ end
     @test size(flux,2) == 5
     @test maximum(flux[:,1]) == 1.0
     # @test isapprox(minimum(flux[:,1]), 1.0 - dep, atol=1e-1) # TODO: fix?
+
+    # get velocities
+    v_grid, ccf1 = calc_ccf(wavs, flux, spec, normalize=true)
+    rvs, sigs = calc_rvs_from_ccf(v_grid, ccf1)
+
+    # test the velocities
+    @test calc_rms(rvs) < 1.0
 end
 
 end
