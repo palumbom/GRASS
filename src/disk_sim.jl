@@ -54,6 +54,35 @@ function time_loop(t_loop::Int, prof::AA{T,1}, rot_shift::T,
     return nothing
 end
 
+function generate_indices(Nt::Integer, len::Integer)
+    # start at random index less than len and go to len
+    start = rand(1:len):len
+
+    # return subset if length greater than Nt
+    if length(start) > Nt
+        return start = start[1:Nt]
+    end
+
+    # find out how many more cycles are needed
+    niter = ceil(Int, (Nt - length(start))/len)
+
+    # idk
+    inds = Vector{UnitRange{Int64}}(undef, niter + 1)
+    inds[1] = start
+    for i in 2:length(inds)
+        inds[i] = 1:len
+    end
+
+    # check that the last one doesn't overflow Nt
+    ind_lens = length.(inds)
+    ind_sums = sum(ind_lens[1:end-1])
+    if length(inds[end]) > (Nt - ind_sums)
+        inds[end] = inds[end][1:(Nt - ind_sums)]
+    end
+    @assert sum(length.(inds)) == Nt
+    return inds
+end
+
 function disk_sim(spec::SpecParams{T}, disk::DiskParams{T,Int64}, prof::AA{T,1},
                   outspec::AA{T,2}; top::T=NaN, seed_rng::Bool=false,
                   verbose::Bool=true) where T<:AF
@@ -91,6 +120,9 @@ function disk_sim(spec::SpecParams{T}, disk::DiskParams{T,Int64}, prof::AA{T,1},
             t_loop = rand(0:len-1)
             cont = true
             while cont
+                # types for variables out of loop scope
+                len::Integer
+
                 # iterate counting var, change cont -> false if on penultimate
                 t += 1
                 cont *= (t <= (disk.Nt - 1))
@@ -106,6 +138,24 @@ function disk_sim(spec::SpecParams{T}, disk::DiskParams{T,Int64}, prof::AA{T,1},
                 # iterate t_loop
                 t_loop = mod(t_loop+1, len-1)
             end
+
+            """
+            # loop over time, starting at random epoch
+            inds = generate_indices(disk.Nt, len)
+            inds = vcat(collect.(inds)...)
+            # @show inds
+            for (t, t_loop) in enumerate(inds)
+                # @show t_loop
+
+                # update profile in place
+                prof .= one(T)
+                time_loop(t_loop, prof, rot_shift, key, liter, spec, wsp, top=top)
+
+                # apply normalization term and add to outspec
+                # TODO: sqrt for variance spectrum
+                outspec[:,t] .+= (prof .* norm_term)
+            end
+            """
         end
     end
     return nothing
