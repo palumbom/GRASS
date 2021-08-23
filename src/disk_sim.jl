@@ -116,32 +116,6 @@ function disk_sim(spec::SpecParams{T}, disk::DiskParams{T,Int64}, prof::AA{T,1},
             norm_term = calc_norm_term(i, j, disk)
 
             # loop over time, starting at random epoch
-            """
-            t = 0
-            t_loop = rand(0:len-1)
-            cont = true
-            while cont
-                # types for variables out of loop scope
-                len::Integer
-
-                # iterate counting var, change cont -> false if on penultimate
-                t += 1
-                cont *= (t <= (disk.Nt - 1))
-
-                # update profile in place
-                prof .= one(T)
-                time_loop(t_loop + 1, prof, rot_shift, key, liter, spec, wsp, top=top)
-
-                # apply normalization term and add to outspec
-                # TODO: sqrt for variance spectrum
-                outspec[:,t] .+= (prof .* norm_term)
-
-                # iterate t_loop
-                t_loop = mod(t_loop+1, len-1)
-            end
-            """
-
-            # loop over time, starting at random epoch
             inds = generate_indices(disk.Nt, len)
             for (t, t_loop) in enumerate(inds)
                 # update profile in place
