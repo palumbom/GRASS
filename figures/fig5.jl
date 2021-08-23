@@ -44,8 +44,8 @@ function depth()
     disk = DiskParams(N=N, Nt=Nt)
     @sync @distributed for i in eachindex(depths)
         println("running depth = " * string(depths[i]))
-        spec2 = SpecParams(lines=lines, depths=[depths[i]], resolution=resolution,
-                           extrapolate=true, contiguous_only=contiguous_only)
+        spec = SpecParams(lines=lines, depths=[depths[i]], resolution=resolution,
+                          extrapolate=true, contiguous_only=contiguous_only)
         avg_avg1, std_avg1, avg_rms1, std_rms1 = spec_loop(spec, disk, Nloop, top=top)
         avg_avg_depth[i] = avg_avg1
         std_avg_depth[i] = std_avg1

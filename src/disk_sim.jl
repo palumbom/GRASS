@@ -59,7 +59,6 @@ function disk_sim(spec::SpecParams{T}, disk::DiskParams{T,Int64}, prof::AA{T,1},
                   verbose::Bool=true) where T<:AF
     # make grid
     grid = make_grid(N=disk.N)
-    Nt = disk.Nt
 
     # set pre-allocations and make generator that will be re-used
     outspec .= zero(T)
@@ -94,7 +93,7 @@ function disk_sim(spec::SpecParams{T}, disk::DiskParams{T,Int64}, prof::AA{T,1},
             while cont
                 # iterate counting var, change cont -> false if on penultimate
                 t += 1
-                cont *= (t <= (Nt - 1))
+                cont *= (t <= (disk.Nt - 1))
 
                 # update profile in place
                 prof .= one(T)
