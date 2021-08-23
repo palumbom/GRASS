@@ -1,4 +1,4 @@
-function ismononotonic(A::AA{T,1}) where T<:AF
+function ismonotonic(A::AA{T,1}) where T<:AF
     return (all(diff(A) .>= zero(T)) | all(diff(A) .<= zero(T)))
 end
 
@@ -6,38 +6,6 @@ function strip_columns(A::AA{T,2}, cols::AA{Bool,1}) where T<:AF
     @assert length(cols) == size(A,2)
     return A[:, .!cols]
 end
-
-# credit: https://stackoverflow.com/questions/50899973/indices-of-unique-elements-of-vector-in-julia
-function uniqueidx(x::AA{T}) where T
-    uniqueset = Set{T}()
-    ex = eachindex(x)
-    idxs = Vector{eltype(ex)}()
-    for i in ex
-        xi = x[i]
-        if !(xi in uniqueset)
-            push!(idxs, i)
-            push!(uniqueset, xi)
-        end
-    end
-    return idxs
-end
-
-function isunique(x::AA{T}) where T
-    uniqueset = Set{T}()
-    ex = eachindex(x)
-    idxs = Vector{Bool}()
-    for i in ex
-        xi = x[i]
-        if !(xi in uniqueset)
-            push!(idxs, true)
-            push!(uniqueset, xi)
-        else
-            push!(idxs, false)
-        end
-    end
-    return idxs
-end
-
 
 # credit: traktofon @ https://discourse.julialang.org/t/findnearest-function/4143/4
 function searchsortednearest(a::AbstractVector{T}, x::T) where T

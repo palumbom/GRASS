@@ -1,7 +1,7 @@
 struct SpecParams{T<:AF}
     lines::AA{T,1}
     depths::AA{T,1}
-    blueshifts::AA{T,1}
+    conv_blueshifts::AA{T,1}
     variability::AA{Bool,1}
     coverage::Tuple{T,T}
     resolution::T
