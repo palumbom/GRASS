@@ -56,31 +56,31 @@ end
 
 function generate_indices(Nt::Integer, len::Integer)
     # start at random index less than len and go to len
-    start = rand(1:len):len
+    start = Iterators.take(rand(1:len):len, Nt)
 
-    # return subset if length greater than Nt
-    if length(start) > Nt
-        return start = start[1:Nt]
+    # return if that's all that's needed
+    if length(start) == Nt
+        return Iterators.flatten(start)
     end
 
     # find out how many more cycles are needed
     niter = ceil(Int, (Nt - length(start))/len)
 
-    # idk
-    inds = Vector{UnitRange{Int64}}(undef, niter + 1)
+    # make vector of iterators and
+    inds = Vector{Base.Iterators.Take{UnitRange{Int64}}}(undef, niter + 1)
     inds[1] = start
-    for i in 2:length(inds)
-        inds[i] = 1:len
+    for i in 2:(length(inds)-1)
+        inds[i] = Iterators.take(1:len, len)
     end
 
-    # check that the last one doesn't overflow Nt
+    # ensure the last one only takes the the remainder
     ind_lens = length.(inds)
     ind_sums = sum(ind_lens[1:end-1])
-    if length(inds[end]) > (Nt - ind_sums)
-        inds[end] = inds[end][1:(Nt - ind_sums)]
-    end
+    inds[end] = Iterators.take(1:len, Nt - ind_sums)
+
+    # return flattened iterator
     @assert sum(length.(inds)) == Nt
-    return inds
+    return Iterators.flatten(inds)
 end
 
 function disk_sim(spec::SpecParams{T}, disk::DiskParams{T,Int64}, prof::AA{T,1},
@@ -116,6 +116,7 @@ function disk_sim(spec::SpecParams{T}, disk::DiskParams{T,Int64}, prof::AA{T,1},
             norm_term = calc_norm_term(i, j, disk)
 
             # loop over time, starting at random epoch
+            """
             t = 0
             t_loop = rand(0:len-1)
             cont = true
@@ -138,15 +139,11 @@ function disk_sim(spec::SpecParams{T}, disk::DiskParams{T,Int64}, prof::AA{T,1},
                 # iterate t_loop
                 t_loop = mod(t_loop+1, len-1)
             end
-
             """
+
             # loop over time, starting at random epoch
             inds = generate_indices(disk.Nt, len)
-            inds = vcat(collect.(inds)...)
-            # @show inds
             for (t, t_loop) in enumerate(inds)
-                # @show t_loop
-
                 # update profile in place
                 prof .= one(T)
                 time_loop(t_loop, prof, rot_shift, key, liter, spec, wsp, top=top)
@@ -155,7 +152,6 @@ function disk_sim(spec::SpecParams{T}, disk::DiskParams{T,Int64}, prof::AA{T,1},
                 # TODO: sqrt for variance spectrum
                 outspec[:,t] .+= (prof .* norm_term)
             end
-            """
         end
     end
     return nothing
