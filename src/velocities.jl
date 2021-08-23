@@ -43,6 +43,13 @@ function calc_ccf(lambdas::AA{T,1}, intensities::AA{T,1}, lines::AA{T,1},
     return v_grid, ccf
 end
 
+function calc_ccf(lambdas::AA{T,1}, intensities::AA{T,2}, lines::AA{T,1},
+                  depths::AA{T,1}, resolution::T; normalize::Bool=true) where T<:AF
+    func = x -> calc_ccf(lambdas, x, lines, depths, resolution, normalize=normalize)
+    out = map(func, intensities[:,i] for i in 1:size(intensities, 2))
+    return out[1][1], cat([x[2] for x in out]..., dims=2)
+end
+
 function calc_ccf(lambdas::AA{T,1}, intensities::AA{T,1}, spec::SpecParams{T}; normalize::Bool=true) where T<:AF
     return calc_ccf(lambdas, intensities, spec.lines, spec.depths, spec.resolution, normalize=normalize)
 end

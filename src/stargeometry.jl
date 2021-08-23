@@ -37,12 +37,12 @@ function mu_map(N::Integer)
 end
 
 
-function norm_term(x::T, y::T, N::Integer, u1::T, u2::T) where T<:AF
+function calc_norm_term(x::T, y::T, N::Integer, u1::T, u2::T) where T<:AF
     return quad_limb_darkening(x,y,u1,u2) * π / (2.0 * N^2)
 end
 
-function norm_term(x::T, y::T, disk::DiskParams) where T<:AF
-    return norm_term(x, y, disk.N, disk.u1, disk.u2)
+function calc_norm_term(x::T, y::T, disk::DiskParams) where T<:AF
+    return calc_norm_term(x, y, disk.N, disk.u1, disk.u2)
 end
 
 

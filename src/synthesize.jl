@@ -1,9 +1,8 @@
 # function to calc intensity at given x,y coord.
-function line_profile!(i::T, j::T, mid::T, blueshift::T, lambdas::AA{T,1},
-                       prof::AA{T,1}, wsp::SynthWorkspace{T};
-                       pole::Tuple{T,T,T}=(zero(T),one(T),zero(T))) where T<:AF
+function line_profile!(mid::T, rot_shift::T, conv_blueshift::T, lambdas::AA{T,1},
+                       prof::AA{T,1}, wsp::SynthWorkspace{T}) where T<:AF
     # calculate line center given rot. and conv. doppler shift -> λrest * (1 + z)
-    λΔD = mid * (one(T) + patch_velocity_los(i, j, pole=pole) + blueshift/c_ms)
+    λΔD = mid * (one(T) + rot_shift + conv_blueshift/c_ms)
 
     # synthesize the line profile given bisector and width input data
     line_from_bis!(λΔD, lambdas, prof, wsp.wavt, wsp.dept, wsp.widt,
@@ -16,9 +15,9 @@ function line_from_bis!(mid::T, lambdas::AA{T,1}, prof::AA{T,1},
                         lwavgrid::AA{T,1}, rwavgrid::AA{T,1},
                         allwavs::AA{T,1}, allints::AA{T,1}) where T<:AF
     # set wavgrids to line center to start
-    # TODO: test one liner
     lwavgrid .= (mid .- (0.5 .* widm .- wavm))
     rwavgrid .= (mid .+ (0.5 .* widm .+ wavm))
+    rwavgrid[1] = lwavgrid[1] + 1e-3            # TODO: fix to deal with nodes
 
     # concatenate into one big array
     len = length(rwavgrid)
@@ -28,14 +27,14 @@ function line_from_bis!(mid::T, lambdas::AA{T,1}, prof::AA{T,1},
     allwavs[1:len] .= view(lwavgrid, itr)
     allints[1:len] .= view(depm, itr)
 
-    # now make sure there is no cross-over
-    # TODO: figure out why not sorted
-    if !issorted(allwavs)
-        sort!(allwavs)
-    end
-
     # interpolate onto original lambda grid, extrapolate to continuum
-    itp1 = extrapolate(interpolate!(T, (allwavs,), allints, Gridded(Linear())), 1.0)
+    xs = (allwavs,)
+    ys = allints
+    it = Gridded(Linear())
+    itp1 = extrapolate(interpolate!(T, xs, ys, it), 1.0)
     prof .*= itp1.(lambdas)
     return nothing
 end
+
+
+

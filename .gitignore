@@ -7,3 +7,5 @@
 *.sublime-workspace
 .ipynb_checkpoints
 /docs/build/
+*.gz
+Manifest.toml
