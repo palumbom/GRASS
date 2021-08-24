@@ -34,11 +34,10 @@ function depth()
     contiguous_only=false
 
     # allocate shared arrays
-    depth_rms = SharedArray{Float64}(length(depths))
-    depth_std = SharedArray{Float64}(length(depths))
-    depth_avg_avg = SharedArray{Float64}(length(depths))
-    depth_avg_std = SharedArray{Float64}(length(depths))
-
+    avg_avg_depth = SharedArray{Float64}(length(depths))
+    std_avg_depth = SharedArray{Float64}(length(depths))
+    avg_rms_depth = SharedArray{Float64}(length(depths))
+    std_rms_depth = SharedArray{Float64}(length(depths))
 
     # calculate
     disk = DiskParams(N=N, Nt=Nt)

@@ -47,8 +47,10 @@ function inclination()
     end
 
     # allocate shared sharred arrays
-    prms = SharedArray{Float64}(n_inc)
-    pstd = SharedArray{Float64}(n_inc)
+    avg_avg_inc = SharedArray{Float64}(n_inc)
+    std_avg_inc = SharedArray{Float64}(n_inc)
+    avg_rms_inc = SharedArray{Float64}(n_inc)
+    std_rms_inc = SharedArray{Float64}(n_inc)
 
     # calculate
     @sync @distributed for i in eachindex(poles)
