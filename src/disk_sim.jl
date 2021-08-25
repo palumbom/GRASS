@@ -55,11 +55,16 @@ function time_loop(t_loop::Int, prof::AA{T,1}, rot_shift::T,
 end
 
 function generate_indices(Nt::Integer, len::Integer)
+    # initialize variable to get total number of indices
+    sum_lens = 0
+
     # start at random index less than len and go to len
     start = Iterators.take(rand(1:len):len, Nt)
+    sum_lens += length(start)
 
     # return if that's all that's needed
     if length(start) == Nt
+         @assert sum_lens == Nt
         return Iterators.flatten(start)
     end
 
@@ -69,17 +74,17 @@ function generate_indices(Nt::Integer, len::Integer)
     # make vector of iterators and
     inds = Vector{Base.Iterators.Take{UnitRange{Int64}}}(undef, niter + 1)
     inds[1] = start
-    for i in 2:(length(inds)-1)
+    for i in 2:niter
         inds[i] = Iterators.take(1:len, len)
+        sum_lens += len
     end
 
     # ensure the last one only takes the the remainder
-    ind_lens = length.(inds)
-    ind_sums = sum(ind_lens[1:end-1])
-    inds[end] = Iterators.take(1:len, Nt - ind_sums)
+    inds[end] = Iterators.take(1:len, Nt - sum_lens)
+    sum_lens += length(inds[end])
+    @assert sum_lens == Nt
 
     # return flattened iterator
-    @assert sum(length.(inds)) == Nt
     return Iterators.flatten(inds)
 end
 
