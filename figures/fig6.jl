@@ -52,12 +52,16 @@ function inclination()
     avg_rms_inc = SharedArray{Float64}(n_inc)
     std_rms_inc = SharedArray{Float64}(n_inc)
 
-    # calculate
+    # loop over inclinations
     @sync @distributed for i in eachindex(poles)
         println("running pole " * string(i) * " of " * string(n_inc))
+
+         # create spec and disk params instances
         spec = SpecParams(lines=lines, depths=depths, resolution=resolution,
                           extrapolate=true, contiguous_only=contiguous_only)
         disk = DiskParams(N=N, Nt=Nt, pole=poles[i])
+
+        # synthesize spectra, get velocities and stats
         avg_avg1, std_avg1, avg_rms1, std_rms1 = spec_loop(spec, disk, Nloop, top=top)
         avg_avg_inc[i] = avg_avg1
         std_avg_inc[i] = std_avg1
