@@ -17,7 +17,7 @@ function synthesize_spectra(spec::SpecParams, disk::DiskParams;
 
     # run the simulation (outspec modified in place)
     disk_sim(spec, disk, prof, outspec, seed_rng=seed_rng, verbose=verbose, top=top)
-    return spec.lambdas, outspec./maximum(outspec, dims=1)
+    return spec.lambdas, outspec
 end
 
 # line loop function, update prof in place
@@ -90,7 +90,8 @@ end
 
 function disk_sim(spec::SpecParams{T}, disk::DiskParams{T,Int64}, prof::AA{T,1},
                   outspec::AA{T,2}; top::T=NaN, seed_rng::Bool=false,
-                  verbose::Bool=true, skip_times::BitVector) where T<:AF
+                  skip_times::BitVector=BitVector(zeros(disk.Nt)),
+                  verbose::Bool=true) where T<:AF
     # make grid
     grid = make_grid(N=disk.N)
 
@@ -123,7 +124,7 @@ function disk_sim(spec::SpecParams{T}, disk::DiskParams{T,Int64}, prof::AA{T,1},
             # loop over time, starting at random epoch
             inds = generate_indices(disk.Nt, len)
             for (t, t_loop) in enumerate(inds)
-                # if skip times is true, continue
+                # if skip times is true, continue to next iter
                 skip_times[t] && continue
 
                 # update profile in place
@@ -136,5 +137,9 @@ function disk_sim(spec::SpecParams{T}, disk::DiskParams{T,Int64}, prof::AA{T,1},
             end
         end
     end
+
+    # set instances of outspec where skip is true to 0 and return
+    outspec ./= maximum(outspec, dims=1)
+    outspec[:, skip_times] .= zero(T)
     return nothing
 end
