@@ -49,13 +49,6 @@ function simulate_observations(obs::ObservationPlan, spec::SpecParams;
     # assertions
     @assert (isnan(new_res) | (new_res < 7e5))
 
-    # set boolean for long dead time
-    if obs.dead_time <= (60.0 * 20.0) # less than 20 minutes
-        long_dead = false
-    else
-        long_dead = true
-    end
-
     # get number of time steps needed per exposure
     nt_per_exposure, nt_per_deadtime = get_nt(obs)
 
