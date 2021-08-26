@@ -19,10 +19,8 @@ const N = 256
 const Nt = 200
 const Nloop = 100
 
-# set plotting boolean
+# get directory paths
 plot = true
-
-# check directories
 grassdir, plotdir, datadir = check_plot_dirs()
 
 function inclination()

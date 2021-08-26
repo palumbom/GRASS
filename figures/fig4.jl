@@ -19,10 +19,8 @@ const N = [8, 16, 32, 64, 128, 256, 512, 1024, 2048]
 const Nt = 100
 const Nloop = 12
 
-# set plotting boolean
+# get directory paths
 plot = true
-
-# check directories
 grassdir, plotdir, datadir = check_plot_dirs()
 
 function resolution()
