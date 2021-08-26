@@ -26,73 +26,71 @@ plot = true
 grassdir, plotdir, datadir = check_plot_dirs()
 
 function observe()
-    contiguous_only=false
-
     # set observing parameters
     N_obs = range(2, 4, step=1)  # ~20 minutes continuous at most
-    exp_time = 300.0             # ~2 p-mode periods
+    exp_time = 600.0             # ~2 p-mode periods
     snr = 3500.0                 # SNR per res element to get 50 cm/s precision
     new_res = 1.17e5
 
     # dead times
     short_dead = 30.0            # representative for NEID read-out time
-    long_dead = 1800.0           # assume autocorrelation dies after 20 min
+    large_dead = 3600.0          # ~60 mins
 
     # set up parameters for spectrum
     lines = [5434.5]
-    depths = [0.8] # range(0.4, stop=0.8, step=0.2)
-    fixed = [false]
-    resolution=700000.0
+    depths = [0.8]
+    resolution = 7e5
 
     # allocate shared arrays
-    avg_shortdead = SharedArray{Float64}(length(depths), length(N_obs), Nloop)
-    avg_longdead = SharedArray{Float64}(length(depths), length(N_obs), Nloop)
-    rms_shortdead = SharedArray{Float64}(length(depths), length(N_obs), Nloop)
-    rms_longdead = SharedArray{Float64}(length(depths), length(N_obs), Nloop)
+    avg_shortdead = SharedArray{Float64}(length(N_obs))
+    avg_largedead = SharedArray{Float64}(length(N_obs))
+    rms_shortdead = SharedArray{Float64}(length(N_obs))
+    rms_largedead = SharedArray{Float64}(length(N_obs))
 
-    # calculate
-    @sync @distributed for i in eachindex(depths)
-        println("running depth = " * string(depths[i]))
-        spec1 = SpecParams(lines=lines, depths=[depths[i]],
-                           resolution=resolution, extrapolate=true,
-                           contiguous_only=contiguous_only)
+    # create spec params instance
+    spec1 = SpecParams(lines=lines, depths=depths, resolution=resolution)
 
-        # loop over each plan
-        for j in eachindex(N_obs)
-            obs_shortdead = GRASS.ObservationPlan(N_obs=N_obs[j],
-                                                    obs_per_night=N_obs[j],
-                                                    time_per_obs=exp_time,
-                                                    dead_time=short_dead)
-            obs_longdead = GRASS.ObservationPlan(N_obs=N_obs[j],
-                                                   obs_per_night=N_obs[j],
-                                                   time_per_obs=exp_time,
-                                                   dead_time=long_dead)
+    # now loop over and create observation plans
+    @sync @distributed for i in eachindex(N_obs)
+        obs_shortdead = GRASS.ObservationPlan(N_obs=N_obs[i],
+                                              obs_per_night=N_obs[i],
+                                              time_per_obs=exp_time,
+                                              dead_time=short_dead)
+        obs_largedead = GRASS.ObservationPlan(N_obs=N_obs[i],
+                                              obs_per_night=N_obs[i],
+                                              time_per_obs=exp_time,
+                                              dead_time=large_dead)
 
-            # loop repeatedly to get good stats
-            for k in 1:Nloop
-                vels1 = GRASS.simulate_observations(obs_shortdead, spec1, N=N, snr=snr, new_res=new_res)
-                vels2 = GRASS.simulate_observations(obs_longdead, spec1, N=N, snr=snr, new_res=new_res)
-                avg_shortdead[i, j, k] = mean(vels1)
-                avg_longdead[i, j, k] = mean(vels2)
-                rms_shortdead[i, j, k] = calc_rms(vels1)
-                rms_longdead[i, j, k] = calc_rms(vels2)
-            end
+        # compute vels repeatedly to get good stats
+        @sync @distributed for j in 1:Nloop
+            vels1 = GRASS.simulate_observations(obs_shortdead, spec1, N=N, snr=snr, new_res=new_res)
+            vels2 = GRASS.simulate_observations(obs_largedead, spec1, N=N, snr=snr, new_res=new_res)
+            avg_shortdead[i] += mean(vels1)
+            avg_largedead[i] += mean(vels2)
+            rms_shortdead[i] += calc_rms(vels1)
+            rms_largedead[i] += calc_rms(vels2)
         end
     end
 
+    # compute the mean values
+    avg_shortdead[i] ./= Nloop
+    avg_largedead[i] ./= Nloop
+    rms_shortdead[i] ./= Nloop
+    rms_largedead[i] ./= Nloop
+
     # make into regular arrays
-    avg_shortdead = Array{Float64}(avg_shortdead)
-    avg_longdead = Array{Float64}(avg_longdead)
-    rms_shortdead = Array{Float64}(rms_shortdead)
-    rms_longdead = Array{Float64}(rms_longdead)
+    avg_shortdead = convert(Array{Float64}, avg_shortdead)
+    avg_largedead = convert(Array{Float64}, avg_largedead)
+    rms_shortdead = convert(Array{Float64}, rms_shortdead)
+    rms_largedead = convert(Array{Float64}, rms_largedead)
 
     # save the output
     outfile = datadir * "observe_" * string(N) * "_loop_" * string(Nloop) * ".jld2"
     save(outfile,
          "avg_shortdead", avg_shortdead,
-         "avg_longdead", avg_longdead,
+         "avg_largedead", avg_largedead,
          "rms_shortdead", rms_shortdead,
-         "rms_longdead", rms_longdead,
+         "rms_largedead", rms_largedead,
          "exp_time", exp_time,
          "depths", depths,
          "N_obs", N_obs,
@@ -118,9 +116,9 @@ if plot
     outfile = datadir * "observe_" * string(N) * "_loop_" * string(Nloop) * ".jld2"
     d = load(datadir)
     avg_shortdead = d["avg_shortdead"]
-    avg_longdead = d["avg_longdead"]
+    avg_largedead = d["avg_largedead"]
     # rms_shortdead = d["rms_shortdead"]
-    # rms_longdead = d["rms_longdead"]
+    # rms_largedead = d["rms_largedead"]
     exp_time = d["exp_time"]
     depths = d["depths"]
     N_obs = d["N_obs"]
@@ -139,8 +137,8 @@ if plot
             axs[j].hist(avg_shortdead[i,j,:], density=true, histtype="stepfilled", fc="k", ec="k", lw=2, alpha=0.5, label="Short wait")
             axs[j].hist(avg_shortdead[i,j,:], density=true, histtype="step", ec="k", lw=1.0, alpha=0.8)
 
-            axs[j].hist(avg_longdead[i,j,:], density=true, histtype="stepfilled", fc="tab:blue", ec="tab:blue", lw=1.5, alpha=0.5, label="Long wait")
-            axs[j].hist(avg_longdead[i,j,:], density=true, histtype="step", ec="tab:blue", lw=1.5, alpha=0.8)
+            axs[j].hist(avg_largedead[i,j,:], density=true, histtype="stepfilled", fc="tab:blue", ec="tab:blue", lw=1.5, alpha=0.5, label="large wait")
+            axs[j].hist(avg_largedead[i,j,:], density=true, histtype="step", ec="tab:blue", lw=1.5, alpha=0.8)
 
             axs[j].annotate(L"N_{\rm obs} =\ " * latexstring(N_obs[j]), xy=(-204.15, 2.5), backgroundcolor="white")
             axs[j].set_xlabel(L"{\rm Measured\ velocity\ (m s}^{-1})")
@@ -149,7 +147,7 @@ if plot
             append!(xlims, [axs[j].get_xlim()])
 
             # report two-sample KS test
-            @show(ApproximateTwoSampleKSTest(avg_shortdead[i,j,:], avg_longdead[i,j,:]))
+            @show(ApproximateTwoSampleKSTest(avg_shortdead[i,j,:], avg_largedead[i,j,:]))
         end
 
         # set the xlimits and other nice things
