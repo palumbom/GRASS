@@ -90,7 +90,7 @@ end
 
 function disk_sim(spec::SpecParams{T}, disk::DiskParams{T,Int64}, prof::AA{T,1},
                   outspec::AA{T,2}; top::T=NaN, seed_rng::Bool=false,
-                  verbose::Bool=true) where T<:AF
+                  verbose::Bool=true, skip_times::BitVector) where T<:AF
     # make grid
     grid = make_grid(N=disk.N)
 
@@ -123,6 +123,9 @@ function disk_sim(spec::SpecParams{T}, disk::DiskParams{T,Int64}, prof::AA{T,1},
             # loop over time, starting at random epoch
             inds = generate_indices(disk.Nt, len)
             for (t, t_loop) in enumerate(inds)
+                # if skip times is true, continue
+                skip_times[t] && continue
+
                 # update profile in place
                 prof .= one(T)
                 time_loop(t_loop, prof, rot_shift, key, liter, spec, wsp, top=top)
