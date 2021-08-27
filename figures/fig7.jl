@@ -53,7 +53,7 @@ function observe()
     spec1 = SpecParams(lines=lines, depths=depths, resolution=resolution)
 
     # loop over number of observations
-    @sync @distributed for i in eachindex(N_obs)
+    for i in eachindex(N_obs)
         # create observation plan instances
         obs_shortdead = GRASS.ObservationPlan(N_obs=N_obs[i],
                                               obs_per_night=N_obs[i],
