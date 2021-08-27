@@ -19,7 +19,7 @@ include(GRASS.moddir * "figures/fig_functions.jl")
 
 # some global stuff
 const N = 256
-const Nloop = 100
+const Nloop = 500
 
 # get directory paths
 plot = true
