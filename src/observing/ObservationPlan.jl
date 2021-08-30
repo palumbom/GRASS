@@ -75,13 +75,13 @@ function simulate_observations(obs::ObservationPlan, spec::SpecParams;
         flux_binned[:, i] = sum(outspec[:, inds], dims=2) ./ sum(.!skip_times[inds])
     end
 
-    # add noise to specified snr per res element
-    flux_binned = add_noise(flux_binned, snr)
-
     # degrade the resolution
     if !isnan(new_res)
         flux_binned = convolve_gauss(spec.lambdas, flux_binned, new_res=new_res)
     end
+
+    # add noise to specified snr per res element
+    flux_binned = add_noise(flux_binned, snr)
 
     # calculate ccf and velocities
     v_grid, ccf1 = calc_ccf(spec.lambdas, flux_binned, spec, normalize=true)
