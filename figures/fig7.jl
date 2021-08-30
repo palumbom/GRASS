@@ -19,7 +19,7 @@ include(GRASS.moddir * "figures/fig_functions.jl")
 
 # some global stuff
 const N = 256
-const Nloop = 800
+const Nloop = 1000
 
 # get directory paths
 plot = true
@@ -29,7 +29,7 @@ function observe()
     # set observing parameters
     N_obs = range(2, 4, step=1)  # number of observations
     exp_time = 600.0             # ~2 p-mode periods
-    snr = 3500.0                 # SNR per res element to get 50 cm/s precision
+    snr = 5000.0                 # SNR per res element to get 50 cm/s precision
     new_res = 1.17e5
 
     # dead times
