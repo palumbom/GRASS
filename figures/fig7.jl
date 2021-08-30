@@ -19,7 +19,7 @@ include(GRASS.moddir * "figures/fig_functions.jl")
 
 # some global stuff
 const N = 256
-const Nloop = 1000
+const Nloop = 800
 
 # get directory paths
 plot = true
@@ -156,5 +156,5 @@ if plot
     # axs[2].yaxis.tick_right()
     fig.savefig(plotdir * "fig7.pdf")
     plt.clf(); plt.close()
-    println(">>> Figure written to: " * plotdir * "fig7.pdf")
+    println(">>> Figure written to: " * plotdir * "fig7_alt.pdf")
 end
