@@ -80,35 +80,38 @@ if plot
     # read in the data
     fname = datadir * "rms_vs_depth_" * string(N) * ".csv"
     df = CSV.read(fname, DataFrame)
+
+    # assign to variable names
     depths = df.depths
     avg_avg_depth = df.avg_avg_depth
     std_avg_depth = df.std_avg_depth
     avg_rms_depth = df.avg_rms_depth
     std_rms_depth = df.std_rms_depth
 
+    # get the errors
+    err_avg_depth = std_avg_depth ./ sqrt(Nloop - 1)
+    err_rms_depth = std_rms_depth ./ sqrt(Nloop - 1)
+
     # plot the results
-    arrowprops = Dict("facecolor"=>"black", "shrink"=>0.05, "width"=>2.0,"headwidth"=>8.0)
     fig, ax1 = plt.subplots()
-    ax1.errorbar(depths, avg_rms_depth, yerr=std_rms_depth, capsize=3.0, color="black", fmt=".")
+    ax1.errorbar(depths, avg_rms_depth, yerr=err_rms_depth, capsize=3.0, color="black", fmt=".")
+    ax1.plot(depths, avg_rms_depth .+ std_rms_depth, linestyle="--", c=k)
+    ax1.plot(depths, avg_rms_depth .- std_rms_depth, linestyle="--", c=k)
     ax1.fill_betweenx(range(0.0, 1.0, length=5), zeros(5), zeros(5) .+ 0.2, color="k", alpha=0.25)
+
+    # set labels, etc.
     ax1.set_xlabel(L"{\rm Line\ Depth}")
     ax1.set_ylabel(L"{\rm RMS\ RV\ (m s}^{-1})")
     ax1.set_xlim(0.0, 1.0)
     ax1.set_ylim(0.19, 0.36)
+
+    # annotate the axes and save the figure
+    arrowprops = Dict("facecolor"=>"black", "shrink"=>0.05, "width"=>2.0,"headwidth"=>8.0)
     ax1.annotate("Shallow", xy=(0.85,0.202), xytext=(0.05,0.2), arrowprops=arrowprops)
     ax1.annotate("Deep", xy=(0.86, 0.2))
     fig.savefig(plotdir * "fig5a.pdf")
     plt.clf(); plt.close()
-    println(">>> Figure written to: " * plotdir * "fig5a.pdf")
-
-    fig, ax1 = plt.subplots()
-    ax1.errorbar(depths, avg_avg_depth, yerr=std_avg_depth, capsize=3.0, color="black", fmt=".")
-    ax1.set_xlabel(L"{\rm Line\ Depth}")
-    ax1.set_ylabel(L"{\rm RV\ (m s}^{-1})")
-    ax1.set_xlim(0.0, 1.0)
-    fig.savefig(plotdir * "fig5b.pdf")
-    plt.clf(); plt.close()
-    println(">>> Figure written to: " * plotdir * "fig5b.pdf")
+    println(">>> Figure written to: " * plotdir * "fig5.pdf")
 end
 
 
