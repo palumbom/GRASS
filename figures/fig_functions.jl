@@ -34,3 +34,36 @@ function check_plot_dirs()
     end
     return dirs
 end
+
+# small function to parse command line arguments
+function parse_args(args)
+    # chain of if/else to set booleans
+    if isempty(args)
+        run = true
+        plot = true
+    else
+        if "run" in args
+            run = true
+        else
+            run = false
+        end
+
+        if "plot" in args
+            plot = true
+        else
+            plot = false
+        end
+    end
+
+    # print statements for clarity
+    if (run & plot)
+        println(">>> Running and plotting " * string(PROGRAM_FILE) * "...")
+    elseif run
+        println(">>> Running " * string(PROGRAM_FILE) * "...")
+    elseif plot
+        println(">>> Plotting " * string(PROGRAM_FILE) * "...")
+    else
+        println(">>> Only defining functions in " * string(PROGRAM_FILE) * "...")
+    end
+    return run, plot
+end
