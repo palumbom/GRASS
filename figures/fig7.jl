@@ -19,7 +19,7 @@ include(GRASS.moddir * "figures/fig_functions.jl")
 
 # some global stuff
 const N = 256
-const Nloop = 1000
+const Nloop = 800
 
 # get command line args and output directories
 run, plot = parse_args(ARGS)

@@ -83,12 +83,14 @@ if plot
     rms_res = df.avg_rms_res
     std_res = df.std_rms_res
 
+    # get the error
+    err_res = std_res ./ sqrt(Nloop)
+
     # fit the data
     @. power_law(x, p) = p[1] * x^(-p[2])
     fit = curve_fit(power_law, res, rms_res, [1.0, 1.0])
     res_fit = range(6, 2400, length=1000)
     println("Best fit power law index = " * string(fit.param[2]))
-
     x = string(round(fit.param[2], sigdigits=3))
 
     # plot it
@@ -96,21 +98,25 @@ if plot
     ax1 = fig.add_subplot()
     ax1.set_xscale("log", basex=2)
     ax1.set_yscale("log", basey=10)
-    ax1.errorbar(res, rms_res, yerr=std_res, capsize=3.0, color="black", fmt=".")
+    ax1.errorbar(res, rms_res, yerr=err_res, capsize=3.0, color="black", fmt=".")
     ax1.plot(res_fit, power_law(res_fit, fit.param), "k--", alpha=0.4,
              label = L"{\rm Power\ law\ index\ } \approx\ %$x ")
 
+    # plot the literature values
     xrng = ax1.get_xlim()
-
     ax1.fill_between(range(xrng[1], xrng[2], length=2), repeat([0.319-0.09], 2), repeat([0.319+0.09], 2),
                      alpha=0.5, color="tab:blue", label=L"{\rm Elsworth\ et\ al.\ (1994)}")
     ax1.fill_between(range(xrng[1], xrng[2], length=2), repeat([0.461-0.1], 2), repeat([0.461+0.1], 2),
                      alpha=0.5, color="tab:green", label=L"{\rm Palle\ et\ al.\ (1999)}")
+
+    # set the axes limits + labels
     ax1.set_xlim(xrng...)
     ax1.yaxis.set_major_formatter(mpl.ticker.ScalarFormatter())
     ax1.set_xlabel(L"N")
     ax1.set_ylabel(L"{\rm RMS\ RV\ (m s}^{-1})")
     ax1.legend()
+
+    # save the figure
     fig.savefig(plotdir * "fig4.pdf")
     plt.clf(); plt.close()
     println(">>> Figure written to: " * plotdir * "fig4.pdf")

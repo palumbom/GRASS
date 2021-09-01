@@ -105,14 +105,14 @@ if plot
     std_rms_inc = df.std_rms_inc
 
     # get the errors
-    err_avg_inc = std_avg_inc ./ sqrt(Nloop - 1)
-    err_rms_inc = std_rms_inc ./ sqrt(Nloop - 1)
+    err_avg_inc = std_avg_inc ./ sqrt(Nloop)
+    err_rms_inc = std_rms_inc ./ sqrt(Nloop)
 
     # plot the results
     fig = plt.figure()
     ax1 = fig.add_subplot()
     ax1.errorbar(ang, avg_rms_inc, yerr=err_rms_inc, capsize=3.0, color="black", fmt=".")
-    ax1.fill_between(ang, avg_rms_inc .- std_rms_inc, avg_rms_inc .+ std_rms_inc, color="black", alpha=0.3)
+    ax1.fill_between(ang, avg_rms_inc .- std_rms_inc, avg_rms_inc .+ std_rms_inc, color="tab:blue", alpha=0.3)
 
     # set labels, etc.
     ax1.set_xlabel(L"{\rm Inclination\ (deg)}")
