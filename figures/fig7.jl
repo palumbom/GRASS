@@ -21,11 +21,11 @@ include(GRASS.moddir * "figures/fig_functions.jl")
 const N = 256
 const Nloop = 1000
 
-# get directory paths
-plot = true
+# get command line args and output directories
+run, plot = parse_args(ARGS)
 grassdir, plotdir, datadir = check_plot_dirs()
 
-function observe()
+function main()
     # set observing parameters
     N_obs = range(2, 4, step=1)  # number of observations
     exp_time = 600.0             # ~2 p-mode periods
@@ -100,7 +100,9 @@ function observe()
 end
 
 # run the simulation
-observe()
+if run
+    main()
+end
 
 # plotting code block
 if plot
@@ -121,40 +123,42 @@ if plot
     N_obs = d["N_obs"]
     snr = d["snr"]
 
+    # initialize plotting objects
     fig = plt.figure(figsize=(9.75,6.75))
     ax1 = plt.subplot2grid((2,4),(0,0), colspan=2)
     ax2 = plt.subplot2grid((2,4),(0,2), colspan=2)
     ax3 = plt.subplot2grid((2,4),(1,1), colspan=2)
     axs = [ax1, ax2, ax3]
 
+    # make arrays for limits and loop over plotting windows
     xlims = []
+    ylims = []
     for i in eachindex(axs)
         axs[i].hist(avg_shortdead[i,:], density=true, histtype="stepfilled", fc="k", ec="k", lw=2, alpha=0.5, label="Short wait")
         axs[i].hist(avg_shortdead[i,:], density=true, histtype="step", ec="k", lw=1.0, alpha=0.8)
 
-        axs[i].hist(avg_largedead[i,:], density=true, histtype="stepfilled", fc="tab:blue", ec="tab:blue", lw=1.5, alpha=0.5, label="large wait")
+        axs[i].hist(avg_largedead[i,:], density=true, histtype="stepfilled", fc="tab:blue", ec="tab:blue", lw=1.5, alpha=0.5, label="Long wait")
         axs[i].hist(avg_largedead[i,:], density=true, histtype="step", ec="tab:blue", lw=1.5, alpha=0.8)
 
         axs[i].annotate(L"N_{\rm obs} =\ " * latexstring(N_obs[i]), xy=(-204.15, 2.5), backgroundcolor="white")
         axs[i].set_xlabel(L"{\rm Measured\ velocity\ (m s}^{-1})")
         axs[i].set_ylabel(L"{\rm Probability\ density}")
-        axs[i].set_ylim(0,2.75)
         append!(xlims, [axs[i].get_xlim()])
+        append!(ylims, [axs[i].get_ylim()])
 
         # report two-sample KS test
         @show(ApproximateTwoSampleKSTest(avg_shortdead[i,:], avg_largedead[i,:]))
     end
 
-    # set the xlimits and other nice things
+    # set the axes limits
     for i in eachindex(axs)
         axs[i].set_xlim(minimum(first.(xlims)), maximum(last.(xlims)))
+        axs[i].set_ylim(minimum(first.(ylims)), maximum(last.(ylims)))
     end
 
     # set legend in one panel and write figure
     axs[1].legend(loc="upper left")
-    # axs[2].yaxis.set_label_position("right")
-    # axs[2].yaxis.tick_right()
     fig.savefig(plotdir * "fig7.pdf")
     plt.clf(); plt.close()
-    println(">>> Figure written to: " * plotdir * "fig7_alt.pdf")
+    println(">>> Figure written to: " * plotdir * "fig7.pdf")
 end

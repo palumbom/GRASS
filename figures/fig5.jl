@@ -19,11 +19,11 @@ const N = 256
 const Nt = 200
 const Nloop = 100
 
-# get directory paths
-plot = true
+# get command line args and output directories
+run, plot = parse_args(ARGS)
 grassdir, plotdir, datadir = check_plot_dirs()
 
-function depth()
+function main()
     # set up parameters for lines
     lines = [5434.5]
     depths = range(0.05, stop=0.95, step=0.05)
@@ -69,7 +69,9 @@ function depth()
 end
 
 # run the simulation
-depth()
+if run
+    main()
+end
 
 if plot
     # plotting imports

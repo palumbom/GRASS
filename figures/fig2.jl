@@ -3,7 +3,7 @@ using Pkg; Pkg.activate(".")
 using GRASS
 using Statistics
 
-# plotting
+# plotting imports
 using LaTeXStrings
 import PyPlot; plt = PyPlot; mpl = plt.matplotlib; plt.ioff()
 using PyCall; animation = pyimport("matplotlib.animation");
@@ -12,12 +12,12 @@ mpl.style.use(GRASS.moddir * "figures/fig.mplstyle")
 # define some functions
 include(GRASS.moddir * "figures/fig_functions.jl")
 
-# set boolean for writing plot
-write = true
+# get command line args and output directories
+run, plot = parse_args(ARGS)
 grassdir, plotdir, datadir = check_plot_dirs()
 
 # figure 2 -- cleaned + extrapolated input data
-function plot_input_cleaned(ncurves)
+function main(; ncurves=25)
     # get input data
     bisinfo = GRASS.SolarData(relative=true, extrapolate=true)
     key = (:c, :mu10)
@@ -45,15 +45,10 @@ function plot_input_cleaned(ncurves)
     cb = fig.colorbar(sm)
     cb.set_label(L"{\rm Time\ from\ first\ observation\ (min)}")
 
-    # write the file or show it
-    if write
-        fig.savefig(plotdir * "fig2a.pdf")
-        plt.clf(); plt.close()
-        println(">>> Figure written to: " * plotdir * "fig2a.pdf")
-    else
-        plt.show()
-        plt.clf(); plt.close()
-    end
+    # save the plot
+    fig.savefig(plotdir * "fig2a.pdf")
+    plt.clf(); plt.close()
+    println(">>> Figure written to: " * plotdir * "fig2a.pdf")
 
     # plot the widths
     fig = plt.figure()
@@ -66,16 +61,13 @@ function plot_input_cleaned(ncurves)
     cb = fig.colorbar(sm)
     cb.set_label(L"{\rm Time\ from\ first\ observation\ (min)}")
 
-    # write the file or show it
-    if write
-        fig.savefig(plotdir * "fig2b.pdf")
-        plt.clf(); plt.close()
-        println(">>> Figure written to: " * plotdir * "fig2b.pdf")
-    else
-        plt.show()
-        plt.clf(); plt.close()
-    end
+    # save the plot
+    fig.savefig(plotdir * "fig2b.pdf")
+    plt.clf(); plt.close()
+    println(">>> Figure written to: " * plotdir * "fig2b.pdf")
     return nothing
 end
 
-plot_input_cleaned(25)
+if run
+    main(ncurves=25)
+end

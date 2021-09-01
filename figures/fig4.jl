@@ -19,11 +19,11 @@ const N = [8, 16, 32, 64, 128, 256, 512, 1024, 2048]
 const Nt = 100
 const Nloop = 12
 
-# get directory paths
-plot = true
+# get command line args and output directories
+run, plot = parse_args(ARGS)
 grassdir, plotdir, datadir = check_plot_dirs()
 
-function resolution()
+function main(args)
     # set up parameters for lines
     lines = [5434.5]
     depths = [0.8]
@@ -65,7 +65,9 @@ function resolution()
 end
 
 # run the simulation
-resolution()
+if run
+    main()
+end
 
 # plotting code block
 if plot
