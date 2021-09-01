@@ -99,15 +99,17 @@ if plot
     ax1.set_xscale("log", basex=2)
     ax1.set_yscale("log", basey=10)
     ax1.errorbar(res, rms_res, yerr=err_res, capsize=3.0, color="black", fmt=".")
+    ax1.fill_between(res, rms_res .- std_res, rms_res .+ std_res, color="tab:blue", alpha=0.3)
     ax1.plot(res_fit, power_law(res_fit, fit.param), "k--", alpha=0.4,
              label = L"{\rm Power\ law\ index\ } \approx\ %$x ")
 
     # plot the literature values
     xrng = ax1.get_xlim()
-    ax1.fill_between(range(xrng[1], xrng[2], length=2), repeat([0.319-0.09], 2), repeat([0.319+0.09], 2),
-                     alpha=0.5, color="tab:blue", label=L"{\rm Elsworth\ et\ al.\ (1994)}")
-    ax1.fill_between(range(xrng[1], xrng[2], length=2), repeat([0.461-0.1], 2), repeat([0.461+0.1], 2),
-                     alpha=0.5, color="tab:green", label=L"{\rm Palle\ et\ al.\ (1999)}")
+    xs = range(xrng[1], xrng[2], length=2)
+    Elsworth = [repeat([0.319-0.09], 2), repeat([0.319+0.09], 2)]
+    Palle = [repeat([0.461-0.1], 2), repeat([0.461+0.1], 2)]
+    ax1.fill_between(xs, Elsworth..., alpha=0.5, color="tab:orange", label=L"{\rm Elsworth\ et\ al.\ (1994)}")
+    ax1.fill_between(xs, Palle..., alpha=0.5, color="tab:green", label=L"{\rm Palle\ et\ al.\ (1999)}")
 
     # set the axes limits + labels
     ax1.set_xlim(xrng...)
