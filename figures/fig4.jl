@@ -23,7 +23,7 @@ const Nloop = 12
 run, plot = parse_args(ARGS)
 grassdir, plotdir, datadir = check_plot_dirs()
 
-function main(args)
+function main()
     # set up parameters for lines
     lines = [5434.5]
     depths = [0.8]
@@ -99,7 +99,7 @@ if plot
     ax1.set_xscale("log", basex=2)
     ax1.set_yscale("log", basey=10)
     ax1.errorbar(res, rms_res, yerr=err_res, capsize=3.0, color="black", fmt=".")
-    ax1.fill_between(res, rms_res .- std_res, rms_res .+ std_res, color="tab:blue", alpha=0.3)
+    # ax1.fill_between(res, rms_res .- std_res, rms_res .+ std_res, color="tab:blue", alpha=0.3)
     ax1.plot(res_fit, power_law(res_fit, fit.param), "k--", alpha=0.4,
              label = L"{\rm Power\ law\ index\ } \approx\ %$x ")
 
