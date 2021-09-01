@@ -108,8 +108,10 @@ if plot
     xs = range(xrng[1], xrng[2], length=2)
     Elsworth = [repeat([0.319-0.09], 2), repeat([0.319+0.09], 2)]
     Palle = [repeat([0.461-0.1], 2), repeat([0.461+0.1], 2)]
-    ax1.fill_between(xs, Elsworth..., alpha=0.5, color="tab:orange", label=L"{\rm Elsworth\ et\ al.\ (1994)}")
-    ax1.fill_between(xs, Palle..., alpha=0.5, color="tab:green", label=L"{\rm Palle\ et\ al.\ (1999)}")
+    ax1.fill_between(xs, Elsworth..., alpha=0.5, fc="tab:orange", ec="white",
+                     hatch="/", label=L"{\rm Elsworth\ et\ al.\ (1994)}")
+    ax1.fill_between(xs, Palle..., alpha=0.5, fc="tab:green", ec="white",
+                     hatch="\\", label=L"{\rm Palle\ et\ al.\ (1999)}")
 
     # set the axes limits + labels
     ax1.set_xlim(xrng...)

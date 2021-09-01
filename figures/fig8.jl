@@ -4,6 +4,12 @@ using Distributed
 @everywhere using GRASS
 @everywhere using Statistics
 @everywhere using EchelleCCFs
+using LaTeXStrings
+
+# plotting imports
+import PyPlot; plt = PyPlot; mpl = plt.matplotlib; plt.ioff()
+using PyCall; animation = pyimport("matplotlib.animation")
+mpl.style.use(GRASS.moddir * "figures/fig.mplstyle")
 
 # define rms loop function
 include(GRASS.moddir * "figures/fig_functions.jl")
@@ -11,7 +17,7 @@ include(GRASS.moddir * "figures/fig_functions.jl")
 # some global stuff
 N = 256
 Nt = 500
-Nloop = 5
+Nloop = 1
 
 # get command line args and output directories
 run, plot = parse_args(ARGS)
@@ -64,11 +70,12 @@ end
 
 @everywhere function power_spectrum(period, signal)
     # do fourier transform and get frequencies
-    fourier = FFTW.fft(signal) |> FFTW.fftshift
-    freqs = FFTW.fftfreq(length(signal), 1.0/period) |> FFTW.fftshift
+    fourier = FFTW.fft(signal)
+    freqs = range(0.0, 1.0/(2.0 * period), length=length(signal) ÷ 2)
 
     # get power
     power = abs.(fourier).^2 ./ (freqs[2] - freqs[1])
+    power = (2.0 / length(signal)) * power[1:length(signal) ÷ 2]
     return freqs, power
 end
 
@@ -92,12 +99,26 @@ function main()
                       fixed_bisector=false, extrapolate=true,
                       contiguous_only=false)
 
-    @sync @distributed for i in 1:Nloop
+    # @sync @distributed for i in 1:Nloop
         # synthesize spectra and compute power spectrum
-        lambdas1, outspec1 = synthesize_spectra(spec, disk, seed_rng=false)
-        v_grid, ccf1 = calc_ccf(lambdas1, outspec1, spec, normalize=true)
-        rvs, sigs = calc_rvs_from_ccf(v_grid, ccf1)
-        freqs_sim, power_sim = power_spectrum(15.0, rvs)
+    lambdas1, outspec1 = synthesize_spectra(spec, disk, seed_rng=false)
+    v_grid, ccf1 = calc_ccf(lambdas1, outspec1, spec, normalize=true)
+    rvs, sigs = calc_rvs_from_ccf(v_grid, ccf1)
+    freqs_sim, power_sim = power_spectrum(15.0, rvs)
+    # end
+
+    # plotting code block
+    if plot
+        # plot it
+        fig = plt.figure()
+        ax1 = fig.add_subplot()
+        ax1.loglog(freqs_sim, power_sim)#, label="Synthetic")
+        ax1.set_xlabel(L"{\rm Frequency\ (Hz)}")
+        ax1.set_ylabel(L"{\rm Power\ (arbitrary\ units)}")
+        # ax1.set_ylim(1e1, 1e9)
+        fig.savefig(plotdir * "fig8.pdf")
+        plt.clf(); plt.close()
+        println(">>> Figure written to: " * plotdir * "fig8.pdf")
     end
 end
 
@@ -106,20 +127,3 @@ if run
     main()
 end
 
-# plotting code block
-if plot
-    # plotting imports
-    import PyPlot; plt = PyPlot; mpl = plt.matplotlib; plt.ioff()
-    using PyCall; animation = pyimport("matplotlib.animation")
-    mpl.style.use(GRASS.moddir * "figures/fig.mplstyle")
-
-    # plot it
-    fig = plt.figure()
-    ax1 = fig.add_subplot()
-    ax1.loglog(freqs_sim, power_sim)#, label="Synthetic")
-    ax1.set_xlabel(L"{\rm Frequency\ (Hz)}")
-    ax1.set_ylabel(L"{\rm Power\ (arbitrary\ units)}")
-    ax1.set_ylim(1e1, 1e9)
-    fig.savefig(abspath(homedir() * "/Desktop/fig8.pdf"))
-    plt.clf(); plt.close()
-end
