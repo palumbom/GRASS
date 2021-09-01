@@ -94,23 +94,34 @@ if plot
     # read in the data
     fname = datadir * "inclination_" *  string(N) * ".csv"
     df = CSV.read(fname, DataFrame)
+
+    # assign to variable names
     ang = df.inc .* (180.0/π)
     avg_avg_inc = df.avg_avg_inc
     std_avg_inc = df.std_avg_inc
     avg_rms_inc = df.avg_rms_inc
     std_rms_inc = df.std_rms_inc
 
-    arrowprops=Dict("facecolor"=>"black", "shrink"=>0.05, "width"=>2.0,"headwidth"=>8.0)
+    # get the errors
+    err_avg_inc = std_avg_inc ./ sqrt(Nloop - 1)
+    err_rms_inc = std_rms_inc ./ sqrt(Nloop - 1)
 
+    # plot the results
     fig = plt.figure()
     ax1 = fig.add_subplot()
-    ax1.errorbar(ang, avg_rms_inc, yerr=std_rms_inc, capsize=3.0, color="black", fmt=".")
+    ax1.errorbar(ang, avg_rms_inc, yerr=err_rms_inc, capsize=3.0, color="black", fmt=".")
+    ax1.fill_between(ang, avg_rms_inc .- std_rms_inc, avg_rms_inc .+ std_rms_inc, color="black", alpha=0.3)
+
+    # set labels, etc.
     ax1.set_xlabel(L"{\rm Inclination\ (deg)}")
     ax1.set_ylabel(L"{\rm RMS\ RV\ (m s}^{-1})")
     ax1.set_xticks(range(0, 90, length=10))
     ax1.set_ylim(0.2,0.345)
-    ax1.annotate("Pole-on", xy=(77.5, 0.207), xytext=(0.5,0.205), arrowprops=arrowprops)
-    ax1.annotate("Equator-on", xy=(78.0, 0.205))
+
+    # annotate the axes and save the figure
+    arrowprops = Dict("facecolor"=>"black", "shrink"=>0.05, "width"=>2.0,"headwidth"=>8.0)
+    ax1.annotate(L"\textnormal{Pole-on}", xy=(69.8, 0.207), xytext=(0.0,0.205), arrowprops=arrowprops)
+    ax1.annotate(L"\textnormal{Equator-on}", xy=(70.0, 0.205))
     fig.savefig(plotdir * "fig6.pdf")
     plt.clf(); plt.close()
     println(">>> Figure written to: " * plotdir * "fig6.pdf")
