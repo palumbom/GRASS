@@ -4,20 +4,18 @@ using Distributed
 @everywhere using GRASS
 @everywhere using Statistics
 @everywhere using EchelleCCFs
+@everywhere using SharedArrays
+using JLD2
+using FileIO
 using LaTeXStrings
-
-# plotting imports
-import PyPlot; plt = PyPlot; mpl = plt.matplotlib; plt.ioff()
-using PyCall; animation = pyimport("matplotlib.animation")
-mpl.style.use(GRASS.moddir * "figures/fig.mplstyle")
 
 # define rms loop function
 include(GRASS.moddir * "figures/fig_functions.jl")
 
 # some global stuff
-N = 256
-Nt = 500
-Nloop = 1
+const N = 256
+const Nt = 500
+const Nloop = 25
 
 # get command line args and output directories
 run, plot = parse_args(ARGS)
@@ -75,7 +73,8 @@ end
 
     # get power
     power = abs.(fourier).^2 ./ (freqs[2] - freqs[1])
-    power = (2.0 / length(signal)) * power[1:length(signal) ÷ 2]
+    # power = (2.0 / length(signal)) * power[1:length(signal) ÷ 2]
+    power = power[1:length(signal) ÷ 2]
     return freqs, power
 end
 
@@ -99,27 +98,33 @@ function main()
                       fixed_bisector=false, extrapolate=true,
                       contiguous_only=false)
 
-    # @sync @distributed for i in 1:Nloop
-        # synthesize spectra and compute power spectrum
-    lambdas1, outspec1 = synthesize_spectra(spec, disk, seed_rng=false)
-    v_grid, ccf1 = calc_ccf(lambdas1, outspec1, spec, normalize=true)
-    rvs, sigs = calc_rvs_from_ccf(v_grid, ccf1)
-    freqs_sim, power_sim = power_spectrum(15.0, rvs)
-    # end
+    # allocate memory
+    freqs = SharedArray{Float64}(Nt ÷ 2, Nloop)
+    powers = SharedArray{Float64}(Nt ÷ 2, Nloop)
 
-    # plotting code block
-    if plot
-        # plot it
-        fig = plt.figure()
-        ax1 = fig.add_subplot()
-        ax1.loglog(freqs_sim, power_sim)#, label="Synthetic")
-        ax1.set_xlabel(L"{\rm Frequency\ (Hz)}")
-        ax1.set_ylabel(L"{\rm Power\ (arbitrary\ units)}")
-        # ax1.set_ylim(1e1, 1e9)
-        fig.savefig(plotdir * "fig8.pdf")
-        plt.clf(); plt.close()
-        println(">>> Figure written to: " * plotdir * "fig8.pdf")
+    # calculate power spectrum many times to build up stats
+    @sync @distributed for i in 1:Nloop
+        # synthesize spectra and compute power spectrum
+        lambdas1, outspec1 = synthesize_spectra(spec, disk, seed_rng=false)
+        v_grid, ccf1 = calc_ccf(lambdas1, outspec1, spec, normalize=true)
+        rvs, sigs = calc_rvs_from_ccf(v_grid, ccf1)
+        freqs_sim, power_sim = power_spectrum(15.0, rvs)
+
+        # assign to shared array
+        freqs[:, i] = freqs_sim
+        powers[:, i] = power_sim
     end
+
+    # convert to plain arrays
+    freqs = convert(Array{Float64}, freqs)
+    powers = convert(Array{Float64}, powers)
+
+    # save the output
+    outfile = datadir * "power_loop_" * string(Nloop) * ".jld2"
+    save(outfile,
+         "freqs", freqs,
+         "powers", powers)
+    return nothing
 end
 
 # run the simulation
@@ -127,3 +132,30 @@ if run
     main()
 end
 
+# plotting code block
+if plot
+    # plotting imports
+    import PyPlot; plt = PyPlot; mpl = plt.matplotlib; plt.ioff()
+    using PyCall; animation = pyimport("matplotlib.animation")
+    mpl.style.use(GRASS.moddir * "figures/fig.mplstyle")
+
+    # read in the data
+    file = datadir * "power_loop_" * string(Nloop) * ".jld2"
+    d = load(file)
+    freqs = d["freqs"]
+    powers = d["powers"]
+
+    # compute mean and std
+    avg_power = mean(powers, dims=2)
+    std_power = std(powers, dims=2)
+
+    # plot it
+    fig = plt.figure()
+    ax1 = fig.add_subplot()
+    ax1.loglog(freqs[:,1], avg_power)
+    ax1.set_xlabel(L"{\rm Frequency\ (Hz)}")
+    ax1.set_ylabel(L"{\rm Power\ (arbitrary\ units)}")
+    fig.savefig(plotdir * "fig8.pdf")
+    plt.clf(); plt.close()
+    println(">>> Figure written to: " * plotdir * "fig8.pdf")
+end
