@@ -71,7 +71,7 @@ ax = :c
 freqs_dat, power_dat = power_spec_for_input(mu=mu, ax=ax)
 plt.loglog(freqs_dat, power_dat, label="Input data")
 
-# set up stuff for lines
+# set up disk and spec params instances for synthesis
 N = 256
 Nt = 1000
 lines = [5434.5]
