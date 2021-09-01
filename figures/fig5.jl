@@ -91,13 +91,13 @@ if plot
     std_rms_depth = df.std_rms_depth
 
     # get the errors
-    err_avg_depth = std_avg_depth ./ sqrt(Nloop - 1)
-    err_rms_depth = std_rms_depth ./ sqrt(Nloop - 1)
+    err_avg_depth = std_avg_depth ./ sqrt(Nloop)
+    err_rms_depth = std_rms_depth ./ sqrt(Nloop)
 
     # plot the results
     fig, ax1 = plt.subplots()
     ax1.errorbar(depths, avg_rms_depth, yerr=err_rms_depth, capsize=3.0, color="black", fmt=".")\
-    ax1.fill_between(depths, avg_rms_depth .- std_rms_depth, avg_rms_depth .+ std_rms_depth, color="black", alpha=0.3)
+    ax1.fill_between(depths, avg_rms_depth .- std_rms_depth, avg_rms_depth .+ std_rms_depth, color="tab:blue", alpha=0.3)
     ax1.fill_betweenx(range(0.0, 1.0, length=5), zeros(5), zeros(5) .+ 0.2, hatch="/", fc="black", ec="white", alpha=0.15, zorder=0)
 
     # set labels, etc.
