@@ -19,11 +19,11 @@ const N = 256
 const Nt = 200
 const Nloop = 100
 
-# get directory paths
-plot = true
+# get command line args and output directories
+run, plot = parse_args(ARGS)
 grassdir, plotdir, datadir = check_plot_dirs()
 
-function inclination()
+function main()
     # set up stuff for lines
     lines = [5434.5]
     depths = [0.8]
@@ -82,7 +82,9 @@ function inclination()
 end
 
 # run the simulation
-inclination()
+if run
+    main()
+end
 
 # plotting code block
 if plot

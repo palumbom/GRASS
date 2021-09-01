@@ -13,8 +13,8 @@ N = 256
 Nt = 500
 Nloop = 5
 
-# get directory paths
-plot = true
+# get command line args and output directories
+run, plot = parse_args(ARGS)
 grassdir, plotdir, datadir = check_plot_dirs()
 
 # function to get spectrum from input data
@@ -72,7 +72,7 @@ end
     return freqs, power
 end
 
-function grass_spectrum()
+function main()
     """
     # now get the power spec for each disk position
     mu = :mu10
@@ -101,9 +101,18 @@ function grass_spectrum()
     end
 end
 
-grass_spectrum()
+# run the simulation
+if run
+    main()
+end
 
+# plotting code block
 if plot
+    # plotting imports
+    import PyPlot; plt = PyPlot; mpl = plt.matplotlib; plt.ioff()
+    using PyCall; animation = pyimport("matplotlib.animation")
+    mpl.style.use(GRASS.moddir * "figures/fig.mplstyle")
+
     # plot it
     fig = plt.figure()
     ax1 = fig.add_subplot()
