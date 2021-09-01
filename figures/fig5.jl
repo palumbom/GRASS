@@ -96,7 +96,7 @@ if plot
 
     # plot the results
     fig, ax1 = plt.subplots()
-    ax1.errorbar(depths, avg_rms_depth, yerr=err_rms_depth, capsize=3.0, color="black", fmt=".")\
+    ax1.errorbar(depths, avg_rms_depth, yerr=err_rms_depth, capsize=3.0, color="black", fmt=".")
     ax1.fill_between(depths, avg_rms_depth .- std_rms_depth, avg_rms_depth .+ std_rms_depth, color="tab:blue", alpha=0.3)
     ax1.fill_betweenx(range(0.0, 1.0, length=5), zeros(5), zeros(5) .+ 0.2, hatch="/", fc="black", ec="white", alpha=0.15, zorder=0)
 
@@ -104,12 +104,12 @@ if plot
     ax1.set_xlabel(L"{\rm Line\ Depth}")
     ax1.set_ylabel(L"{\rm RMS\ RV\ (m s}^{-1})")
     ax1.set_xlim(0.0, 1.0)
-    ax1.set_ylim(0.19, 0.36)
+    ax1.set_ylim(0.19, 0.35)
 
     # annotate the axes and save the figure
     arrowprops = Dict("facecolor"=>"black", "shrink"=>0.05, "width"=>2.0,"headwidth"=>8.0)
-    ax1.annotate(L"{\rm Shallow}", xy=(0.85,0.202), xytext=(0.05,0.2), arrowprops=arrowprops)
-    ax1.annotate(L"{\rm Deep}", xy=(0.86, 0.2))
+    ax1.annotate(L"{\rm Shallow}", xy=(0.85,0.2), xytext=(0.05,0.198), arrowprops=arrowprops)
+    ax1.annotate(L"{\rm Deep}", xy=(0.86, 0.198))
     fig.savefig(plotdir * "fig5.pdf")
     plt.clf(); plt.close()
     println(">>> Figure written to: " * plotdir * "fig5.pdf")
