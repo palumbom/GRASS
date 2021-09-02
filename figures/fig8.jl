@@ -1,5 +1,6 @@
 using Distributed
-@everywhere using Pkg; Pkg.activate(".")
+@everywhere using Pkg
+@everywhere Pkg.activate(".")
 @everywhere using FFTW
 @everywhere using GRASS
 @everywhere using Statistics
@@ -10,7 +11,7 @@ using FileIO
 using LaTeXStrings
 
 # define rms loop function
-include(GRASS.moddir * "figures/fig_functions.jl")
+@everywhere include(GRASS.moddir * "figures/fig_functions.jl")
 
 # some global stuff
 const N = 256
@@ -153,9 +154,10 @@ if plot
     fig = plt.figure()
     ax1 = fig.add_subplot()
     ax1.loglog(freqs[:,1], avg_power)
+    # ax1.fill_between(freqs[:,1], log10.(avg_power .- std_power), log10.(avg_power .+ std_power), color="tab:blue", alpha=0.3)
     ax1.set_xlabel(L"{\rm Frequency\ (Hz)}")
     ax1.set_ylabel(L"{\rm Power\ (arbitrary\ units)}")
-    fig.savefig(plotdir * "fig8.pdf")
+    fig.savefig(plotdir * "fig8_test.pdf")
     plt.clf(); plt.close()
     println(">>> Figure written to: " * plotdir * "fig8.pdf")
 end
