@@ -16,7 +16,7 @@ using LaTeXStrings
 # some global stuff
 const N = 256
 const Nt = 500
-const Nloop = 80
+const Nloop = 200
 
 # get command line args and output directories
 run, plot = parse_args(ARGS)
