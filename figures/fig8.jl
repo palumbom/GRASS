@@ -16,7 +16,7 @@ using LaTeXStrings
 # some global stuff
 const N = 256
 const Nt = 500
-const Nloop = 200
+const Nloop = 80
 
 # get command line args and output directories
 run, plot = parse_args(ARGS)
@@ -147,17 +147,19 @@ if plot
     powers = d["powers"]
 
     # compute mean and std
-    avg_power = mean(2/500 .* powers, dims=2)
-    std_power = std(2/500 .* powers, dims=2)
+    avg_power = mean(powers, dims=2)
+    std_power = std(powers, dims=2)
+    println(freqs[:,1])#[2] - freqs[1]
+    @show maximum(avg_power[2:end])
 
     # plot it
     fig = plt.figure()
     ax1 = fig.add_subplot()
     ax1.loglog(freqs[:,1], avg_power)
-    # ax1.fill_between(freqs[:,1], log10.(avg_power .- std_power), log10.(avg_power .+ std_power), color="tab:blue", alpha=0.3)
 
     # set labels, etc.
-    ax1.set_ylim(1.0, 1e6)
+    ylims = ax1.get_ylim()
+    ax1.set_ylim(ylims[1], 1e6)
     ax1.set_xlabel(L"{\rm Frequency\ (Hz)}")
     ax1.set_ylabel(L"{\rm Power\ (arbitrary\ units)}")
 
