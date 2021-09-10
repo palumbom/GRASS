@@ -116,7 +116,7 @@ if plot
 
     # set labels, etc.
     ax1.set_xlabel(L"{\rm Inclination\ (deg)}")
-    ax1.set_ylabel(L"{\rm RMS\ RV\ (m s}^{-1})")
+    ax1.set_ylabel(L"{\rm RMS}_{\rm RV}\ {\rm (m s}^{-1})")
     ax1.set_xticks(range(0, 90, length=10))
     ax1.set_ylim(0.2,0.345)
 
