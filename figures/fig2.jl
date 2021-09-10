@@ -38,10 +38,14 @@ function main(; ncurves=25)
     fig = plt.figure()
     ax1 = fig.add_subplot()
     for (i, t) in enumerate(iter)
-        ax1.plot(wav[:,t].*1000, bis[:,t], c=cols[i], alpha=0.75)
+        ax1.plot(wav[:,t][2:end].*1000, bis[:,t][2:end], c=cols[i], alpha=0.75)
     end
+    xlims = ax1.get_xlim()
+    ax1.fill_between(range(xlims..., step=0.1), 0.8, 1.0, hatch="/", fc="black", ec="white", alpha=0.15, zorder=0)
+    ax1.set_xlim(xlims...)
+    ax1.set_ylim(0.1, 1.0)
     ax1.set_xlabel(L"{\rm Relative\ Wavelength\ (m\AA)}")
-    ax1.set_ylabel(L"{\rm Normalized\ Flux}")
+    ax1.set_ylabel(L"{\rm Normalized\ Intensity}")
     cb = fig.colorbar(sm)
     cb.set_label(L"{\rm Time\ from\ first\ observation\ (min)}")
 
@@ -56,7 +60,7 @@ function main(; ncurves=25)
     for (i, t) in enumerate(iter)
         ax1.plot(dep[:,t], wid[:,t], c=cols[i], alpha=0.75)
     end
-    ax1.set_xlabel(L"{\rm Normalized\ Flux}")
+    ax1.set_xlabel(L"{\rm Normalized\ Intensity}")
     ax1.set_ylabel(L"{\rm Width\ across\ line\ (\AA)}")
     cb = fig.colorbar(sm)
     cb.set_label(L"{\rm Time\ from\ first\ observation\ (min)}")
@@ -68,6 +72,6 @@ function main(; ncurves=25)
     return nothing
 end
 
-if run
+if (run | plot)
     main(ncurves=25)
 end

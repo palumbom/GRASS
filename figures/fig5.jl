@@ -102,7 +102,7 @@ if plot
 
     # set labels, etc.
     ax1.set_xlabel(L"{\rm Line\ Depth}")
-    ax1.set_ylabel(L"{\rm RMS\ RV\ (m s}^{-1})")
+    ax1.set_ylabel(L"{\rm RMS}_{\rm RV}\ {\rm (m s}^{-1})")
     ax1.set_xlim(0.0, 1.0)
     ax1.set_ylim(0.19, 0.35)
 

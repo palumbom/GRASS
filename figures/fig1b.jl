@@ -27,6 +27,7 @@ function main()
     # loop and plot curves
     keyz = [(:c, :mu10), (:w, :mu06), (:w, :mu03)]
     labels = [L"\mu = 1.0", L"\mu = 0.6", L"\mu = 0.3"]
+    linestyles = ["-", "--", ":"]
     for (i, key) in enumerate(keyz)
         # find average and std
         avg_bis = mean(bisinfo.bis[key], dims=2)
@@ -53,19 +54,19 @@ function main()
 
         # plot the curve
         ax1.fill_betweenx(y, x1, x2, color="C"*string(i-1), alpha=0.5)
-        ax1.plot(avg_wav, avg_bis, color="C"*string(i-1), label=labels[i])
+        ax1.plot(avg_wav, avg_bis, ls=linestyles[i], color="C"*string(i-1), label=labels[i])
     end
 
     # set axes labels and save the figure
     ax1.legend(loc="upper right")
     ax1.set_xlabel(L"{\rm Doppler\ Velocity\ (ms}^{-1} {\rm )}")
-    ax1.set_ylabel(L"{\rm Normalized\ Flux}")
+    ax1.set_ylabel(L"{\rm Normalized\ Intensity}")
     fig.savefig(plotdir * "fig1b.pdf")
     plt.clf(); plt.close()
     println(">>> Figure written to: " * plotdir * "fig1b.pdf")
     return nothing
 end
 
-if run
+if (run | plot)
     main()
 end

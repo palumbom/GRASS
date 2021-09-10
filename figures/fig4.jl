@@ -117,7 +117,7 @@ if plot
     ax1.set_xlim(xrng...)
     ax1.yaxis.set_major_formatter(mpl.ticker.ScalarFormatter())
     ax1.set_xlabel(L"N")
-    ax1.set_ylabel(L"{\rm RMS\ RV\ (m s}^{-1})")
+    ax1.set_ylabel(L"{\rm RMS}_{\rm RV}\ {\rm (m s}^{-1})")
     ax1.legend()
 
     # save the figure
