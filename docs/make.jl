@@ -3,6 +3,16 @@ using Documenter
 
 DocMeta.setdocmeta!(GRASS, :DocTestSetup, :(using GRASS); recursive=true)
 
+About = "Introduction" => "index.md"
+
+Installation = "installation.md"
+
+Examples = "Examples" => ["examples/spectra.md"]
+
+License = "License" => "license.md"
+
+pages = [About, Installation, Examples, License]
+
 makedocs(;
     modules=[GRASS],
     authors="Michael Palumbo",
@@ -13,9 +23,7 @@ makedocs(;
         canonical="https://palumbom.github.io/GRASS",
         assets=String[],
     ),
-    pages=[
-        "Home" => "index.md",
-    ],
+    pages=pages,
 )
 
 deploydocs(;
