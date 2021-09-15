@@ -53,7 +53,7 @@ end
     patch_velocity_los(x, y; rstar, pole)
 
 Compute line of sight velocity of a patch of stellar surface given by x,y (assumed in [-1,1]).
-Return value is in (Rsol/day)/speed_of_light (i.e., dimensionless like z = v/c)
+Return value is in (Rsol/day)/speed of light (i.e., dimensionless like z = v/c)
 
 # Arguments
 - `rstar::Float64=1.0`: in R_sol (affects return velocity, but not x,y)
