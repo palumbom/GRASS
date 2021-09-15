@@ -15,9 +15,9 @@ Generating synthetic spectra with GRASS only takes a few lines of Julia:
 using GRASS
 
 # parameters for lines in the spectra
-lines = [5434.5]
-depths = [0.75]
-resolution = 7e5
+lines = [5434.5]     # array of line centers in angstroms
+depths = [0.75]      # continuum-normalized depth of lines
+resolution = 7e5     # spectral resolution of the output spectra
 spec = SpecParams(lines=lines, depths=depths, resolution=resolution)
 
 # specify number of epochs (default 15-second spacing)
