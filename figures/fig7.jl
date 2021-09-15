@@ -18,7 +18,7 @@ using HypothesisTests
 include(GRASS.moddir * "figures/fig_functions.jl")
 
 # some global stuff
-const N = 256
+const N = 132
 const Nloop = 800
 
 # get command line args and output directories
@@ -147,8 +147,6 @@ if plot
         append!(ylims, [axs[i].get_ylim()])
 
         # report two-sample KS test
-        # @show std(avg_largedead[i,:]) / (sqrt(length(avg_largedead[i,:])-1))
-        # @show std(avg_shortdead[i,:]) / (sqrt(length(avg_shortdead[i,:])-1))
         @show(ApproximateTwoSampleKSTest(avg_shortdead[i,:], avg_largedead[i,:]))
         println()
     end
