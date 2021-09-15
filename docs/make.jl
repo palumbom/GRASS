@@ -9,7 +9,7 @@ Examples = "Examples" => ["examples/spectra.md"]
 
 License = "License" => "license.md"
 
-Index = "Index" => longlist.md
+Index = "Index" => "longlist.md"
 
 pages = [Home, Examples, License, Index]
 
