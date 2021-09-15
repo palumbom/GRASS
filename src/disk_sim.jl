@@ -32,7 +32,6 @@ function line_loop(prof::AA{T,1}, mid::T, depth::T,
     return nothing
 end
 
-# TODO: @code_warntype
 function time_loop(t_loop::Int, prof::AA{T,1}, rot_shift::T,
                    key::Tuple{Symbol, Symbol}, liter::UnitRange{Int},
                    spec::SpecParams{T}, wsp::SynthWorkspace{T}; top::T=NaN) where T<:AF
@@ -110,7 +109,6 @@ function disk_sim(spec::SpecParams{T}, disk::DiskParams{T,Int64}, prof::AA{T,1},
     for i in grid
         for j in grid
             # move to next iteration if off grid
-            # TODO: area weighting for pixels that aren't fully in ??
             (i^2 + j^2) > one(T) && continue
 
             # get input data for place on disk
@@ -132,7 +130,6 @@ function disk_sim(spec::SpecParams{T}, disk::DiskParams{T,Int64}, prof::AA{T,1},
                 time_loop(t_loop, prof, rot_shift, key, liter, spec, wsp, top=top)
 
                 # apply normalization term and add to outspec
-                # TODO: sqrt for variance spectrum
                 outspec[:,t] .+= (prof .* norm_term)
             end
         end

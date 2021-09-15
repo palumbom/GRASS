@@ -26,7 +26,7 @@ function SpecParams(;lines=[], depths=[], variability=[], resolution=7e8,
     @assert !isempty(lines)
     @assert !isempty(depths)
     @assert length(lines) == length(depths)
-    @assert buffer >= 0.75  # TODO check this more carefully
+    @assert buffer >= 0.75
 
     # assign depths if needed, otherwise check same number of centers + depths
     if any(isnan.(depths))
