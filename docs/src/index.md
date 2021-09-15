@@ -2,9 +2,9 @@
 CurrentModule = GRASS
 ```
 
-# GRASS
+# About GRASS
 
-A testbed for stellar granulation in exoplanet RV searches.
+In short, GRASS is designed to be a testbed for stellar granulation in exoplanet RV searches.
 
 Documentation for [GRASS](https://github.com/palumbom/GRASS).
 
