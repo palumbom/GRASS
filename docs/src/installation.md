@@ -1,4 +1,4 @@
-# License
+# Installation
 
 GRASS only requires a few steps to install. Simply clone the repo to your desired directory...
 
