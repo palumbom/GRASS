@@ -1,17 +1,29 @@
-using Pkg; Pkg.activate(".")
-using FFTW
-using GRASS
-using Statistics
-using EchelleCCFs
-
-# plotting
+using Distributed
+@everywhere using Pkg
+@everywhere Pkg.activate(".")
+@everywhere using FFTW
+@everywhere using GRASS
+@everywhere using Statistics
+@everywhere using EchelleCCFs
+@everywhere using SharedArrays
+using JLD2
+using FileIO
 using LaTeXStrings
-import PyPlot; plt = PyPlot; mpl = plt.matplotlib; plt.ioff()
-using PyCall; animation = pyimport("matplotlib.animation");
-mpl.style.use(GRASS.moddir * "figures/fig.mplstyle")
+
+# define rms loop function
+@everywhere include(GRASS.moddir * "figures/fig_functions.jl")
+
+# some global stuff
+const N = 132
+const Nt = 500
+const Nloop = 80
+
+# get command line args and output directories
+run, plot = parse_args(ARGS)
+grassdir, plotdir, datadir = check_plot_dirs()
 
 # function to get spectrum from input data
-function spectrum_for_input(; mu::Symbol=:mu10, ax::Symbol=:c)
+@everywhere function spectrum_for_input(; mu::Symbol=:mu10, ax::Symbol=:c)
     # get all the input data
     soldata = GRASS.SolarData(extrapolate=true, contiguous_only=false)
     @assert haskey(soldata.bis, (ax, mu))
@@ -43,7 +55,7 @@ function spectrum_for_input(; mu::Symbol=:mu10, ax::Symbol=:c)
 end
 
 # function to get power spectrum for input data
-function power_spec_for_input(; mu::Symbol=:mu10, ax::Symbol=:c)
+@everywhere function power_spec_for_input(; mu::Symbol=:mu10, ax::Symbol=:c)
     # first get the sepctrum
     lambdas, flux = spectrum_for_input(mu=mu, ax=ax)
 
@@ -55,52 +67,104 @@ function power_spec_for_input(; mu::Symbol=:mu10, ax::Symbol=:c)
     return power_spectrum(15.0, rvs)
 end
 
-function power_spectrum(period, signal)
+@everywhere function power_spectrum(period, signal)
     # do fourier transform and get frequencies
-    fourier = FFTW.fft(signal) |> FFTW.fftshift
-    freqs = FFTW.fftfreq(length(signal), 1.0/period) |> FFTW.fftshift
+    fourier = FFTW.fft(signal)
+    freqs = range(0.0, 1.0/(2.0 * period), length=length(signal) ÷ 2)
 
     # get power
     power = abs.(fourier).^2 ./ (freqs[2] - freqs[1])
+    power = (2.0 / length(signal)) * power[1:length(signal) ÷ 2]
+    # power = power[1:length(signal) ÷ 2]
     return freqs, power
 end
 
-# now get the power spec for each disk position
-mu = :mu10
-ax = :c
-freqs_dat, power_dat = power_spec_for_input(mu=mu, ax=ax)
-plt.loglog(freqs_dat, power_dat, label="Input data")
+function main()
+    """
+    # now get the power spec for each disk position
+    mu = :mu10
+    ax = :c
+    freqs_dat, power_dat = power_spec_for_input(mu=mu, ax=ax)
+    plt.loglog(freqs_dat, power_dat, label="Input data")
+    """
 
-# set up stuff for lines
-N = 256
-Nt = 1000
-lines = [5434.5]
-depths = [0.8]
-variability = [true]
-resolution = 700000.0
-disk = DiskParams(N=N, Nt=Nt)
-spec = SpecParams(lines=lines, depths=depths, variability=variability,
-                  resolution=resolution, fixed_width=false,
-                  fixed_bisector=false, extrapolate=true,
-                  contiguous_only=false)
+    # set up spectrum parameters
+    lines = [5434.5]
+    depths = [0.8]
+    variability = [true]
+    resolution = 700000.0
+    disk = DiskParams(N=N, Nt=Nt)
+    spec = SpecParams(lines=lines, depths=depths, variability=variability,
+                      resolution=resolution, fixed_width=false,
+                      fixed_bisector=false, extrapolate=true,
+                      contiguous_only=false)
 
-# synthesize spectra
-println(">>> Synthesizing spectra...")
-lambdas1, outspec1 = synthesize_spectra(spec, disk, seed_rng=false, verbose=true, top=NaN)
+    # allocate memory
+    freqs = SharedArray{Float64}(Nt ÷ 2, Nloop)
+    powers = SharedArray{Float64}(Nt ÷ 2, Nloop)
 
-# calculate the ccf
-println(">>> Calculating velocities...")
-v_grid, ccf1 = calc_ccf(lambdas1, outspec1, spec, normalize=true)
-rvs, sigs = calc_rvs_from_ccf(v_grid, ccf1)
+    # calculate power spectrum many times to build up stats
+    @sync @distributed for i in 1:Nloop
+        # synthesize spectra and compute power spectrum
+        lambdas1, outspec1 = synthesize_spectra(spec, disk, seed_rng=false)
+        v_grid, ccf1 = calc_ccf(lambdas1, outspec1, spec, normalize=true)
+        rvs, sigs = calc_rvs_from_ccf(v_grid, ccf1)
+        freqs_sim, power_sim = power_spectrum(15.0, rvs)
 
-# get frequencies to sample and then power
-println(">>> Getting periodogram...")
-freqs_sim, power_sim = power_spectrum(15.0, rvs)
+        # assign to shared array
+        freqs[:, i] = freqs_sim
+        powers[:, i] = power_sim
+    end
 
-# plot it
-plt.loglog(freqs_sim, power_sim, label="Synthetic")
-plt.xlabel("Frequency (Hz)")
-plt.ylabel("Power (m/s)**2 /Hz)")
-plt.legend()
-plt.savefig(abspath(homedir() * "/Desktop/compare_ft.pdf"))
-plt.clf(); plt.close()
+    # convert to plain arrays
+    freqs = convert(Array{Float64}, freqs)
+    powers = convert(Array{Float64}, powers)
+
+    # save the output
+    outfile = datadir * "power_loop_" * string(Nloop) * ".jld2"
+    save(outfile,
+         "freqs", freqs,
+         "powers", powers)
+    return nothing
+end
+
+# run the simulation
+if run
+    main()
+end
+
+# plotting code block
+if plot
+    # plotting imports
+    import PyPlot; plt = PyPlot; mpl = plt.matplotlib; plt.ioff()
+    using PyCall; animation = pyimport("matplotlib.animation")
+    mpl.style.use(GRASS.moddir * "figures/fig.mplstyle")
+
+    # read in the data
+    file = datadir * "power_loop_" * string(Nloop) * ".jld2"
+    d = load(file)
+    freqs = d["freqs"]
+    powers = d["powers"]
+
+    # compute mean and std
+    avg_power = mean(powers, dims=2)
+    std_power = std(powers, dims=2)
+    println(freqs[:,1])#[2] - freqs[1]
+    @show maximum(avg_power[2:end])
+
+    # plot it
+    fig = plt.figure()
+    ax1 = fig.add_subplot()
+    ax1.loglog(freqs[:,1], avg_power)
+
+    # set labels, etc.
+    ylims = ax1.get_ylim()
+    ax1.set_ylim(ylims[1], 1e6)
+    ax1.set_xlabel(L"{\rm Frequency\ (Hz)}")
+    ax1.set_ylabel(L"{\rm Power\ (arbitrary\ units)}")
+
+    # save the figure
+    fig.savefig(plotdir * "fig8.pdf")
+    plt.clf(); plt.close()
+    println(">>> Figure written to: " * plotdir * "fig8.pdf")
+end

@@ -3,7 +3,7 @@ using Pkg; Pkg.activate(".")
 using GRASS
 using Statistics
 
-# plotting
+# plotting imports
 using LaTeXStrings
 import PyPlot; plt = PyPlot; mpl = plt.matplotlib; plt.ioff()
 using PyCall; animation = pyimport("matplotlib.animation");
@@ -12,21 +12,22 @@ mpl.style.use(GRASS.moddir * "figures/fig.mplstyle")
 # define some functions
 include(GRASS.moddir * "figures/fig_functions.jl")
 
-# set boolean for writing plot
-write = true
+# get command line args and output directories
+run, plot = parse_args(ARGS)
 grassdir, plotdir, datadir = check_plot_dirs()
 
 # figure 1b -- input bisectors w/ variability
-function plot_input_variability()
+function main()
     # get input data
-    bisinfo = GRASS.SolarData(relative=true)
+    bisinfo = GRASS.SolarData()
 
     # initialize plot objects
     fig, ax1 = plt.subplots()
 
-    # loop and plot
+    # loop and plot curves
     keyz = [(:c, :mu10), (:w, :mu06), (:w, :mu03)]
     labels = [L"\mu = 1.0", L"\mu = 0.6", L"\mu = 0.3"]
+    linestyles = ["-", "--", ":"]
     for (i, key) in enumerate(keyz)
         # find average and std
         avg_bis = mean(bisinfo.bis[key], dims=2)
@@ -53,22 +54,19 @@ function plot_input_variability()
 
         # plot the curve
         ax1.fill_betweenx(y, x1, x2, color="C"*string(i-1), alpha=0.5)
-        ax1.plot(avg_wav, avg_bis, color="C"*string(i-1), label=labels[i])
+        ax1.plot(avg_wav, avg_bis, ls=linestyles[i], color="C"*string(i-1), label=labels[i])
     end
+
+    # set axes labels and save the figure
     ax1.legend(loc="upper right")
     ax1.set_xlabel(L"{\rm Doppler\ Velocity\ (ms}^{-1} {\rm )}")
-    ax1.set_ylabel(L"{\rm Normalized\ Flux}")
-
-    # write the file or show it
-    if write
-        fig.savefig(plotdir * "fig1b.pdf")
-        plt.clf(); plt.close()
-        println(">>> Figure written to: " * plotdir * "fig1b.pdf")
-    else
-        plt.show()
-        plt.clf(); plt.close()
-    end
+    ax1.set_ylabel(L"{\rm Normalized\ Intensity}")
+    fig.savefig(plotdir * "fig1b.pdf")
+    plt.clf(); plt.close()
+    println(">>> Figure written to: " * plotdir * "fig1b.pdf")
     return nothing
 end
 
-plot_input_variability()
+if (run | plot)
+    main()
+end
