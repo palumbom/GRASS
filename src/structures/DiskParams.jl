@@ -12,7 +12,7 @@ end
 Construct a `DiskParams` composite type instance.
 
 # Arguments
-- `N::Integer=256`: Length of N*N spatial grid
+- `N::Integer=132`: Length of N*N spatial grid
 - `Nt::Integer=50`: Number of 15-second snapshots
 - `pole::Tuple{Float64, Float64, Float64}=(0.0, 1.0, 0.0)`: Unit vector specificying rotation axis direction. Default is equator-on.
 """
