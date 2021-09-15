@@ -1,3 +1,5 @@
+## Generating Synthetic Spectra
+
 The simplest use case for GRASS is the generation of time series of synthetic spectra. This can be done in only a few lines of code. The following example generates 25 spectra consisting of a single line at 5434.5 Angstroms. By default, the temporal spacing of the spectra is 15 seconds.
 
 ```julia
