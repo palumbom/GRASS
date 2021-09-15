@@ -12,7 +12,7 @@ end
     t = (0.75, 0.5)
     @test (0.75^2 + 0.5^2) == GRASS.calc_r2(t)
     @test sqrt(1.0 - GRASS.calc_r2(t)) == GRASS.calc_mu(t)
-    @test GRASS.make_grid(256) == GRASS.make_grid(N=256)
+    @test GRASS.make_grid(132) == GRASS.make_grid(N=132)
     @test GRASS.calc_mu(t) == GRASS.calc_mu(t[1], t[2])
     @test GRASS.calc_mu((0.0, 0.0)) == 1.0
     @test GRASS.calc_mu((1.0, 2.5)) == 0.0
@@ -25,7 +25,7 @@ end
 end
 
 @testset "Testing normalization" begin
-    N = 50
+    N = 132
     u1 = 0.0
     u2 = 0.0
     @test GRASS.calc_norm_term(0.0, 0.0, N, u1, u2) == pi ./ (2.0 * N^2)
