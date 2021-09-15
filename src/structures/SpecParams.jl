@@ -10,17 +10,17 @@ struct SpecParams{T<:AF}
 end
 
 """
-    SpecParams(; lines=[], depths=[], variability=[], resolution=7e8)
+    SpecParams(; lines=[], depths=[], variability=[], resolution=7e5)
 
-Construct a `SpecParams` composite type instance.
+Construct a `SpecParams` composite type instance. If `variability` is not specified, all lines are variable by default.
 
 # Arguments
 - `lines::AbstractArray{Float64,1}=[]`: List of line centers (in angstroms)
 - `depths::AbstractArray{Float64,1}=[]`: List of line depths
-- `variability::AbstractArray{Bool,1}=[]`: Array of booleans controlling whether corresponding line has variability
+- `variability::AbstractArray{Bool,1}=[]`: Array of booleans controlling whether corresponding line has variability.
 - `resolution::Float64=7e8`: Spectral resolution of spectrum
 """
-function SpecParams(;lines=[], depths=[], variability=[], resolution=7e8,
+function SpecParams(;lines=[], depths=[], variability=[], resolution=7e5,
                     buffer=0.75, fixed_width=false, fixed_bisector=false,
                     extrapolate=true, contiguous_only=false)
     @assert !isempty(lines)
