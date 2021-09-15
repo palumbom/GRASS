@@ -105,7 +105,7 @@ end
 
 @testset "Testing disk-integrated spectrum synthesis" begin
     # set params
-    N = 256
+    N = 132
     Nt = 5
     res = 7e5
 

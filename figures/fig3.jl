@@ -141,7 +141,7 @@ function main()
     depths = [1.0 - minimum(flux_iag)]
     resolution = 700000.0
     spec = SpecParams(lines=lines, depths=depths, resolution=resolution, extrapolate=true)
-    disk = DiskParams(N=256, Nt=15)
+    disk = DiskParams(N=132, Nt=15)
 
     # synthesize spectra, calculate ccf, and get CCF bisector
     len = 72

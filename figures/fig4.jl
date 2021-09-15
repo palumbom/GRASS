@@ -15,7 +15,7 @@ using LsqFit
 include(GRASS.moddir * "figures/fig_functions.jl")
 
 # some global stuff
-const N = [8, 16, 32, 64, 128, 256, 512, 1024, 2048]
+const N = round.(Int, 2 .^ range(6, 10, step=0.5))
 const Nt = 100
 const Nloop = 12
 
@@ -90,7 +90,7 @@ if plot
     @. power_law(x, p) = p[1] * x^(-p[2])
     fit = curve_fit(power_law, res, rms_res, [1.0, 1.0])
     res_fit = range(6, 2400, length=1000)
-    println("Best fit power law index = " * string(fit.param[2]))
+    println(">>> Best fit power law index = " * string(fit.param[2]))
     x = string(round(fit.param[2], sigdigits=3))
 
     # plot it
@@ -99,9 +99,12 @@ if plot
     ax1.set_xscale("log", basex=2)
     ax1.set_yscale("log", basey=10)
     ax1.errorbar(res, rms_res, yerr=err_res, capsize=3.0, color="black", fmt=".")
-    # ax1.fill_between(res, rms_res .- std_res, rms_res .+ std_res, color="tab:blue", alpha=0.3)
-    ax1.plot(res_fit, power_law(res_fit, fit.param), "k--", alpha=0.4,
-             label = L"{\rm Power\ law\ index\ } \approx\ %$x ")
+    # ax1.plot(res_fit, power_law(res_fit, fit.param), "k--", alpha=0.4,
+             # label = L"{\rm Power\ law\ index\ } \approx\ %$x ")
+
+    # add an arrow
+    arrowprops = Dict("facecolor"=>"black", "shrink"=>0.05, "width"=>2.0,"headwidth"=>8.0)
+    ax1.annotate("", xytext=(2^8, 0.08), xy=(2^8, 0.17), arrowprops=arrowprops)
 
     # plot the literature values
     xrng = ax1.get_xlim()
@@ -111,10 +114,11 @@ if plot
     ax1.fill_between(xs, Elsworth..., alpha=0.5, fc="tab:orange", ec="white",
                      hatch="/", label=L"{\rm Elsworth\ et\ al.\ (1994)}")
     ax1.fill_between(xs, Palle..., alpha=0.5, fc="tab:green", ec="white",
-                     hatch="\\", label=L"{\rm Palle\ et\ al.\ (1999)}")
+                     hatch="\\", label=L"\textnormal{Pall\'{e}}\ {\rm et\ al.\ (1999)}")
 
     # set the axes limits + labels
-    ax1.set_xlim(xrng...)
+    ax1.set_xlim(2^5.5, 2^11.5)
+    ax1.set_ylim(0.06, 1.15)
     ax1.yaxis.set_major_formatter(mpl.ticker.ScalarFormatter())
     ax1.set_xlabel(L"N")
     ax1.set_ylabel(L"{\rm RMS}_{\rm RV}\ {\rm (m s}^{-1})")
