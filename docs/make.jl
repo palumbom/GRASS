@@ -5,9 +5,7 @@ DocMeta.setdocmeta!(GRASS, :DocTestSetup, :(using GRASS); recursive=true)
 
 Home = "Home" => ["index.md", "installation.md"]
 
-Examples = "Examples" => ["examples/examples.md",
-                          "examples/spectra.md",
-                          "examples/velocities.md"]
+Examples = "Examples" => ["examples/examples.md"]
 
 License = "License" => "license.md"
 
