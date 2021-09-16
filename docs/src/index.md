@@ -1,24 +1,13 @@
-# Installation
-
-GRASS only requires a few steps to install. Simply clone the repo to your desired directory...
-
-```bash
-cd DIRECTORY
-git clone git@github.com:palumbom/GRASS.git
+```@meta
+CurrentModule = GRASS
 ```
 
-... and then add it with Julia's Pkg:
+# Introduction to GRASS
 
-```julia
-using Pkg
-Pkg.add(path="DIRECTORY")
-using GRASS
-```
+[GRASS](https://github.com/palumbom/GRASS) is Julia library designed to produce realistic stellar spectra with time-variable granulation signatures. Based on real observations of the Sun, GRASS is a first-of-its-kind simulation tool which does not rely on magnetohydrodynamic simulations to produce its spectra.
 
-If you wish to develop or otherwise contribute to GRASS, instead add the package in develop mode:
+The documentation for GRASS provides instructions for installation and examples for a few basic and advanced use cases. Please reference the GRASS paper for an in-depth review of the motivation and implementation of GRASS.
 
-```julia
-using Pkg
-Pkg.develop(path="DIRECTORY")
-using GRASS
-```
+## Citing GRASS
+
+If you use GRASS in your research, please cite the latest release as well as the GRASS paper.
