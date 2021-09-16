@@ -3,15 +3,15 @@ using Documenter
 
 DocMeta.setdocmeta!(GRASS, :DocTestSetup, :(using GRASS); recursive=true)
 
-Home = "Home" => ["index.md", "installation.md"]
+Introduction = "Introduction" => "introduction.md",
 
-Examples = "Examples" => ["examples/basic.md", "examples/advanced.md"]
+Getting_Started = "Getting Started" => ["installation.md", "examples/basic.md", "examples/advanced.md"]
 
 License = "License" => "license.md"
 
 Index = "Index" => "longlist.md"
 
-pages = [Home, Examples, License, Index]
+pages = [Introduction, Getting_Started, License, Index]
 
 makedocs(;
     modules=[GRASS],
