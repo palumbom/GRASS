@@ -12,6 +12,13 @@ git clone git@github.com:palumbom/GRASS.git
 ```julia
 using Pkg
 Pkg.add(path="DIRECTORY")
+using GRASS
 ```
 
-Examples for using GRASS can be found in the documentation.
+If you wish to develop or otherwise contribute to GRASS, instead add the package in develop mode:
+
+```julia
+using Pkg
+Pkg.develop(path="DIRECTORY")
+using GRASS
+```
