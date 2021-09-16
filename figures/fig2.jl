@@ -17,7 +17,10 @@ run, plot = parse_args(ARGS)
 grassdir, plotdir, datadir = check_plot_dirs()
 
 # figure 2 -- cleaned + extrapolated input data
-function main(; ncurves=25)
+function main()
+    # set number of curves to plot
+    ncurves = 25
+
     # get input data
     bisinfo = GRASS.SolarData(relative=true, extrapolate=true)
     key = (:c, :mu10)
@@ -40,12 +43,19 @@ function main(; ncurves=25)
     for (i, t) in enumerate(iter)
         ax1.plot(wav[:,t][2:end].*1000, bis[:,t][2:end], c=cols[i], alpha=0.75)
     end
+
+    # shade upper region
     xlims = ax1.get_xlim()
-    ax1.fill_between(range(xlims..., step=0.1), 0.8, 1.0, hatch="/", fc="black", ec="white", alpha=0.15, zorder=0)
+    ax1.fill_between(range(xlims..., step=0.1), 0.8, 1.0, hatch="/",
+                     fc="black", ec="white", alpha=0.15, zorder=0)
+
+    # set axis limits + labels
     ax1.set_xlim(xlims...)
     ax1.set_ylim(0.1, 1.0)
     ax1.set_xlabel(L"{\rm Relative\ Wavelength\ (m\AA)}")
     ax1.set_ylabel(L"{\rm Normalized\ Intensity}")
+
+    # set color bar
     cb = fig.colorbar(sm)
     cb.set_label(L"{\rm Time\ from\ first\ observation\ (min)}")
 
@@ -60,8 +70,12 @@ function main(; ncurves=25)
     for (i, t) in enumerate(iter)
         ax1.plot(dep[:,t], wid[:,t], c=cols[i], alpha=0.75)
     end
+
+    # set axis limits + labels
     ax1.set_xlabel(L"{\rm Normalized\ Intensity}")
     ax1.set_ylabel(L"{\rm Width\ across\ line\ (\AA)}")
+
+    # set color bar
     cb = fig.colorbar(sm)
     cb.set_label(L"{\rm Time\ from\ first\ observation\ (min)}")
 
@@ -73,5 +87,5 @@ function main(; ncurves=25)
 end
 
 if (run | plot)
-    main(ncurves=25)
+    main()
 end

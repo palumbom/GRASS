@@ -17,7 +17,7 @@ include(GRASS.moddir * "figures/fig_functions.jl")
 # some global stuff
 const N = 132
 const Nt = 200
-const Nloop = 100
+const Nloop = 200
 
 # get command line args and output directories
 run, plot = parse_args(ARGS)
@@ -114,16 +114,18 @@ if plot
     ax1.errorbar(ang, avg_rms_inc, yerr=err_rms_inc, capsize=3.0, color="black", fmt=".")
     ax1.fill_between(ang, avg_rms_inc .- std_rms_inc, avg_rms_inc .+ std_rms_inc, color="tab:blue", alpha=0.3)
 
+    # annotate the axes
+    arrowprops = Dict("facecolor"=>"black", "shrink"=>0.05, "width"=>2.0,"headwidth"=>8.0)
+    ax1.annotate(L"\textnormal{Pole-on}", xy=(69.8, 0.39), xytext=(0.0,0.388), arrowprops=arrowprops)
+    ax1.annotate(L"\textnormal{Equator-on}", xy=(70.0, 0.388))
+
     # set labels, etc.
     ax1.set_xlabel(L"{\rm Inclination\ (deg)}")
     ax1.set_ylabel(L"{\rm RMS}_{\rm RV}\ {\rm (m s}^{-1})")
     ax1.set_xticks(range(0, 90, length=10))
-    ax1.set_ylim(0.2,0.345)
+    ax1.set_ylim(0.375, 0.675)
 
-    # annotate the axes and save the figure
-    arrowprops = Dict("facecolor"=>"black", "shrink"=>0.05, "width"=>2.0,"headwidth"=>8.0)
-    ax1.annotate(L"\textnormal{Pole-on}", xy=(69.8, 0.207), xytext=(0.0,0.205), arrowprops=arrowprops)
-    ax1.annotate(L"\textnormal{Equator-on}", xy=(70.0, 0.205))
+    # save the figure
     fig.savefig(plotdir * "fig6.pdf")
     plt.clf(); plt.close()
     println(">>> Figure written to: " * plotdir * "fig6.pdf")

@@ -17,7 +17,7 @@ include(GRASS.moddir * "figures/fig_functions.jl")
 # some global stuff
 const N = round.(Int, 2 .^ range(6, 10, step=0.5))
 const Nt = 100
-const Nloop = 12
+const Nloop = 24
 
 # get command line args and output directories
 run, plot = parse_args(ARGS)
@@ -91,20 +91,21 @@ if plot
     fit = curve_fit(power_law, res, rms_res, [1.0, 1.0])
     res_fit = range(6, 2400, length=1000)
     println(">>> Best fit power law index = " * string(fit.param[2]))
-    x = string(round(fit.param[2], sigdigits=3))
+    x = string(round(fit.param[2], sigdigits=2))
 
-    # plot it
+    # initialize figure and set log scales
     fig = plt.figure()
     ax1 = fig.add_subplot()
-    ax1.set_xscale("log", basex=2)
-    ax1.set_yscale("log", basey=10)
-    ax1.errorbar(res, rms_res, yerr=err_res, capsize=3.0, color="black", fmt=".")
-    # ax1.plot(res_fit, power_law(res_fit, fit.param), "k--", alpha=0.4,
-             # label = L"{\rm Power\ law\ index\ } \approx\ %$x ")
+    ax1.set_xscale("log", base=2)
+    # ax1.set_yscale("log", base=10)
 
-    # add an arrow
-    arrowprops = Dict("facecolor"=>"black", "shrink"=>0.05, "width"=>2.0,"headwidth"=>8.0)
-    ax1.annotate("", xytext=(2^8, 0.08), xy=(2^8, 0.17), arrowprops=arrowprops)
+    # plot the data
+    ax1.errorbar(res, rms_res, yerr=err_res, capsize=3.0, color="black", fmt=".")
+    ax1.plot(res_fit, power_law(res_fit, fit.param), "k--", alpha=0.4,
+             label = L"{\rm Power\ law\ index\ } \approx\ %$x ")
+
+    # add a line corresponding to average footprint area
+    ax1.axvline(132, ymin=0, ymax=1, color="black", lw=1.5, ls="--")
 
     # plot the literature values
     xrng = ax1.get_xlim()
@@ -117,8 +118,8 @@ if plot
                      hatch="\\", label=L"\textnormal{Pall\'{e}}\ {\rm et\ al.\ (1999)}")
 
     # set the axes limits + labels
-    ax1.set_xlim(2^5.5, 2^11.5)
-    ax1.set_ylim(0.06, 1.15)
+    ax1.set_xlim(2^5.9, 2^10.1)
+    ax1.set_ylim(0.01, 1.15)
     ax1.yaxis.set_major_formatter(mpl.ticker.ScalarFormatter())
     ax1.set_xlabel(L"N")
     ax1.set_ylabel(L"{\rm RMS}_{\rm RV}\ {\rm (m s}^{-1})")

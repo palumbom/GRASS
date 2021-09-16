@@ -17,7 +17,7 @@ include(GRASS.moddir * "figures/fig_functions.jl")
 # some global stuff
 const N = 132
 const Nt = 200
-const Nloop = 100
+const Nloop = 200
 
 # get command line args and output directories
 run, plot = parse_args(ARGS)
@@ -104,12 +104,12 @@ if plot
     ax1.set_xlabel(L"{\rm Line\ Depth}")
     ax1.set_ylabel(L"{\rm RMS}_{\rm RV}\ {\rm (m s}^{-1})")
     ax1.set_xlim(0.0, 1.0)
-    ax1.set_ylim(0.19, 0.35)
+    ax1.set_ylim(0.375, 0.675)
 
     # annotate the axes and save the figure
     arrowprops = Dict("facecolor"=>"black", "shrink"=>0.05, "width"=>2.0,"headwidth"=>8.0)
-    ax1.annotate(L"{\rm Shallow}", xy=(0.85,0.2), xytext=(0.05,0.198), arrowprops=arrowprops)
-    ax1.annotate(L"{\rm Deep}", xy=(0.86, 0.198))
+    ax1.annotate(L"{\rm Shallow}", xy=(0.85,0.39), xytext=(0.05,0.388), arrowprops=arrowprops)
+    ax1.annotate(L"{\rm Deep}", xy=(0.86, 0.388))
     fig.savefig(plotdir * "fig5.pdf")
     plt.clf(); plt.close()
     println(">>> Figure written to: " * plotdir * "fig5.pdf")
