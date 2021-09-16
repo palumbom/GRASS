@@ -59,6 +59,7 @@ function main()
 
     # set axes labels and save the figure
     ax1.legend(loc="upper right")
+    ax1.set_ylim()
     ax1.set_xlabel(L"{\rm Doppler\ Velocity\ (ms}^{-1} {\rm )}")
     ax1.set_ylabel(L"{\rm Normalized\ Intensity}")
     fig.savefig(plotdir * "fig1b.pdf")
