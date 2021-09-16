@@ -3,7 +3,7 @@ using Documenter
 
 DocMeta.setdocmeta!(GRASS, :DocTestSetup, :(using GRASS); recursive=true)
 
-Introduction = "Introduction" => "introduction.md"
+Introduction = "Introduction" => "index.md"
 
 Getting_Started = "Getting Started" => ["installation.md", "examples/basic.md", "examples/advanced.md"]
 
