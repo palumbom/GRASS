@@ -19,7 +19,7 @@ include(GRASS.moddir * "figures/fig_functions.jl")
 
 # some global stuff
 const N = 132
-const Nloop = 800
+const Nloop = 1200
 
 # get command line args and output directories
 run, plot = parse_args(ARGS)
@@ -153,14 +153,14 @@ if plot
 
     # set the axes limits
     bbox = Dict("ec"=>"black", "fc"=>"white")
-    xy = (maximum(last.(xlims)) - 0.4, maximum(last.(ylims)) - 0.35)
+    xy = (maximum(last.(xlims)) - 0.25, maximum(last.(ylims)) - 0.4)
     for i in eachindex(axs)
         # annotate axes and set labels, etc.
         axs[i].annotate(L"N_{\rm obs} =\ " * latexstring(N_obs[i]), xy=xy, bbox=bbox)
         axs[i].set_xlabel(L"{\rm Mean\ velocity\ (m s}^{-1})")
         axs[i].set_ylabel(L"{\rm Probability\ density}")
-        axs[i].set_xlim(round(minimum(first.(xlims)), digits=0) - 0.25,
-                        round(maximum(last.(xlims)), digits=0) + 0.25)
+        axs[i].set_xlim(round(minimum(first.(xlims)), digits=1),
+                        round(maximum(last.(xlims)), digits=1))
         axs[i].set_ylim(minimum(first.(ylims)), maximum(last.(ylims)))
         axs[i].xaxis.set_major_locator(mpl.ticker.MaxNLocator(5))
     end

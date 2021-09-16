@@ -197,6 +197,8 @@ function main()
         ax1.plot(wavs_iag, flux_iag_cor./maximum(flux_iag_cor), alpha=0.9, marker="o", c="tab:green", ms=2.0, lw=1.0, markevery=10, label=L"{\rm Cleaned\ IAG}")
         ax2.plot(lambdas1, flux_iag_itp./maximum(flux_iag_itp) .- outspec1, c="tab:blue", marker="s", ms=2.0, lw=0)
         ax2.plot(lambdas1, flux_iag_itp2./maximum(flux_iag_itp2) .- outspec1, c="tab:green", marker="o", ms=2.0, lw=0)
+
+        # set tick labels, axis labels, etc.
         ax1.set_xticklabels([])
         ax1.set_xlim(5434, 5435)
         ax2.set_xlim(5434, 5435)
@@ -216,9 +218,9 @@ function main()
         vel_iag .-= mean(vel_iag) - 42.0
         vel_iag2 .-= mean(vel_iag2)
 
-        # plot both
+        # plot the bisectors
         fig = plt.figure()
-        gs = mpl.gridspec.GridSpec(nrows=1, ncols=2, width_ratios=[2, 1], figure=fig, wspace=0.05)
+        gs = mpl.gridspec.GridSpec(nrows=1, ncols=2, width_ratios=[2, 1.1], figure=fig, wspace=0.05)
         ax1 = fig.add_subplot(gs[1])
         ax2 = fig.add_subplot(gs[2])
         ax1.plot(vel_sim, bis_sim, color="black", lw=2.0, label=L"{\rm Synthetic}")
@@ -226,6 +228,8 @@ function main()
         ax1.plot(vel_iag2, bis_iag2,marker="o", c="tab:green", ms=2.0, lw=1.0, label=L"{\rm Cleaned\ IAG}")
         ax2.plot(vel_iag .- vel_sim, bis_iag, c="tab:blue", marker="s", ms=2.0, lw=0.0)
         ax2.plot(vel_iag2 .- vel_sim, bis_iag, c="tab:green", marker="o", ms=2.0, lw=0.0)
+
+        # set tick labels, axis labels, etc.
         ax2.set_yticklabels([])
         ax2.yaxis.tick_right()
         ax1.set_ylim(0.1, 1.1)
@@ -234,7 +238,7 @@ function main()
         ax1.set_xlabel(L"{\rm Relative\ Velocity\ (ms^{-1})}")
         ax1.set_ylabel(L"{\rm Normalized\ Intensity}")
         ax2.set_xlabel(L"{\rm IAG\ -\ Synthetic\ (ms^{-1})}")
-        ax1.legend()
+        ax1.legend(loc="upper right", prop=Dict("size"=>10), labelspacing=0.25)
 
         # save the plot
         fig.savefig(plotdir * "fig3b.pdf")
@@ -243,12 +247,10 @@ function main()
         return nothing
     end
 
-    if plot
-        comparison_plots()
-    end
+    comparison_plots()
     return nothing
 end
 
-if run
+if (run | plot)
     main()
 end
