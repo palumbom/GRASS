@@ -19,7 +19,7 @@ include(GRASS.moddir * "figures/fig_functions.jl")
 
 # some global stuff
 const N = 132
-const Nloop = 1200
+const Nloop = 2400
 
 # get command line args and output directories
 run, plot = parse_args(ARGS)
@@ -148,6 +148,13 @@ if plot
 
         # report two-sample KS test
         @show(ApproximateTwoSampleKSTest(avg_shortdead[i,:], avg_largedead[i,:]))
+        println()
+
+        # report distribution widths
+        @show (mean(avg_shortdead[i,:]))
+        @show (mean(avg_largedead[i,:]))
+        @show (std(avg_shortdead[i,:]))
+        @show (std(avg_largedead[i,:]))
         println()
     end
 
