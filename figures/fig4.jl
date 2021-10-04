@@ -102,7 +102,8 @@ if plot
     # plot the data
     ax1.errorbar(res, rms_res, yerr=err_res, capsize=3.0, color="black", fmt=".")
     ax1.plot(res_fit, power_law(res_fit, fit.param), "k--", alpha=0.4,
-             label = L"{\rm Power\ law\ index\ } \approx\ %$x ")
+             label = L"{\rm Power\ law\ fit}")
+             #label = L"{\rm Power\ law\ index\ } \approx\ %$x ")
 
     # add a line corresponding to average footprint area
     ax1.axvline(132, ymin=0, ymax=1, color="black", lw=1.5, ls="--")
