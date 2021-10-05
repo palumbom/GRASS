@@ -28,7 +28,7 @@ grassdir, plotdir, datadir = check_plot_dirs()
 function main()
     # set observing parameters
     N_obs = range(2, 4, step=1)  # number of observations
-    exp_time = 600.0             # ~2 p-mode periods
+    exp_time = 300.0             # ~2 p-mode periods
     snr = 5000.0                 # SNR per res element to get 50 cm/s precision
     new_res = 1.17e5
 
@@ -86,7 +86,7 @@ function main()
     rms_largedead = convert(Array{Float64}, rms_largedead)
 
     # save the output
-    outfile = datadir * "observe_" * string(N) * "_loop_" * string(Nloop) * ".jld2"
+    outfile = datadir * "observe_" * string(N) * "_loop_" * string(Nloop) * "_exp_300.jld2"
     save(outfile,
          "avg_shortdead", avg_shortdead,
          "rms_shortdead", rms_shortdead,
@@ -112,7 +112,7 @@ if plot
     mpl.style.use(GRASS.moddir * "figures/fig.mplstyle")
 
     # read in the data
-    file = datadir * "observe_" * string(N) * "_loop_" * string(Nloop) * ".jld2"
+    file = datadir * "observe_" * string(N) * "_loop_" * string(Nloop) * "_exp_300.jld2"
     d = load(file)
     avg_shortdead = d["avg_shortdead"]
     rms_shortdead = d["rms_shortdead"]
