@@ -31,13 +31,13 @@ function line_loop(prof::AA{T,1}, mid::T, depth::T,
     λΔD = mid * (one(T) + rot_shift) * (one(T) + conv_blueshift)
 
     # find window around shifted line
-    lind = findfirst(x -> x > λΔD - 0.75, lambdas)
-    rind = findfirst(x -> x > λΔD + 0.75, lambdas)
-    lambda_window = view(lambdas, lind:rind)
-    prof_window = view(prof, lind:rind)
+    # lind = findfirst(x -> x > λΔD - 0.75, lambdas)
+    # rind = findfirst(x -> x > λΔD + 0.75, lambdas)
+    # lambda_window = view(lambdas, lind:rind)
+    # prof_window = view(prof, lind:rind)
 
     # update the line profile in place
-    line_profile!(λΔD, lambda_window, prof_window, wsp)
+    line_profile!(λΔD, lambdas, prof, wsp)
     return nothing
 end
 

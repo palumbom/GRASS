@@ -21,12 +21,12 @@ Construct a `SpecParams` composite type instance. If `variability` is not specif
 - `resolution::Float64=7e8`: Spectral resolution of spectrum
 """
 function SpecParams(;lines=[], depths=[], variability=[], resolution=7e5,
-                    buffer=1.0, fixed_width=false, fixed_bisector=false,
+                    buffer=0.75, fixed_width=false, fixed_bisector=false,
                     extrapolate=true, contiguous_only=false)
     @assert !isempty(lines)
     @assert !isempty(depths)
     @assert length(lines) == length(depths)
-    @assert buffer >= 1.0
+    @assert buffer >= 0.75
 
     # assign depths if needed, otherwise check same number of centers + depths
     if any(isnan.(depths))
@@ -55,12 +55,12 @@ function SpecParams(;lines=[], depths=[], variability=[], resolution=7e5,
     end
 
     # calculate coverage
-    # TODO: constant delta v, not wavelength?
     coverage = (minimum(lines) - buffer, maximum(lines) + buffer)
 
-    # get generator for lambdas
-    dλ = coverage[1]/resolution
-    lambdas = coverage[1]:dλ:coverage[2]
+    # generate Delta ln lambda
+    Δlnλ = (1.0 / resolution)
+    lnλs = range(log(coverage[1]), log(coverage[2]), step=Δlnλ)
+    lambdas = exp.(lnλs)
 
     # get observational data
     soldata = SolarData(relative=true, fixed_width=fixed_width,
