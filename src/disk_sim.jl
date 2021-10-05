@@ -30,8 +30,14 @@ function line_loop(prof::AA{T,1}, mid::T, depth::T,
     # calculate line center given rot. and conv. doppler shift -> λrest * (1 + z)
     λΔD = mid * (one(T) + rot_shift) * (one(T) + conv_blueshift)
 
-    # update the line profile
-    line_profile!(λΔD, lambdas, prof, wsp)
+    # find window around shifted line
+    lind = findfirst(x -> x > λΔD - 0.75, lambdas)
+    rind = findfirst(x -> x > λΔD + 0.75, lambdas)
+    lambda_window = view(lambdas, lind:rind)
+    prof_window = view(prof, lind:rind)
+
+    # update the line profile in place
+    line_profile!(λΔD, lambda_window, prof_window, wsp)
     return nothing
 end
 
