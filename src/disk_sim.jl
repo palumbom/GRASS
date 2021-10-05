@@ -27,8 +27,11 @@ function line_loop(prof::AA{T,1}, mid::T, depth::T,
     # first trim the bisectors to the correct depth
     trim_bisector_chop!(depth, wsp.wavt, wsp.bist, wsp.dept, wsp.widt, top=top)
 
+    # calculate line center given rot. and conv. doppler shift -> λrest * (1 + z)
+    λΔD = mid * (one(T) + rot_shift) * (one(T) + conv_blueshift)
+
     # update the line profile
-    line_profile!(mid, rot_shift, conv_blueshift, lambdas, prof, wsp)
+    line_profile!(λΔD, lambdas, prof, wsp)
     return nothing
 end
 

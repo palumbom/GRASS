@@ -17,7 +17,6 @@ dep = 0.75
 @testset "Testing function definitions" begin
     @test isdefined(GRASS, :trim_bisector_chop!)
     @test isdefined(GRASS, :line_profile!)
-    @test isdefined(GRASS, :line_from_bis!)
     @test isdefined(GRASS, :synthesize_spectra)
 end
 
@@ -63,7 +62,7 @@ end
 
     # synthesize line
     mid = 5434.5
-    GRASS.line_from_bis!(mid, λs, prof, wavt1, dept1, widt1, lwavgrid, rwavgrid, allwavs, allints)
+    GRASS.line_profile!(mid, λs, prof, wavt1, dept1, widt1, lwavgrid, rwavgrid, allwavs, allints)
 
     # test it
     @test !all(prof .== 1.0)
@@ -93,7 +92,7 @@ end
 
     # synthesize line
     mid = 5434.5
-    GRASS.line_from_bis!(mid, λs, prof, wavt1, dept1, widt1, lwavgrid, rwavgrid, allwavs, allints)
+    GRASS.line_profile!(mid, λs, prof, wavt1, dept1, widt1, lwavgrid, rwavgrid, allwavs, allints)
 
     # measure the bisector of synth line
     wavo, biso = GRASS.measure_bisector(λs, prof, interpolate=false)
