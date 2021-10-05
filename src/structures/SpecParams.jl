@@ -40,11 +40,11 @@ function SpecParams(;lines=[], depths=[], variability=[], resolution=7e5,
     df = CSV.read(soldir * "../convective_blueshift.dat", DataFrame,
                   header=1, delim=",", type=Float64)
 
-    # assign convective blueshifts
+    # assign convective blueshifts and convert blueshift to z=v/c
     blueshifts = similar(lines)
     for i in eachindex(depths)
         ind = searchsortednearest(df.depth, depths[i])
-        blueshifts[i] = df.blueshift[ind]
+        blueshifts[i] = df.blueshift[ind] / c_ms
     end
 
     # assign fixed_width booleans
