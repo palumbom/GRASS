@@ -105,7 +105,7 @@ end
 @testset "Testing disk-integrated spectrum synthesis" begin
     # set params
     N = 132
-    Nt = 5
+    Nt = 10
     res = 7e5
 
     # simulate spectra
@@ -114,7 +114,7 @@ end
     wavs, flux = synthesize_spectra(spec, disk)
 
     # ensure spectra have correct properties
-    @test size(flux,2) == 5
+    @test size(flux,2) == Nt
     @test maximum(flux[:,1]) == 1.0
     # @test isapprox(minimum(flux[:,1]), 1.0 - dep, atol=1e-1) # TODO: fix?
 
