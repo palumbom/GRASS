@@ -78,5 +78,5 @@ end
 function calc_rvs_from_ccf(v_grid::AA{T,1}, ccf::AA{T,2}; frac_of_width_to_fit::T=0.65) where T<:AF
     func = x -> calc_rvs_from_ccf(v_grid, x, frac_of_width_to_fit=frac_of_width_to_fit)
     out = mapslices(func, ccf, dims=1)
-    return vec.(unzip(out))#(getfield.(out, x) for x in fieldnames(eltype(out)))
+    return vec.(unzip(out))
 end
