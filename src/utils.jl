@@ -58,3 +58,5 @@ end
 function findnearest(A::AA{T,1}, t) where T<:Real
     return findmin(abs.(A.-t))[2]
 end
+
+unzip(A) = (getfield.(A,x) for x in fieldnames(eltype(A)))
