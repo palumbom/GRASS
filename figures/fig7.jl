@@ -86,7 +86,7 @@ function main()
     rms_largedead = convert(Array{Float64}, rms_largedead)
 
     # save the output
-    outfile = datadir * "observe_" * string(N) * "_loop_" * string(Nloop) * "_exp_300.jld2"
+    outfile = datadir * "observe_" * string(N) * "_loop_" * string(Nloop) * ".jld2"
     save(outfile,
          "avg_shortdead", avg_shortdead,
          "rms_shortdead", rms_shortdead,
@@ -112,7 +112,7 @@ if plot
     mpl.style.use(GRASS.moddir * "figures/fig.mplstyle")
 
     # read in the data
-    file = datadir * "observe_" * string(N) * "_loop_" * string(Nloop) * "_exp_300.jld2"
+    file = datadir * "observe_" * string(N) * "_loop_" * string(Nloop) * ".jld2"
     d = load(file)
     avg_shortdead = d["avg_shortdead"]
     rms_shortdead = d["rms_shortdead"]
@@ -160,7 +160,7 @@ if plot
 
     # set the axes limits
     bbox = Dict("ec"=>"black", "fc"=>"white")
-    xy = (maximum(last.(xlims)) - 0.25, maximum(last.(ylims)) - 0.4)
+    xy = (maximum(last.(xlims)) - 0.35, maximum(last.(ylims)) - 0.4)
     for i in eachindex(axs)
         # annotate axes and set labels, etc.
         axs[i].annotate(L"N_{\rm obs} =\ " * latexstring(N_obs[i]), xy=xy, bbox=bbox)
