@@ -24,10 +24,11 @@ function line_profile!(mid::T, lambdas::AA{T,1}, prof::AA{T,1},
     allints[1:len] .= view(depm, itr)
 
     # interpolate onto original lambda grid, extrapolate to continuum
-    xs = (allwavs,)
-    ys = allints
-    it = Gridded(Linear())
-    itp1 = extrapolate(interpolate!(T, xs, ys, it), 1.0)
+    # xs = (allwavs,)
+    # ys = allints
+    # it = Gridded(Linear())
+    # itp1 = extrapolate(interpolate!(T, xs, ys, it), 1.0)
+    itp1 = linear_interp(allwavs, allints)
     prof .*= itp1.(lambdas)
     return nothing
 end

@@ -1,5 +1,10 @@
 module GRASS
 
+# parallelization modules
+using CUDA
+using Distributed
+using SharedArrays
+
 # import external modules
 using CSV
 using FITSIO
@@ -16,12 +21,21 @@ import Dates.DateTime
 const AA = AbstractArray
 const AF = AbstractFloat
 
+# figure out if there is a GPU
+const use_gpu = CUDA.functional()
+if use_gpu
+    arr_type = CuArray
+else
+    arr_type = Array
+end
+
 # configure directories
 include("config.jl")
 
 # ancillary functions + constants
 include("utils.jl")
 include("constants.jl")
+include("interpolate.jl")
 
 # user-defined composite types
 include("structures.jl")
