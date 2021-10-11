@@ -6,7 +6,8 @@ function convolve_gauss(xs::AA{T,1}, ys::AA{T,1}; new_res::T=1.17e5) where T<:Ab
 
     # pad x array to deal with edges
     # TODO: make padding smarter
-    xstep = step(xs)
+    # xstep = step(xs)
+    xstep = minimum(diff(xs))
     newxs = range(xs[1]-100*xstep, xs[end]+100*xstep, step=xstep)
 
     # find matching indices
