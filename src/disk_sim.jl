@@ -21,9 +21,9 @@ function synthesize_spectra(spec::SpecParams, disk::DiskParams;
 end
 
 # line loop function, update prof in place
-function line_loop(prof::AA{T,1}, mid::T, depth::T,
-                   rot_shift::T, conv_blueshift::T,
-                   lambdas::AA{T,1}, wsp::SynthWorkspace{T}; top::T=NaN) where T<:AF
+function line_loop(prof::AA{T,1}, mid::T, depth::T, rot_shift::T,
+                   conv_blueshift::T, lambdas::AA{T,1},
+                   wsp::SynthWorkspace{T}; top::T=NaN) where T<:AF
     # first trim the bisectors to the correct depth
     trim_bisector_chop!(depth, wsp.wavt, wsp.bist, wsp.dept, wsp.widt, top=top)
 
