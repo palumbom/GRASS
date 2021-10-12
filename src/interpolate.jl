@@ -1,8 +1,8 @@
-function linear_interp(xs::AbstractArray{T,1}, ys::AbstractArray{T,1}; bc::T=1.0) where T<:Float64
+function linear_interp(xs::AbstractArray{T,1}, ys::AbstractArray{T,1}; bc::T=NaN) where T<:Float64
     function f(x)
-        # if ((x <= first(xs)) | (x >= last(xs)))
-        #     return bc
-        if x <= first(xs)
+        if (((x <= first(xs)) | (x >= last(xs))) & !isnan(bc))
+            return bc
+        elseif x <= first(xs)
             return first(ys)
         elseif x >= last(xs)
             return last(ys)
