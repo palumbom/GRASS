@@ -8,12 +8,12 @@ function trim_bisector_chop!(depth::T, wavt::AA{T,1}, bist::AA{T,1},
         wavt[ind2:end] .= wavt[ind2]
     end
 
-    # get new grid of depths
-    dept .= range((one(T) - depth), one(T), length=length(dept))
-    bist .= dept
+    # set up interpolant
+    itp1 = linear_interp(bist[ind1:end], wavt[ind1:end])
 
-    # spline interpolate onto same-length grid
-    itp1 = extrapolate(interpolate!(wavt, BSpline(Linear())), Flat())
-    wavt .= itp1.(range(ind1, length(dept), length=length(dept)))
+    # get new grid of depths, interpolate the data, and return
+    dept .= range((one(T) - depth), one(T), length=length(dept))
+    wavt .= itp1.(dept)
+    bist .= dept
     return nothing
 end

@@ -24,9 +24,9 @@ const AF = AbstractFloat
 # figure out if there is a GPU
 const use_gpu = CUDA.functional()
 if use_gpu
-    arr_type = CuArray
+    const arr_type = CuArray
 else
-    arr_type = Array
+    const arr_type = Array
 end
 
 # configure directories
