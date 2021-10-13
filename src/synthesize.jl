@@ -30,4 +30,11 @@ function line_profile!(mid::T, lambdas::AA{T,1}, prof::AA{T,1},
 end
 
 
+function line_profile_gpu!(mid::T, lambdas::AA{T,1}, prof::AA{T,1},
+                           wavm::AA{T,1}, depm::AA{T,1}, widm::AA{T,1},
+                           lwavgrid::AA{T,1}, rwavgrid::AA{T,1},
+                           allwavs::AA{T,1}, allints::AA{T,1}) where T<:AF
 
+
+    return nothing
+end
