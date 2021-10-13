@@ -115,8 +115,8 @@ function disk_sim(spec::SpecParams{T}, disk::DiskParams{T,Int64}, prof::AA{T,1},
     end
 
     # loop over grid positions
-    @sync @distributed for i in grid
-        @sync @distributed for j in grid
+    for i in grid
+        for j in grid
             # move to next iteration if off grid
             (i^2 + j^2) > one(T) && continue
 
