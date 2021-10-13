@@ -9,7 +9,9 @@ function trim_bisector_chop!(depth::T, wavt::AA{T,1}, bist::AA{T,1},
     end
 
     # set up interpolant
-    itp1 = linear_interp(view(bist, ind1:length(bist)), view(wavt, ind1:length(wavt)))
+    xs = view(bist, ind1:length(bist))
+    ys = view(wavt, ind1:length(wavt))
+    itp1 = linear_interp(xs, ys)
 
     # get new grid of depths, interpolate the data, and return
     dept .= range((one(T) - depth), one(T), length=length(dept))
