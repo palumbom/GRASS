@@ -23,16 +23,16 @@ function linear_interp_mult_gpu(out, new_xs, xs, ys, bc)
     n = CUDA.length(new_xs)
     for i in 1:CUDA.length(new_xs)
         if (((new_xs[i] < CUDA.first(xs)) | (new_xs[i] > CUDA.last(xs))) & !CUDA.isnan(bc))
-            out[i] *= bc
+            out[i] = out[i] * bc
         elseif new_xs[i] <= CUDA.first(xs)
-            out[i] *= CUDA.first(ys)
+            out[i] = out[i] * CUDA.first(ys)
         elseif new_xs[i] >= CUDA.last(xs)
-            out[i] *= CUDA.last(ys)
+            out[i] = out[i] * CUDA.last(ys)
         else
             j = CUDA.searchsortedfirst(xs, new_xs[i]) - 1
             j0 = CUDA.clamp(j, CUDA.firstindex(ys), CUDA.lastindex(ys))
             j1 = CUDA.clamp(j+1, CUDA.firstindex(ys), CUDA.lastindex(ys))
-            out[i] *= ys[j0] + (ys[j1] - ys[j0]) * (new_xs[i] - xs[j0]) / (xs[j1] - xs[j0])
+            out[i] = out[i] * ys[j0] + (ys[j1] - ys[j0]) * (new_xs[i] - xs[j0]) / (xs[j1] - xs[j0])
         end
     end
     return nothing
@@ -169,6 +169,7 @@ conv_blueshift = 0.0
 mid = 5434.5
 
 # CPU stuff
+spec = SpecParams()
 wsp = GRASS.SynthWorkspace(ndepths=100);
 wavt_cpu = copy(wavt_main); wsp.wavt .= wavt_cpu
 bist_cpu = copy(bist_main); wsp.bist .= bist_cpu
