@@ -23,7 +23,6 @@ const AF = AbstractFloat
 
 # figure out if there is a gpu
 const use_gpu = CUDA.functional()
-println(use_gpu)
 
 # configure directories
 include("config.jl")
