@@ -12,7 +12,7 @@ function synthesize_spectra(spec::SpecParams, disk::DiskParams;
                             top::Float64=NaN)
     # allocate memory for synthesis
     Nλ = length(spec.lambdas)
-    prof = ones(Nλ)
+    prof = ArrayType(ones(Nλ))
     outspec = zeros(Nλ, disk.Nt)
 
     # run the simulation (outspec modified in place)
@@ -21,9 +21,9 @@ function synthesize_spectra(spec::SpecParams, disk::DiskParams;
 end
 
 # line loop function, update prof in place
-function line_loop(prof::AA{T,1}, mid::T, depth::T, rot_shift::T,
-                   conv_blueshift::T, lambdas::AA{T,1},
-                   wsp::SynthWorkspace{T}; top::T=NaN) where T<:AF
+function line_loop_cpu(prof::AA{T,1}, mid::T, depth::T, rot_shift::T,
+                       conv_blueshift::T, lambdas::AA{T,1},
+                       wsp::SynthWorkspace{T}; top::T=NaN) where T<:AF
     # first trim the bisectors to the correct depth
     trim_bisector_chop!(depth, wsp.wavt, wsp.bist, wsp.dept, wsp.widt, top=top)
 
@@ -41,9 +41,9 @@ function line_loop(prof::AA{T,1}, mid::T, depth::T, rot_shift::T,
     return nothing
 end
 
-function time_loop(t_loop::Int, prof::AA{T,1}, rot_shift::T,
-                   key::Tuple{Symbol, Symbol}, liter::UnitRange{Int},
-                   spec::SpecParams{T}, wsp::SynthWorkspace{T}; top::T=NaN) where T<:AF
+function time_loop_cpu(t_loop::Int, prof::AA{T,1}, rot_shift::T,
+                       key::Tuple{Symbol, Symbol}, liter::UnitRange{Int},
+                       spec::SpecParams{T}, wsp::SynthWorkspace{T}; top::T=NaN) where T<:AF
     # some assertions
     @assert all(prof .== one(T))
 
@@ -105,7 +105,7 @@ function disk_sim(spec::SpecParams{T}, disk::DiskParams{T,Int64}, prof::AA{T,1},
 
     # set pre-allocations and make generator that will be re-used
     outspec .= zero(T)
-    wsp = SynthWorkspace(ndepths=100)
+    wsp = SynthWorkspace(spec)
     liter = 1:length(spec.lines)
 
     # seeding rng
