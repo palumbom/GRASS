@@ -140,7 +140,7 @@ function time_loop_gpu(t_loop::Int, prof::AA{T,1}, rot_shift::T,
 
     # send the job to the gpu
     @cuda line_loop_gpu(prof, spec.lines, spec.depths, rot_shift,
-                        spec.conv_blueshifts, lambdas, wsp.wavt,
+                        spec.conv_blueshifts, spec.lambdas, wsp.wavt,
                         wsp.bist, wsp.dept, wsp.widt, wsp.lwavgrid,
                         wsp.rwavgrid, wsp.allwavs, wsp.allints, top)
     return nothing
