@@ -146,27 +146,27 @@ function SolarData(;dir::String=soldir, relative::Bool=true,
             # assign key-value pairs to dictionary
             if relative
                 relwav = relative_bisector_wavelengths(wavall, iron_lp)
-                wavdict[(Symbol(ax), Symbol(mu))] = relwav
+                wavdict[(Symbol(ax), Symbol(mu))] = ArrayType(relwav)
             else
-                wavdict[(Symbol(ax), Symbol(mu))] = wavall
+                wavdict[(Symbol(ax), Symbol(mu))] = ArrayType(wavall)
             end
-            bisdict[(Symbol(ax), Symbol(mu))] = bisall
+            bisdict[(Symbol(ax), Symbol(mu))] = ArrayType(bisall)
 
             # assign width
             if fixed_width
                 dep, wid = calc_fixed_width()
                 depdict[(Symbol(ax), Symbol(mu))] = zeros(size(depall))
                 widdict[(Symbol(ax), Symbol(mu))] = zeros(size(depall))
-                depdict[(Symbol(ax), Symbol(mu))] .= dep
-                widdict[(Symbol(ax), Symbol(mu))] .= wid
+                depdict[(Symbol(ax), Symbol(mu))] .= ArrayType(dep)
+                widdict[(Symbol(ax), Symbol(mu))] .= ArrayType(wid)
             else
-                depdict[(Symbol(ax), Symbol(mu))] = depall
-                widdict[(Symbol(ax), Symbol(mu))] = widall
+                depdict[(Symbol(ax), Symbol(mu))] = ArrayType(depall)
+                widdict[(Symbol(ax), Symbol(mu))] = ArrayType(widall)
             end
 
             # set bisector to zero if fixed
             if fixed_bisector
-                wavdict[(Symbol(ax), Symbol(mu))] = zeros(size(wavall))
+                wavdict[(Symbol(ax), Symbol(mu))] = ArrayType(zeros(size(wavall)))
             end
 
             # get length
