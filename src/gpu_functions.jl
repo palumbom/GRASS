@@ -128,10 +128,10 @@ function time_loop_gpu(t_loop::Int, prof::AA{T,1}, rot_shift::T,
     @assert all(prof .== one(T))
 
     # get views needed for line synthesis (+ move data to GPU)
-    wsp.wavt .= view(spec.soldata.wav[key], :, t_loop)
-    wsp.bist .= view(spec.soldata.bis[key], :, t_loop)
-    wsp.dept .= view(spec.soldata.dep[key], :, t_loop)
-    wsp.widt .= view(spec.soldata.wid[key], :, t_loop)
+    wsp.wavt .= CUDA.view(spec.soldata.wav[key], :, t_loop)
+    wsp.bist .= CUDA.view(spec.soldata.bis[key], :, t_loop)
+    wsp.dept .= CUDA.view(spec.soldata.dep[key], :, t_loop)
+    wsp.widt .= CUDA.view(spec.soldata.wid[key], :, t_loop)
 
     # # TODO figure this out
     # for i in eachindex(spec.variability)
@@ -139,6 +139,7 @@ function time_loop_gpu(t_loop::Int, prof::AA{T,1}, rot_shift::T,
     # end
 
     # send the job to the gpu
+    prof .= 1.0
     @cuda line_loop_gpu(prof, spec.lines, spec.depths, rot_shift,
                         spec.conv_blueshifts, spec.lambdas, wsp.wavt,
                         wsp.bist, wsp.dept, wsp.widt, wsp.lwavgrid,
