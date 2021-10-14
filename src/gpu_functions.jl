@@ -74,7 +74,7 @@ function line_loop_gpu(prof, lines, depths, rot_shift, conv_blueshifts, lambdas,
     sx = blockDim().x * gridDim().x
 
     # synthesize the line
-    for i in ix:sx:length(lines)
+    for i in ix:sx:CUDA.length(lines)
         # slice out the data
         wavt1 = CUDA.view(wavt, :, i)
         bist1 = CUDA.view(bist, :, i)
@@ -91,7 +91,7 @@ function line_loop_gpu(prof, lines, depths, rot_shift, conv_blueshifts, lambdas,
         trim_bisector_chop_gpu!(depths[i], wavt1, bist1, dept1, widt1, top)
 
         # calculate line center given rot. and conv. doppler shift -> λrest * (1 + z)
-        λΔD = lines[i] * (1.0 + rot_shift) * (1.0 + conv_blueshift[i])
+        λΔD = lines[i] * (1.0 + rot_shift) * (1.0 + conv_blueshifts[i])
 
         # update the line profile in place
         line_profile_gpu!(λΔD, lambdas, prof, wavt1, dept1, widt1, lwavgrid1, rwavgrid1, allwavs1, allints1)
