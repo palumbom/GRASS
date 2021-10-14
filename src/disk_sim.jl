@@ -17,7 +17,7 @@ function synthesize_spectra(spec::SpecParams, disk::DiskParams;
 
     # run the simulation (outspec modified in place)
     disk_sim(spec, disk, prof, outspec, seed_rng=seed_rng, verbose=verbose, top=top)
-    return spec.lambdas, outspec
+    return Array(spec.lambdas), outspec
 end
 
 # line loop function, update prof in place
@@ -139,7 +139,7 @@ function disk_sim(spec::SpecParams{T}, disk::DiskParams{T,Int64}, prof::AA{T,1},
                 time_loop(t_loop, prof, rot_shift, key, liter, spec, wsp, top=top)
 
                 # apply normalization term and add to outspec
-                outspec[:,t] .+= (prof .* norm_term)
+                outspec[:,t] .+= (Array(prof) .* norm_term)
             end
         end
     end
