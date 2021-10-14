@@ -148,6 +148,7 @@ function time_loop_gpu(t_loop, prof, rot_shift, key, liter,spec, wsp; top=NaN)
     return nothing
 end
 
+"""
 AF = AbstractFloat
 AA = AbstractArray
 using Pkg; Pkg.activate(".")
@@ -158,7 +159,6 @@ using FileIO
 using DataFrames
 using BenchmarkTools
 
-"""
 # get data
 data = GRASS.SolarData()
 wavt_main = data.wav[(:c, :mu10)][:,1]
