@@ -58,11 +58,16 @@ include("observing/ObservationPlan.jl")
 
 # initialize stuff for computations on GPU or CPU
 if use_gpu
+    # define GPU function
+    println(">>> Using GPU: " * CUDA.name(CUDA.device()))
     include("gpu_functions.jl")
+
+    # set array type to CuArray
     const ArrayType = CuArray
     time_loop = time_loop_gpu
     line_loop = line_loop_gpu
 else
+    # set array type to plain old array
     const ArrayType = Array
     time_loop = time_loop_cpu
     line_loop = line_loop_cpu
