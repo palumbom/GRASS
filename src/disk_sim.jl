@@ -10,8 +10,16 @@ Synthesize spectra given parameters in `spec` and `disk` instances.
 function synthesize_spectra(spec::SpecParams, disk::DiskParams;
                             seed_rng::Bool=false, verbose::Bool=true,
                             top::Float64=NaN)
+    # figure out dims for allocation
+    if use_gpu
+        dims = [length(spec.lines)]
+    else
+        dims = []
+    end
+
     # allocate memory for synthesis
     Nλ = length(spec.lambdas)
+    # prof = ArrayType(ones(Nλ, dims...))
     prof = ArrayType(ones(Nλ))
     outspec = zeros(Nλ, disk.Nt)
 
