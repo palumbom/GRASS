@@ -147,13 +147,15 @@ function time_loop_gpu(t_loop::Int, prof::AA{T,1}, rot_shift::T,
     return nothing
 end
 
-"""
+AF = AbstractFloat
+AA = AbstractArray
 using Pkg; Pkg.activate(".")
 using CUDA
 using GRASS
 using JLD2
 using FileIO
 using DataFrames
+using BenchmarkTools
 
 # get data
 data = GRASS.SolarData()
@@ -170,12 +172,12 @@ conv_blueshift = 0.0
 mid = 5434.5
 
 # CPU stuff
-spec = SpecParams()
-wsp = GRASS.SynthWorkspace(ndepths=100);
-wavt_cpu = copy(wavt_main); wsp.wavt .= wavt_cpu
-bist_cpu = copy(bist_main); wsp.bist .= bist_cpu
-dept_cpu = copy(dept_main); wsp.dept .= dept_cpu
-widt_cpu = copy(widt_main); wsp.widt .= widt_cpu
+spec_cpu = SpecParams(lines=[5434.5], depths=[0.75])
+wsp_cpu = GRASS.SynthWorkspace(spec_cpu);
+wavt_cpu = copy(wavt_main); wsp_cpu.wavt .= wavt_cpu
+bist_cpu = copy(bist_main); wsp_cpu.bist .= bist_cpu
+dept_cpu = copy(dept_main); wsp_cpu.dept .= dept_cpu
+widt_cpu = copy(widt_main); wsp_cpu.widt .= widt_cpu
 
 lambdas_cpu = range(mid-2.0, mid+2.0, step=mid/7e5);
 prof_cpu = ones(length(lambdas_cpu));
@@ -184,29 +186,44 @@ allints_cpu = zeros(200);
 lwavgrid_cpu = zeros(100);
 rvwavgrid_cpu = zeros(100);
 
-# GPU stuff
-lines = CuArray([5434.5, 5434.7])
-depths = CuArray([0.75, 0.75])
+function bmark_cpu(lambdas, prof, wsp, spec)
+    GRASS.time_loop_cpu(1, prof, 0.0, (:c, :mu10), 1:1, spec, wsp; top=NaN)
+    return nothing
+end
 
-wavt_gpu = CuArray(repeat(wavt_main, 1, length(lines)))
-bist_gpu = CuArray(repeat(bist_main, 1, length(lines)))
-dept_gpu = CuArray(repeat(dept_main, 1, length(lines)))
-widt_gpu = CuArray(repeat(widt_main, 1, length(lines)))
+# GPU stuff
+spec_gpu = SpecParams(lines=[5434.5], depths=[0.75])
+wsp_gpu = GRASS.SynthWorkspace(spec_gpu);
+
+wavt_gpu = CuArray(repeat(wavt_main, 1, length(spec.lines)))
+bist_gpu = CuArray(repeat(bist_main, 1, length(spec.lines)))
+dept_gpu = CuArray(repeat(dept_main, 1, length(spec.lines)))
+widt_gpu = CuArray(repeat(widt_main, 1, length(spec.lines)))
 
 lambdas_gpu = CuArray(range(mid-2.0, mid+2.0, step=mid/7e5));
 prof_gpu = CUDA.ones(Float64, length(lambdas_gpu));
-allwavs_gpu = CUDA.zeros(Float64, 200, CUDA.length(lines));
-allints_gpu = CUDA.zeros(Float64, 200, CUDA.length(lines));
-lwavgrid_gpu = CUDA.zeros(Float64, 100, CUDA.length(lines));
-rwavgrid_gpu = CUDA.zeros(Float64, 100, CUDA.length(lines));
+allwavs_gpu = CUDA.zeros(Float64, 200, CUDA.length(spec.lines));
+allints_gpu = CUDA.zeros(Float64, 200, CUDA.length(spec.lines));
+lwavgrid_gpu = CUDA.zeros(Float64, 100, CUDA.length(spec.lines));
+rwavgrid_gpu = CUDA.zeros(Float64, 100, CUDA.length(spec.lines));
+
+function bmark_gpu(lambdas, prof, wsp, spec)
+    CUDA.@sync begin
+        time_loop_gpu(1, prof, 0.0, (:c, :mu10), 1:1, spec, wsp, top=NaN)
+    end
+    return nothing
+end
+
+@btime bmark_cpu(lambdas_cpu, prof_cpu, wsp_cpu, spec_cpu)
+@btime bmark_gpu(lambdas_gpu, prof_gpu, wsp_gpu, spec_gpu)
 
 # do the CPU
 # GRASS.trim_bisector_chop!(dep, wavt_cpu, bist_cpu, dept_cpu, widt_cpu, top=top)
-GRASS.line_loop(prof_cpu, mid, dep, rot_shift, conv_blueshift, lambdas_cpu, wsp)
+# GRASS.line_loop(prof_cpu, mid, dep, rot_shift, conv_blueshift, lambdas_cpu, wsp)
 
 # do the GPU
 # @cuda trim_bisector_chop_gpu!(dep, wavt_gpu, bist_gpu, dept_gpu, widt_gpu, top)
-@cuda line_loop_gpu(prof_gpu, lines, depths, rot_shift, conv_blueshift, lambdas_gpu, wavt_gpu, bist_gpu, dept_gpu, widt_gpu, lwavgrid_gpu, rwavgrid_gpu, allwavs_gpu, allints_gpu, top)
+# @cuda line_loop_gpu(prof_gpu, lines, depths, rot_shift, conv_blueshift, lambdas_gpu, wavt_gpu, bist_gpu, dept_gpu, widt_gpu, lwavgrid_gpu, rwavgrid_gpu, allwavs_gpu, allints_gpu, top)
 
 # function bmark_cpu()
 
