@@ -32,7 +32,7 @@ function linear_interp_mult_gpu(out, new_xs, xs, ys, bc)
             j = CUDA.searchsortedfirst(xs, new_xs[i]) - 1
             j0 = CUDA.clamp(j, CUDA.firstindex(ys), CUDA.lastindex(ys))
             j1 = CUDA.clamp(j+1, CUDA.firstindex(ys), CUDA.lastindex(ys))
-            out[i] = out[i] * ys[j0] + (ys[j1] - ys[j0]) * (new_xs[i] - xs[j0]) / (xs[j1] - xs[j0])
+            out[i] = out[i] * (ys[j0] + (ys[j1] - ys[j0]) * (new_xs[i] - xs[j0]) / (xs[j1] - xs[j0]))
         end
     end
     return nothing
