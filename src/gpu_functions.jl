@@ -126,7 +126,7 @@ end
 #                        spec::SpecParams{T}, wsp::SynthWorkspace{T}; top::T=NaN) where T<:AF
 function time_loop_gpu(t_loop, prof, rot_shift, key, liter,spec, wsp; top=NaN)
     # some assertions
-    @assert all(prof .== one(T))
+    # @assert all(prof .== one(T))
 
     # get views needed for line synthesis (+ move data to GPU)
     wsp.wavt .= CUDA.view(spec.soldata.wav[key], :, t_loop)
