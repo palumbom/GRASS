@@ -21,13 +21,8 @@ import Dates.DateTime
 const AA = AbstractArray
 const AF = AbstractFloat
 
-# figure out if there is a GPU
+# figure out if there is a gpu
 const use_gpu = CUDA.functional()
-if use_gpu
-    const arr_type = CuArray
-else
-    const arr_type = Array
-end
 
 # configure directories
 include("config.jl")
@@ -60,6 +55,18 @@ include("velocities.jl")
 include("observing/convolutions.jl")
 include("observing/signaltonoise.jl")
 include("observing/ObservationPlan.jl")
+
+# initialize stuff for computations on GPU or CPU
+if use_gpu
+    include("gpu_functions.jl")
+    const ArrayType = CuArray
+    time_loop = time_loop_gpu
+    line_loop = line_loop_gpu
+else
+    const ArrayType = Array
+    time_loop = time_loop_cpu
+    line_loop = line_loop_cpu
+end
 
 # export some stuff
 export SpecParams, DiskParams, synthesize_spectra, calc_ccf, calc_rvs_from_ccf, calc_rms

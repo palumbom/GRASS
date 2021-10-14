@@ -1,7 +1,4 @@
 function linear_interp_gpu(out, new_xs, xs, ys, bc)
-    # # get GPU dims
-    # i = threadIdx().x + blockDim().x * (blockIdx().x-1)
-
     # perform the interpolation
     n = CUDA.length(new_xs)
     for i in 1:CUDA.length(new_xs)
@@ -22,9 +19,6 @@ function linear_interp_gpu(out, new_xs, xs, ys, bc)
 end
 
 function linear_interp_mult_gpu(out, new_xs, xs, ys, bc)
-    # # get GPU dims
-    # i = threadIdx().x + blockDim().x * (blockIdx().x-1)
-
     # perform the interpolation
     n = CUDA.length(new_xs)
     for i in 1:CUDA.length(new_xs)
@@ -127,6 +121,23 @@ function line_profile_gpu!(mid, lambdas, prof, wavm, depm, widm, lwavgrid, rwavg
     return nothing
 end
 
+function time_loop_gpu(t_loop::Int, prof::AA{T,1}, rot_shift::T,
+                       key::Tuple{Symbol, Symbol}, liter::UnitRange{Int},
+                       spec::SpecParams{T}, wsp::SynthWorkspace{T}; top::T=NaN) where T<:AF
+    # some assertions
+    @assert all(prof .== one(T))
+
+    # get views needed for line synthesis
+    wsp.wavt .= view(spec.soldata.wav[key], :, t_loop)
+    wsp.bist .= view(spec.soldata.bis[key], :, t_loop)
+    wsp.dept .= view(spec.soldata.dep[key], :, t_loop)
+    wsp.widt .= view(spec.soldata.wid[key], :, t_loop)
+
+    # send the job to the gpu
+    @cuda line_loop_gpu(prof_gpu, lines, depths, rot_shift, conv_blueshift, lambdas_gpu, wavt_gpu, bist_gpu, dept_gpu, widt_gpu, lwavgrid_gpu, rwavgrid_gpu, allwavs_gpu, allints_gpu, top)
+    return nothing
+end
+
 using Pkg; Pkg.activate(".")
 using CUDA
 using GRASS
@@ -164,7 +175,7 @@ rvwavgrid_cpu = zeros(100);
 
 # GPU stuff
 lines = CuArray([5434.5, 5434.7])
-depths = CuArray([0.5, 0.75])
+depths = CuArray([0.75, 0.75])
 
 wavt_gpu = CuArray(repeat(wavt_main, 1, length(lines)))
 bist_gpu = CuArray(repeat(bist_main, 1, length(lines)))
