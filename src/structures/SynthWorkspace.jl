@@ -1,22 +1,30 @@
-struct SynthWorkspace{T<:AF}
-    lwavgrid::AA{T,1}
-    rwavgrid::AA{T,1}
-    allwavs::AA{T,1}
-    allints::AA{T,1}
-    wavt::AA{T,1}
-    bist::AA{T,1}
-    dept::AA{T,1}
-    widt::AA{T,1}
+struct SynthWorkspace{T<:AF, N}
+    lwavgrid::AA{T,N}
+    rwavgrid::AA{T,N}
+    allwavs::AA{T,N}
+    allints::AA{T,N}
+    wavt::AA{T,N}
+    bist::AA{T,N}
+    dept::AA{T,N}
+    widt::AA{T,N}
 end
 
-function SynthWorkspace(; ndepths::Integer=100)
-    lwavgrid = zeros(ndepths)
-    rwavgrid = zeros(ndepths)
-    allwavs  = zeros(2 * ndepths)
-    allints  = zeros(2 * ndepths)
-    wavt     = zeros(ndepths)
-    bist     = zeros(ndepths)
-    dept     = zeros(ndepths)
-    widt     = zeros(ndepths)
+function SynthWorkspace(spec::SpecParams{T}; ndepths::Integer=100) where T
+    # get number of dimensions
+    if use_gpu
+        dims = [length(spec.lines)]
+    else
+        dims = []
+    end
+
+    # allocate the needed memory
+    lwavgrid = ArrayType(zeros(ndepths), dims...)
+    rwavgrid = ArrayType(zeros(ndepths), dims...)
+    allwavs  = ArrayType(zeros(2 * ndepths), dims...)
+    allints  = ArrayType(zeros(2 * ndepths), dims...)
+    wavt     = ArrayType(zeros(ndepths), dims...)
+    bist     = ArrayType(zeros(ndepths), dims...)
+    dept     = ArrayType(zeros(ndepths), dims...)
+    widt     = ArrayType(zeros(ndepths), dims...)
     return SynthWorkspace(lwavgrid, rwavgrid, allwavs, allints, wavt, bist, dept, widt)
 end
