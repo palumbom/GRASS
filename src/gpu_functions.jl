@@ -68,7 +68,7 @@ function trim_bisector_chop_gpu!(depth, wavt, bist, dept, widt, top)
     return nothing
 end
 
-function line_loop_gpu(prof, lines, depths, rot_shift, conv_blueshift, lambdas, wavt, bist, dept, widt, lwavgrid, rwavgrid, allwavs, allints, top)
+function line_loop_gpu(prof, lines, depths, rot_shift, conv_blueshifts, lambdas, wavt, bist, dept, widt, lwavgrid, rwavgrid, allwavs, allints, top)
     # get GPU dims
     ix = threadIdx().x + blockDim().x * (blockIdx().x-1)
     sx = blockDim().x * gridDim().x
@@ -91,7 +91,7 @@ function line_loop_gpu(prof, lines, depths, rot_shift, conv_blueshift, lambdas, 
         trim_bisector_chop_gpu!(depths[i], wavt1, bist1, dept1, widt1, top)
 
         # calculate line center given rot. and conv. doppler shift -> λrest * (1 + z)
-        λΔD = lines[i] * (1.0 + rot_shift) * (1.0 + conv_blueshift)
+        λΔD = lines[i] * (1.0 + rot_shift) * (1.0 + conv_blueshift[i])
 
         # update the line profile in place
         line_profile_gpu!(λΔD, lambdas, prof, wavt1, dept1, widt1, lwavgrid1, rwavgrid1, allwavs1, allints1)
@@ -133,11 +133,20 @@ function time_loop_gpu(t_loop::Int, prof::AA{T,1}, rot_shift::T,
     wsp.dept .= view(spec.soldata.dep[key], :, t_loop)
     wsp.widt .= view(spec.soldata.wid[key], :, t_loop)
 
+    # # TODO figure this out
+    # for i in eachindex(spec.variability)
+    #     wsp.wavt[:,i] .*= spec.variability[i]
+    # end
+
     # send the job to the gpu
-    @cuda line_loop_gpu(prof_gpu, lines, depths, rot_shift, conv_blueshift, lambdas_gpu, wavt_gpu, bist_gpu, dept_gpu, widt_gpu, lwavgrid_gpu, rwavgrid_gpu, allwavs_gpu, allints_gpu, top)
+    @cuda line_loop_gpu(prof, spec.lines, spec.depths, rot_shift,
+                        spec.conv_blueshifts, lambdas, wsp.wavt,
+                        wsp.bist, wsp.dept, wsp.widt, wsp.lwavgrid,
+                        wsp.rwavgrid, wsp.allwavs, wsp.allints, top)
     return nothing
 end
 
+"""
 using Pkg; Pkg.activate(".")
 using CUDA
 using GRASS
@@ -217,4 +226,4 @@ GRASS.line_loop(prof_cpu, mid, dep, rot_shift, conv_blueshift, lambdas_cpu, wsp)
 # compare(dept_gpu, wsp.dept)
 # compare(widt_gpu, wsp.widt)
 # compare(prof_gpu, prof_cpu)
-
+"""
