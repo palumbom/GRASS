@@ -62,6 +62,7 @@ function time_loop_cpu(t_loop::Int, prof::AA{T,1}, rot_shift::T,
     wsp.widt .= view(spec.soldata.wid[key], :, t_loop)
 
     # loop over specified synthetic lines
+    prof .= one(T)
     for l in liter
         wsp.wavt .*= spec.variability[l]
         line_loop(prof, spec.lines[l], spec.depths[l], rot_shift,
@@ -143,7 +144,6 @@ function disk_sim(spec::SpecParams{T}, disk::DiskParams{T,Int64}, prof::AA{T,1},
                 skip_times[t] && continue
 
                 # update profile in place
-                prof .= one(T)
                 time_loop(t_loop, prof, rot_shift, key, liter, spec, wsp, top=top)
 
                 # apply normalization term and add to outspec
