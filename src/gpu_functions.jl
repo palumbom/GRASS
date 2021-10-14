@@ -158,6 +158,7 @@ using FileIO
 using DataFrames
 using BenchmarkTools
 
+"""
 # get data
 data = GRASS.SolarData()
 wavt_main = data.wav[(:c, :mu10)][:,1]
