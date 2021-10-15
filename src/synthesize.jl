@@ -39,10 +39,10 @@ function line_profile_gpu!(mid::T, lambdas::AA{T,1}, prof::AA{T,1}, wsp::SynthWo
     wavt_gpu = CuArray(wsp.wavt)
     dept_gpu = CuArray(wsp.dept)
     widt_gpu = CuArray(wsp.widt)
-    lwavgrid_gpu = CuArray(lwavgrid)
-    rwavgrid_gpu = CuArray(rwavgrid)
-    allwavs_gpu = CuArray(allwavs)
-    allints_gpu = CuArray(allints)
+    lwavgrid_gpu = CuArray(wsp.lwavgrid)
+    rwavgrid_gpu = CuArray(wsp.rwavgrid)
+    allwavs_gpu = CuArray(wsp.allwavs)
+    allints_gpu = CuArray(wsp.allints)
 
     # synthesize the line profile given bisector and width input data
     CUDA.@sync @cuda line_profile_gpu!(mid, lambdas_gpu, prof_gpu, wavt_gpu,
