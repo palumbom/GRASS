@@ -67,21 +67,27 @@ function __init__()
         # const ArrayType = CuArray
         # time_loop = time_loop_gpu
         # line_loop = line_loop_gpu
-        const ArrayType = Array
-        const time_loop = time_loop_cpu
-        const line_loop = line_loop_cpu
-        const synth_func = line_profile_gpu!
+        ArrayType = Array
+        time_loop = time_loop_cpu
+        line_loop = line_loop_cpu
+        synth_func = line_profile_gpu!
     else
         # set array type to plain old array
-        const ArrayType = Array
-        const time_loop = time_loop_cpu
-        const line_loop = line_loop_cpu
-        const synth_func = line_profile_cpu!
+        ArrayType = Array
+        time_loop = time_loop_cpu
+        line_loop = line_loop_cpu
+        synth_func = line_profile_cpu!
     end
     return use_gpu, ArrayType, time_loop, line_loop, synth_func
 end
 
 use_gpu, ArrayType, time_loop, line_loop, synth_func = __init__()
+
+const use_gpu = use_gpu
+const ArrayType = ArrayType
+const time_loop = time_loop
+const line_loop = line_loop
+const synth_func = synth_func
 
 # export some stuff
 export SpecParams, DiskParams, synthesize_spectra, calc_ccf, calc_rvs_from_ccf, calc_rms
