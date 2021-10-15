@@ -16,7 +16,7 @@ dep = 0.75
 
 @testset "Testing function definitions" begin
     @test isdefined(GRASS, :trim_bisector_chop!)
-    @test isdefined(GRASS, :line_profile!)
+    @test isdefined(GRASS, :line_profile_cpu!)
     @test isdefined(GRASS, :synthesize_spectra)
 end
 

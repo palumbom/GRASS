@@ -69,3 +69,5 @@ function line_profile_gpu!(mid, lambdas, prof, wavm, depm, widm, lwavgrid, rwavg
     linear_interp_mult_gpu(prof, lambdas, allwavs, allints, 1.0)
     return nothing
 end
+
+line_profile! = line_profile_cpu!
