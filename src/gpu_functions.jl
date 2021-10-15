@@ -19,9 +19,14 @@ function linear_interp_gpu(out, new_xs, xs, ys, bc)
 end
 
 function linear_interp_mult_gpu(out, new_xs, xs, ys, bc)
+    # get GPU dims
+    ix = threadIdx().x + blockDim().x * (blockIdx().x-1)
+    sx = blockDim().x * gridDim().x
+
     # perform the interpolation
-    n = CUDA.length(new_xs)
-    for i in 1:CUDA.length(new_xs)
+    # n = CUDA.length(new_xs)
+    # for i in 1:CUDA.length(new_xs)
+    for i in ix:sx:length(new_xs)
         if (((new_xs[i] < CUDA.first(xs)) | (new_xs[i] > CUDA.last(xs))) & !CUDA.isnan(bc))
             out[i] = out[i] * bc
         elseif new_xs[i] <= CUDA.first(xs)
