@@ -61,7 +61,7 @@ function __init__()
     if use_gpu
         # define GPU function
         println(">>> Using GPU: " * CUDA.name(CUDA.device()))
-        include("gpu_functions.jl")
+        include(moddir * "src/gpu_functions.jl")
 
         # set array type to CuArray
         # const ArrayType = CuArray
