@@ -104,6 +104,7 @@ function line_loop_gpu(prof, lines, depths, rot_shift, conv_blueshifts, lambdas,
     return nothing
 end
 
+"""
 function line_profile_gpu!(mid, lambdas, prof, wavm, depm, widm, lwavgrid, rwavgrid, allwavs, allints)
     # set wavgrids to line center to start
     for i in 1:CUDA.length(lwavgrid)
@@ -125,6 +126,7 @@ function line_profile_gpu!(mid, lambdas, prof, wavm, depm, widm, lwavgrid, rwavg
     linear_interp_mult_gpu(prof, lambdas, allwavs, allints, 1.0)
     return nothing
 end
+"""
 
 # function time_loop_gpu(t_loop::Int, prof::AA{T,1}, rot_shift::T,
 #                        key::Tuple{Symbol, Symbol}, liter::UnitRange{Int},
