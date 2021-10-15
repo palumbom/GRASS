@@ -5,26 +5,6 @@ function line_profile_cpu!(mid::T, lambdas::AA{T,1}, prof::AA{T,1}, wsp::SynthWo
     return nothing
 end
 
-# function to calc intensity at given x,y coord.
-function line_profile_gpu!(mid::T, lambdas::AA{T,1}, prof::AA{T,1}, wsp::SynthWorkspace{T}) where T<:AF
-    # move data to GPUU
-    prof_gpu = CuArray(prof)
-    lambdas_gpu = CuArray(prof)
-    wavt_gpu = CuArray(wsp.wavt)
-    dept_gpu = CuArray(wsp.dept)
-    widt_gpu = CuArray(wsp.widt)
-    lwavgrid_gpu = CuArray(lwavgrid)
-    rwavgrid_gpu = CuArray(rwavgrid)
-    allwavs_gpu = CuArray(allwavs)
-    allints_gpu = CuArray(allints)
-
-    # synthesize the line profile given bisector and width input data
-    CUDA.@sync @cuda line_profile_gpu!(mid, lambdas_gpu, prof_gpu, wavt_gpu,
-                                       dept_gpu, widt_gpu, lwavgrid_gpu,
-                                       rwavgrid_gpu, allwavs_gpu, allints_gpu)
-    return nothing
-end
-
 function line_profile_cpu!(mid::T, lambdas::AA{T,1}, prof::AA{T,1},
                            wavm::AA{T,1}, depm::AA{T,1}, widm::AA{T,1},
                            lwavgrid::AA{T,1}, rwavgrid::AA{T,1},
@@ -45,6 +25,31 @@ function line_profile_cpu!(mid::T, lambdas::AA{T,1}, prof::AA{T,1},
     # interpolate onto original lambda grid, extrapolate to continuum
     itp1 = linear_interp(allwavs, allints, bc=one(T))
     prof .*= itp1.(lambdas)
+    return nothing
+end
+
+# fix for automated testing
+line_profile! = line_profile_cpu!
+
+# function to calc intensity at given x,y coord.
+function line_profile_gpu!(mid::T, lambdas::AA{T,1}, prof::AA{T,1}, wsp::SynthWorkspace{T}) where T<:AF
+    # move data to GPUU
+    prof_gpu = CuArray(prof)
+    lambdas_gpu = CuArray(prof)
+    wavt_gpu = CuArray(wsp.wavt)
+    dept_gpu = CuArray(wsp.dept)
+    widt_gpu = CuArray(wsp.widt)
+    lwavgrid_gpu = CuArray(lwavgrid)
+    rwavgrid_gpu = CuArray(rwavgrid)
+    allwavs_gpu = CuArray(allwavs)
+    allints_gpu = CuArray(allints)
+
+    # synthesize the line profile given bisector and width input data
+    CUDA.@sync @cuda line_profile_gpu!(mid, lambdas_gpu, prof_gpu, wavt_gpu,
+                                       dept_gpu, widt_gpu, lwavgrid_gpu,
+                                       rwavgrid_gpu, allwavs_gpu, allints_gpu)
+
+    prof .= Array(prof_gpu)
     return nothing
 end
 
@@ -69,5 +74,3 @@ function line_profile_gpu!(mid, lambdas, prof, wavm, depm, widm, lwavgrid, rwavg
     linear_interp_mult_gpu(prof, lambdas, allwavs, allints, 1.0)
     return nothing
 end
-
-line_profile! = line_profile_cpu!
