@@ -45,7 +45,7 @@ function line_loop_cpu(prof::AA{T,1}, mid::T, depth::T, rot_shift::T,
     prof_window = view(prof, lind:rind)
 
     # update the line profile in place
-    line_profile!(λΔD, lambda_window, prof_window, wsp)
+    synth_func(λΔD, lambda_window, prof_window, wsp)
     return nothing
 end
 
