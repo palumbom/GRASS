@@ -21,9 +21,6 @@ import Dates.DateTime
 const AA = AbstractArray
 const AF = AbstractFloat
 
-# figure out if there is a gpu
-const use_gpu = CUDA.functional()
-
 # configure directories
 include("config.jl")
 
@@ -56,27 +53,35 @@ include("observing/convolutions.jl")
 include("observing/signaltonoise.jl")
 include("observing/ObservationPlan.jl")
 
-# initialize stuff for computations on GPU or CPU
-if use_gpu
-    # define GPU function
-    println(">>> Using GPU: " * CUDA.name(CUDA.device()))
-    include("gpu_functions.jl")
+function __init__()
+    # figure out if there is a gpu
+    use_gpu = CUDA.functional()
 
-    # set array type to CuArray
-    # const ArrayType = CuArray
-    # time_loop = time_loop_gpu
-    # line_loop = line_loop_gpu
-    const ArrayType = Array
-    const time_loop = time_loop_cpu
-    const line_loop = line_loop_cpu
-    const synth_func = line_profile_gpu!
-else
-    # set array type to plain old array
-    const ArrayType = Array
-    const time_loop = time_loop_cpu
-    const line_loop = line_loop_cpu
-    const synth_func = line_profile_cpu!
+    # initialize stuff for computations on GPU or CPU
+    if use_gpu
+        # define GPU function
+        println(">>> Using GPU: " * CUDA.name(CUDA.device()))
+        include("gpu_functions.jl")
+
+        # set array type to CuArray
+        # const ArrayType = CuArray
+        # time_loop = time_loop_gpu
+        # line_loop = line_loop_gpu
+        const ArrayType = Array
+        const time_loop = time_loop_cpu
+        const line_loop = line_loop_cpu
+        const synth_func = line_profile_gpu!
+    else
+        # set array type to plain old array
+        const ArrayType = Array
+        const time_loop = time_loop_cpu
+        const line_loop = line_loop_cpu
+        const synth_func = line_profile_cpu!
+    end
+    return use_gpu, ArrayType, time_loop, line_loop, synth_func
 end
+
+use_gpu, ArrayType, time_loop, line_loop, synth_func = __init__()
 
 # export some stuff
 export SpecParams, DiskParams, synthesize_spectra, calc_ccf, calc_rvs_from_ccf, calc_rms
