@@ -81,13 +81,13 @@ function __init__()
     return use_gpu, ArrayType, time_loop, line_loop, synth_func
 end
 
-use_gpu, ArrayType, time_loop, line_loop, synth_func = __init__()
+use_gpu1, ArrayType1, time_loop1, line_loop1, synth_func1 = __init__()
 
-const use_gpu = use_gpu
-const ArrayType = ArrayType
-const time_loop = time_loop
-const line_loop = line_loop
-const synth_func = synth_func
+const use_gpu = use_gpu1
+const ArrayType = ArrayType1
+const time_loop = time_loop1
+const line_loop = line_loop1
+const synth_func = synth_func1
 
 # export some stuff
 export SpecParams, DiskParams, synthesize_spectra, calc_ccf, calc_rvs_from_ccf, calc_rms
