@@ -18,13 +18,13 @@ function SynthWorkspace(spec::SpecParams{T}; ndepths::Integer=100) where T
     end
 
     # allocate the needed memory
-    lwavgrid = ArrayType(zeros(ndepths))#, dims...))
-    rwavgrid = ArrayType(zeros(ndepths))#, dims...))
-    allwavs  = ArrayType(zeros(2 * ndepths))#, dims...))
-    allints  = ArrayType(zeros(2 * ndepths))#, dims...))
-    wavt     = ArrayType(zeros(ndepths))#, dims...))
-    bist     = ArrayType(zeros(ndepths))#, dims...))
-    dept     = ArrayType(zeros(ndepths))#, dims...))
-    widt     = ArrayType(zeros(ndepths))#, dims...))
+    lwavgrid = zeros(ndepths))
+    rwavgrid = zeros(ndepths))
+    allwavs  = zeros(2 * ndepths))
+    allints  = zeros(2 * ndepths))
+    wavt     = zeros(ndepths))
+    bist     = zeros(ndepths))
+    dept     = zeros(ndepths))
+    widt     = zeros(ndepths))
     return SynthWorkspace(lwavgrid, rwavgrid, allwavs, allints, wavt, bist, dept, widt)
 end
