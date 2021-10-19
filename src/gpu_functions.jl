@@ -78,6 +78,8 @@ function line_loop_gpu(prof, lines, depths, rot_shift, conv_blueshifts, lambdas,
     ix = threadIdx().x + blockDim().x * (blockIdx().x-1)
     sx = blockDim().x * gridDim().x
 
+
+
     # synthesize the line
     for i in ix:sx:CUDA.length(lines)
         # slice out the data
