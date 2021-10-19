@@ -31,6 +31,7 @@ end
 # fix for automated testing
 line_profile! = line_profile_cpu!
 
+"""
 # function to calc intensity at given x,y coord.
 function line_profile_gpu!(mid::T, lambdas::AA{T,1}, prof::AA{T,1}, wsp::SynthWorkspace{T}) where T<:AF
     # move data to GPUU
@@ -74,3 +75,4 @@ function line_profile_gpu!(mid, lambdas, prof, wavm, depm, widm, lwavgrid, rwavg
     linear_interp_mult_gpu(prof, lambdas, allwavs, allints, 1.0)
     return nothing
 end
+"""
