@@ -78,7 +78,6 @@ include("observing/ObservationPlan.jl")
 
 # use_gpu1, ArrayType1, time_loop1, line_loop1, synth_func1 = __init__()
 
-const ArrayType = ArrayType1
 const time_loop = time_loop_cpu
 const line_loop = line_loop_cpu
 const synth_func = line_profile_cpu!
