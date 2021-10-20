@@ -68,8 +68,12 @@ function find_nearest_ax(x::T, y::T) where T<:AF
     end
 end
 
+function find_nearest_mu(mu::T) where T<:AF
+    return searchsortednearest(disc_mu, μ)
+end
+
 function find_nearest_mu(x::T, y::T) where T<:AF
-    return searchsortednearest(disc_mu, calc_mu(x, y))
+    return find_nearest_mu(calc_mu(x,y))
 end
 
 function assemble_dict_key(mu_ind::Int, ax::Symbol; mu_symb::AA{Symbol,1}=mu_symb)

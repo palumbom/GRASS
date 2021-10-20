@@ -28,14 +28,14 @@ function synthesize_spectra(spec::SpecParams, disk::DiskParams;
 end
 
 # line loop function, update prof in place
-function line_loop_cpu(prof::AA{T,1}, mid::T, depth::T, rot_shift::T,
+function line_loop_cpu(prof::AA{T,1}, mid::T, depth::T, z_rot::T,
                        conv_blueshift::T, lambdas::AA{T,1},
                        wsp::SynthWorkspace{T}; top::T=NaN) where T<:AF
     # first trim the bisectors to the correct depth
     trim_bisector_chop!(depth, wsp.wavt, wsp.bist, wsp.dept, wsp.widt, top=top)
 
     # calculate line center given rot. and conv. doppler shift -> λrest * (1 + z)
-    λΔD = mid * (one(T) + rot_shift) * (one(T) + conv_blueshift)
+    λΔD = mid * (one(T) + z_rot) * (one(T) + conv_blueshift)
 
     # find window around shifted line
     lind = findfirst(x -> x > λΔD - 0.5, lambdas)
@@ -48,7 +48,7 @@ function line_loop_cpu(prof::AA{T,1}, mid::T, depth::T, rot_shift::T,
     return nothing
 end
 
-function time_loop_cpu(t_loop::Int, prof::AA{T,1}, rot_shift::T,
+function time_loop_cpu(t_loop::Int, prof::AA{T,1}, z_rot::T,
                        key::Tuple{Symbol, Symbol}, liter::UnitRange{Int},
                        spec::SpecParams{T}, wsp::SynthWorkspace{T}; top::T=NaN) where T<:AF
     # some assertions
@@ -64,7 +64,7 @@ function time_loop_cpu(t_loop::Int, prof::AA{T,1}, rot_shift::T,
     prof .= one(T)
     for l in liter
         wsp.wavt .*= spec.variability[l]
-        line_loop(prof, spec.lines[l], spec.depths[l], rot_shift,
+        line_loop(prof, spec.lines[l], spec.depths[l], z_rot,
                   spec.conv_blueshifts[l], spec.lambdas, wsp, top=top)
     end
     return nothing
@@ -133,7 +133,7 @@ function disk_sim(spec::SpecParams{T}, disk::DiskParams{T,Int64}, prof::AA{T,1},
             len = spec.soldata.len[key]
 
             # get redshift z and norm term for location on disk
-            rot_shift = patch_velocity_los(i, j, pole=disk.pole)
+            z_rot = patch_velocity_los(i, j, pole=disk.pole)
             norm_term = calc_norm_term(i, j, disk)
 
             # loop over time, starting at random epoch
@@ -143,7 +143,7 @@ function disk_sim(spec::SpecParams{T}, disk::DiskParams{T,Int64}, prof::AA{T,1},
                 skip_times[t] && continue
 
                 # update profile in place
-                time_loop(t_loop, prof, rot_shift, key, liter, spec, wsp, top=top)
+                time_loop(t_loop, prof, z_rot, key, liter, spec, wsp, top=top)
 
                 # apply normalization term and add to outspec
                 outspec[:,t] .+= (prof .* norm_term)
