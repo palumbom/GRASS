@@ -35,6 +35,8 @@ Additional details and examples can be found in [the documentation](https://palu
 
 If you use GRASS in your research, please cite the relevant software release and paper(s).
 
-## Author & Contact [![Twitter Follow](https://img.shields.io/twitter/follow/michael_palumbo?style=social)](https://twitter.com/michael_palumbo) [![GitHub followers](https://img.shields.io/github/followers/palumbom?label=Follow&style=social)](https://github.com/palumbom)
+## Author & Contact 
+[![Twitter Follow](https://img.shields.io/twitter/follow/michael_palumbo?style=social)](https://twitter.com/michael_palumbo)
+[![GitHub followers](https://img.shields.io/github/followers/palumbom?label=Follow&style=social)](https://github.com/palumbom)
 
 This repo is maintained by Michael Palumbo. You may may contact him via his email - palumbo@psu.edu
