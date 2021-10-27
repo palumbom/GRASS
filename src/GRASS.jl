@@ -53,6 +53,10 @@ include("observing/convolutions.jl")
 include("observing/signaltonoise.jl")
 include("observing/ObservationPlan.jl")
 
+# gpu implementation
+include("gpu/gpu_utils.jl")
+include("gpu/gpu_data.jl")
+
 # TODO -- probably easier way to do below -- handle CuArray vs. Base.Array
 
 # function use_gpu()

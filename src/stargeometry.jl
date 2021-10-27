@@ -69,7 +69,7 @@ function find_nearest_ax(x::T, y::T) where T<:AF
 end
 
 function find_nearest_mu(mu::T) where T<:AF
-    return searchsortednearest(disc_mu, μ)
+    return searchsortednearest(disc_mu, mu)
 end
 
 function find_nearest_mu(x::T, y::T) where T<:AF

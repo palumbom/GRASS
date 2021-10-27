@@ -28,9 +28,6 @@ function line_profile_cpu!(mid::T, lambdas::AA{T,1}, prof::AA{T,1},
     return nothing
 end
 
-# fix for automated testing
-line_profile! = line_profile_cpu!
-
 """
 # function to calc intensity at given x,y coord.
 function line_profile_gpu!(mid::T, lambdas::AA{T,1}, prof::AA{T,1}, wsp::SynthWorkspace{T}) where T<:AF

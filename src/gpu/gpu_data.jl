@@ -25,6 +25,32 @@ function get_disc_ax_for_gpu(soldata::GRASS.SolarData{T}; to_gpu::Bool=false) wh
     return disc_ax
 end
 
+function find_nearest_ax_gpu(x::T, y::T) where T<:Float64
+    if (CUDA.iszero(x) & CUDA.iszero(y))
+        return 0 # center
+    elseif y >= CUDA.abs(x)
+        return 1 # north
+    elseif x >= CUDA.abs(y)
+        return 2 # west
+    elseif y <= -CUDA.abs(x)
+        return 3 # south
+    elseif x <= -CUDA.abs(y)
+        return 4 # east
+    else
+        return 5
+    end
+end
+
+function find_data_index_gpu(mu_ind, ax_code)
+    if mu_ind == 41
+        return 41
+    elseif !CUDA.iszero(CUDA.mod(mu_ind - 1, 4))
+        return mu_ind + ax_code - 4
+    else
+        return mu_ind + ax_code - 1
+    end
+end
+
 function sort_data_for_gpu(soldata::GRASS.SolarData{T}) where T<:Float64
     # allocate memory for arrays to pass to gpu
     len = collect(values(soldata.len))
@@ -78,3 +104,4 @@ function sort_data_for_gpu(soldata::GRASS.SolarData{T}) where T<:Float64
     end
     return disc_mu, disc_ax, len, wav, bis, wid, dep
 end
+
