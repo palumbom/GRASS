@@ -62,7 +62,7 @@ end
 
     # synthesize line
     mid = 5434.5
-    GRASS.line_profile!(mid, λs, prof, wavt1, dept1, widt1, lwavgrid, rwavgrid, allwavs, allints)
+    GRASS.line_profile_cpu!(mid, λs, prof, wavt1, dept1, widt1, lwavgrid, rwavgrid, allwavs, allints)
 
     # test it
     @test !all(prof .== 1.0)
@@ -92,7 +92,7 @@ end
 
     # synthesize line
     mid = 5434.5
-    GRASS.line_profile!(mid, λs, prof, wavt1, dept1, widt1, lwavgrid, rwavgrid, allwavs, allints)
+    GRASS.line_profile_cpu!(mid, λs, prof, wavt1, dept1, widt1, lwavgrid, rwavgrid, allwavs, allints)
 
     # measure the bisector of synth line
     wavo, biso = GRASS.measure_bisector(λs, prof, interpolate=false)

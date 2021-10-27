@@ -37,7 +37,7 @@ function line_loop_cpu(prof::AA{T,1}, mid::T, depth::T, z_rot::T,
     prof_window = view(prof, lind:rind)
 
     # update the line profile in place
-    synth_func(λΔD, lambda_window, prof_window, wsp)
+    line_profile_cpu!(λΔD, lambda_window, prof_window, wsp)
     return nothing
 end
 
@@ -57,8 +57,8 @@ function time_loop_cpu(t_loop::Int, prof::AA{T,1}, z_rot::T,
     prof .= one(T)
     for l in liter
         wsp.wavt .*= spec.variability[l]
-        line_loop(prof, spec.lines[l], spec.depths[l], z_rot,
-                  spec.conv_blueshifts[l], spec.lambdas, wsp, top=top)
+        line_loop_cpu(prof, spec.lines[l], spec.depths[l], z_rot,
+                      spec.conv_blueshifts[l], spec.lambdas, wsp, top=top)
     end
     return nothing
 end
@@ -136,7 +136,7 @@ function disk_sim(spec::SpecParams{T}, disk::DiskParams{T,Int64}, prof::AA{T,1},
                 skip_times[t] && continue
 
                 # update profile in place
-                time_loop(t_loop, prof, z_rot, key, liter, spec, wsp, top=top)
+                time_loop_cpu(t_loop, prof, z_rot, key, liter, spec, wsp, top=top)
 
                 # apply normalization term and add to outspec
                 outspec[:,t] .+= (prof .* norm_term)
