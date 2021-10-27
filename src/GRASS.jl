@@ -78,10 +78,6 @@ include("observing/ObservationPlan.jl")
 
 # use_gpu1, ArrayType1, time_loop1, line_loop1, synth_func1 = __init__()
 
-const time_loop = time_loop_cpu
-const line_loop = line_loop_cpu
-const synth_func = line_profile_cpu!
-
 # export some stuff
 export SpecParams, DiskParams, synthesize_spectra, calc_ccf, calc_rvs_from_ccf, calc_rms, use_gpu
 

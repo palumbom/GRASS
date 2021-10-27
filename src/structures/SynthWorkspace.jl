@@ -10,13 +10,6 @@ struct SynthWorkspace{T<:AF, N}
 end
 
 function SynthWorkspace(spec::SpecParams{T}; ndepths::Integer=100) where T
-    # get number of dimensions
-    if use_gpu
-        dims = [length(spec.lines)]
-    else
-        dims = []
-    end
-
     # allocate the needed memory
     lwavgrid = zeros(ndepths)
     rwavgrid = zeros(ndepths)
