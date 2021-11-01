@@ -1,5 +1,5 @@
 # sort data for the GPU
-function get_disc_mu_for_gpu(soldata::GRASS.SolarData{T}; to_gpu::Bool=false) where T<:Float64
+function get_disc_mu_for_gpu(soldata::SolarData{T}; to_gpu::Bool=false) where T<:Float64
     mu_strings = string.(getindex.(keys(soldata.len),2))
     mu_strings .= [s[3:end][1] .* "." .* s[3:end][2:end] for s in mu_strings]
     disc_mu = parse.(Float64, mu_strings)
@@ -9,7 +9,7 @@ function get_disc_mu_for_gpu(soldata::GRASS.SolarData{T}; to_gpu::Bool=false) wh
     return disc_mu
 end
 
-function get_disc_ax_for_gpu(soldata::GRASS.SolarData{T}; to_gpu::Bool=false) where T<:Float64
+function get_disc_ax_for_gpu(soldata::SolarData{T}; to_gpu::Bool=false) where T<:Float64
     disc_ax = string.(getindex.(keys(soldata.len),1))
     function parse_ax_strings(s::String)
         if s == "c"; return 0; end;
@@ -51,7 +51,7 @@ function find_data_index_gpu(mu_ind, ax_code)
     end
 end
 
-function sort_data_for_gpu(soldata::GRASS.SolarData{T}) where T<:Float64
+function sort_data_for_gpu(soldata::SolarData{T}) where T<:Float64
     # allocate memory for arrays to pass to gpu
     len = collect(values(soldata.len))
     wav = zeros(100, maximum(len), 41)
