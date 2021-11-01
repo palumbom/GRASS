@@ -37,24 +37,24 @@ function disk_sim(star_map, tstart, lines, depths, z_convs, grid, lambdas,
             # set intensity to zero and go to next iter if off grid
             x = grid[i]
             y = grid[j]
-            r2 = GRASS.calc_r2(x, y)
+            r2 = calc_r2(x, y)
             if r2 > 1.0
                 star_map[i,j,:] .= 0.0
                 continue
             end
 
             # calculate mu for limb darkening
-            mu = GRASS.calc_mu(r2)
+            mu = calc_mu(r2)
 
             # get rotational redshift
-            z_rot = GRASS.patch_velocity_los(x, y)
+            z_rot = patch_velocity_los(x, y)
 
             # find the nearest mu ind and ax code
-            nn_mu_ind = GRASS.searchsortednearest_gpu(disc_mu, mu)
-            nn_ax_code = GRASS.find_nearest_ax_gpu(x, y)
+            nn_mu_ind = searchsortednearest_gpu(disc_mu, mu)
+            nn_ax_code = find_nearest_ax_gpu(x, y)
 
             # find the correct data index
-            # data_ind = GRASS.find_data_index_gpu(nn_mu_ind, nn_ax_code)
+            # data_ind = find_data_index_gpu(nn_mu_ind, nn_ax_code)
             data_ind = 41
 
             # find out number of time epochs of input data for position
@@ -77,7 +77,7 @@ function disk_sim(star_map, tstart, lines, depths, z_convs, grid, lambdas,
             # loop over lines
             for k in idz:sdz:CUDA.length(lambdas)
                 # calculate limb darkening
-                @inbounds star_map[i,j,k] = GRASS.calc_norm_term(mu, CUDA.length(grid), 0.4, 0.26)
+                @inbounds star_map[i,j,k] = calc_norm_term(mu, CUDA.length(grid), 0.4, 0.26)
 
                 # loop over lines
                 for l in 1:CUDA.length(lines)
