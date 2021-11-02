@@ -38,10 +38,10 @@ function disk_sim(star_map, tstart, lines, depths, z_convs, grid, lambdas,
             x = grid[i]
             y = grid[j]
             r2 = calc_r2(x, y)
-            if r2 > 1.0
-                star_map[i,j,:] .= 0.0
-                continue
-            end
+            # if r2 > 1.0
+            #     star_map[i,j,:] .= 0.0
+            #     continue
+            # end
 
             # calculate mu for limb darkening
             mu = calc_mu(r2)
@@ -59,20 +59,18 @@ function disk_sim(star_map, tstart, lines, depths, z_convs, grid, lambdas,
 
             # find out number of time epochs of input data for position
             ntimes = lenall[data_ind]
-            tloop = tstart[i,j]
-            if tloop > ntimes
-                tloop = 1
+            if tstart[i,j] >= ntimes
                 @inbounds tstart[i,j] = 1
             end
 
             # slice out the correct views
-            wavt = CUDA.view(wavall, :, tloop, data_ind)
-            bist = CUDA.view(bisall, :, tloop, data_ind)
-            widt = CUDA.view(widall, :, tloop, data_ind)
-            dept = CUDA.view(depall, :, tloop, data_ind)
+            wavt = CUDA.view(wavall, :, tstart[i,j], data_ind)
+            bist = CUDA.view(bisall, :, tstart[i,j], data_ind)
+            widt = CUDA.view(widall, :, tstart[i,j], data_ind)
+            dept = CUDA.view(depall, :, tstart[i,j], data_ind)
 
             # iterate tstart
-            @inbounds tstart[i,j] += 1
+            @inbounds tstart[i,j] = tstart[i,j] + 1
 
             # loop over lines
             for k in idz:sdz:CUDA.length(lambdas)
@@ -88,9 +86,9 @@ function disk_sim(star_map, tstart, lines, depths, z_convs, grid, lambdas,
                     λΔD = lines[l] * (1.0 + z_rot) * (1.0 + z_convs[l])
 
                     # skip all this work if far from line core
-                    # if (lambdas[k] < (λΔD - 0.5)) | (lambdas[k] > (λΔD + 0.5))
-                    #     continue
-                    # end
+                    if (lambdas[k] < (λΔD - 0.5)) | (lambdas[k] > (λΔD + 0.5))
+                        continue
+                    end
 
                     # set wavgrids to line center to start
                     for n in 1:CUDA.size(lwavgrid,3)
