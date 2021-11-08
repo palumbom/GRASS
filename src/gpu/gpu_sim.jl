@@ -38,10 +38,10 @@ function disk_sim(star_map, tstart, lines, depths, z_convs, grid, lambdas,
             x = grid[i]
             y = grid[j]
             r2 = calc_r2(x, y)
-            # if r2 > 1.0
-            #     star_map[i,j,:] .= 0.0
-            #     continue
-            # end
+            if r2 > 1.0
+                star_map[i,j,:] .= 0.0
+                continue
+            end
 
             # calculate mu for limb darkening
             mu = calc_mu(r2)
@@ -72,6 +72,7 @@ function disk_sim(star_map, tstart, lines, depths, z_convs, grid, lambdas,
             # iterate tstart
             @inbounds tstart[i,j] = tstart[i,j] + 1
 
+            """
             # loop over lines
             for k in idz:sdz:CUDA.length(lambdas)
                 # calculate limb darkening
@@ -115,6 +116,7 @@ function disk_sim(star_map, tstart, lines, depths, z_convs, grid, lambdas,
                     @inbounds star_map[i,j,k] = factor * star_map[i,j,k]
                 end
             end
+            """
         end
     end
     return nothing
