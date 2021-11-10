@@ -34,54 +34,54 @@ function disk_sim(star_map, tstart, lines, depths, z_convs, grid, lambdas,
     # parallelized loop over grid
     for i in idx:sdx:CUDA.length(grid)
         for j in idy:sdy:CUDA.length(grid)
-            # set intensity to zero and go to next iter if off grid
-            x = grid[i]
-            y = grid[j]
-            r2 = calc_r2(x, y)
-            if r2 > 1.0
-                star_map[i,j,:] .= 0.0
-                continue
-            end
-
-            # calculate mu for limb darkening
-            mu = calc_mu(r2)
-
-            # get rotational redshift
-            z_rot = patch_velocity_los(x, y)
-
-            # find the nearest mu ind and ax code
-            nn_mu_ind = searchsortednearest_gpu(disc_mu, mu)
-            nn_ax_code = find_nearest_ax_gpu(x, y)
-
-            # find the correct data index
-            # data_ind = find_data_index_gpu(nn_mu_ind, nn_ax_code)
-            data_ind = 41
-
-            # find out number of time epochs of input data for position
-            ntimes = lenall[data_ind]
-            if tstart[i,j] >= ntimes
-                @inbounds tstart[i,j] = 1
-            end
-
-            # slice out the correct views
-            wavt = CUDA.view(wavall, :, tstart[i,j], data_ind)
-            bist = CUDA.view(bisall, :, tstart[i,j], data_ind)
-            widt = CUDA.view(widall, :, tstart[i,j], data_ind)
-            dept = CUDA.view(depall, :, tstart[i,j], data_ind)
-
-            # iterate tstart
-            @inbounds tstart[i,j] = tstart[i,j] + 1
-
-            """
-            # loop over lines
             for k in idz:sdz:CUDA.length(lambdas)
+                # set intensity to zero and go to next iter if off grid
+                x = grid[i]
+                y = grid[j]
+                r2 = calc_r2(x, y)
+                if r2 > 1.0
+                    @inbounds star_map[i,j,k] = 0.0
+                    continue
+                end
+
+                # calculate mu for limb darkening
+                mu = calc_mu(r2)
+
+                # get rotational redshift
+                z_rot = patch_velocity_los(x, y)
+
+                # find the nearest mu ind and ax code
+                nn_mu_ind = searchsortednearest_gpu(disc_mu, mu)
+                nn_ax_code = find_nearest_ax_gpu(x, y)
+
+                # find the correct data index
+                # data_ind = find_data_index_gpu(nn_mu_ind, nn_ax_code)
+                data_ind = 41
+
+                # find out number of time epochs of input data for position
+                ntimes = lenall[data_ind]
+                if tstart[i,j] >= ntimes
+                    @inbounds tstart[i,j] = 1
+                end
+
+                # slice out the correct views
+                wavt = CUDA.view(wavall, :, tstart[i,j], data_ind)
+                bist = CUDA.view(bisall, :, tstart[i,j], data_ind)
+                widt = CUDA.view(widall, :, tstart[i,j], data_ind)
+                dept = CUDA.view(depall, :, tstart[i,j], data_ind)
+
+                # iterate tstart
+                if k == 1
+                    @inbounds tstart[i,j] = tstart[i,j] + 1
+                end
+
                 # calculate limb darkening
                 @inbounds star_map[i,j,k] = calc_norm_term(mu, CUDA.length(grid), 0.4, 0.26)
 
                 # loop over lines
                 for l in 1:CUDA.length(lines)
                     # trim the input data
-                    trim_bisector_chop_gpu!(depths[l], wavt, bist, dept, widt, NaN)
+                    # trim_bisector_chop_gpu!(depths[l], wavt, bist, dept, widt, NaN)
 
                     # calculate the shifted center of the line
                     λΔD = lines[l] * (1.0 + z_rot) * (1.0 + z_convs[l])
@@ -92,12 +92,13 @@ function disk_sim(star_map, tstart, lines, depths, z_convs, grid, lambdas,
                     end
 
                     # set wavgrids to line center to start
-                    for n in 1:CUDA.size(lwavgrid,3)
-                        @inbounds lwavgrid[i,j,n] = (λΔD - (0.5 * widt[n] - wavt[n]))
-                        @inbounds rwavgrid[i,j,n] = (λΔD + (0.5 * widt[n] + wavt[n]))
-                    end
-                    @inbounds rwavgrid[i,j,1] = lwavgrid[i,j,1] + 1e-3
+                    # for n in 1:CUDA.size(lwavgrid,3)
+                    #     @inbounds lwavgrid[i,j,n] = (λΔD - (0.5 * widt[n] - wavt[n]))
+                    #     @inbounds rwavgrid[i,j,n] = (λΔD + (0.5 * widt[n] + wavt[n]))
+                    # end
+                    # @inbounds rwavgrid[i,j,1] = lwavgrid[i,j,1] + 1e-3
 
+                    """
                     # concatenate into one big array
                     len = CUDA.size(rwavgrid,3)
                     for n in 1:CUDA.size(lwavgrid,3)
@@ -114,9 +115,9 @@ function disk_sim(star_map, tstart, lines, depths, z_convs, grid, lambdas,
                     # interpolate onto original lambda grid, extrapolate to continuum
                     factor = linear_interp_mult_gpu(lambdas[k], allwavs_ij, allints_ij, 1.0)
                     @inbounds star_map[i,j,k] = factor * star_map[i,j,k]
+                    """
                 end
             end
-            """
         end
     end
     return nothing
