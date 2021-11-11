@@ -175,15 +175,13 @@ function disk_sim(star_map, tloop, lines, depths, z_convs, grid,
                 allints_ij = CUDA.view(allints, i, j, :)
 
                 # do the interpolation
-                bc = 1.0
-                if ((lambdas[k] < CUDA.first(allwavs)) | (lambdas[k] > CUDA.last(allwavs)))
-                    factor = 50
+                if ((lambdas[k] < CUDA.first(allwavs_ij)) | (lambdas[k] > CUDA.last(allwavs_ij)))
+                    factor = 1.0
                 else
-                #     m = CUDA.searchsortedfirst(allwavs, lambdas[k]) - 1
-                #     m0 = CUDA.clamp(m, CUDA.firstindex(allints), CUDA.lastindex(allints))
-                #     m1 = CUDA.clamp(m+1, CUDA.firstindex(allints), CUDA.lastindex(allints))
-                #     factor = (allints[m0] + (allints[m1] - allints[m0]) * (lambdas[k] - allwavs[m0]) / (allwavs[m1] - allwavs[m0]))
-                    factor = 50
+                    m = CUDA.searchsortedfirst(allwavs_ij, lambdas[k]) - 1
+                    m0 = CUDA.clamp(m, CUDA.firstindex(allints_ij), CUDA.lastindex(allints_ij))
+                    m1 = CUDA.clamp(m+1, CUDA.firstindex(allints_ij), CUDA.lastindex(allints_ij))
+                    factor = (allints_ij[m0] + (allints_ij[m1] - allints_ij[m0]) * (lambdas[k] - allwavs_ij[m0]) / (allwavs_ij[m1] - allwavs_ij[m0]))
                 end
                 @inbounds star_map[i,j,k] = star_map[i,j,k] * factor
 
