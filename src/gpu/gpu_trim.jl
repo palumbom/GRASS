@@ -29,7 +29,7 @@ function trim_bisector_chop_gpu!(depth, wavall, bisall, depall, widall, top)
         # loop over the length of the bisector
         step = depth/(CUDA.length(dept) - 1)
         for j in idy:sdy:CUDA.size(wavall,1)
-            # set the new depth value=
+            # set the new depth value
             new_dept = (1.0 - depth) + (j-1) * step
 
             # interpolate to get the new wavelength value
