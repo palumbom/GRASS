@@ -138,17 +138,54 @@ function disk_sim(star_map, tloop, lines, depths, z_convs, grid,
                     continue
                 end
 
-                # get rotational redshift
+                # calculate the shifted center of the line
                 z_rot = patch_velocity_los(x, y)
+                λΔD = lines * (1.0 + z_rot) * (1.0 + z_convs)
 
-                # find out number of time epochs of input data for position
+                # skip all this work if far from line core
+                if (lambdas[k] < (λΔD - 0.5)) | (lambdas[k] > (λΔD + 0.5))
+                    continue
+                end
+
+                # slice out the correct views of the input data for position
                 data_ind = data_inds[i,j]
-
-                # slice out the correct views
                 wavt = CUDA.view(wavall, :, tloop[i,j], data_ind)
                 bist = CUDA.view(bisall, :, tloop[i,j], data_ind)
                 widt = CUDA.view(widall, :, tloop[i,j], data_ind)
                 dept = CUDA.view(depall, :, tloop[i,j], data_ind)
+
+                # set wavgrids based on bisector + wid data
+                for n in 1:CUDA.size(lwavgrid,3)
+                    @inbounds lwavgrid[i,j,n] = (λΔD - (0.5 * widt[n] - wavt[n]))
+                    @inbounds rwavgrid[i,j,n] = (λΔD + (0.5 * widt[n] + wavt[n]))
+                end
+                @inbounds rwavgrid[i,j,1] = lwavgrid[i,j,1] + 1e-3
+
+                # concatenate wavgrids into one big array
+                len = CUDA.size(rwavgrid,3)
+                for n in 1:CUDA.size(lwavgrid,3)
+                    @inbounds allwavs[i,j,n+len] = rwavgrid[i,j,n]
+                    @inbounds allints[i,j,n+len] = dept[n]
+                    @inbounds allwavs[i,j,n] = lwavgrid[i,j, CUDA.size(rwavgrid,3) - (n - 1)]
+                    @inbounds allints[i,j,n] = dept[CUDA.size(rwavgrid,3) - (n - 1)]
+                end
+
+                # take view of arrays to pass to interpolater
+                allwavs_ij = CUDA.view(allwavs, i, j, :)
+                allints_ij = CUDA.view(allints, i, j, :)
+
+                # do the interpolation
+                bc = 1.0
+                if ((lambdas[k] < CUDA.first(allwavs)) | (lambdas[k] > CUDA.last(allwavs)))
+                    factor = 50
+                else
+                #     m = CUDA.searchsortedfirst(allwavs, lambdas[k]) - 1
+                #     m0 = CUDA.clamp(m, CUDA.firstindex(allints), CUDA.lastindex(allints))
+                #     m1 = CUDA.clamp(m+1, CUDA.firstindex(allints), CUDA.lastindex(allints))
+                #     factor = (allints[m0] + (allints[m1] - allints[m0]) * (lambdas[k] - allwavs[m0]) / (allwavs[m1] - allwavs[m0]))
+                    factor = 50
+                end
+                @inbounds star_map[i,j,k] = star_map[i,j,k] * factor
 
                 # loop over lines
                 """
