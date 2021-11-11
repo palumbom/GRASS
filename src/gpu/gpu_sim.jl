@@ -20,9 +20,103 @@ function line_profile_gpu!(mid, lambdas, prof, wavm, depm, widm, lwavgrid, rwavg
     return nothing
 end
 
-function disk_sim(star_map, tstart, lines, depths, z_convs, grid, lambdas,
-                  disc_ax, disc_mu, lenall, wavall, bisall, widall, depall,
-                  lwavgrid, rwavgrid, allwavs, allints)
+function calc_data_ind_gpu(data_inds, grid, disc_mu, disc_ax)
+    # get indices from GPU blocks + threads
+    idx = threadIdx().x + blockDim().x * (blockIdx().x-1)
+    sdx = blockDim().x * gridDim().x
+    idy = threadIdx().y + blockDim().y * (blockIdx().y-1)
+    sdy = blockDim().y * gridDim().y
+
+    # parallelized loop over grid
+    for i in idx:sdx:CUDA.length(grid)
+        for j in idy:sdy:CUDA.length(grid)
+            # find position on disk
+            x = grid[i]
+            y = grid[j]
+            r2 = calc_r2(x, y)
+
+            # move to next iter if off disk
+            if r2 > 1.0
+                continue
+            end
+
+            # find the nearest mu ind and ax code
+            mu = calc_mu(r2)
+            nn_mu_ind = searchsortednearest_gpu(disc_mu, mu)
+            nn_ax_code = find_nearest_ax_gpu(x, y)
+
+            # find the correct data index
+            @inbounds data_inds[i,j] = find_data_index_gpu(nn_mu_ind, nn_ax_code)
+        end
+    end
+    return nothing
+end
+
+function iterate_tloop_gpu(tloop, data_inds, lenall, grid)
+    # get indices from GPU blocks + threads
+    idx = threadIdx().x + blockDim().x * (blockIdx().x-1)
+    sdx = blockDim().x * gridDim().x
+    idy = threadIdx().y + blockDim().y * (blockIdx().y-1)
+    sdy = blockDim().y * gridDim().y
+
+    # parallelized loop over grid
+    for i in idx:sdx:CUDA.length(grid)
+        for j in idy:sdy:CUDA.length(grid)
+            # find position on disk
+            x = grid[i]
+            y = grid[j]
+            r2 = calc_r2(x, y)
+
+            # move to next iter if off disk
+            if r2 > 1.0
+                continue
+            end
+
+            # iterate tloop
+            tloop[i,j] = tloop[i,j] + 1
+
+            # check that tloop didn't overshoot the data
+            ntimes = lenall[data_inds[i,j]]
+            if tloop[i,j] >= ntimes
+                @inbounds tloop[i,j] = 1
+            end
+        end
+    end
+    return nothing
+end
+
+function calc_norm_term_gpu(star_map, grid, u1, u2)
+    # get indices from GPU blocks + threads
+    idx = threadIdx().x + blockDim().x * (blockIdx().x-1)
+    sdx = blockDim().x * gridDim().x
+    idy = threadIdx().y + blockDim().y * (blockIdx().y-1)
+    sdy = blockDim().y * gridDim().y
+
+    # parallelized loop over grid
+    for i in idx:sdx:CUDA.length(grid)
+        for j in idy:sdy:CUDA.length(grid)
+            # find position on disk
+            x = grid[i]
+            y = grid[j]
+            r2 = calc_r2(x, y)
+
+            # move to next iter if off disk
+            if r2 > 1.0
+                @inbounds star_map[i,j,:] .= 0.0
+                continue
+            end
+
+            # calculate the normalization
+            mu = calc_mu(r2)
+            @inbounds star_map[i,j,:] .= calc_norm_term(mu, CUDA.length(grid), u1, u2)
+        end
+    end
+    return nothing
+end
+
+function disk_sim(star_map, tloop, lines, depths, z_convs, grid,
+                  lambdas, data_inds, lenall, wavall, bisall, widall,
+                  depall, lwavgrid, rwavgrid, allwavs, allints)
     # get indices from GPU blocks + threads
     idx = threadIdx().x + blockDim().x * (blockIdx().x-1)
     sdx = blockDim().x * gridDim().x
@@ -44,41 +138,20 @@ function disk_sim(star_map, tstart, lines, depths, z_convs, grid, lambdas,
                     continue
                 end
 
-                # calculate mu for limb darkening
-                mu = calc_mu(r2)
-
                 # get rotational redshift
                 z_rot = patch_velocity_los(x, y)
 
-                # find the nearest mu ind and ax code
-                nn_mu_ind = searchsortednearest_gpu(disc_mu, mu)
-                nn_ax_code = find_nearest_ax_gpu(x, y)
-
-                # find the correct data index
-                # data_ind = find_data_index_gpu(nn_mu_ind, nn_ax_code)
-                data_ind = 41
-
                 # find out number of time epochs of input data for position
-                ntimes = lenall[data_ind]
-                if tstart[i,j] >= ntimes
-                    @inbounds tstart[i,j] = 1
-                end
+                data_ind = data_inds[i,j]
 
                 # slice out the correct views
-                wavt = CUDA.view(wavall, :, tstart[i,j], data_ind)
-                bist = CUDA.view(bisall, :, tstart[i,j], data_ind)
-                widt = CUDA.view(widall, :, tstart[i,j], data_ind)
-                dept = CUDA.view(depall, :, tstart[i,j], data_ind)
-
-                # iterate tstart
-                if k == 1
-                    @inbounds tstart[i,j] = tstart[i,j] + 1
-                end
-
-                # calculate limb darkening
-                @inbounds star_map[i,j,k] = calc_norm_term(mu, CUDA.length(grid), 0.4, 0.26)
+                wavt = CUDA.view(wavall, :, tloop[i,j], data_ind)
+                bist = CUDA.view(bisall, :, tloop[i,j], data_ind)
+                widt = CUDA.view(widall, :, tloop[i,j], data_ind)
+                dept = CUDA.view(depall, :, tloop[i,j], data_ind)
 
                 # loop over lines
+                """
                 for l in 1:CUDA.length(lines)
                     # trim the input data
                     # trim_bisector_chop_gpu!(depths[l], wavt, bist, dept, widt, NaN)
@@ -98,7 +171,6 @@ function disk_sim(star_map, tstart, lines, depths, z_convs, grid, lambdas,
                     # end
                     # @inbounds rwavgrid[i,j,1] = lwavgrid[i,j,1] + 1e-3
 
-                    """
                     # concatenate into one big array
                     len = CUDA.size(rwavgrid,3)
                     for n in 1:CUDA.size(lwavgrid,3)
@@ -115,8 +187,8 @@ function disk_sim(star_map, tstart, lines, depths, z_convs, grid, lambdas,
                     # interpolate onto original lambda grid, extrapolate to continuum
                     factor = linear_interp_mult_gpu(lambdas[k], allwavs_ij, allints_ij, 1.0)
                     @inbounds star_map[i,j,k] = factor * star_map[i,j,k]
-                    """
                 end
+                """
             end
         end
     end
