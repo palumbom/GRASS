@@ -1,3 +1,4 @@
+"""
 function linear_interp_gpu(out, new_xs, xs, ys, bc)
     # perform the interpolation
     n = CUDA.length(new_xs)
@@ -33,3 +34,4 @@ function linear_interp_mult_gpu(newx, xs, ys, bc)
         return (ys[m0] + (ys[m1] - ys[m0]) * (newx - xs[m0]) / (xs[m1] - xs[m0]))
     end
 end
+"""
