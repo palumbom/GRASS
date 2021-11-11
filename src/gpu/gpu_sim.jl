@@ -1,57 +1,3 @@
-function line_profile_gpu!(mid, lambdas, prof, wavm, depm, widm, lwavgrid, rwavgrid, allwavs, allints)
-    # set wavgrids to line center to start
-    for i in 1:CUDA.length(lwavgrid)
-        lwavgrid[i] = (mid - (0.5 * widm[i] - wavm[i]))
-        rwavgrid[i] = (mid + (0.5 * widm[i] + wavm[i]))
-    end
-    rwavgrid[1] = lwavgrid[1] + 1e-3            # TODO: fix to deal with nodes
-
-    # concatenate into one big array
-    len = CUDA.length(rwavgrid)
-    for i in 1:CUDA.length(rwavgrid)
-        allwavs[i+len] = rwavgrid[i]
-        allints[i+len] = depm[i]
-        allwavs[i] = lwavgrid[CUDA.length(rwavgrid) - (i - 1)]
-        allints[i] = depm[CUDA.length(rwavgrid) - (i - 1)]
-    end
-
-    # interpolate onto original lambda grid, extrapolate to continuum
-    linear_interp_mult_gpu(prof, lambdas, allwavs, allints, 1.0)
-    return nothing
-end
-
-function calc_data_ind_gpu(data_inds, grid, disc_mu, disc_ax)
-    # get indices from GPU blocks + threads
-    idx = threadIdx().x + blockDim().x * (blockIdx().x-1)
-    sdx = blockDim().x * gridDim().x
-    idy = threadIdx().y + blockDim().y * (blockIdx().y-1)
-    sdy = blockDim().y * gridDim().y
-
-    # parallelized loop over grid
-    for i in idx:sdx:CUDA.length(grid)
-        for j in idy:sdy:CUDA.length(grid)
-            # find position on disk
-            x = grid[i]
-            y = grid[j]
-            r2 = calc_r2(x, y)
-
-            # move to next iter if off disk
-            if r2 > 1.0
-                continue
-            end
-
-            # find the nearest mu ind and ax code
-            mu = calc_mu(r2)
-            nn_mu_ind = searchsortednearest_gpu(disc_mu, mu)
-            nn_ax_code = find_nearest_ax_gpu(x, y)
-
-            # find the correct data index
-            @inbounds data_inds[i,j] = find_data_index_gpu(nn_mu_ind, nn_ax_code)
-        end
-    end
-    return nothing
-end
-
 function iterate_tloop_gpu(tloop, data_inds, lenall, grid)
     # get indices from GPU blocks + threads
     idx = threadIdx().x + blockDim().x * (blockIdx().x-1)
@@ -114,78 +60,83 @@ function calc_norm_term_gpu(star_map, grid, u1, u2)
     return nothing
 end
 
-function disk_sim(star_map, tloop, lines, depths, z_convs, grid,
-                  lambdas, data_inds, lenall, wavall, bisall, widall,
-                  depall, lwavgrid, rwavgrid, allwavs, allints)
-    # get indices from GPU blocks + threads
-    idx = threadIdx().x + blockDim().x * (blockIdx().x-1)
-    sdx = blockDim().x * gridDim().x
-    idy = threadIdx().y + blockDim().y * (blockIdx().y-1)
-    sdy = blockDim().y * gridDim().y
-    idz = threadIdx().z + blockDim().z * (blockIdx().z-1)
-    sdz = blockDim().z * gridDim().z
+function disk_sim_gpu(spec, disk, outspec)
+    # get random starting indices
+    tloop = rand(1:maximum(lenall_cpu), (N, N))
 
-    # parallelized loop over grid
-    for i in idx:sdx:CUDA.length(grid)
-        for j in idy:sdy:CUDA.length(grid)
-            for k in idz:sdz:CUDA.length(lambdas)
-                # set intensity to zero and go to next iter if off grid
-                x = grid[i]
-                y = grid[j]
-                r2 = calc_r2(x, y)
-                if r2 > 1.0
-                    @inbounds star_map[i,j,k] = 0.0
-                    continue
+    # allocate memory for input data indices
+    data_inds = CuArray{Int64,2}(undef, N, N)
+
+    # before starting loops, get map of data indices
+    threads = (16, 16)
+    blocks = cld(N^2, prod(threads))
+    CUDA.@sync @cuda threads=threads blocks=blocks calc_data_ind_gpu(data_inds, grid, disc_mu, disc_ax)
+
+    # make tloop starting index doesnt exceed number of epochs for position
+    threads = (16, 16)
+    blocks = cld(N^2, prod(threads))
+    CUDA.@sync @cuda threads=threads blocks=blocks iterate_tloop_gpu(tloop, data_inds, lenall_gpu, grid)
+
+    # loop over time
+    for t in 1:Nt
+        # initialize star_map with normalization term
+        threads1 = (16, 16)
+        blocks1 = cld(N^2, prod(threads1))
+        CUDA.@sync @cuda threads=threads1 blocks=blocks1 calc_norm_term_gpu(starmap, grid, 0.4, 0.26)
+
+        # copy the clean, untrimmed input data to workspace each time iteration
+        # TODO does this need to be moved down a loop?
+        CUDA.@sync begin
+            wavall_gpu_loop .= CUDA.copy(wavall_gpu)
+            bisall_gpu_loop .= CUDA.copy(bisall_gpu)
+            widall_gpu_loop .= CUDA.copy(widall_gpu)
+            depall_gpu_loop .= CUDA.copy(depall_gpu)
+        end
+
+        # loop over lines to synthesize
+        for l in 1:length(lines)
+            # pre-trim the data
+            for n in 1:length(lenall_cpu)
+                CUDA.@sync begin
+                    # send slices to gpu
+                    wavall_gpu_loop_slice = CUDA.view(wavall_gpu_loop, :, 1:lenall_cpu[n], n)
+                    bisall_gpu_loop_slice = CUDA.view(bisall_gpu_loop, :, 1:lenall_cpu[n], n)
+                    widall_gpu_loop_slice = CUDA.view(widall_gpu_loop, :, 1:lenall_cpu[n], n)
+                    depall_gpu_loop_slice = CUDA.view(depall_gpu_loop, :, 1:lenall_cpu[n], n)
+
+                    # do the trim
+                    threads1 = 100
+                    blocks1 = cld(lenall_cpu[n] * 100, threads1)
+                    @cuda threads=threads1 blocks=blocks1 trim_bisector_chop_gpu!(spec.depths[l],
+                                                                                  wavall_gpu_loop_slice,
+                                                                                  bisall_gpu_loop_slice,
+                                                                                  depall_gpu_loop_slice,
+                                                                                  widall_gpu_loop_slice,
+                                                                                  NaN)
                 end
+            end
 
-                # calculate the shifted center of the line
-                z_rot = patch_velocity_los(x, y)
-                λΔD = lines * (1.0 + z_rot) * (1.0 + z_convs)
+            # do the line synthesis
+            threads1 = (6,6,6)
+            blocks1 = cld(N^2 * Nλ, prod(threads1))
+            CUDA.@sync @cuda threads=threads1 blocks=blocks1 line_profile_gpu!(starmap, tloop, spec.lines[l],
+                                                                               spec.depths[l], spec.conv_blueshifts[l],
+                                                                               grid, lambdas, data_inds, lenall_gpu,
+                                                                               wavall_gpu_loop, bisall_gpu_loop,
+                                                                               widall_gpu_loop, depall_gpu_loop,
+                                                                               lwavgrid, rwavgrid,allwavs, allints)
 
-                # skip all this work if far from line core
-                if (lambdas[k] < (λΔD - 0.5)) | (lambdas[k] > (λΔD + 0.5))
-                    continue
-                end
+            # do array reduction and move data from GPU to CPU
+            CUDA.@sync starmap_cpu_copy = Array(CUDA.sum(starmap, dims=(1,2)))
+            outspec[:,t] .= view(starmap_cpu_copy, 1, 1, :)
 
-                # slice out the correct views of the input data for position
-                data_ind = data_inds[i,j]
-                wavt = CUDA.view(wavall, :, tloop[i,j], data_ind)
-                bist = CUDA.view(bisall, :, tloop[i,j], data_ind)
-                widt = CUDA.view(widall, :, tloop[i,j], data_ind)
-                dept = CUDA.view(depall, :, tloop[i,j], data_ind)
-
-                # set wavgrids based on bisector + wid data
-                for n in 1:CUDA.size(lwavgrid,3)
-                    @inbounds lwavgrid[i,j,n] = (λΔD - (0.5 * widt[n] - wavt[n]))
-                    @inbounds rwavgrid[i,j,n] = (λΔD + (0.5 * widt[n] + wavt[n]))
-                end
-                @inbounds rwavgrid[i,j,1] = lwavgrid[i,j,1] + 1e-3
-
-                # concatenate wavgrids into one big array
-                len = CUDA.size(rwavgrid,3)
-                for n in 1:CUDA.size(lwavgrid,3)
-                    @inbounds allwavs[i,j,n+len] = rwavgrid[i,j,n]
-                    @inbounds allints[i,j,n+len] = dept[n]
-                    @inbounds allwavs[i,j,n] = lwavgrid[i,j, CUDA.size(rwavgrid,3) - (n - 1)]
-                    @inbounds allints[i,j,n] = dept[CUDA.size(rwavgrid,3) - (n - 1)]
-                end
-
-                # take view of arrays to pass to interpolater
-                allwavs_ij = CUDA.view(allwavs, i, j, :)
-                allints_ij = CUDA.view(allints, i, j, :)
-
-                # do the interpolation
-                if ((lambdas[k] < CUDA.first(allwavs_ij)) | (lambdas[k] > CUDA.last(allwavs_ij)))
-                    factor = 1.0
-                else
-                    m = CUDA.searchsortedfirst(allwavs_ij, lambdas[k]) - 1
-                    m0 = CUDA.clamp(m, CUDA.firstindex(allints_ij), CUDA.lastindex(allints_ij))
-                    m1 = CUDA.clamp(m+1, CUDA.firstindex(allints_ij), CUDA.lastindex(allints_ij))
-                    factor = (allints_ij[m0] + (allints_ij[m1] - allints_ij[m0]) * (lambdas[k] - allwavs_ij[m0]) / (allwavs_ij[m1] - allwavs_ij[m0]))
-                end
-                @inbounds star_map[i,j,k] = star_map[i,j,k] * factor
+            # iterate tloop
+            if t < Nt
+                threads1 = (16, 16)
+                blocks1 = cld(N^2, prod(threads1))
+                CUDA.@sync @cuda threads=threads1 blocks=blocks1 GRASS.iterate_tloop_gpu(tloop, data_inds, lenall_gpu, grid)
             end
         end
     end
-    return nothing
+    return spec.lambdas, outspec
 end

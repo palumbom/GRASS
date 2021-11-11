@@ -51,6 +51,38 @@ function find_data_index_gpu(mu_ind, ax_code)
     end
 end
 
+function calc_data_ind_gpu(data_inds, grid, disc_mu, disc_ax)
+    # get indices from GPU blocks + threads
+    idx = threadIdx().x + blockDim().x * (blockIdx().x-1)
+    sdx = blockDim().x * gridDim().x
+    idy = threadIdx().y + blockDim().y * (blockIdx().y-1)
+    sdy = blockDim().y * gridDim().y
+
+    # parallelized loop over grid
+    for i in idx:sdx:CUDA.length(grid)
+        for j in idy:sdy:CUDA.length(grid)
+            # find position on disk
+            x = grid[i]
+            y = grid[j]
+            r2 = calc_r2(x, y)
+
+            # move to next iter if off disk
+            if r2 > 1.0
+                continue
+            end
+
+            # find the nearest mu ind and ax code
+            mu = calc_mu(r2)
+            nn_mu_ind = searchsortednearest_gpu(disc_mu, mu)
+            nn_ax_code = find_nearest_ax_gpu(x, y)
+
+            # find the correct data index
+            @inbounds data_inds[i,j] = find_data_index_gpu(nn_mu_ind, nn_ax_code)
+        end
+    end
+    return nothing
+end
+
 function sort_data_for_gpu(soldata::SolarData{T}) where T<:Float64
     # allocate memory for arrays to pass to gpu
     len = collect(values(soldata.len))
