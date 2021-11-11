@@ -184,46 +184,6 @@ function disk_sim(star_map, tloop, lines, depths, z_convs, grid,
                     factor = (allints_ij[m0] + (allints_ij[m1] - allints_ij[m0]) * (lambdas[k] - allwavs_ij[m0]) / (allwavs_ij[m1] - allwavs_ij[m0]))
                 end
                 @inbounds star_map[i,j,k] = star_map[i,j,k] * factor
-
-                # loop over lines
-                """
-                for l in 1:CUDA.length(lines)
-                    # trim the input data
-                    # trim_bisector_chop_gpu!(depths[l], wavt, bist, dept, widt, NaN)
-
-                    # calculate the shifted center of the line
-                    λΔD = lines[l] * (1.0 + z_rot) * (1.0 + z_convs[l])
-
-                    # skip all this work if far from line core
-                    if (lambdas[k] < (λΔD - 0.5)) | (lambdas[k] > (λΔD + 0.5))
-                        continue
-                    end
-
-                    # set wavgrids to line center to start
-                    # for n in 1:CUDA.size(lwavgrid,3)
-                    #     @inbounds lwavgrid[i,j,n] = (λΔD - (0.5 * widt[n] - wavt[n]))
-                    #     @inbounds rwavgrid[i,j,n] = (λΔD + (0.5 * widt[n] + wavt[n]))
-                    # end
-                    # @inbounds rwavgrid[i,j,1] = lwavgrid[i,j,1] + 1e-3
-
-                    # concatenate into one big array
-                    len = CUDA.size(rwavgrid,3)
-                    for n in 1:CUDA.size(lwavgrid,3)
-                        @inbounds allwavs[i,j,n+len] = rwavgrid[i,j,n]
-                        @inbounds allints[i,j,n+len] = dept[n]
-                        @inbounds allwavs[i,j,n] = lwavgrid[i,j, CUDA.size(rwavgrid,3) - (n - 1)]
-                        @inbounds allints[i,j,n] = dept[CUDA.size(rwavgrid,3) - (n - 1)]
-                    end
-
-                    # take view of arrays to pass to interpolater
-                    allwavs_ij = CUDA.view(allwavs, i, j, :)
-                    allints_ij = CUDA.view(allints, i, j, :)
-
-                    # interpolate onto original lambda grid, extrapolate to continuum
-                    factor = linear_interp_mult_gpu(lambdas[k], allwavs_ij, allints_ij, 1.0)
-                    @inbounds star_map[i,j,k] = factor * star_map[i,j,k]
-                end
-                """
             end
         end
     end
