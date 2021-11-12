@@ -60,9 +60,50 @@ function calc_norm_term_gpu(star_map, grid, u1, u2)
     return nothing
 end
 
-function disk_sim_gpu(spec, disk, outspec)
-    # get random starting indices
+function disk_sim_gpu(spec::SpecParams, disk::DiskParams, outspec::AA{T,2}) where T<:Float64
+    # sort the input data for use on GPU
+    sorted_data = sort_data_for_gpu(spec.soldata)
+    disc_mu = sorted_data[1]
+    disc_ax = sorted_data[2]
+    lenall_cpu = sorted_data[3]
+    wavall_cpu = sorted_data[4]
+    bisall_cpu = sorted_data[5]
+    widall_cpu = sorted_data[6]
+    depall_cpu = sorted_data[7]
+
+    # move input data to gpu
+    disc_mu = CuArray(disc_mu)
+    disc_ax = CuArray(disc_ax)
+    lenall_gpu = CuArray(lenall_cpu)
+    wavall_gpu = CuArray(wavall_cpu)
+    bisall_gpu = CuArray(bisall_cpu)
+    widall_gpu = CuArray(widall_cpu)
+    depall_gpu = CuArray(depall_cpu)
+
+    # allocate arrays for fresh copy of input data to copy to each loop
+    wavall_gpu_loop = CUDA.copy(wavall_gpu)
+    bisall_gpu_loop = CUDA.copy(bisall_gpu)
+    widall_gpu_loop = CUDA.copy(widall_gpu)
+    depall_gpu_loop = CUDA.copy(depall_gpu)
+
+    # allocate memory for synthesis on the GPU
+    starmap = CUDA.ones(N, N, Nλ)
+    outspec = CUDA.zeros(Nλ, Nt)
+    lwavgrid = CUDA.zeros(N, N, 100)
+    rwavgrid = CUDA.zeros(N, N, 100)
+    allwavs = CUDA.zeros(N, N, 200)
+    allints = CUDA.zeros(N, N, 200)
+
+    # get random starting indices and move it to GPU
     tloop = rand(1:maximum(lenall_cpu), (N, N))
+    tloop = CuArray(tloop)
+
+    # move other data to the gpu
+    grid = CuArray(GRASS.make_grid(N))
+    lines = CuArray(spec.lines)
+    depths = CuArray(spec.depths)
+    z_convs = CuArray(spec.conv_blueshifts)
+    lambdas = CuArray(spec.lambdas)
 
     # allocate memory for input data indices
     data_inds = CuArray{Int64,2}(undef, N, N)
@@ -134,7 +175,7 @@ function disk_sim_gpu(spec, disk, outspec)
             if t < Nt
                 threads1 = (16, 16)
                 blocks1 = cld(N^2, prod(threads1))
-                CUDA.@sync @cuda threads=threads1 blocks=blocks1 GRASS.iterate_tloop_gpu(tloop, data_inds, lenall_gpu, grid)
+                CUDA.@sync @cuda threads=threads1 blocks=blocks1 iterate_tloop_gpu(tloop, data_inds, lenall_gpu, grid)
             end
         end
     end
