@@ -61,6 +61,11 @@ function calc_norm_term_gpu(star_map, grid, u1, u2)
 end
 
 function disk_sim_gpu(spec::SpecParams, disk::DiskParams, outspec::AA{T,2}) where T<:Float64
+    # get dimensions for memory alloc
+    N = disk.N
+    Nt = disk.Nt
+    Nλ = length(spec.lambdas)
+
     # sort the input data for use on GPU
     sorted_data = sort_data_for_gpu(spec.soldata)
     disc_mu = sorted_data[1]
@@ -87,12 +92,11 @@ function disk_sim_gpu(spec::SpecParams, disk::DiskParams, outspec::AA{T,2}) wher
     depall_gpu_loop = CUDA.copy(depall_gpu)
 
     # allocate memory for synthesis on the GPU
-    starmap = CUDA.ones(N, N, Nλ)
-    outspec = CUDA.zeros(Nλ, Nt)
-    lwavgrid = CUDA.zeros(N, N, 100)
-    rwavgrid = CUDA.zeros(N, N, 100)
-    allwavs = CUDA.zeros(N, N, 200)
-    allints = CUDA.zeros(N, N, 200)
+    starmap = CUDA.ones(Float64, N, N, Nλ)
+    lwavgrid = CUDA.zeros(Float64, N, N, 100)
+    rwavgrid = CUDA.zeros(Float64, N, N, 100)
+    allwavs = CUDA.zeros(Float64, N, N, 200)
+    allints = CUDA.zeros(Float64, N, N, 200)
 
     # get random starting indices and move it to GPU
     tloop = rand(1:maximum(lenall_cpu), (N, N))
@@ -100,9 +104,9 @@ function disk_sim_gpu(spec::SpecParams, disk::DiskParams, outspec::AA{T,2}) wher
 
     # move other data to the gpu
     grid = CuArray(GRASS.make_grid(N))
-    lines = CuArray(spec.lines)
-    depths = CuArray(spec.depths)
-    z_convs = CuArray(spec.conv_blueshifts)
+    # lines = CuArray(spec.lines)
+    # depths = CuArray(spec.depths)
+    # z_convs = CuArray(spec.conv_blueshifts)
     lambdas = CuArray(spec.lambdas)
 
     # allocate memory for input data indices
@@ -123,7 +127,7 @@ function disk_sim_gpu(spec::SpecParams, disk::DiskParams, outspec::AA{T,2}) wher
         # initialize star_map with normalization term
         threads1 = (16, 16)
         blocks1 = cld(N^2, prod(threads1))
-        CUDA.@sync @cuda threads=threads1 blocks=blocks1 calc_norm_term_gpu(starmap, grid, 0.4, 0.26)
+        CUDA.@sync @cuda threads=threads1 blocks=blocks1 calc_norm_term_gpu(starmap, grid, disk.u1, disk.u2)
 
         # copy the clean, untrimmed input data to workspace each time iteration
         # TODO does this need to be moved down a loop?
@@ -135,7 +139,7 @@ function disk_sim_gpu(spec::SpecParams, disk::DiskParams, outspec::AA{T,2}) wher
         end
 
         # loop over lines to synthesize
-        for l in 1:length(lines)
+        for l in 1:length(spec.lines)
             # pre-trim the data
             for n in 1:length(lenall_cpu)
                 CUDA.@sync begin

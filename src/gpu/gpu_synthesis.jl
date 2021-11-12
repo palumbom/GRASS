@@ -23,6 +23,7 @@ function line_profile_gpu!(star_map, tloop, lines, depths, z_convs, grid,
                 end
 
                 # calculate the shifted center of the line
+                # TODO: pole implementation
                 z_rot = patch_velocity_los(x, y)
                 λΔD = lines * (1.0 + z_rot) * (1.0 + z_convs)
 
