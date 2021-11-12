@@ -59,6 +59,7 @@ include("gpu/gpu_interp.jl")
 include("gpu/gpu_data.jl")
 include("gpu/gpu_trim.jl")
 include("gpu/gpu_sim.jl")
+include("gpu/gpu_synthesis.jl")
 
 """
     synthesize_spectra(spec, disk; seed_rng=false, verbose=true, top=NaN)
