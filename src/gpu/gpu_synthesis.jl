@@ -1,6 +1,7 @@
 function line_profile_gpu!(star_map, tloop, lines, depths, z_convs, grid,
                            lambdas, data_inds, lenall, wavall, bisall, widall,
-                           depall, lwavgrid, rwavgrid, allwavs, allints)
+                           depall, lwavgrid, rwavgrid, allwavs, allints,
+                           polex, poley, polez)
     # get indices from GPU blocks + threads
     idx = threadIdx().x + blockDim().x * (blockIdx().x-1)
     sdx = blockDim().x * gridDim().x
@@ -24,7 +25,7 @@ function line_profile_gpu!(star_map, tloop, lines, depths, z_convs, grid,
 
                 # calculate the shifted center of the line
                 # TODO: pole implementation
-                z_rot = patch_velocity_los(x, y)
+                z_rot = patch_velocity_los_gpu(x, y, 1.0, polex, poley, polez)
                 λΔD = lines * (1.0 + z_rot) * (1.0 + z_convs)
 
                 # skip all this work if far from line core

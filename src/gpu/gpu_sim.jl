@@ -81,8 +81,8 @@ function disk_sim_gpu(spec::SpecParams, disk::DiskParams, outspec::AA{T,2}) wher
     Nt = disk.Nt
     Nλ = length(spec.lambdas)
 
-    # make array to copy GPU results into
-    starmap_cpu = zeros(N, N, Nλ)
+    # get pole component vectors
+    polex, poley, polez = disk.pole
 
     # sort the input data for use on GPU
     sorted_data = sort_data_for_gpu(spec.soldata)
@@ -183,11 +183,12 @@ function disk_sim_gpu(spec::SpecParams, disk::DiskParams, outspec::AA{T,2}) wher
                                                                                grid, lambdas, data_inds, lenall_gpu,
                                                                                wavall_gpu_loop, bisall_gpu_loop,
                                                                                widall_gpu_loop, depall_gpu_loop,
-                                                                               lwavgrid, rwavgrid,allwavs, allints)
+                                                                               lwavgrid, rwavgrid,allwavs, allints,
+                                                                               polex, poley, polez)
 
             # do array reduction and move data from GPU to CPU
-            CUDA.@sync starmap_cpu .= Array(CUDA.sum(starmap, dims=(1,2)))
-            outspec[:,t] .= view(starmap_cpu, 1, 1, :)
+            CUDA.@sync outspec[:,t] .= view(Array(CUDA.sum(starmap, dims=(1,2))), 1, 1, :)
+            # outspec[:,t] .= view(starmap_cpu, 1, 1, :)
 
             # iterate tloop
             if t < Nt
