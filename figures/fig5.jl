@@ -3,6 +3,7 @@ using Distributed
 @everywhere using Pkg
 @everywhere Pkg.activate(".")
 @everywhere using Statistics
+@everywhere using CUDA
 @everywhere using GRASS
 @everywhere using SharedArrays
 @everywhere using EchelleCCFs
@@ -22,6 +23,9 @@ const Nloop = 200
 # get command line args and output directories
 run, plot = parse_args(ARGS)
 grassdir, plotdir, datadir = check_plot_dirs()
+
+# decide whether to use gpu
+use_gpu = CUDA.functional()
 
 function main()
     # set up parameters for lines
@@ -47,7 +51,7 @@ function main()
                           extrapolate=true, contiguous_only=contiguous_only)
 
         # synthesize spectra, get velocities and stats
-        avg_avg1, std_avg1, avg_rms1, std_rms1 = spec_loop(spec, disk, Nloop, top=top)
+        avg_avg1, std_avg1, avg_rms1, std_rms1 = spec_loop(spec, disk, Nloop, top=top, , use_gpu=use_gpu)
         avg_avg_depth[i] = avg_avg1
         std_avg_depth[i] = std_avg1
         avg_rms_depth[i] = avg_rms1
