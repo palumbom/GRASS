@@ -67,7 +67,7 @@ function initialize_arrays_for_gpu(data_inds, norm_terms, rot_shifts,
     return nothing
 end
 
-function disk_sim_gpu(spec::SpecParams, disk::DiskParams, outspec::AA{T,2}) where T<:Float64
+function disk_sim_gpu(spec::SpecParams, disk::DiskParams, outspec::AA{T,2}; skip_times::BitVector=BitVector(zeros(disk.Nt)),) where T<:Float64
     # get dimensions for memory alloc
     N = disk.N
     Nt = disk.Nt
@@ -140,6 +140,11 @@ function disk_sim_gpu(spec::SpecParams, disk::DiskParams, outspec::AA{T,2}) wher
 
     # loop over time
     for t in 1:Nt
+        # don't do all this work if skip_times is true
+        if skip_times[t]
+            continue
+        end
+
         # initialize starmap with fresh copy of weights
         starmap .= CUDA.copy(norm_terms)
 
@@ -165,7 +170,7 @@ function disk_sim_gpu(spec::SpecParams, disk::DiskParams, outspec::AA{T,2}) wher
 
                     # do the trim
                     # TODO: 2d threads
-                    threads1 = 100
+                    threads1 = (16,16)
                     blocks1 = cld(lenall_cpu[n] * 100, prod(threads1))
                     @cuda threads=threads1 blocks=blocks1 trim_bisector_chop_gpu!(spec.depths[l],
                                                                                   wavall_gpu_loop_slice,
@@ -177,7 +182,7 @@ function disk_sim_gpu(spec::SpecParams, disk::DiskParams, outspec::AA{T,2}) wher
             end
 
             # fill workspace arrays
-            threads4 = (8,8,2)
+            threads4 = (6,6,6)
             blocks4 = cld(N^2 * 100, prod(threads4))
             CUDA.@sync @cuda threads=threads4 blocks=blocks4 fill_workspace_arrays!(spec.lines[l], spec.depths[l],
                                                                                     spec.conv_blueshifts[l], grid, tloop,
