@@ -8,12 +8,10 @@ function iterate_tloop_gpu(tloop, data_inds, lenall, grid)
     # parallelized loop over grid
     for i in idx:sdx:CUDA.length(grid)
         for j in idy:sdy:CUDA.length(grid)
-            # find position on disk
+            # find position on disk and move to next iter if off disk
             x = grid[i]
             y = grid[j]
             r2 = calc_r2(x, y)
-
-            # move to next iter if off disk
             if r2 > 1.0
                 continue
             end
@@ -31,7 +29,9 @@ function iterate_tloop_gpu(tloop, data_inds, lenall, grid)
     return nothing
 end
 
-function initialize_arrays_for_gpu(data_inds, tloop, norm_term, grid, disc_mu, disc_ax, lenall, u1, u2)
+function initialize_arrays_for_gpu(data_inds, norm_terms, rot_shifts,
+                                   grid, disc_mu, disc_ax, u1, u2,
+                                   polex, poley, polez)
     # get indices from GPU blocks + threads
     idx = threadIdx().x + blockDim().x * (blockIdx().x-1)
     sdx = blockDim().x * gridDim().x
@@ -41,12 +41,10 @@ function initialize_arrays_for_gpu(data_inds, tloop, norm_term, grid, disc_mu, d
     # parallelized loop over grid
     for i in idx:sdx:CUDA.length(grid)
         for j in idy:sdy:CUDA.length(grid)
-            # find position on disk
+            # find position on disk and move to next iter if off disk
             x = grid[i]
             y = grid[j]
             r2 = calc_r2(x, y)
-
-            # move to next iter if off disk
             if r2 > 1.0
                 continue
             end
@@ -59,17 +57,11 @@ function initialize_arrays_for_gpu(data_inds, tloop, norm_term, grid, disc_mu, d
             # find the correct data index
             @inbounds data_inds[i,j] = find_data_index_gpu(nn_mu_ind, nn_ax_code)
 
-            # iterate tloop
-            @inbounds tloop[i,j] = tloop[i,j] + 1
-
-            # check that tloop didn't overshoot the data
-            ntimes = lenall[data_inds[i,j]]
-            if tloop[i,j] >= ntimes
-                @inbounds tloop[i,j] = 1
-            end
-
             # calculate the normalization
-            @inbounds norm_term[i,j] = calc_norm_term(mu, CUDA.length(grid), u1, u2)
+            @inbounds norm_terms[i,j] = calc_norm_term(mu, CUDA.length(grid), u1, u2)
+
+            # calculate the rotational doppler shift
+            @inbounds rot_shifts[i,j] = patch_velocity_los_gpu(x, y, 1.0, polex, poley, polez)
         end
     end
     return nothing
@@ -126,7 +118,9 @@ function disk_sim_gpu(spec::SpecParams, disk::DiskParams, outspec::AA{T,2}) wher
 
     # allocate memory for input data indices and normalization terms
     data_inds = CuArray{Int64,2}(undef, N, N)
-    norm_term = CuArray{Float64,2}(undef, N, N)
+    norm_terms = CuArray{Float64,2}(undef, N, N)
+    rot_shifts = CuArray{Float64,2}(undef, N, N)
+    λΔDs = CuArray{Float64,2}(undef, N, N)
 
     # set number of threads and blocks for N*N matrix gpu functions
     threads2 = (16, 16)
@@ -136,14 +130,18 @@ function disk_sim_gpu(spec::SpecParams, disk::DiskParams, outspec::AA{T,2}) wher
     threads3 = (6,6,6)
     blocks3 = cld(N^2 * Nλ, prod(threads3))
 
-    # initialize values for data_inds, tloop, and norm_term
-    CUDA.@sync @cuda threads=threads2 blocks=blocks2 initialize_arrays_for_gpu(data_inds, tloop, norm_term, grid, disc_mu,
-                                                                               disc_ax, lenall_gpu, disk.u1, disk.u2)
+    # initialize values for data_inds, tloop, and norm_terms
+    CUDA.@sync @cuda threads=threads2 blocks=blocks2 initialize_arrays_for_gpu(data_inds, norm_terms, rot_shifts,
+                                                                               grid, disc_mu, disc_ax, disk.u1,
+                                                                               disk.u2, polex, poley, polez)
+
+    # check that random indices for time index don't exceed dataset length
+    CUDA.@sync @cuda threads=threads2 blocks=blocks2 iterate_tloop_gpu(tloop, data_inds, lenall_gpu, grid)
 
     # loop over time
     for t in 1:Nt
         # initialize starmap with fresh copy of weights
-        starmap .= CUDA.copy(norm_term)
+        starmap .= CUDA.copy(norm_terms)
 
         # copy the clean, untrimmed input data to workspace each time iteration
         # TODO does this need to be moved down a loop?
@@ -160,14 +158,15 @@ function disk_sim_gpu(spec::SpecParams, disk::DiskParams, outspec::AA{T,2}) wher
             for n in 1:length(lenall_cpu)
                 CUDA.@sync begin
                     # send slices to gpu
-                    wavall_gpu_loop_slice = CUDA.view(wavall_gpu_loop, :, 1:lenall_cpu[n], n)
+                    wavall_gpu_loop_slice = CUDA.view(wavall_gpu_loop, :, 1:lenall_cpu[n], n) .* spec.variability[l]
                     bisall_gpu_loop_slice = CUDA.view(bisall_gpu_loop, :, 1:lenall_cpu[n], n)
                     widall_gpu_loop_slice = CUDA.view(widall_gpu_loop, :, 1:lenall_cpu[n], n)
                     depall_gpu_loop_slice = CUDA.view(depall_gpu_loop, :, 1:lenall_cpu[n], n)
 
                     # do the trim
+                    # TODO: 2d threads
                     threads1 = 100
-                    blocks1 = cld(lenall_cpu[n] * 100, threads1)
+                    blocks1 = cld(lenall_cpu[n] * 100, prod(threads1))
                     @cuda threads=threads1 blocks=blocks1 trim_bisector_chop_gpu!(spec.depths[l],
                                                                                   wavall_gpu_loop_slice,
                                                                                   bisall_gpu_loop_slice,
@@ -177,18 +176,25 @@ function disk_sim_gpu(spec::SpecParams, disk::DiskParams, outspec::AA{T,2}) wher
                 end
             end
 
+            # fill workspace arrays
+            threads4 = (8,8,2)
+            blocks4 = cld(N^2 * 100, prod(threads4))
+            CUDA.@sync @cuda threads=threads4 blocks=blocks4 fill_workspace_arrays!(spec.lines[l], spec.depths[l],
+                                                                                    spec.conv_blueshifts[l], grid, tloop,
+                                                                                    data_inds, rot_shifts, λΔDs,
+                                                                                    lenall_gpu, wavall_gpu_loop,
+                                                                                    bisall_gpu_loop, widall_gpu_loop,
+                                                                                    depall_gpu_loop, lwavgrid,
+                                                                                    rwavgrid, allwavs, allints)
+
             # do the line synthesis
             CUDA.@sync @cuda threads=threads3 blocks=blocks3 line_profile_gpu!(starmap, tloop, spec.lines[l],
                                                                                spec.depths[l], spec.conv_blueshifts[l],
-                                                                               grid, lambdas, data_inds, lenall_gpu,
-                                                                               wavall_gpu_loop, bisall_gpu_loop,
-                                                                               widall_gpu_loop, depall_gpu_loop,
-                                                                               lwavgrid, rwavgrid,allwavs, allints,
-                                                                               polex, poley, polez)
+                                                                               grid, lambdas, data_inds, rot_shifts, λΔDs,
+                                                                               allwavs, allints)
 
             # do array reduction and move data from GPU to CPU
             CUDA.@sync outspec[:,t] .= view(Array(CUDA.sum(starmap, dims=(1,2))), 1, 1, :)
-            # outspec[:,t] .= view(starmap_cpu, 1, 1, :)
 
             # iterate tloop
             if t < Nt
