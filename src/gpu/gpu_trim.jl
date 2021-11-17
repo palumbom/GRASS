@@ -16,7 +16,7 @@ function trim_bisector_chop_gpu!(depth, wavall, bisall, depall, widall, top)
         # find first index above specified depth
         ind1 = CUDA.searchsortedfirst(bist, 1.0 - depth)
 
-        # TODO this will kill the code
+        # TODO this will kill the code (I think)
         if !CUDA.isnan(top)
             ind2 = CUDA.searchsortedfirst(bist, top)
             wavt[ind2:end] .= wavt[ind2]
