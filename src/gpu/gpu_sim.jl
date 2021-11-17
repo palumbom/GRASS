@@ -169,7 +169,6 @@ function disk_sim_gpu(spec::SpecParams, disk::DiskParams, outspec::AA{T,2}; skip
                     depall_gpu_loop_slice = CUDA.view(depall_gpu_loop, :, 1:lenall_cpu[n], n)
 
                     # do the trim
-                    # TODO: 2d threads
                     threads1 = (16,16)
                     blocks1 = cld(lenall_cpu[n] * 100, prod(threads1))
                     @cuda threads=threads1 blocks=blocks1 trim_bisector_chop_gpu!(spec.depths[l],
