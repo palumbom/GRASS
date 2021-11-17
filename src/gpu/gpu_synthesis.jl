@@ -67,34 +67,9 @@ function line_profile_gpu!(star_map, tloop, lines, depths, z_convs, grid,
             y = grid[j]
             r2 = calc_r2(x, y)
             if r2 > 1.0
-                @inbounds star_map[i,j,:] .= 0.0
+                # @inbounds star_map[i,j,:] .= 0.0
                 continue
             end
-
-            # # calculate the shifted center of the line
-            # λΔDs[i,j] = lines * (1.0 + rot_shifts[i,j]) * (1.0 + z_convs)
-
-            # # slice out the correct views of the input data for position
-            # wavt = CUDA.view(wavall, :, tloop[i,j], data_inds[i,j])
-            # bist = CUDA.view(bisall, :, tloop[i,j], data_inds[i,j])
-            # widt = CUDA.view(widall, :, tloop[i,j], data_inds[i,j])
-            # dept = CUDA.view(depall, :, tloop[i,j], data_inds[i,j])
-
-            # # set wavgrids based on bisector + wid data
-            # for n in 1:CUDA.size(lwavgrid,3)
-            #     @inbounds lwavgrid[i,j,n] = (λΔDs[i,j] - (0.5 * widt[n] - wavt[n]))
-            #     @inbounds rwavgrid[i,j,n] = (λΔDs[i,j] + (0.5 * widt[n] + wavt[n]))
-            # end
-            # @inbounds rwavgrid[i,j,1] = lwavgrid[i,j,1] + 1e-3
-
-            # # concatenate wavgrids into one big array
-            # len = CUDA.size(rwavgrid,3)
-            # for n in 1:CUDA.size(lwavgrid,3)
-            #     @inbounds allwavs[i,j,n+len] = rwavgrid[i,j,n]
-            #     @inbounds allints[i,j,n+len] = dept[n]
-            #     @inbounds allwavs[i,j,n] = lwavgrid[i,j, CUDA.size(rwavgrid,3) - (n - 1)]
-            #     @inbounds allints[i,j,n] = dept[CUDA.size(rwavgrid,3) - (n - 1)]
-            # end
 
             # take view of arrays to pass to interpolater
             allwavs_ij = CUDA.view(allwavs, i, j, :)
