@@ -63,8 +63,10 @@ function SpecParams(;lines=[], depths=[], variability=[], resolution=7e5,
     lambdas = exp.(lnλs)
 
     # get observational data
-    soldata = SolarData(relative=true, fixed_width=fixed_width,
-                        fixed_bisector=fixed_bisector, extrapolate=extrapolate,
+    soldata = SolarData(relative=true,
+                        fixed_width=fixed_width,
+                        fixed_bisector=fixed_bisector,
+                        extrapolate=extrapolate,
                         contiguous_only=contiguous_only)
     return SpecParams(lines, depths, blueshifts, variability, coverage, resolution, lambdas, soldata)
 end
