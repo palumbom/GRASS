@@ -3,6 +3,7 @@ using Distributed
 @everywhere using Pkg
 @everywhere Pkg.activate(".")
 @everywhere using Statistics
+@everywhere using CUDA
 @everywhere using GRASS
 @everywhere using SharedArrays
 @everywhere using EchelleCCFs
@@ -24,6 +25,9 @@ const Nloop = 2400
 # get command line args and output directories
 run, plot = parse_args(ARGS)
 grassdir, plotdir, datadir = check_plot_dirs()
+
+# decide whether to use gpu
+use_gpu = CUDA.functional()
 
 function main()
     # set observing parameters
@@ -67,13 +71,13 @@ function main()
         # compute vels repeatedly to get good stats
         @sync @distributed for j in 1:Nloop
             # first simulate short off-target time
-            rvs1, sigs1 = GRASS.simulate_observations(obs_shortdead, spec1, N=N, snr=snr, new_res=new_res)
+            rvs1, sigs1 = GRASS.simulate_observations(obs_shortdead, spec1, N=N, snr=snr, new_res=new_res, use_gpu=use_gpu)
             avg_shortdead[i, j] = mean(rvs1)
             rms_shortdead[i, j] = calc_rms(rvs1)
 
 
             # then simulate large off-target time
-            rvs2, sigs2 = GRASS.simulate_observations(obs_largedead, spec1, N=N, snr=snr, new_res=new_res)
+            rvs2, sigs2 = GRASS.simulate_observations(obs_largedead, spec1, N=N, snr=snr, new_res=new_res, use_gpu=use_gpu)
             avg_largedead[i, j] = mean(rvs2)
             rms_largedead[i, j] = calc_rms(rvs2)
         end

@@ -1,5 +1,6 @@
 # imports
 using Pkg; Pkg.activate(".")
+using CUDA
 using GRASS
 using Statistics
 
