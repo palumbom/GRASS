@@ -17,15 +17,17 @@ end
 
 # Get mu on disk from provided (x,y) position:
 # TODO: relies on small angle approx?
-function calc_mu(t::Tuple{T,T}) where T<:AF
-    r2 = calc_r2(t)
+function calc_mu(r2::T) where T<:AF
     return sqrt((r2 < one(T)) * (one(T) - r2))
 end
 
 function calc_mu(x::T, y::T) where T<:AF
-    return calc_mu((x,y))
+    return calc_mu(calc_r2(x,y))
 end
 
+function calc_mu(t::Tuple{T,T}) where T<:AF
+    return calc_mu(calc_r2(t))
+end
 
 # Calculate mu for each position on a grid
 function mu_map(grid::AA{T,1}) where T<:AF
@@ -36,13 +38,16 @@ function mu_map(N::Integer)
     return mu_map(make_grid(N))
 end
 
+function calc_norm_term(μ::T, N::Integer, u1::T, u2::T) where T<:AF
+    return quad_limb_darkening(μ,u1,u2) * π / (2.0 * N^2)
+end
 
 function calc_norm_term(x::T, y::T, N::Integer, u1::T, u2::T) where T<:AF
-    return quad_limb_darkening(x,y,u1,u2) * π / (2.0 * N^2)
+    return calc_norm_term(calc_mu(x,y), N, u1, u2)
 end
 
 function calc_norm_term(x::T, y::T, disk::DiskParams) where T<:AF
-    return calc_norm_term(x, y, disk.N, disk.u1, disk.u2)
+    return calc_norm_term(calc_mu(x,y), disk.N, disk.u1, disk.u2)
 end
 
 
@@ -63,8 +68,12 @@ function find_nearest_ax(x::T, y::T) where T<:AF
     end
 end
 
+function find_nearest_mu(mu::T) where T<:AF
+    return searchsortednearest(disc_mu, mu)
+end
+
 function find_nearest_mu(x::T, y::T) where T<:AF
-    return searchsortednearest(disc_mu, calc_mu(x, y))
+    return find_nearest_mu(calc_mu(x,y))
 end
 
 function assemble_dict_key(mu_ind::Int, ax::Symbol; mu_symb::AA{Symbol,1}=mu_symb)

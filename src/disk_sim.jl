@@ -1,34 +1,12 @@
-"""
-    synthesize_spectra(spec, disk; seed_rng=false, verbose=true, top=NaN)
-
-Synthesize spectra given parameters in `spec` and `disk` instances.
-
-# Arguments
-- `spec::SpecParams`: SpecParams instance
-- `disk::DiskParams`: DiskParams instance
-"""
-function synthesize_spectra(spec::SpecParams, disk::DiskParams;
-                            seed_rng::Bool=false, verbose::Bool=true,
-                            top::Float64=NaN)
-    # allocate memory for synthesis
-    Nλ = length(spec.lambdas)
-    prof = ones(Nλ)
-    outspec = zeros(Nλ, disk.Nt)
-
-    # run the simulation (outspec modified in place)
-    disk_sim(spec, disk, prof, outspec, seed_rng=seed_rng, verbose=verbose, top=top)
-    return spec.lambdas, outspec
-end
-
 # line loop function, update prof in place
-function line_loop(prof::AA{T,1}, mid::T, depth::T,
-                   rot_shift::T, conv_blueshift::T,
-                   lambdas::AA{T,1}, wsp::SynthWorkspace{T}; top::T=NaN) where T<:AF
+function line_loop_cpu(prof::AA{T,1}, mid::T, depth::T, z_rot::T,
+                       conv_blueshift::T, lambdas::AA{T,1},
+                       wsp::SynthWorkspace{T}; top::T=NaN) where T<:AF
     # first trim the bisectors to the correct depth
     trim_bisector_chop!(depth, wsp.wavt, wsp.bist, wsp.dept, wsp.widt, top=top)
 
     # calculate line center given rot. and conv. doppler shift -> λrest * (1 + z)
-    λΔD = mid * (one(T) + rot_shift) * (one(T) + conv_blueshift)
+    λΔD = mid * (one(T) + z_rot) * (one(T) + conv_blueshift)
 
     # find window around shifted line
     lind = findfirst(x -> x > λΔD - 0.5, lambdas)
@@ -37,15 +15,15 @@ function line_loop(prof::AA{T,1}, mid::T, depth::T,
     prof_window = view(prof, lind:rind)
 
     # update the line profile in place
-    line_profile!(λΔD, lambda_window, prof_window, wsp)
+    line_profile_cpu!(λΔD, lambda_window, prof_window, wsp)
     return nothing
 end
 
-function time_loop(t_loop::Int, prof::AA{T,1}, rot_shift::T,
-                   key::Tuple{Symbol, Symbol}, liter::UnitRange{Int},
-                   spec::SpecParams{T}, wsp::SynthWorkspace{T}; top::T=NaN) where T<:AF
+function time_loop_cpu(t_loop::Int, prof::AA{T,1}, z_rot::T,
+                       key::Tuple{Symbol, Symbol}, liter::UnitRange{Int},
+                       spec::SpecParams{T}, wsp::SynthWorkspace{T}; top::T=NaN) where T<:AF
     # some assertions
-    @assert all(prof .== one(T))
+    # @assert all(prof .== one(T))
 
     # get views needed for line synthesis
     wsp.wavt .= view(spec.soldata.wav[key], :, t_loop)
@@ -54,10 +32,11 @@ function time_loop(t_loop::Int, prof::AA{T,1}, rot_shift::T,
     wsp.widt .= view(spec.soldata.wid[key], :, t_loop)
 
     # loop over specified synthetic lines
+    prof .= one(T)
     for l in liter
         wsp.wavt .*= spec.variability[l]
-        line_loop(prof, spec.lines[l], spec.depths[l], rot_shift,
-                  spec.conv_blueshifts[l], spec.lambdas, wsp, top=top)
+        line_loop_cpu(prof, spec.lines[l], spec.depths[l], z_rot,
+                      spec.conv_blueshifts[l], spec.lambdas, wsp, top=top)
     end
     return nothing
 end
@@ -105,7 +84,7 @@ function disk_sim(spec::SpecParams{T}, disk::DiskParams{T,Int64}, prof::AA{T,1},
 
     # set pre-allocations and make generator that will be re-used
     outspec .= zero(T)
-    wsp = SynthWorkspace(ndepths=100)
+    wsp = SynthWorkspace(spec)
     liter = 1:length(spec.lines)
 
     # seeding rng
@@ -125,7 +104,7 @@ function disk_sim(spec::SpecParams{T}, disk::DiskParams{T,Int64}, prof::AA{T,1},
             len = spec.soldata.len[key]
 
             # get redshift z and norm term for location on disk
-            rot_shift = patch_velocity_los(i, j, pole=disk.pole)
+            z_rot = patch_velocity_los(i, j, pole=disk.pole)
             norm_term = calc_norm_term(i, j, disk)
 
             # loop over time, starting at random epoch
@@ -135,8 +114,7 @@ function disk_sim(spec::SpecParams{T}, disk::DiskParams{T,Int64}, prof::AA{T,1},
                 skip_times[t] && continue
 
                 # update profile in place
-                prof .= one(T)
-                time_loop(t_loop, prof, rot_shift, key, liter, spec, wsp, top=top)
+                time_loop_cpu(t_loop, prof, z_rot, key, liter, spec, wsp, top=top)
 
                 # apply normalization term and add to outspec
                 outspec[:,t] .+= (prof .* norm_term)
@@ -149,3 +127,15 @@ function disk_sim(spec::SpecParams{T}, disk::DiskParams{T,Int64}, prof::AA{T,1},
     outspec[:, skip_times] .= zero(T)
     return nothing
 end
+
+
+# TODO pre-compute list of (i,j)'s to hand to GPU
+# 132 * 132 * Nt * Nλ
+# TODO reduce input data size
+# TODO watch for weirdness for threads writing to same place in memory (mult should be fine??) -- read about atomics if not
+# TODO 1 block = 1 line ?
+# Thread grid -> line, wavelength within line, time
+# block -> 1 line in time
+# TODO -- each multiprocessor gets its own kernel to run? (find out jargon/nomenclature for this)
+    # concurrent GPU computing?? (future problem for multiple line widths)
+# TODO kernel abstractions for occupancy / threads / blocks stuff

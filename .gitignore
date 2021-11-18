@@ -1,11 +1,15 @@
-*.DS_Store
-*.jl.*.cov
-*.jl.cov
-*.jl.mem
+# file endings
+*.gz
 *.log
 *.pdf
+*.jl.cov
+*.jl.mem
+*.jl.*.cov
+*.DS_Store
 *.sublime-workspace
-.ipynb_checkpoints
-/docs/build/
-*.gz
+*.ipynb_checkpoints
+
+# specific files/directories
+sftp-config.json
 Manifest.toml
+/docs/build/

@@ -3,6 +3,7 @@ using Pkg; Pkg.activate(".")
 using CSV
 using HTTP
 using GZip
+using CUDA
 using GRASS
 using LsqFit
 using Statistics
@@ -21,6 +22,9 @@ include(GRASS.moddir * "figures/fig_functions.jl")
 # get command line args and output directories
 run, plot = parse_args(ARGS)
 grassdir, plotdir, datadir = check_plot_dirs()
+
+# decide whether to use gpu
+use_gpu = CUDA.functional()
 
 function download_iag()
     println(">>> Downloading IAG atlas...")
@@ -145,7 +149,7 @@ function main()
 
     # synthesize spectra, calculate ccf, and get CCF bisector
     len = 72
-    lambdas1, outspec1 = synthesize_spectra(spec, disk, seed_rng=false, verbose=true, top=NaN)
+    lambdas1, outspec1 = synthesize_spectra(spec, disk, seed_rng=false, verbose=true, top=NaN, use_gpu=use_gpu)
     outspec1 ./= maximum(outspec1)
     v_grid, ccf1 = calc_ccf(lambdas1, outspec1, spec, normalize=true)
     outspec1 = mean(outspec1, dims=2)[:,1]

@@ -45,7 +45,8 @@ function get_skip_times(nt_per_night, nt_per_exposure, nt_per_deadtime)
 end
 
 function simulate_observations(obs::ObservationPlan, spec::SpecParams;
-                               N::Int=128, snr::T=Inf, new_res::T=NaN) where T<:AF
+                               N::Int=128, snr::T=Inf, new_res::T=NaN,
+                               use_gpu::Bool=false) where T<:AF
     # assertions
     @assert (isnan(new_res) | (new_res < 7e5))
 
@@ -64,9 +65,14 @@ function simulate_observations(obs::ObservationPlan, spec::SpecParams;
 
     # synthesize the spectra at default resolution
     Nλ = length(spec.lambdas)
-    prof = ones(Nλ)
     outspec = zeros(Nλ, disk.Nt)
-    disk_sim(spec, disk, prof, outspec, skip_times=skip_times)
+    if use_gpu
+        disk_sim_gpu(spec, disk, outspec, skip_times=skip_times)
+    else
+        disk_sim(spec, disk, prof, outspec, skip_times=skip_times)
+        prof = ones(Nλ)
+    end
+
 
     # allocate memory for binned spectra
     flux_binned = zeros(Nλ, obs.N_obs)
