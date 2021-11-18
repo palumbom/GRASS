@@ -51,7 +51,7 @@ function main()
                           extrapolate=true, contiguous_only=contiguous_only)
 
         # synthesize spectra, get velocities and stats
-        avg_avg1, std_avg1, avg_rms1, std_rms1 = spec_loop(spec, disk, Nloop, top=top, , use_gpu=use_gpu)
+        avg_avg1, std_avg1, avg_rms1, std_rms1 = spec_loop(spec, disk, Nloop, top=top, use_gpu=use_gpu)
         avg_avg_depth[i] = avg_avg1
         std_avg_depth[i] = std_avg1
         avg_rms_depth[i] = avg_rms1

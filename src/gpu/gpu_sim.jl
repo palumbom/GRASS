@@ -67,7 +67,7 @@ function initialize_arrays_for_gpu(data_inds, norm_terms, rot_shifts,
     return nothing
 end
 
-function disk_sim_gpu(spec::SpecParams, disk::DiskParams, outspec::AA{T,2}; skip_times::BitVector=BitVector(zeros(disk.Nt)),) where T<:Float64
+function disk_sim_gpu(spec::SpecParams, disk::DiskParams, outspec::AA{T,2}; skip_times::BitVector=BitVector(zeros(disk.Nt))) where T<:Float64
     # get dimensions for memory alloc
     N = disk.N
     Nt = disk.Nt
