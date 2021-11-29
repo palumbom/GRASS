@@ -8,3 +8,9 @@ include("test_ccf.jl")
 include("test_interpolations.jl")   # TODO: obsoleted?
 include("test_input.jl")
 include("test_synthesis.jl")
+
+# TODO
+# using CUDA
+# if CUDA.functional()
+#     include("test_gpu.jl")
+# end

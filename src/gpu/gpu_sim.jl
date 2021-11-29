@@ -181,6 +181,9 @@ function disk_sim_gpu(spec::SpecParams, disk::DiskParams, outspec::AA{T,2}; skip
             end
 
             # fill workspace arrays
+            # TODO: compare kernel launch cost to compute cost
+            # TODO: how many registers are needed?
+            # change here
             threads4 = (6,6,6)
             blocks4 = cld(N^2 * 100, prod(threads4))
             CUDA.@sync @cuda threads=threads4 blocks=blocks4 fill_workspace_arrays!(spec.lines[l], spec.depths[l],
