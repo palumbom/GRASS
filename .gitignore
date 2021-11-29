@@ -11,5 +11,6 @@
 
 # specific files/directories
 sftp-config.json
+sftp-config-alt.json
 Manifest.toml
 /docs/build/
