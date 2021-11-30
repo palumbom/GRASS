@@ -159,7 +159,6 @@ function disk_sim_gpu(spec::SpecParams, disk::DiskParams, outspec::AA{T,2}; skip
         CUDA.@sync starmap .= CUDA.copy(norm_terms)
 
         # copy the clean, untrimmed input data to workspace each time iteration
-        # TODO does this need to be moved down a loop?
         CUDA.@sync begin
             wavall_gpu_loop .= CUDA.copy(wavall_gpu)
             bisall_gpu_loop .= CUDA.copy(bisall_gpu)
@@ -169,25 +168,30 @@ function disk_sim_gpu(spec::SpecParams, disk::DiskParams, outspec::AA{T,2}; skip
 
         # loop over lines to synthesize
         for l in eachindex(spec.lines)
-            # pre-trim the data
+            # pre-trim the data, loop over all disk positions
             for n in eachindex(lenall_cpu)
                 CUDA.@sync begin
-                    # send slices to gpu
-                    wavall_gpu_loop_slice = CUDA.view(wavall_gpu_loop, :, 1:lenall_cpu[n], n) .* spec.variability[l]
-                    bisall_gpu_loop_slice = CUDA.view(bisall_gpu_loop, :, 1:lenall_cpu[n], n)
-                    widall_gpu_loop_slice = CUDA.view(widall_gpu_loop, :, 1:lenall_cpu[n], n)
-                    depall_gpu_loop_slice = CUDA.view(depall_gpu_loop, :, 1:lenall_cpu[n], n)
+                    # get correct index for position of input data
+                    wavall_gpu_out = CUDA.view(wavall_gpu_loop, :, 1:lenall_cpu[n], n) .* spec.variability[l]
+                    bisall_gpu_out = CUDA.view(bisall_gpu_loop, :, 1:lenall_cpu[n], n)
+                    widall_gpu_out = CUDA.view(widall_gpu_loop, :, 1:lenall_cpu[n], n)
+                    depall_gpu_out = CUDA.view(depall_gpu_loop, :, 1:lenall_cpu[n], n)
+
+                    wavall_gpu_in = CUDA.view(wavall_gpu, :, 1:lenall_cpu[n], n) .* spec.variability[l]
+                    bisall_gpu_in = CUDA.view(bisall_gpu, :, 1:lenall_cpu[n], n)
+                    widall_gpu_in = CUDA.view(widall_gpu, :, 1:lenall_cpu[n], n)
+                    depall_gpu_in = CUDA.view(depall_gpu, :, 1:lenall_cpu[n], n)
                 end
 
                 # do the trim
                 threads1 = (16,16)
                 blocks1 = cld(lenall_cpu[n] * 100, prod(threads1))
-                CUDA.@sync @cuda threads=threads1 blocks=blocks1 trim_bisector_chop_gpu!(spec.depths[l],
-                                                                                         wavall_gpu_loop_slice,
-                                                                                         bisall_gpu_loop_slice,
-                                                                                         depall_gpu_loop_slice,
-                                                                                         widall_gpu_loop_slice,
-                                                                                         NaN)
+                CUDA.@sync @cuda threads=threads1 blocks=blocks1 trim_bisector_chop_gpu(spec.depths[l],
+                                                                                        wavall_gpu_out, bisall_gpu_out,
+                                                                                        depall_gpu_out, widall_gpu_out,
+                                                                                        wavall_gpu_in, bisall_gpu_in,
+                                                                                        depall_gpu_in, widall_gpu_in,
+                                                                                        NaN)
             end
 
             # fill workspace arrays
