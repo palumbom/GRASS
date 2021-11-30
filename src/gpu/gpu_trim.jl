@@ -9,53 +9,35 @@ function trim_bisector_chop_gpu(depth, wavall_out, bisall_out, depall_out, widal
     # loop over epochs of bisectors
     for i in idx:sdx:CUDA.size(wavall_in,2)
         # get views of the correct time slice in input
-        wavt = CUDA.view(wavall_in, :, i)
-        bist = CUDA.view(bisall_in, :, i)
-        dept = CUDA.view(depall_in, :, i)
-        widt = CUDA.view(widall_in, :, i)
+        wavt_in = CUDA.view(wavall_in, :, i)
+        bist_in = CUDA.view(bisall_in, :, i)
+        dept_in = CUDA.view(depall_in, :, i)
+        widt_in = CUDA.view(widall_in, :, i)
 
-        # get views of the correct time slice in out
+        # get views of the correct time slice in output
         wavt_out = CUDA.view(wavall_out, :, i)
         bist_out = CUDA.view(bisall_out, :, i)
         dept_out = CUDA.view(depall_out, :, i)
         widt_out = CUDA.view(widall_out, :, i)
 
-        # find first index above specified depth
-        ind1 = CUDA.searchsortedfirst(bist, 1.0 - depth)
-
-        # TODO this will kill the code (I think)
-        if !CUDA.isnan(top)
-            ind2 = CUDA.searchsortedfirst(bist, top)
-            wavt[ind2:end] .= wavt[ind2]
-        end
-
-        # get knots
-        xs = CUDA.view(bist, ind1:CUDA.length(bist))
-        ys = CUDA.view(wavt, ind1:CUDA.length(wavt))
-
-        # TODO: writing to same memory other threads are reading which is weird
-        # xs = bist
-        # ys = dept
-
         # loop over the length of the bisector
-        step = depth/(CUDA.length(dept) - 1)
-        CUDA.@assert(typeof(step) == Float64)
+        step = depth/(CUDA.length(dept_in) - 1)
         for j in idy:sdy:CUDA.size(wavall_in,1)
             # set the new depth value
             new_dept = (1.0 - depth) + (j-1) * step
 
             # interpolate to get the new wavelength value
-            if (((new_dept < CUDA.first(xs)) || (new_dept > CUDA.last(xs))) && !CUDA.isnan(top))
+            if (((new_dept < CUDA.first(bist_in)) || (new_dept > CUDA.last(bist_in))) && !CUDA.isnan(top))
                 wavt_out[j] = top
-            elseif new_dept <= CUDA.first(xs)
-                wavt_out[j] = CUDA.first(ys)
-            elseif new_dept >= CUDA.last(xs)
-                wavt_out[j] = CUDA.last(ys)
+            elseif new_dept <= CUDA.first(bist_in)
+                wavt_out[j] = CUDA.first(wavt_in)
+            elseif new_dept >= CUDA.last(bist_in)
+                wavt_out[j] = CUDA.last(wavt_in)
             else
-                k = CUDA.searchsortedfirst(xs, new_dept) - 1
-                k0 = CUDA.clamp(k, CUDA.firstindex(ys), CUDA.lastindex(ys))
-                k1 = CUDA.clamp(k+1, CUDA.firstindex(ys), CUDA.lastindex(ys))
-                wavt_out[j] = ys[k0] + (ys[k1] - ys[k0]) * (new_dept - xs[k0]) / (xs[k1] - xs[k0])
+                k = CUDA.searchsortedfirst(bist_in, new_dept) - 1
+                k0 = CUDA.clamp(k, CUDA.firstindex(wavt_in), CUDA.lastindex(wavt_in))
+                k1 = CUDA.clamp(k+1, CUDA.firstindex(wavt_in), CUDA.lastindex(wavt_in))
+                wavt_out[j] = (wavt_in[k0] * (bist_in[k1] - new_dept) + wavt_in[k1] * (new_dept - bist_in[k0])) / (bist_in[k1] - bist_in[k0])
             end
 
             # assign bisector fluxes from dept
