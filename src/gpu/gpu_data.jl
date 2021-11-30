@@ -14,9 +14,9 @@ function get_disc_ax_for_gpu(soldata::SolarData{T}; to_gpu::Bool=false) where T<
     function parse_ax_strings(s::String)
         if s == "c"; return 0; end;
         if s == "n"; return 1; end;
-        if s == "w"; return 2; end;
-        if s == "s"; return 3; end;
-        if s == "e"; return 4; end;
+        if s == "s"; return 2; end;
+        if s == "e"; return 3; end;
+        if s == "w"; return 4; end;
     end
     disc_ax = parse_ax_strings.(disc_ax)
     if to_gpu
@@ -30,14 +30,14 @@ function find_nearest_ax_gpu(x::T, y::T) where T<:Float64
         return 0 # center
     elseif y >= CUDA.abs(x)
         return 1 # north
-    elseif x >= CUDA.abs(y)
-        return 2 # west
     elseif y <= -CUDA.abs(x)
-        return 3 # south
+        return 2 # south
     elseif x <= -CUDA.abs(y)
-        return 4 # east
+        return 3 # east
+    elseif x >= CUDA.abs(y)
+        return 4 # west
     else
-        return 5
+        return 0
     end
 end
 

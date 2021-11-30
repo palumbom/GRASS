@@ -77,7 +77,7 @@ function line_profile_gpu!(star_map, tloop, lines, depths, z_convs, grid,
 
             for k in idz:sdz:CUDA.length(lambdas)
                 # skip all this work if far from line core
-                if (lambdas[k] < (λΔDs[i,j] - 0.5)) | (lambdas[k] > (λΔDs[i,j] + 0.5))
+                if ((lambdas[k] < (λΔDs[i,j] - 0.5)) | (lambdas[k] > (λΔDs[i,j] + 0.5)))
                     continue
                 end
 
@@ -88,7 +88,7 @@ function line_profile_gpu!(star_map, tloop, lines, depths, z_convs, grid,
                     m = CUDA.searchsortedfirst(allwavs_ij, lambdas[k]) - 1
                     m0 = CUDA.clamp(m, CUDA.firstindex(allints_ij), CUDA.lastindex(allints_ij))
                     m1 = CUDA.clamp(m+1, CUDA.firstindex(allints_ij), CUDA.lastindex(allints_ij))
-                    factor = (allints_ij[m0] + (allints_ij[m1] - allints_ij[m0]) * (lambdas[k] - allwavs_ij[m0]) / (allwavs_ij[m1] - allwavs_ij[m0]))
+                    factor = allints_ij[m0] + (allints_ij[m1] - allints_ij[m0]) * (lambdas[k] - allwavs_ij[m0]) / (allwavs_ij[m1] - allwavs_ij[m0])
                 end
                 @inbounds star_map[i,j,k] = star_map[i,j,k] * factor
             end
