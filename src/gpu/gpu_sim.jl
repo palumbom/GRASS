@@ -87,40 +87,50 @@ function disk_sim_gpu(spec::SpecParams, disk::DiskParams, outspec::AA{T,2}; skip
     depall_cpu = sorted_data[7]
 
     # move input data to gpu
-    disc_mu = CuArray(disc_mu)
-    disc_ax = CuArray(disc_ax)
-    lenall_gpu = CuArray(lenall_cpu)
-    wavall_gpu = CuArray(wavall_cpu)
-    bisall_gpu = CuArray(bisall_cpu)
-    widall_gpu = CuArray(widall_cpu)
-    depall_gpu = CuArray(depall_cpu)
+    CUDA.@sync begin
+        disc_mu = CuArray(disc_mu)
+        disc_ax = CuArray(disc_ax)
+        lenall_gpu = CuArray(lenall_cpu)
+        wavall_gpu = CuArray(wavall_cpu)
+        bisall_gpu = CuArray(bisall_cpu)
+        widall_gpu = CuArray(widall_cpu)
+        depall_gpu = CuArray(depall_cpu)
+    end
 
     # allocate arrays for fresh copy of input data to copy to each loop
-    wavall_gpu_loop = CUDA.copy(wavall_gpu)
-    bisall_gpu_loop = CUDA.copy(bisall_gpu)
-    widall_gpu_loop = CUDA.copy(widall_gpu)
-    depall_gpu_loop = CUDA.copy(depall_gpu)
+    CUDA.@sync begin
+        wavall_gpu_loop = CUDA.copy(wavall_gpu)
+        bisall_gpu_loop = CUDA.copy(bisall_gpu)
+        widall_gpu_loop = CUDA.copy(widall_gpu)
+        depall_gpu_loop = CUDA.copy(depall_gpu)
+    end
 
     # allocate memory for synthesis on the GPU
-    starmap = CUDA.ones(Float64, N, N, Nλ)
-    lwavgrid = CUDA.zeros(Float64, N, N, 100)
-    rwavgrid = CUDA.zeros(Float64, N, N, 100)
-    allwavs = CUDA.zeros(Float64, N, N, 200)
-    allints = CUDA.zeros(Float64, N, N, 200)
+    CUDA.@sync begin
+        starmap = CUDA.ones(Float64, N, N, Nλ)
+        lwavgrid = CUDA.zeros(Float64, N, N, 100)
+        rwavgrid = CUDA.zeros(Float64, N, N, 100)
+        allwavs = CUDA.zeros(Float64, N, N, 200)
+        allints = CUDA.zeros(Float64, N, N, 200)
+    end
 
     # get random starting indices and move it to GPU
     tloop = rand(1:maximum(lenall_cpu), (N, N))
-    tloop = CuArray(tloop)
+    CUDA.@sync tloop = CuArray(tloop)
 
     # move other data to the gpu
-    grid = CuArray(GRASS.make_grid(N))
-    lambdas = CuArray(spec.lambdas)
+    CUDA.@sync begin
+        grid = CuArray(GRASS.make_grid(N))
+        lambdas = CuArray(spec.lambdas)
+    end
 
     # allocate memory for input data indices and normalization terms
-    data_inds = CuArray{Int64,2}(undef, N, N)
-    norm_terms = CuArray{Float64,2}(undef, N, N)
-    rot_shifts = CuArray{Float64,2}(undef, N, N)
-    λΔDs = CuArray{Float64,2}(undef, N, N)
+    CUDA.@sync begin
+        data_inds = CuArray{Int64,2}(undef, N, N)
+        norm_terms = CuArray{Float64,2}(undef, N, N)
+        rot_shifts = CuArray{Float64,2}(undef, N, N)
+        λΔDs = CuArray{Float64,2}(undef, N, N)
+    end
 
     # set number of threads and blocks for N*N matrix gpu functions
     threads2 = (16, 16)
@@ -146,7 +156,7 @@ function disk_sim_gpu(spec::SpecParams, disk::DiskParams, outspec::AA{T,2}; skip
         end
 
         # initialize starmap with fresh copy of weights
-        starmap .= CUDA.copy(norm_terms)
+        CUDA.@sync starmap .= CUDA.copy(norm_terms)
 
         # copy the clean, untrimmed input data to workspace each time iteration
         # TODO does this need to be moved down a loop?
@@ -158,26 +168,26 @@ function disk_sim_gpu(spec::SpecParams, disk::DiskParams, outspec::AA{T,2}; skip
         end
 
         # loop over lines to synthesize
-        for l in 1:length(spec.lines)
+        for l in eachindex(spec.lines)
             # pre-trim the data
-            for n in 1:length(lenall_cpu)
+            for n in eachindex(lenall_cpu)
                 CUDA.@sync begin
                     # send slices to gpu
                     wavall_gpu_loop_slice = CUDA.view(wavall_gpu_loop, :, 1:lenall_cpu[n], n) .* spec.variability[l]
                     bisall_gpu_loop_slice = CUDA.view(bisall_gpu_loop, :, 1:lenall_cpu[n], n)
                     widall_gpu_loop_slice = CUDA.view(widall_gpu_loop, :, 1:lenall_cpu[n], n)
                     depall_gpu_loop_slice = CUDA.view(depall_gpu_loop, :, 1:lenall_cpu[n], n)
-
-                    # do the trim
-                    threads1 = (16,16)
-                    blocks1 = cld(lenall_cpu[n] * 100, prod(threads1))
-                    @cuda threads=threads1 blocks=blocks1 trim_bisector_chop_gpu!(spec.depths[l],
-                                                                                  wavall_gpu_loop_slice,
-                                                                                  bisall_gpu_loop_slice,
-                                                                                  depall_gpu_loop_slice,
-                                                                                  widall_gpu_loop_slice,
-                                                                                  NaN)
                 end
+
+                # do the trim
+                threads1 = (16,16)
+                blocks1 = cld(lenall_cpu[n] * 100, prod(threads1))
+                CUDA.@sync @cuda threads=threads1 blocks=blocks1 trim_bisector_chop_gpu!(spec.depths[l],
+                                                                                         wavall_gpu_loop_slice,
+                                                                                         bisall_gpu_loop_slice,
+                                                                                         depall_gpu_loop_slice,
+                                                                                         widall_gpu_loop_slice,
+                                                                                         NaN)
             end
 
             # fill workspace arrays
@@ -201,6 +211,7 @@ function disk_sim_gpu(spec::SpecParams, disk::DiskParams, outspec::AA{T,2}; skip
                                                                                allwavs, allints)
 
             # do array reduction and move data from GPU to CPU
+            # starmap_cpu = Array(starmap)
             CUDA.@sync outspec[:,t] .= view(Array(CUDA.sum(starmap, dims=(1,2))), 1, 1, :)
 
             # iterate tloop
