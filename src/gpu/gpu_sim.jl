@@ -116,6 +116,7 @@ function disk_sim_gpu(spec::SpecParams, disk::DiskParams, outspec::AA{T,2}; skip
 
     # get random starting indices and move it to GPU
     tloop = rand(1:maximum(lenall_cpu), (N, N))
+    # tloop = ones(Int64,N,N)
     CUDA.@sync tloop = CuArray(tloop)
 
     # move other data to the gpu
@@ -207,6 +208,13 @@ function disk_sim_gpu(spec::SpecParams, disk::DiskParams, outspec::AA{T,2}; skip
                                                                                     bisall_gpu_loop, widall_gpu_loop,
                                                                                     depall_gpu_loop, lwavgrid,
                                                                                     rwavgrid, allwavs, allints)
+            CUDA.@sync @cuda threads=threads4 blocks=blocks4 concatenate_workspace_arrays!(spec.lines[l], spec.depths[l],
+                                                                                           spec.conv_blueshifts[l], grid, tloop,
+                                                                                           data_inds, rot_shifts, λΔDs,
+                                                                                           lenall_gpu, wavall_gpu_loop,
+                                                                                           bisall_gpu_loop, widall_gpu_loop,
+                                                                                           depall_gpu_loop, lwavgrid,
+                                                                                           rwavgrid, allwavs, allints)
 
             # do the line synthesis
             CUDA.@sync @cuda threads=threads3 blocks=blocks3 line_profile_gpu!(starmap, tloop, spec.lines[l],
