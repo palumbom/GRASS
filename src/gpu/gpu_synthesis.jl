@@ -34,10 +34,66 @@ function fill_workspace_arrays!(lines, depths, z_convs, grid, tloop, data_inds,
                 # set tgrids based on bisector + wid data
                 @inbounds lwavgrid[i,j,k] = (λΔDs[i,j] - (0.5 * widt[k] - wavt[k]))
                 @inbounds rwavgrid[i,j,k] = (λΔDs[i,j] + (0.5 * widt[k] + wavt[k]))
-            end
-            @inbounds rwavgrid[i,j,1] = lwavgrid[i,j,1] + 1e-3
+                if k == 1
+                    @inbounds rwavgrid[i,j,1] = lwavgrid[i,j,1] + 1e-3
+                end
+            # end
 
+
+            # for k in idz:sdz:CUDA.size(rwavgrid,3)
+                # concatenate wavgrids into one big array
+                # @inbounds allwavs[i,j,k+len] = rwavgrid[i,j,k]
+                # @inbounds allints[i,j,k+len] = dept[k]
+                # @inbounds allwavs[i,j,k] = lwavgrid[i,j, len - (k - 1)]
+                # @inbounds allints[i,j,k] = dept[len - (k - 1)]
+            end
+        end
+    end
+    return nothing
+end
+
+function concatenate_workspace_arrays!(lines, depths, z_convs, grid, tloop, data_inds,
+                                       rot_shifts, λΔDs, lenall, wavall, bisall, widall,
+                                       depall, lwavgrid, rwavgrid, allwavs, allints)
+    # get indices from GPU blocks + threads
+    idx = threadIdx().x + blockDim().x * (blockIdx().x-1)
+    sdx = blockDim().x * gridDim().x
+    idy = threadIdx().y + blockDim().y * (blockIdx().y-1)
+    sdy = blockDim().y * gridDim().y
+    idz = threadIdx().z + blockDim().z * (blockIdx().z-1)
+    sdz = blockDim().z * gridDim().z
+
+    # parallelized loop over grid
+    for i in idx:sdx:CUDA.length(grid)
+        for j in idy:sdy:CUDA.length(grid)
+            # find position on disk and move to next iter if off disk
+            x = grid[i]
+            y = grid[j]
+            r2 = calc_r2(x, y)
+            if r2 > 1.0
+                continue
+            end
+
+            # calculate the shifted center of the line
+            @inbounds λΔDs[i,j] = lines * (1.0 + rot_shifts[i,j]) * (1.0 + z_convs)
+
+            # slice out the correct views of the input data for position
+            wavt = CUDA.view(wavall, :, tloop[i,j], data_inds[i,j])
+            bist = CUDA.view(bisall, :, tloop[i,j], data_inds[i,j])
+            widt = CUDA.view(widall, :, tloop[i,j], data_inds[i,j])
+            dept = CUDA.view(depall, :, tloop[i,j], data_inds[i,j])
+
+            len = CUDA.size(rwavgrid,3)
             for k in idz:sdz:CUDA.size(rwavgrid,3)
+                # set tgrids based on bisector + wid data
+                # @inbounds lwavgrid[i,j,k] = (λΔDs[i,j] - (0.5 * widt[k] - wavt[k]))
+                # @inbounds rwavgrid[i,j,k] = (λΔDs[i,j] + (0.5 * widt[k] + wavt[k]))
+                # if k == 1
+                #     @inbounds rwavgrid[i,j,1] = lwavgrid[i,j,1] + 1e-3
+                # end
+            # end
+
+            # for k in idz:sdz:CUDA.size(rwavgrid,3)
                 # concatenate wavgrids into one big array
                 @inbounds allwavs[i,j,k+len] = rwavgrid[i,j,k]
                 @inbounds allints[i,j,k+len] = dept[k]
@@ -48,6 +104,7 @@ function fill_workspace_arrays!(lines, depths, z_convs, grid, tloop, data_inds,
     end
     return nothing
 end
+
 
 function line_profile_gpu!(star_map, tloop, lines, depths, z_convs, grid,
                            lambdas, data_inds, rot_shifts, λΔDs, allwavs, allints)
