@@ -106,6 +106,7 @@ function disk_sim_gpu(spec::SpecParams, disk::DiskParams, outspec::AA{T,2}; skip
     end
 
     # allocate memory for synthesis on the GPU
+    starmap_cpu = zeros(N, N, Nλ)
     CUDA.@sync begin
         starmap = CUDA.ones(Float64, N, N, Nλ)
         lwavgrid = CUDA.zeros(Float64, N, N, 100)
@@ -157,7 +158,8 @@ function disk_sim_gpu(spec::SpecParams, disk::DiskParams, outspec::AA{T,2}; skip
         end
 
         # initialize starmap with fresh copy of weights
-        CUDA.@sync starmap .= CUDA.copy(norm_terms)
+        # CUDA.@sync starmap .= CUDA.copy(norm_terms)
+        CUDA.@sync starmap .= 1.0
 
         # copy the clean, untrimmed input data to workspace each time iteration
         CUDA.@sync begin
@@ -173,7 +175,7 @@ function disk_sim_gpu(spec::SpecParams, disk::DiskParams, outspec::AA{T,2}; skip
             for n in eachindex(lenall_cpu)
                 CUDA.@sync begin
                     # get correct index for position of input data
-                    wavall_gpu_out = CUDA.view(wavall_gpu_loop, :, 1:lenall_cpu[n], n) .* spec.variability[l]
+                    wavall_gpu_out = CUDA.view(wavall_gpu_loop, :, 1:lenall_cpu[n], n) #.* spec.variability[l]
                     bisall_gpu_out = CUDA.view(bisall_gpu_loop, :, 1:lenall_cpu[n], n)
                     widall_gpu_out = CUDA.view(widall_gpu_loop, :, 1:lenall_cpu[n], n)
                     depall_gpu_out = CUDA.view(depall_gpu_loop, :, 1:lenall_cpu[n], n)
@@ -223,8 +225,9 @@ function disk_sim_gpu(spec::SpecParams, disk::DiskParams, outspec::AA{T,2}; skip
                                                                                allwavs, allints)
 
             # do array reduction and move data from GPU to CPU
-            # starmap_cpu = Array(starmap)
-            CUDA.@sync outspec[:,t] .= view(Array(CUDA.sum(starmap, dims=(1,2))), 1, 1, :)
+            CUDA.@sync starmap_cpu .= Array(starmap .* norm_terms)
+            outspec[:,t] .= dropdims(sum(starmap_cpu, dims=(1,2)), dims=(1,2))
+            # CUDA.@sync outspec[:,t] .= view(Array(CUDA.sum(starmap, dims=(1,2))), 1, 1, :)
 
             # iterate tloop
             if t < Nt
@@ -232,5 +235,6 @@ function disk_sim_gpu(spec::SpecParams, disk::DiskParams, outspec::AA{T,2}; skip
             end
         end
     end
+    println("derp2")
     return spec.lambdas, outspec
 end
