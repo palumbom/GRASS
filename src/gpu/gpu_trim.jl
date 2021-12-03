@@ -28,16 +28,16 @@ function trim_bisector_chop_gpu(depth, wavall_out, bisall_out, depall_out, widal
 
             # interpolate to get the new wavelength value
             if (((new_dept < CUDA.first(bist_in)) || (new_dept > CUDA.last(bist_in))) && !CUDA.isnan(top))
-                wavt_out[j] = top
+                @inbounds wavt_out[j] = top
             elseif new_dept <= CUDA.first(bist_in)
-                wavt_out[j] = CUDA.first(wavt_in)
+                @inbounds wavt_out[j] = CUDA.first(wavt_in)
             elseif new_dept >= CUDA.last(bist_in)
-                wavt_out[j] = CUDA.last(wavt_in)
+                @inbounds wavt_out[j] = CUDA.last(wavt_in)
             else
                 k = CUDA.searchsortedfirst(bist_in, new_dept) - 1
                 k0 = CUDA.clamp(k, CUDA.firstindex(wavt_in), CUDA.lastindex(wavt_in))
                 k1 = CUDA.clamp(k+1, CUDA.firstindex(wavt_in), CUDA.lastindex(wavt_in))
-                wavt_out[j] = (wavt_in[k0] * (bist_in[k1] - new_dept) + wavt_in[k1] * (new_dept - bist_in[k0])) / (bist_in[k1] - bist_in[k0])
+                @inbounds wavt_out[j] = (wavt_in[k0] * (bist_in[k1] - new_dept) + wavt_in[k1] * (new_dept - bist_in[k0])) / (bist_in[k1] - bist_in[k0])
             end
 
             # assign bisector fluxes from dept
