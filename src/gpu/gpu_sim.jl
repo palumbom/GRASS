@@ -67,7 +67,8 @@ function initialize_arrays_for_gpu(data_inds, norm_terms, rot_shifts,
     return nothing
 end
 
-function disk_sim_gpu(spec::SpecParams, disk::DiskParams, outspec::AA{T,2}; skip_times::BitVector=BitVector(zeros(disk.Nt))) where T<:Float64
+function disk_sim_gpu(spec::SpecParams, disk::DiskParams, outspec::AA{T,2};
+                      skip_times::BitVector=BitVector(zeros(disk.Nt))) where T<:Float64
     # get dimensions for memory alloc
     N = disk.N
     Nt = disk.Nt
@@ -78,8 +79,8 @@ function disk_sim_gpu(spec::SpecParams, disk::DiskParams, outspec::AA{T,2}; skip
 
     # sort the input data for use on GPU
     sorted_data = sort_data_for_gpu(spec.soldata)
-    disc_mu = sorted_data[1]
-    disc_ax = sorted_data[2]
+    disc_mu_cpu = sorted_data[1]
+    disc_ax_cpu = sorted_data[2]
     lenall_cpu = sorted_data[3]
     wavall_cpu = sorted_data[4]
     bisall_cpu = sorted_data[5]
@@ -88,8 +89,8 @@ function disk_sim_gpu(spec::SpecParams, disk::DiskParams, outspec::AA{T,2}; skip
 
     # move input data to gpu
     CUDA.@sync begin
-        disc_mu = CuArray(disc_mu)
-        disc_ax = CuArray(disc_ax)
+        disc_mu = CuArray(disc_mu_cpu)
+        disc_ax = CuArray(disc_ax_cpu)
         lenall_gpu = CuArray(lenall_cpu)
         wavall_gpu = CuArray(wavall_cpu)
         bisall_gpu = CuArray(bisall_cpu)
@@ -115,14 +116,10 @@ function disk_sim_gpu(spec::SpecParams, disk::DiskParams, outspec::AA{T,2}; skip
         allints = CUDA.zeros(Float64, N, N, 200)
     end
 
-    # get random starting indices and move it to GPU
-    tloop = rand(1:maximum(lenall_cpu), (N, N))
-    # tloop = ones(Int64,N,N)
-    CUDA.@sync tloop = CuArray(tloop)
-
     # move other data to the gpu
+    grid_cpu = make_grid(N)
     CUDA.@sync begin
-        grid = CuArray(GRASS.make_grid(N))
+        grid = grid_cpu
         lambdas = CuArray(spec.lambdas)
     end
 
@@ -147,8 +144,26 @@ function disk_sim_gpu(spec::SpecParams, disk::DiskParams, outspec::AA{T,2}; skip
                                                                                grid, disc_mu, disc_ax, disk.u1,
                                                                                disk.u2, polex, poley, polez)
 
-    # check that random indices for time index don't exceed dataset length
-    CUDA.@sync @cuda threads=threads2 blocks=blocks2 iterate_tloop_gpu(tloop, data_inds, lenall_gpu, grid)
+    # initialize values of tloop on CPU
+    data_inds_cpu = Array(data_inds)
+    tloop = zeros(Int64, N, N)
+    for i in eachindex(grid_cpu)
+        for j in eachindex(grid_cpu)
+            x = grid_cpu[i]
+            y = grid_cpu[j]
+            r2 = calc_r2(x, y)
+            if r2 > 1.0
+                continue
+            end
+
+            # generate random mnumber in range of input data
+            idx = data_inds_cpu[i,j]
+            tloop[i,j] = rand(1:lenall_cpu[idx])
+        end
+    end
+
+    # move tloop to GPU
+    CUDA.@sync tloop = CuArray(tloop)
 
     # loop over time
     for t in 1:Nt
@@ -159,7 +174,7 @@ function disk_sim_gpu(spec::SpecParams, disk::DiskParams, outspec::AA{T,2}; skip
 
         # initialize starmap with fresh copy of weights
         # CUDA.@sync starmap .= CUDA.copy(norm_terms)
-        CUDA.@sync starmap .= 1.0
+        CUDA.@sync starmap .= one(Float64)
 
         # copy the clean, untrimmed input data to workspace each time iteration
         CUDA.@sync begin
@@ -168,6 +183,16 @@ function disk_sim_gpu(spec::SpecParams, disk::DiskParams, outspec::AA{T,2}; skip
             widall_gpu_loop .= CUDA.copy(widall_gpu)
             depall_gpu_loop .= CUDA.copy(depall_gpu)
         end
+
+        # reinitialize values of workspace arrays
+        CUDA.@sync begin
+            λΔDs .= zero(Float64)
+            lwavgrid .= zero(Float64)
+            rwavgrid .= zero(Float64)
+            allwavs .= zero(Float64)
+            allints .= zero(Float64)
+        end
+
 
         # loop over lines to synthesize
         for l in eachindex(spec.lines)
@@ -197,19 +222,19 @@ function disk_sim_gpu(spec::SpecParams, disk::DiskParams, outspec::AA{T,2}; skip
                                                                                         NaN)
             end
 
+            # plt.plot(Array(wavall_gpu_loop)[:, 1:lenall_cpu[1], 1], Array(bisall_gpu_loop)[:, 1:lenall_cpu[1], 1])
+
             # fill workspace arrays
             # TODO: compare kernel launch cost to compute cost
             # TODO: how many registers are needed?
             # change here
             threads4 = (6,6,6)
             blocks4 = cld(N^2 * 100, prod(threads4))
-            CUDA.@sync @cuda threads=threads4 blocks=blocks4 fill_workspace_arrays!(spec.lines[l], spec.depths[l],
-                                                                                    spec.conv_blueshifts[l], grid, tloop,
-                                                                                    data_inds, rot_shifts, λΔDs,
-                                                                                    lenall_gpu, wavall_gpu_loop,
-                                                                                    bisall_gpu_loop, widall_gpu_loop,
-                                                                                    depall_gpu_loop, lwavgrid,
-                                                                                    rwavgrid, allwavs, allints)
+            CUDA.@sync @cuda threads=threads4 blocks=blocks4 fill_workspace_arrays!(spec.lines[l], spec.conv_blueshifts[l],
+                                                                                    grid, tloop, data_inds, rot_shifts, λΔDs,
+                                                                                    wavall_gpu_loop, bisall_gpu_loop,
+                                                                                    widall_gpu_loop, depall_gpu_loop,
+                                                                                    lwavgrid, rwavgrid, allwavs, allints)
             CUDA.@sync @cuda threads=threads4 blocks=blocks4 concatenate_workspace_arrays!(spec.lines[l], spec.depths[l],
                                                                                            spec.conv_blueshifts[l], grid, tloop,
                                                                                            data_inds, rot_shifts, λΔDs,
@@ -219,13 +244,14 @@ function disk_sim_gpu(spec::SpecParams, disk::DiskParams, outspec::AA{T,2}; skip
                                                                                            rwavgrid, allwavs, allints)
 
             # do the line synthesis
-            CUDA.@sync @cuda threads=threads3 blocks=blocks3 line_profile_gpu!(starmap, tloop, spec.lines[l],
-                                                                               spec.depths[l], spec.conv_blueshifts[l],
-                                                                               grid, lambdas, data_inds, rot_shifts, λΔDs,
-                                                                               allwavs, allints)
+            CUDA.@sync @cuda threads=threads3 blocks=blocks3 line_profile_gpu!(starmap, grid, lambdas, λΔDs, allwavs, allints)
 
             # do array reduction and move data from GPU to CPU
-            CUDA.@sync starmap_cpu .= Array(starmap .* norm_terms)
+
+            CUDA.@sync begin
+                starmap = starmap .* norm_terms
+                starmap_cpu .= Array(starmap)
+            end
             outspec[:,t] .= dropdims(sum(starmap_cpu, dims=(1,2)), dims=(1,2))
             # CUDA.@sync outspec[:,t] .= view(Array(CUDA.sum(starmap, dims=(1,2))), 1, 1, :)
 
@@ -235,6 +261,5 @@ function disk_sim_gpu(spec::SpecParams, disk::DiskParams, outspec::AA{T,2}; skip
             end
         end
     end
-    println("derp2")
     return spec.lambdas, outspec
 end

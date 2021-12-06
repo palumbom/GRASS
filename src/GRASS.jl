@@ -3,7 +3,7 @@
 module GRASS
 
 # parallelization modules
-using CUDA
+using CUDA; CUDA.allowscalar(false)
 using Distributed
 using SharedArrays
 
