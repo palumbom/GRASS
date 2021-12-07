@@ -1,6 +1,5 @@
-function fill_workspace_arrays!(line, z_convs, grid, tloop, data_inds,
-                                rot_shifts, λΔDs, wavall, bisall, widall,
-                                depall, lwavgrid, rwavgrid, allwavs, allints)
+function fill_workspace_arrays!(line, z_convs, grid, tloop, data_inds, rot_shifts,
+                                λΔDs, wavall, widall, lwavgrid, rwavgrid)
     # get indices from GPU blocks + threads
     idx = threadIdx().x + blockDim().x * (blockIdx().x-1)
     sdx = blockDim().x * gridDim().x
@@ -25,9 +24,7 @@ function fill_workspace_arrays!(line, z_convs, grid, tloop, data_inds,
 
             # slice out the correct views of the input data for position
             wavt = CUDA.view(wavall, :, tloop[i,j], data_inds[i,j])
-            bist = CUDA.view(bisall, :, tloop[i,j], data_inds[i,j])
             widt = CUDA.view(widall, :, tloop[i,j], data_inds[i,j])
-            dept = CUDA.view(depall, :, tloop[i,j], data_inds[i,j])
 
             len = CUDA.size(rwavgrid,3)
             for k in idz:sdz:CUDA.size(rwavgrid,3)
@@ -43,9 +40,8 @@ function fill_workspace_arrays!(line, z_convs, grid, tloop, data_inds,
     return nothing
 end
 
-function concatenate_workspace_arrays!(lines, depths, z_convs, grid, tloop, data_inds,
-                                       rot_shifts, λΔDs, lenall, wavall, bisall, widall,
-                                       depall, lwavgrid, rwavgrid, allwavs, allints)
+function concatenate_workspace_arrays!(grid, tloop, data_inds, depall,
+                                       lwavgrid, rwavgrid, allwavs, allints)
     # get indices from GPU blocks + threads
     idx = threadIdx().x + blockDim().x * (blockIdx().x-1)
     sdx = blockDim().x * gridDim().x
@@ -65,13 +61,7 @@ function concatenate_workspace_arrays!(lines, depths, z_convs, grid, tloop, data
                 continue
             end
 
-            # calculate the shifted center of the line
-            @inbounds λΔDs[i,j] = lines * (1.0 + rot_shifts[i,j]) * (1.0 + z_convs)
-
             # slice out the correct views of the input data for position
-            wavt = CUDA.view(wavall, :, tloop[i,j], data_inds[i,j])
-            bist = CUDA.view(bisall, :, tloop[i,j], data_inds[i,j])
-            widt = CUDA.view(widall, :, tloop[i,j], data_inds[i,j])
             dept = CUDA.view(depall, :, tloop[i,j], data_inds[i,j])
 
             len = CUDA.size(rwavgrid,3)
