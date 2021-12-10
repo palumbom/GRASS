@@ -67,6 +67,25 @@ function initialize_arrays_for_gpu(data_inds, norm_terms, rot_shifts,
     return nothing
 end
 
+function generate_indices_for_gpu(tloop, grid_cpu, data_inds_cpu, lenall_cpu)
+    for i in eachindex(grid_cpu)
+        for j in eachindex(grid_cpu)
+            x = grid_cpu[i]
+            y = grid_cpu[j]
+            r2 = calc_r2(x, y)
+            if r2 > 1.0
+                continue
+            end
+
+            # generate random mnumber in range of input data
+            idx = data_inds_cpu[i,j]
+            tloop[i,j] = rand(1:lenall_cpu[idx])
+        end
+    end
+    return nothing
+end
+
+
 function disk_sim_gpu(spec::SpecParams, disk::DiskParams, outspec::AA{T,2};
                       skip_times::BitVector=BitVector(zeros(disk.Nt))) where T<:Float64
     # get dimensions for memory alloc
@@ -135,8 +154,12 @@ function disk_sim_gpu(spec::SpecParams, disk::DiskParams, outspec::AA{T,2};
     blocks2 = cld(N^2, prod(threads2))
 
     # set number of threads and blocks for N*N*Nλ matrix gpu functions
-    threads3 = (6,6,6)
+    threads3 = (16,16,2)
     blocks3 = cld(N^2 * Nλ, prod(threads3))
+
+    # set number of threads and blocks for N*N*100 matrix gpu functions
+    threads4 = (6,6,6)
+    blocks4 = cld(N^2 * 100, prod(threads4))
 
     # initialize values for data_inds, tloop, and norm_terms
     CUDA.@sync @cuda threads=threads2 blocks=blocks2 initialize_arrays_for_gpu(data_inds, norm_terms, rot_shifts,
@@ -144,22 +167,10 @@ function disk_sim_gpu(spec::SpecParams, disk::DiskParams, outspec::AA{T,2};
                                                                                disk.u2, polex, poley, polez)
 
     # initialize values of tloop on CPU
+    # TODO: on GPU generate float, multiply by what I want, and then floor it
     data_inds_cpu = Array(data_inds)
     tloop = zeros(Int64, N, N)
-    for i in eachindex(grid_cpu)
-        for j in eachindex(grid_cpu)
-            x = grid_cpu[i]
-            y = grid_cpu[j]
-            r2 = calc_r2(x, y)
-            if r2 > 1.0
-                continue
-            end
-
-            # generate random mnumber in range of input data
-            idx = data_inds_cpu[i,j]
-            tloop[i,j] = rand(1:lenall_cpu[idx])
-        end
-    end
+    generate_indices_for_gpu(tloop, grid_cpu, data_inds_cpu, lenall_cpu)
 
     # move tloop to GPU
     CUDA.@sync tloop = CuArray(tloop)
@@ -172,7 +183,7 @@ function disk_sim_gpu(spec::SpecParams, disk::DiskParams, outspec::AA{T,2};
         end
 
         # initialize starmap with fresh copy of weights
-        CUDA.@sync starmap .= CUDA.copy(norm_terms)
+        CUDA.@sync starmap .= norm_terms
 
         # loop over lines to synthesize
         for l in eachindex(spec.lines)
@@ -180,7 +191,7 @@ function disk_sim_gpu(spec::SpecParams, disk::DiskParams, outspec::AA{T,2};
             for n in eachindex(lenall_cpu)
                 CUDA.@sync begin
                     # get correct index for position of input data
-                    wavall_gpu_out = CUDA.view(wavall_gpu_loop, :, 1:lenall_cpu[n], n) #.* spec.variability[l]
+                    wavall_gpu_out = CUDA.view(wavall_gpu_loop, :, 1:lenall_cpu[n], n)
                     bisall_gpu_out = CUDA.view(bisall_gpu_loop, :, 1:lenall_cpu[n], n)
                     widall_gpu_out = CUDA.view(widall_gpu_loop, :, 1:lenall_cpu[n], n)
                     depall_gpu_out = CUDA.view(depall_gpu_loop, :, 1:lenall_cpu[n], n)
@@ -205,9 +216,6 @@ function disk_sim_gpu(spec::SpecParams, disk::DiskParams, outspec::AA{T,2};
             # fill workspace arrays
             # TODO: compare kernel launch cost to compute cost
             # TODO: how many registers are needed?
-            # change here
-            threads4 = (6,6,6)
-            blocks4 = cld(N^2 * 100, prod(threads4))
             CUDA.@sync @cuda threads=threads4 blocks=blocks4 fill_workspace_arrays!(spec.lines[l], spec.conv_blueshifts[l],
                                                                                     grid, tloop, data_inds, rot_shifts, λΔDs,
                                                                                     wavall_gpu_loop, widall_gpu_loop,
