@@ -61,7 +61,8 @@ function initialize_arrays_for_gpu(data_inds, norm_terms, rot_shifts,
             @inbounds norm_terms[i,j] = calc_norm_term(mu, CUDA.length(grid), u1, u2)
 
             # calculate the rotational doppler shift
-            @inbounds rot_shifts[i,j] = patch_velocity_los_gpu(x, y, 1.0, polex, poley, polez)
+            rstar = one(eltype(grid))
+            @inbounds rot_shifts[i,j] = patch_velocity_los_gpu(x, y, rstar, polex, poley, polez)
         end
     end
     return nothing
@@ -93,15 +94,30 @@ end
 
 
 function disk_sim_gpu(spec::SpecParams, disk::DiskParams, outspec::AA{T,2};
+                      precision::String="double",
                       seed_rng::Bool=false, verbose::Bool=false,
-                      skip_times::BitVector=BitVector(zeros(disk.Nt))) where T<:Float64
+                      skip_times::BitVector=BitVector(zeros(disk.Nt))) where T<:AbstractFloat
+    # set single or double precision
+    if precision == "single"
+        precision = Float32
+        println(">>> Single precision is broken right now!!")
+    elseif precision  == "double"
+        precision = Float64
+    else
+        precision = Float64
+    end
+
     # get dimensions for memory alloc
     N = disk.N
     Nt = disk.Nt
     Nλ = length(spec.lambdas)
 
-    # get pole component vectors
-    polex, poley, polez = disk.pole
+    # get pole component vectors and limb darkening parameters
+    polex = convert(precision, disk.pole[1])
+    poley = convert(precision, disk.pole[2])
+    polez = convert(precision, disk.pole[3])
+    u1 = convert(precision, disk.u1)
+    u2 = convert(precision, disk.u2)
 
     # sort the input data for use on GPU
     sorted_data = sort_data_for_gpu(spec.soldata)
@@ -115,13 +131,13 @@ function disk_sim_gpu(spec::SpecParams, disk::DiskParams, outspec::AA{T,2};
 
     # move input data to gpu
     CUDA.@sync begin
-        disc_mu = CuArray(disc_mu_cpu)
-        disc_ax = CuArray(disc_ax_cpu)
-        lenall_gpu = CuArray(lenall_cpu)
-        wavall_gpu = CuArray(wavall_cpu)
-        bisall_gpu = CuArray(bisall_cpu)
-        widall_gpu = CuArray(widall_cpu)
-        depall_gpu = CuArray(depall_cpu)
+        disc_mu = CuArray{precision}(disc_mu_cpu)
+        disc_ax = CuArray{precision}(disc_ax_cpu)
+        lenall_gpu = CuArray{precision}(lenall_cpu)
+        wavall_gpu = CuArray{precision}(wavall_cpu)
+        bisall_gpu = CuArray{precision}(bisall_cpu)
+        widall_gpu = CuArray{precision}(widall_cpu)
+        depall_gpu = CuArray{precision}(depall_cpu)
     end
 
     # allocate arrays for fresh copy of input data to copy to each loop
@@ -134,26 +150,26 @@ function disk_sim_gpu(spec::SpecParams, disk::DiskParams, outspec::AA{T,2};
 
     # allocate memory for synthesis on the GPU
     CUDA.@sync begin
-        starmap = CUDA.ones(Float64, N, N, Nλ)
-        lwavgrid = CUDA.zeros(Float64, N, N, 100)
-        rwavgrid = CUDA.zeros(Float64, N, N, 100)
-        allwavs = CUDA.zeros(Float64, N, N, 200)
-        allints = CUDA.zeros(Float64, N, N, 200)
+        starmap = CUDA.ones(precision, N, N, Nλ)
+        lwavgrid = CUDA.zeros(precision, N, N, 100)
+        rwavgrid = CUDA.zeros(precision, N, N, 100)
+        allwavs = CUDA.zeros(precision, N, N, 200)
+        allints = CUDA.zeros(precision, N, N, 200)
     end
 
     # move other data to the gpu
     grid_cpu = make_grid(N)
     CUDA.@sync begin
-        grid = CuArray(grid_cpu)
-        lambdas = CuArray(spec.lambdas)
+        grid = CuArray{precision}(grid_cpu)
+        lambdas = CuArray{precision}(spec.lambdas)
     end
 
     # allocate memory for input data indices and normalization terms
     CUDA.@sync begin
-        data_inds = CuArray{Int64,2}(undef, N, N)
-        norm_terms = CuArray{Float64,2}(undef, N, N)
-        rot_shifts = CuArray{Float64,2}(undef, N, N)
-        λΔDs = CuArray{Float64,2}(undef, N, N)
+        data_inds = CuArray{Int32,2}(undef, N, N)
+        norm_terms = CuArray{precision,2}(undef, N, N)
+        rot_shifts = CuArray{precision,2}(undef, N, N)
+        λΔDs = CuArray{precision,2}(undef, N, N)
     end
 
     # set number of threads and blocks for N*N matrix gpu functions
@@ -170,17 +186,17 @@ function disk_sim_gpu(spec::SpecParams, disk::DiskParams, outspec::AA{T,2};
 
     # initialize values for data_inds, tloop, and norm_terms
     CUDA.@sync @cuda threads=threads2 blocks=blocks2 initialize_arrays_for_gpu(data_inds, norm_terms, rot_shifts,
-                                                                               grid, disc_mu, disc_ax, disk.u1,
-                                                                               disk.u2, polex, poley, polez)
+                                                                               grid, disc_mu, disc_ax, u1,
+                                                                               u2, polex, poley, polez)
 
     # initialize values of tloop on CPU
     # TODO: on GPU generate float, multiply by what I want, and then floor it
     data_inds_cpu = Array(data_inds)
-    tloop = zeros(Int64, N, N)
+    tloop = zeros(Int32, N, N)
     generate_indices_for_gpu(tloop, grid_cpu, data_inds_cpu, lenall_cpu, verbose=verbose, seed_rng=seed_rng)
 
     # move tloop to GPU
-    CUDA.@sync tloop = CuArray(tloop)
+    CUDA.@sync tloop = CuArray{Int32}(tloop)
 
     # loop over time
     for t in 1:Nt

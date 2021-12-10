@@ -9,7 +9,7 @@ function get_disc_mu_for_gpu(soldata::SolarData{T}; to_gpu::Bool=false) where T<
     return disc_mu
 end
 
-function get_disc_ax_for_gpu(soldata::SolarData{T}; to_gpu::Bool=false) where T<:Float64
+function get_disc_ax_for_gpu(soldata::SolarData{T}; to_gpu::Bool=false) where T<:AbstractFloat
     disc_ax = string.(getindex.(keys(soldata.len),1))
     function parse_ax_strings(s::String)
         if s == "c"; return 0; end;
@@ -25,7 +25,7 @@ function get_disc_ax_for_gpu(soldata::SolarData{T}; to_gpu::Bool=false) where T<
     return disc_ax
 end
 
-function find_nearest_ax_gpu(x::T, y::T) where T<:Float64
+function find_nearest_ax_gpu(x::T, y::T) where T<:AbstractFloat
     if (CUDA.iszero(x) & CUDA.iszero(y))
         return 0 # center
     elseif y >= CUDA.abs(x)
@@ -51,7 +51,7 @@ function find_data_index_gpu(mu_ind, ax_code)
     end
 end
 
-function sort_data_for_gpu(soldata::SolarData{T}) where T<:Float64
+function sort_data_for_gpu(soldata::SolarData{T}) where T<:AbstractFloat
     # allocate memory for arrays to pass to gpu
     len = collect(values(soldata.len))
     wav = zeros(100, maximum(len), 41)
