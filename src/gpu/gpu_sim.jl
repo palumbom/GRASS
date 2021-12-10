@@ -67,7 +67,13 @@ function initialize_arrays_for_gpu(data_inds, norm_terms, rot_shifts,
     return nothing
 end
 
-function generate_indices_for_gpu(tloop, grid_cpu, data_inds_cpu, lenall_cpu)
+function generate_indices_for_gpu(tloop, grid_cpu, data_inds_cpu, lenall_cpu; seed_rng=false, verbose=false)
+    # seeding rng
+    if seed_rng
+        if verbose println("Seeding RNG") end
+        Random.seed!(42)
+    end
+
     for i in eachindex(grid_cpu)
         for j in eachindex(grid_cpu)
             x = grid_cpu[i]
@@ -87,6 +93,7 @@ end
 
 
 function disk_sim_gpu(spec::SpecParams, disk::DiskParams, outspec::AA{T,2};
+                      seed_rng::Bool=false, verbose::Bool=false,
                       skip_times::BitVector=BitVector(zeros(disk.Nt))) where T<:Float64
     # get dimensions for memory alloc
     N = disk.N
@@ -170,7 +177,7 @@ function disk_sim_gpu(spec::SpecParams, disk::DiskParams, outspec::AA{T,2};
     # TODO: on GPU generate float, multiply by what I want, and then floor it
     data_inds_cpu = Array(data_inds)
     tloop = zeros(Int64, N, N)
-    generate_indices_for_gpu(tloop, grid_cpu, data_inds_cpu, lenall_cpu)
+    generate_indices_for_gpu(tloop, grid_cpu, data_inds_cpu, lenall_cpu, verbose=verbose, seed_rng=seed_rng)
 
     # move tloop to GPU
     CUDA.@sync tloop = CuArray(tloop)

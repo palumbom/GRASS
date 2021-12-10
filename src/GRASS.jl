@@ -87,7 +87,7 @@ function synthesize_spectra(spec::SpecParams, disk::DiskParams;
         @assert CUDA.functional()
 
         # run the simulation and return
-        disk_sim_gpu(spec, disk, outspec)
+        disk_sim_gpu(spec, disk, outspec, seed_rng=seed_rng, verbose=verbose)
         return spec.lambdas, outspec
     else
         # allocate memory for synthesis
