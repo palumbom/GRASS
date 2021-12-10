@@ -13,7 +13,7 @@ function sort_bisector_data(;dir::String=soldir, write::Bool=false)
     end
 
     # sort dataframe in place
-    sort!(df, [:axis, :mu, :datetime], rev=(false, true, false))
+    sort!(df, [:axis, :mu, :datetime], rev=[false, true, false])
 
     # write to CSV
     if write
@@ -136,7 +136,7 @@ function sort_spectrum_data(;dir::String=soldir, write::Bool=false)
     end
 
     # sort dataframe in place
-    sort!(df, [:axis, :mu, :datetime], rev=(false, true, false))
+    sort!(df, [:axis, :mu, :datetime], rev=[false, true, false])
 
     # write to CSV
     if write
@@ -159,7 +159,7 @@ function sort_width_data(;dir::String=soldir, write::Bool=false)
     end
 
     # sort dataframe in place
-    sort!(df, [:axis, :mu, :datetime], rev=(false, true, false))
+    sort!(df, [:axis, :mu, :datetime], rev=[false, true, false])
 
     # write to CSV
     if write
