@@ -3,7 +3,6 @@ function searchsortednearest_gpu(a,x)
     if (idx==1); return idx; end
     if (idx>CUDA.length(a)); return CUDA.length(a); end
     if (a[idx]==x); return idx; end
-    # if (CUDA.abs(a[idx]-x) < CUDA.abs(a[idx-1]-x))
     if ((a[idx]-x)^2 < (a[idx-1]-x)^2)
         return idx
     else

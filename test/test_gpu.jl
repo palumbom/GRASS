@@ -148,9 +148,19 @@ end
     blocks3 = cld(N^2 * Nλ, prod(threads3))
 
     # initialize values for data_inds, tloop, and norm_terms
-    CUDA.@sync @cuda threads=threads2 blocks=blocks2 GRASS.initialize_arrays_for_gpu(data_inds, norm_terms, rot_shifts,
-                                                                                     grid, disc_mu, disc_ax, disk.u1,
-                                                                                     disk.u2, polex, poley, polez)
+    # CUDA.@sync @cuda threads=threads2 blocks=blocks2 GRASS.initialize_arrays_for_gpu(data_inds, norm_terms, rot_shifts,
+    #                                                                                  grid, disc_mu, disc_ax, disk.u1,
+    #                                                                                  disk.u2, polex, poley, polez)
+    kernel = @cuda launch=false GRASS.initialize_arrays_for_gpu(data_inds, norm_terms, rot_shifts,
+                                                                grid, disc_mu, disc_ax, disk.u1,
+                                                                disk.u2, polex, poley, polez)
+
+    config = launch_configuration(kernel.fun)
+    threads = min(N, config.threads)
+    blocks =  cld(N, threads)
+    CUDA.@sync kernel(data_inds, norm_terms, rot_shifts,
+                      grid, disc_mu, disc_ax, disk.u1,
+                      disk.u2, polex, poley, polez; threads=threads, blocks=blocks)
 
     # check that random indices for time index don't exceed dataset length
     CUDA.@sync @cuda threads=threads2 blocks=blocks2 GRASS.iterate_tloop_gpu(tloop, data_inds, lenall_gpu, grid)
@@ -177,6 +187,7 @@ end
     @test all(isapprox.(norm_terms_cpu, Array(norm_terms), atol=1e-10))
     @test all(isapprox.(vels_los_cpu, Array(rot_shifts), atol=1e-10))
 
+    """
     # test that the correct input data is selected
     function get_gpu_data(idx, arr)
         idx2 = findfirst(row -> all(iszero.(row)), [arr[:,j,idx] for j in 1:size(arr, 2)])
@@ -209,8 +220,10 @@ end
             @test Array(tloop)[i,j] <= lenall_cpu[idx_gpu]
         end
     end
+    """
 end
 
+"""
 @testset "Testing trimming" begin
     # set some trimming parameters
     top = NaN
@@ -467,5 +480,6 @@ end
 
 
 end
+"""
 
 end
