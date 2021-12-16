@@ -177,7 +177,7 @@ function disk_sim_gpu(spec::SpecParams, disk::DiskParams, outspec::AA{T,2};
     blocks2 = cld(N^2, prod(threads2))
 
     # set number of threads and blocks for N*N*Nλ matrix gpu functions
-    threads3 = (16,16,2)
+    threads3 = (6,6,16)
     blocks3 = cld(N^2 * Nλ, prod(threads3))
 
     # set number of threads and blocks for N*N*100 matrix gpu functions
@@ -228,7 +228,7 @@ function disk_sim_gpu(spec::SpecParams, disk::DiskParams, outspec::AA{T,2};
                 # do the trim
                 threads1 = (16,16)
                 blocks1 = cld(lenall_cpu[n] * 100, prod(threads1))
-                CUDA.@sync @cuda threads=threads1 blocks=blocks1 trim_bisector_chop_gpu(spec.depths[l],
+                CUDA.@sync @captured @cuda threads=threads1 blocks=blocks1 trim_bisector_chop_gpu(spec.depths[l],
                                                                                         wavall_gpu_out, bisall_gpu_out,
                                                                                         depall_gpu_out, widall_gpu_out,
                                                                                         wavall_gpu_in, bisall_gpu_in,
@@ -239,15 +239,15 @@ function disk_sim_gpu(spec::SpecParams, disk::DiskParams, outspec::AA{T,2};
             # fill workspace arrays
             # TODO: compare kernel launch cost to compute cost
             # TODO: how many registers are needed?
-            CUDA.@sync @cuda threads=threads4 blocks=blocks4 fill_workspace_arrays!(spec.lines[l], spec.conv_blueshifts[l],
+            CUDA.@sync @captured @cuda threads=threads4 blocks=blocks4 fill_workspace_arrays!(spec.lines[l], spec.conv_blueshifts[l],
                                                                                     grid, tloop, data_inds, rot_shifts, λΔDs,
                                                                                     wavall_gpu_loop, widall_gpu_loop,
                                                                                     lwavgrid, rwavgrid)
-            CUDA.@sync @cuda threads=threads4 blocks=blocks4 concatenate_workspace_arrays!(grid, tloop, data_inds, depall_gpu_loop,
+            CUDA.@sync @captured @cuda threads=threads4 blocks=blocks4 concatenate_workspace_arrays!(grid, tloop, data_inds, depall_gpu_loop,
                                                                                            lwavgrid, rwavgrid, allwavs, allints)
 
             # do the line synthesis
-            CUDA.@sync @cuda threads=threads3 blocks=blocks3 line_profile_gpu!(starmap, grid, lambdas, λΔDs, allwavs, allints)
+            CUDA.@sync @captured @cuda threads=threads3 blocks=blocks3 line_profile_gpu!(starmap, grid, lambdas, λΔDs, allwavs, allints)
 
             # do array reduction and move data from GPU to CPU
             CUDA.@sync outspec[:,t] .= Array(CUDA.view(CUDA.sum(starmap, dims=(1,2)), 1, 1, :))
