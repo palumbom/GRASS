@@ -177,7 +177,7 @@ function disk_sim_gpu(spec::SpecParams, disk::DiskParams, outspec::AA{T,2};
     blocks2 = cld(N^2, prod(threads2))
 
     # set number of threads and blocks for N*N*Nλ matrix gpu functions
-    threads3 = (6,6,16)
+    threads3 = (8,8,2)
     blocks3 = cld(N^2 * Nλ, prod(threads3))
 
     # set number of threads and blocks for N*N*100 matrix gpu functions
