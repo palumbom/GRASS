@@ -41,8 +41,8 @@ function trim_bisector_chop_gpu(depth, wavall_out, bisall_out, depall_out, widal
             end
 
             # assign bisector fluxes from dept
-            bist_out[j] = new_dept
-            dept_out[j] = new_dept # TODO this is unnecessary
+            # @inbounds bist_out[j] = new_dept # TODO this is unnecessary
+            @inbounds dept_out[j] = new_dept
         end
     end
     return nothing
