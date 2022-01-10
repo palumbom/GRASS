@@ -236,10 +236,16 @@ function read_spectrum(filename::String)
     head = []
     wavs = []
     FITS(filename) do f
+        # read contents
         spec = FITSIO.read(f[1])[:,:,1]
         nois = FITSIO.read(f[1])[:,:,2]
         head = read_header(f[1])
-        wavs = FITSIO.read(f[2]) .* 1.0e10  # convert to angstroms
+        wavs = FITSIO.read(f[2]) #.* 1.0e10  # convert to angstroms
+
+        # determine if conversion to angstroms is necessary
+        if all(wavs .< 1e3)
+            wavs .*= 1.0e10
+        end
     end
     return wavs, convert.(Float64, spec)
 end
