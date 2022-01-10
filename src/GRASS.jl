@@ -50,6 +50,10 @@ include("disk_sim.jl")
 # processing spectra
 include("velocities.jl")
 
+# preprocessing of data
+include("preprocessing/voigt.jl")
+include("preprocessing/preprocessing.jl")
+
 # simulating observations
 include("observing/convolutions.jl")
 include("observing/signaltonoise.jl")
