@@ -124,7 +124,8 @@ end
 
 function sort_spectrum_data(;dir::String=soldir, write::Bool=false)
     # glob the files
-    @assert isdir(dir)
+    @assert isdir(dir);
+    @assert isdir(dir * "spectra/")
     files = glob("*.chvtt.fits", dir * "spectra/")
     @assert !isempty(files)
 
@@ -250,9 +251,9 @@ function read_spectrum(filename::String)
     return wavs, convert.(Float64, spec)
 end
 
-function write_the_fits(fname::String, depth::AbstractArray{T,2}, width::AbstractArray{T,2}) where T<:Real
+function write_the_fits(fname::String, xdat::AbstractArray{T,2}, ydat::AbstractArray{T,2}) where T<:Real
     FITS(fname, "w") do io
-        write(io, cat(depth, width, dims=3))
+        write(io, cat(xdat, ydat, dims=3))
     end
     return nothing
 end
