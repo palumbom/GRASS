@@ -1,7 +1,5 @@
 using LsqFit
 
-import PyPlot; plt = PyPlot; mpl = plt.matplotlib; plt.ioff()
-
 function calc_width_at_depth(wavs::AA{T,1}, spec::AA{T,1};
                              len::Integer=100) where T<:Real
     # check that the length of arrays match
