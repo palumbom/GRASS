@@ -161,7 +161,7 @@ function calc_bisector_at_depth(wavs::AA{T,1}, spec::AA{T,1}; center::T=NaN,
     newspec ./= maximum(newspec)
 
     # measure the width via interpolation method and return
-    wav, bis = measure_bisector_interpolate(newwavs, newspec)
+    wav, bis = calc_bisector(newwavs, newspec)
     return wav, bis
 end
 

@@ -168,3 +168,64 @@ function bisector_uncertainty(wav::AA{T,1}, bis::AA{T,1}) where T<:AF
     dv = diff(wav)
     return one(T)/sqrt(2.0) .* dF ./ abs.(dF ./ dv)
 end
+
+
+# TODO preliminary
+function calc_bisector(wavs::AbstractArray{T,1}, flux::AbstractArray{T,1}; continuum::T=1.0) where T<:Real
+    # check lengths
+    @assert length(wavs) == length(flux)
+
+    # get min and max flux, depth of line
+    min_flux_idx = argmin(flux)
+    min_flux = minimum(flux)
+    max_flux = continuum
+    depth = 1.0 - min_flux/max_flux # TODO check
+
+    # get views on either side of line
+    lflux = view(flux, min_flux_idx:-1:1)
+    rflux = view(flux, min_flux_idx:length(flux))
+    lwavs = view(wavs, min_flux_idx:-1:1)
+    rwavs = view(wavs, min_flux_idx:length(wavs))
+
+    # range of fluxes to measure bisector at
+    bis_flux = range(minimum(flux), maximum(flux), length=100)
+
+    # allocate memory for wavelength values
+    bis_wavs = similar(bis_flux)
+
+    # loop over flux values and measure bisector
+    for i in eachindex(bis_flux)
+        lidx = searchsortedfirst(lflux, bis_flux[i])
+        ridx = searchsortedfirst(rflux, bis_flux[i])
+        if (lidx > length(bis_flux)) || (ridx > length(bis_flux))
+            bis_wavs[i:end] .= NaN
+            break
+        else
+            # adjust indices to account for views
+            wav_lidx = min_flux_idx - lidx
+            wav_ridx = min_flux_idx + ridx
+
+            # interpolate on left
+            if lflux[lidx] != bis_flux[i]
+                w2 = (bis_flux[i] - lflux[lidx-1]) / (lflux[lidx] - lflux[lidx-1])
+                w1 = 1.0 - w2
+                lwav = lwavs[lidx-1] * w1 + lwavs[lidx] * w2
+            else
+                lwav = lwavs[ridx]
+            end
+
+            # interpolate on right
+            if rflux[ridx] != bis_flux[i]
+                w2 = (bis_flux[i] - rflux[ridx-1]) / (rflux[ridx] - rflux[ridx-1])
+                w1 = 1.0 - w2
+                rwav = rwavs[ridx-1] * w1 + rwavs[ridx] * w2
+            else
+                rwav = rwavs[ridx]
+            end
+
+            # bis_wavs[i] = (wavs[ridx] + wavs[lidx]) ./ 2.0
+            bis_wavs[i] = (rwav + lwav) ./ 2.0
+        end
+    end
+    return bis_wavs, bis_flux
+end

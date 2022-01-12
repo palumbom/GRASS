@@ -7,7 +7,7 @@ function sort_bisector_data(;dir::String=soldir, write::Bool=false)
 
     # extract file parametersl put in data frame
     df = DataFrame(fpath=String[], fname=String[], datetime=DateTime[],
-                   wave=String[], mu=String[], axis=String[], ion=String[])
+                   wave=String[], mu=String[], axis=String[])#, ion=String[])
     for i in 1:length(files)
         push!(df, extract_bisector_params(files[i]))
     end
@@ -36,12 +36,12 @@ function extract_bisector_params(s::String)
     muposition = split(fcomp[5], ".")[1]
     if length(fcomp) == 7
         helio_axis = split(fcomp[6], ".")[1]
-        ionspecies = split(fcomp[6], ".")[4]
+        # ionspecies = split(fcomp[6], ".")[4]
     else
         helio_axis = "c"
-        ionspecies = split(fcomp[5], ".")[4]
+        # ionspecies = split(fcomp[5], ".")[4]
     end
-    return [fpath fname datetimes wavelength muposition helio_axis ionspecies]
+    return [fpath fname datetimes wavelength muposition helio_axis]# ionspecies]
 end
 
 # simple function to read out wavelength/bisector vectors
