@@ -9,6 +9,7 @@ using SharedArrays
 
 # import external modules
 using CSV
+using HDF5
 using FITSIO
 using Random
 using StatsBase
@@ -39,7 +40,7 @@ include("stargeometry.jl")
 include("starphysics.jl")
 
 # data read-in + calculations
-include("lineIO.jl")
+include("inputIO.jl")
 include("bisectors.jl")
 
 # star simulation
@@ -52,6 +53,7 @@ include("velocities.jl")
 
 # preprocessing of data
 include("preprocessing/voigt.jl")
+include("preprocessing/spectraIO.jl")
 include("preprocessing/preprocessing.jl")
 
 # simulating observations
