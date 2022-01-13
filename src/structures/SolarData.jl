@@ -104,8 +104,7 @@ function SolarData(;dir::String=soldir, relative::Bool=true,
                    extrapolate::Bool=true, contiguous_only::Bool=false,
                    adjust_mean::Bool=true)
     # sort the data directories and such
-    bdf = sort_bisector_data(dir=dir)
-    wdf = sort_width_data(dir=dir)
+    idf = sort_input_data(dir=dir)
 
     # fill in line properties
     # TODO this is hard-coded for now
@@ -119,20 +118,18 @@ function SolarData(;dir::String=soldir, relative::Bool=true,
     lengths = Dict{Tuple{Symbol,Symbol}, Int}()
 
     # loop over unique mu + axis pairs
-    for ax in unique(bdf.axis)
-        for mu in unique(bdf.mu)
+    for ax in unique(idf.axis)
+        for mu in unique(idf.mu)
             # get data for mu + axis pair
-            bdf_temp = bdf[((bdf.axis .== ax) .& (bdf.mu .== mu)), :]
-            wdf_temp = wdf[((wdf.axis .== ax) .& (wdf.mu .== mu)), :]
+            idf_temp = idf[((idf.axis .== ax) .& (idf.mu .== mu)), :]
 
             # move on if no data for mu + axis pair
-            if isempty(bdf_temp)
+            if isempty(idf_temp)
                 continue
             end
 
             # stitch the time series
-            wavall, bisall = stitch_time_series(bdf_temp, adjust_mean=adjust_mean, contiguous_only=contiguous_only)
-            depall, widall = stitch_time_series(wdf_temp, adjust_mean=adjust_mean, contiguous_only=contiguous_only)
+            wavall, bisall, depall, widall = stitch_time_series(idf_temp, adjust_mean=adjust_mean, contiguous_only=contiguous_only)
 
             # clean the input
             wavall, bisall, depall, widall = clean_input(wavall, bisall, depall, widall)
