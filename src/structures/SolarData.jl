@@ -16,19 +16,21 @@ Construct a `SpecParams` composite type instance.
 - `dir::String=soldir`: Directory containing the pre-processed input data. Default directory is set in src/config.jl
 - `relative::Bool=true`: Set whether wavelengths are on absolute scale or expressed relative to rest wavelength.
 """
-function SolarData(;dir::String=soldir, relative::Bool=true,
-                   fixed_width::Bool=false, fixed_bisector::Bool=false,
-                   extrapolate::Bool=true, contiguous_only::Bool=false,
-                   adjust_mean::Bool=true)
-    # sort the data directories and such
-    idf = sort_input_data(dir=dir)
+function SolarData(;dir::String=soldir*"FeI_5434/", λrest::Float64=NaN,
+                   relative::Bool=true, fixed_width::Bool=false,
+                   fixed_bisector::Bool=false, extrapolate::Bool=true,
+                   contiguous_only::Bool=false, adjust_mean::Bool=true)
+    @assert isdir(dir)
+    df = sort_input_data(dir=dir)
+    return SolarData(df, λrest=λrest, relative=relative, fixed_width=fixed_width,
+                     fixed_bisector=fixed_bisector, extrapolate=extrapolate,
+                     contiguous_only=contiguous_only, adjust_mean=adjust_mean)
+end
 
-    # fill in line properties
-    lp = []
-    for path in unique(idf.fpath)
-        prop_file = glob("*_line_properties.h5", path)
-        push!(lp, LineProperties(prop_file[1]))
-    end
+function SolarData(df::DataFrame; λrest::Float64=NaN,
+                   relative::Bool=true, fixed_width::Bool=false,
+                   fixed_bisector::Bool=false, extrapolate::Bool=true,
+                   contiguous_only::Bool=false, adjust_mean::Bool=true)
 
     # allocate memory for data dictionaries
     wavdict = Dict{Tuple{Symbol,Symbol}, AA{Float64,2}}()
@@ -37,19 +39,30 @@ function SolarData(;dir::String=soldir, relative::Bool=true,
     widdict = Dict{Tuple{Symbol,Symbol}, AA{Float64,2}}()
     lengths = Dict{Tuple{Symbol,Symbol}, Int}()
 
+    # get rest wavelength for data if not passed
+    if isnan(λrest)
+        filename = glob("*_line_properties.h5", df.fpath[1])
+        λrest = h5open(filename[1], "r") do f
+            g = f["properties"]
+            attr = HDF5.attributes(g)
+            λrest = read(attr["air_wavelength"])
+            return λrest
+        end
+    end
+
     # loop over unique mu + axis pairs
-    for ax in unique(idf.axis)
-        for mu in unique(idf.mu)
+    for ax in unique(df.axis)
+        for mu in unique(df.mu)
             # get data for mu + axis pair
-            idf_temp = idf[((idf.axis .== ax) .& (idf.mu .== mu)), :]
+            df_temp = df[((df.axis .== ax) .& (df.mu .== mu)), :]
 
             # move on if no data for mu + axis pair
-            if isempty(idf_temp)
+            if isempty(df_temp)
                 continue
             end
 
             # stitch the time series
-            wavall, bisall, depall, widall = stitch_time_series(idf_temp, adjust_mean=adjust_mean, contiguous_only=contiguous_only)
+            wavall, bisall, depall, widall = stitch_time_series(df_temp, adjust_mean=adjust_mean, contiguous_only=contiguous_only)
 
             # clean the input
             wavall, bisall, depall, widall = clean_input(wavall, bisall, depall, widall)
@@ -61,7 +74,7 @@ function SolarData(;dir::String=soldir, relative::Bool=true,
 
             # assign key-value pairs to dictionary
             if relative
-                relwav = relative_bisector_wavelengths(wavall, lp[1])
+                relwav = relative_bisector_wavelengths(wavall, λrest)
                 wavdict[(Symbol(ax), Symbol(mu))] = relwav
             else
                 wavdict[(Symbol(ax), Symbol(mu))] = wavall
@@ -89,8 +102,13 @@ function SolarData(;dir::String=soldir, relative::Bool=true,
             lengths[(Symbol(ax), Symbol(mu))] = size(wavall,2)
         end
     end
-    return SolarData(wavdict, bisdict, depdict, widdict, lengths, lp[1])
+    return SolarData(wavdict, bisdict, depdict, widdict, lengths)
 end
+
+
+
+
+
 
 function calc_fixed_width(;λ::T1=5434.5232, M::T1=26.0, T::T1=5778.0, v_turb::T1=3.5e5) where T1<:AF
     wid = width_thermal(λ=λ, M=M, T=T, v_turb=v_turb)
@@ -158,12 +176,12 @@ function extrapolate_bisector(wavall::AA{T,2}, bisall::AA{T,2}; top::T=0.8) wher
     return nothing
 end
 
-function relative_bisector_wavelengths(wav::AA{T,2}, lp::LineProperties) where T<:AF
+function relative_bisector_wavelengths(wav::AA{T,2}, λrest::T) where T<:AF
     # allocate array of size(wav)
     relwav = similar(wav)
     for i in 1:size(wav,2)
-        λgrav = (635.0/c_ms) * lp.λrest
-        relwav[:,i] = wav[:,i] .- lp.λrest .- λgrav
+        λgrav = (635.0/c_ms) * λrest
+        relwav[:,i] = wav[:,i] .- λrest .- λgrav
     end
     return relwav
 end

@@ -109,6 +109,6 @@ end
 precompile(synthesize_spectra, (SpecParams, DiskParams, Float64, Bool, Bool, Bool))
 
 # export some stuff
-export SpecParams, DiskParams, synthesize_spectra, calc_ccf, calc_rvs_from_ccf, calc_rms, use_gpu
+export SpecParams, DiskParams, LineProperties, synthesize_spectra, calc_ccf, calc_rvs_from_ccf, calc_rms, use_gpu
 
 end # module
