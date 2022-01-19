@@ -49,27 +49,23 @@ function extract_input_params(s::String)
 end
 
 function read_input_data(filename::String; masknans::Bool=false)
-    wav = Array{Float64,2}[]
-    bis = Array{Float64,2}[]
-    wid = Array{Float64,2}[]
-    dep = Array{Float64,2}[]
-    h5open(filename, "r") do f
+    wav, bis, wid, dep = h5open(filename, "r") do f
         g = f["input_data"]
         wav = read(g["wavelengths"])
         bis = read(g["bisectors"])
         wid = read(g["widths"])
         dep = read(g["depths"])
+        return wav, bis, wid, dep
     end
     return wav, bis, wid, dep
 end
 
 function get_extension_dims(filename::String)
-    out = 0
-    h5open(filename, "r") do f
+    dims = h5open(filename, "r") do f
         g = f["input_data"]
-        out = size(g["wavelengths"])
+        return size(g["wavelengths"])
     end
-    return out
+    return dims
 end
 
 function get_number_waves(filename::String)

@@ -107,8 +107,11 @@ function SolarData(;dir::String=soldir, relative::Bool=true,
     idf = sort_input_data(dir=dir)
 
     # fill in line properties
-    # TODO this is hard-coded for now
-    iron_lp = LineProperties("FeI", 55.845, 0.86, 5434.5232, 0.0, 550.0)
+    lp = []
+    for path in unique(idf.fpath)
+        prop_file = glob("*_line_properties.h5", path)
+         push!(lp, LineProperties(prop_file[1]))
+    end
 
     # allocate memory for data dictionaries
     wavdict = Dict{Tuple{Symbol,Symbol}, AA{Float64,2}}()
@@ -142,7 +145,7 @@ function SolarData(;dir::String=soldir, relative::Bool=true,
 
             # assign key-value pairs to dictionary
             if relative
-                relwav = relative_bisector_wavelengths(wavall, iron_lp)
+                relwav = relative_bisector_wavelengths(wavall, lp[1])
                 wavdict[(Symbol(ax), Symbol(mu))] = relwav
             else
                 wavdict[(Symbol(ax), Symbol(mu))] = wavall
@@ -170,7 +173,7 @@ function SolarData(;dir::String=soldir, relative::Bool=true,
             lengths[(Symbol(ax), Symbol(mu))] = size(wavall,2)
         end
     end
-    return SolarData(wavdict, bisdict, depdict, widdict, lengths, iron_lp)
+    return SolarData(wavdict, bisdict, depdict, widdict, lengths, lp[1])
 end
 
 function calc_fixed_width(;λ::T1=5434.5232, M::T1=26.0, T::T1=5778.0, v_turb::T1=3.5e5) where T1<:AF
