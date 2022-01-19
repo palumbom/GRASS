@@ -1,24 +1,35 @@
 function sort_input_data(;dir::String=soldir, write::Bool=false)
     @assert isdir(dir)
 
-    # get list of dirs containing data for each line
-    linedirs = glob("*/", dir)
-
-    # extract file parametersl put in data frame
+    # create data frame to store extracted paramaters
     df = DataFrame(fpath=String[], fname=String[],
                    datetime=DateTime[], wave=String[],
                    mu=String[], axis=String[], ion=String[])
 
-    # loop over directories
-    for d in linedirs
-        files = glob("*input.h5", d)
-        if isempty(files)
-            println(">>> No input data files found in " * d)
-            continue
-        end
+    # get list of dirs containing data for each line
+    linedirs = glob("*/", dir)
 
+    # loop over directories
+    if !isempty(linedirs)
+        for d in linedirs
+            files = glob("*input.h5", d)
+            if isempty(files)
+                println(">>> No input data files found in " * d)
+                continue
+            end
+
+            for f in files
+                push!(df, extract_input_params(f))
+            end
+        end
+    else
+        files = glob("*input.h5", dir)
+        if isempty(files)
+            println(">>> No input data files found in " * dir)
+            return nothing
+        end
         for f in files
-            push!(df, extract_input_params(f))
+                push!(df, extract_input_params(f))
         end
     end
 

@@ -24,3 +24,5 @@ function LineProperties(filename::String)
     end
     return lp
 end
+
+get_rest_wavelength(lp::LineProperties) = lp.λrest
