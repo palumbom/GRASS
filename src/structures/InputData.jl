@@ -6,8 +6,8 @@ end
 function InputData(;dir::String=soldir, kwargs...)
     # parse out filename info for all the input data
     @assert isdir(dir)
-    idf = sort_input_data(dir=dir)
-    unique_dirs = unique(idf.fpath)
+    df = sort_input_data(dir=dir)
+    unique_dirs = unique(df.fpath)
 
     # fill in line properties
     lp = Array{LineProperties,1}(undef, length(unique_dirs))
@@ -23,7 +23,10 @@ function InputData(;dir::String=soldir, kwargs...)
     # allocate memory for data and loop through directory structure
     soldata = Array{SolarData,1}(undef, length(lp))
     for i in eachindex(lp)
-        soldata[i] = SolarData(dir=unique_dirs[i], λrest=λrest[i])
+        # get elements of data frame with unique path
+        f = x -> x == unique_dirs[1]
+        df_temp = filter(:fpath => f, df)
+        soldata[i] = SolarData(df_temp, λrest=λrest[i]; kwargs...)
     end
     return InputData(soldata, lp)
 end
