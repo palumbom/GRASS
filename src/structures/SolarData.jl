@@ -31,7 +31,6 @@ function SolarData(df::DataFrame; λrest::Float64=NaN,
                    relative::Bool=true, fixed_width::Bool=false,
                    fixed_bisector::Bool=false, extrapolate::Bool=true,
                    contiguous_only::Bool=false, adjust_mean::Bool=true)
-
     # allocate memory for data dictionaries
     wavdict = Dict{Tuple{Symbol,Symbol}, AA{Float64,2}}()
     bisdict = Dict{Tuple{Symbol,Symbol}, AA{Float64,2}}()
@@ -53,8 +52,11 @@ function SolarData(df::DataFrame; λrest::Float64=NaN,
     # loop over unique mu + axis pairs
     for ax in unique(df.axis)
         for mu in unique(df.mu)
-            # get data for mu + axis pair
-            df_temp = df[((df.axis .== ax) .& (df.mu .== mu)), :]
+            # filter data for mu + axis pair
+            f1 = x -> x == ax
+            f2 = y -> y == mu
+            df_temp = filter(:axis => f1, df)
+            df_temp = filter(:mu => f2, df_temp)
 
             # move on if no data for mu + axis pair
             if isempty(df_temp)
@@ -105,16 +107,11 @@ function SolarData(df::DataFrame; λrest::Float64=NaN,
     return SolarData(wavdict, bisdict, depdict, widdict, lengths)
 end
 
-
-
-
-
-
 function calc_fixed_width(;λ::T1=5434.5232, M::T1=26.0, T::T1=5778.0, v_turb::T1=3.5e5) where T1<:AF
     wid = width_thermal(λ=λ, M=M, T=T, v_turb=v_turb)
     λs = collect(range(λ - 1.0, λ + 1.0, step=λ/7e5))
     prof = gaussian_line.(λs, mid=λ, width=wid, depth=0.86)
-    depall, widall = calc_width_at_depth(λs, prof, len=100)
+    depall, widall = calc_width_at_depth(λs, prof, center=λ, len=100)
     widall[1] = 0.01
     return depall, widall
 end
