@@ -77,7 +77,7 @@ function find_nearest_mu(x::T, y::T, disc_mu::AA{T,1}) where T<:AF
 end
 
 function assemble_dict_key(mu_ind::Int, ax::Symbol, mu_symb::AA{Symbol,1})
-    if mu_ind == 11 # e.g., if mu == 1.0
+    if mu_symb[mu_ind] == :mu10 # e.g., if mu == 1.0
         return (:c, :mu10)
     else
         return (ax, mu_symb[mu_ind])
