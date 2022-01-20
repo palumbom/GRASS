@@ -106,6 +106,8 @@ function disk_sim(spec::SpecParams{T}, disk::DiskParams{T,Int64}, soldata::Solar
 
             # get input data for place on disk
             key = get_key_for_pos(i, j, disc_mu, mu_symb)
+
+            # use data for same mu from different axis if axis is missing
             while !(key in keys(soldata.len))
                 idx = findfirst(key[1] .== soldata.ax)
                 if idx == length(soldata.ax)
