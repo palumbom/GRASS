@@ -1,5 +1,5 @@
 abstract type AbstractSolarData end
-mutable struct SolarData{T1<:AF} <: AbstractSolarData
+struct SolarData{T1<:AF} <: AbstractSolarData
     wav::Dict{Tuple{Symbol,Symbol}, AbstractArray{T1,2}}
     bis::Dict{Tuple{Symbol,Symbol}, AbstractArray{T1,2}}
     dep::Dict{Tuple{Symbol,Symbol}, AbstractArray{T1,2}}

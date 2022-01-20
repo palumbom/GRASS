@@ -112,10 +112,14 @@ function synthesize_spectra(spec::SpecParams, disk::DiskParams;
         for i in eachindex(indata_inds)
             outspec_temp .= 0.0
 
-            # get temporary specparams and soldata needed for this specific call
+            # get temporary specparams with lines for this run
             spec_temp = SpecParams(spec, indata_inds[i])
+
+            # load in the appropriate input data
+            if verbose
+                println(spec.indata.dirs[indata_inds[i]])
+            end
             soldata = SolarData(dir=spec.indata.dirs[indata_inds[i]]; spec.kwargs...)
-            println(spec.indata.dirs[indata_inds[i]])
 
             # run the simulation and multiply outspec by this spectrum
             disk_sim(spec_temp, disk, soldata, prof, outspec_temp, seed_rng=seed_rng, verbose=verbose, top=top)
