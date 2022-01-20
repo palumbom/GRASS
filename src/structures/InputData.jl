@@ -1,6 +1,10 @@
 struct InputData
-    soldata::Array{SolarData,1}
-    lp::Array{LineProperties,1}
+    dirs::Array{String,1}
+    lineprops::Array{LineProperties,1}
+end
+
+function InputData(dir::String, lineprops::LineProperties)
+    return InputData([dir], [lineprops])
 end
 
 function InputData(;dir::String=soldir, kwargs...)
@@ -20,13 +24,20 @@ function InputData(;dir::String=soldir, kwargs...)
     # get the rest wavelengths
     λrest = get_rest_wavelength.(lp)
 
-    # allocate memory for data and loop through directory structure
-    soldata = Array{SolarData,1}(undef, length(lp))
-    for i in eachindex(lp)
-        # get elements of data frame with unique path
-        f = x -> x == unique_dirs[1]
-        df_temp = filter(:fpath => f, df)
-        soldata[i] = SolarData(df_temp, λrest=λrest[i]; kwargs...)
-    end
-    return InputData(soldata, lp)
+    # # allocate memory for data and loop through directory structure
+    # soldata = Array{SolarData,1}(undef, length(lp))
+    # for i in eachindex(lp)
+    #     # get elements of data frame with unique path
+    #     f = x -> x == unique_dirs[1]
+    #     df_temp = filter(:fpath => f, df)
+    #     soldata[i] = SolarData(df_temp, λrest=λrest[i]; kwargs...)
+    # end
+    return InputData(unique_dirs, lp)
+end
+
+function InputData(config::String ;dir::String=soldir, kwargs...)
+
+
+
+    return
 end
