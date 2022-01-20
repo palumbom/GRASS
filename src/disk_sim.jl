@@ -141,15 +141,3 @@ function disk_sim(spec::SpecParams{T}, disk::DiskParams{T,Int64}, soldata::Solar
     outspec[:, skip_times] .= zero(T)
     return nothing
 end
-
-
-# TODO pre-compute list of (i,j)'s to hand to GPU
-# 132 * 132 * Nt * Nλ
-# TODO reduce input data size
-# TODO watch for weirdness for threads writing to same place in memory (mult should be fine??) -- read about atomics if not
-# TODO 1 block = 1 line ?
-# Thread grid -> line, wavelength within line, time
-# block -> 1 line in time
-# TODO -- each multiprocessor gets its own kernel to run? (find out jargon/nomenclature for this)
-    # concurrent GPU computing?? (future problem for multiple line widths)
-# TODO kernel abstractions for occupancy / threads / blocks stuff
