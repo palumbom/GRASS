@@ -85,7 +85,12 @@ function synthesize_spectra(spec::SpecParams, disk::DiskParams;
     Nλ = length(spec.lambdas)
 
     # allocate memory for output
-    outspec = zeros(Nλ, disk.Nt)
+    outspec = ones(Nλ, disk.Nt)
+    outspec_temp = zeros(Nλ, disk.Nt)
+
+    # get number of calls to disk_sim needed
+    indata_inds = unique(spec.data_inds)
+    ncalls = length(indata_inds)
 
     # call appropriate simulation function on cpu or gpu
     if use_gpu
@@ -93,14 +98,29 @@ function synthesize_spectra(spec::SpecParams, disk::DiskParams;
         @assert CUDA.functional()
 
         # run the simulation and return
-        disk_sim_gpu(spec, disk, outspec, seed_rng=seed_rng, verbose=verbose)
+        for i in 1:ncalls
+            outspec_temp .= 0.0
+            disk_sim_gpu(spec, disk, outspec_temp, seed_rng=seed_rng, verbose=verbose)
+            outspec .*= outspec_temp
+        end
         return spec.lambdas, outspec
     else
         # allocate memory for synthesis
         prof = ones(Nλ)
 
         # run the simulation (outspec modified in place)
-        disk_sim(spec, disk, prof, outspec, seed_rng=seed_rng, verbose=verbose, top=top)
+        for i in eachindex(indata_inds)
+            outspec_temp .= 0.0
+
+            # get temporary specparams and soldata needed for this specific call
+            spec_temp = SpecParams(spec, indata_inds[i])
+            soldata = SolarData(dir=spec.indata.dirs[indata_inds[i]]; spec.kwargs...)
+            println(spec.indata.dirs[indata_inds[i]])
+
+            # run the simulation and multiply outspec by this spectrum
+            disk_sim(spec_temp, disk, soldata, prof, outspec_temp, seed_rng=seed_rng, verbose=verbose, top=top)
+            outspec .*= outspec_temp
+        end
         return spec.lambdas, outspec
     end
 end

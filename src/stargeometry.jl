@@ -1,6 +1,6 @@
 # set discrete values of mu for input observations
-const disc_mu = [0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.85, 0.9, 0.95, 1.0]
-const mu_symb = [:mu02, :mu03, :mu04, :mu05, :mu06, :mu07, :mu08, :mu085, :mu09, :mu095, :mu10]
+# const disc_mu = [0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.85, 0.9, 0.95, 1.0]
+# const mu_symb = [:mu02, :mu03, :mu04, :mu05, :mu06, :mu07, :mu08, :mu085, :mu09, :mu095, :mu10]
 const disc_ax = [:n, :e, :s, :w, :c]
 
 make_grid(N::Integer) = range(-1.0, 1.0, length=N)
@@ -68,15 +68,15 @@ function find_nearest_ax(x::T, y::T) where T<:AF
     end
 end
 
-function find_nearest_mu(mu::T) where T<:AF
+function find_nearest_mu(mu::T, disc_mu::AA{T,1}) where T<:AF
     return searchsortednearest(disc_mu, mu)
 end
 
-function find_nearest_mu(x::T, y::T) where T<:AF
-    return find_nearest_mu(calc_mu(x,y))
+function find_nearest_mu(x::T, y::T, disc_mu::AA{T,1}) where T<:AF
+    return find_nearest_mu(calc_mu(x,y), disc_mu)
 end
 
-function assemble_dict_key(mu_ind::Int, ax::Symbol; mu_symb::AA{Symbol,1}=mu_symb)
+function assemble_dict_key(mu_ind::Int, ax::Symbol, mu_symb::AA{Symbol,1})
     if mu_ind == 11 # e.g., if mu == 1.0
         return (:c, :mu10)
     else
@@ -84,16 +84,16 @@ function assemble_dict_key(mu_ind::Int, ax::Symbol; mu_symb::AA{Symbol,1}=mu_sym
     end
 end
 
-function get_key_for_pos(x::T, y::T) where T<:AF
+function get_key_for_pos(x::T, y::T, disc_mu::AA{T,1}, mu_symb::AA{Symbol,1}) where T<:AF
     # find nearest mu index
-    mu_ind = find_nearest_mu(x, y)
+    mu_ind = find_nearest_mu(x, y, disc_mu)
 
     # get nearest axis and mu
     near_mu = disc_mu[mu_ind]
     near_ax = find_nearest_ax(x, y)
 
     # assemble dictionary key & extract values
-    key = assemble_dict_key(mu_ind, near_ax)
+    key = assemble_dict_key(mu_ind, near_ax, mu_symb)
     return key
 end
 

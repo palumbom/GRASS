@@ -21,15 +21,16 @@ end
 
 function time_loop_cpu(t_loop::Int, prof::AA{T,1}, z_rot::T,
                        key::Tuple{Symbol, Symbol}, liter::UnitRange{Int},
-                       spec::SpecParams{T}, wsp::SynthWorkspace{T}; top::T=NaN) where T<:AF
+                       spec::SpecParams{T}, soldata::SolarData,
+                       wsp::SynthWorkspace{T}; top::T=NaN) where T<:AF
     # some assertions
     # @assert all(prof .== one(T))
 
     # get views needed for line synthesis
-    wsp.wavt .= view(spec.soldata.wav[key], :, t_loop)
-    wsp.bist .= view(spec.soldata.bis[key], :, t_loop)
-    wsp.dept .= view(spec.soldata.dep[key], :, t_loop)
-    wsp.widt .= view(spec.soldata.wid[key], :, t_loop)
+    wsp.wavt .= view(soldata.wav[key], :, t_loop)
+    wsp.bist .= view(soldata.bis[key], :, t_loop)
+    wsp.dept .= view(soldata.dep[key], :, t_loop)
+    wsp.widt .= view(soldata.wid[key], :, t_loop)
 
     # loop over specified synthetic lines
     prof .= one(T)
@@ -75,8 +76,8 @@ function generate_indices(Nt::Integer, len::Integer)
     return Iterators.flatten(inds)
 end
 
-function disk_sim(spec::SpecParams{T}, disk::DiskParams{T,Int64}, prof::AA{T,1},
-                  outspec::AA{T,2}; top::T=NaN, seed_rng::Bool=false,
+function disk_sim(spec::SpecParams{T}, disk::DiskParams{T,Int64}, soldata::SolarData{T},
+                  prof::AA{T,1}, outspec::AA{T,2}; top::T=NaN, seed_rng::Bool=false,
                   skip_times::BitVector=BitVector(zeros(disk.Nt)),
                   verbose::Bool=true) where T<:AF
     # make grid
@@ -86,6 +87,10 @@ function disk_sim(spec::SpecParams{T}, disk::DiskParams{T,Int64}, prof::AA{T,1},
     outspec .= zero(T)
     wsp = SynthWorkspace(spec)
     liter = 1:length(spec.lines)
+
+    # get list of discrete mu's in input data
+    mu_symb = soldata.mu
+    disc_mu = parse_mu_string.(mu_symb)
 
     # seeding rng
     if seed_rng
@@ -100,8 +105,15 @@ function disk_sim(spec::SpecParams{T}, disk::DiskParams{T,Int64}, prof::AA{T,1},
             (i^2 + j^2) > one(T) && continue
 
             # get input data for place on disk
-            key = get_key_for_pos(i, j)
-            len = spec.soldata.len[key]
+            key = get_key_for_pos(i, j, disc_mu, mu_symb)
+            while !(key in keys(soldata.len))
+                idx = findfirst(key[1] .== soldata.ax)
+                if idx == length(soldata.ax)
+                    idx = 1
+                end
+                key = (soldata.ax[idx+1], key[2])
+            end
+            len = soldata.len[key]
 
             # get redshift z and norm term for location on disk
             z_rot = patch_velocity_los(i, j, pole=disk.pole)
@@ -114,7 +126,7 @@ function disk_sim(spec::SpecParams{T}, disk::DiskParams{T,Int64}, prof::AA{T,1},
                 skip_times[t] && continue
 
                 # update profile in place
-                time_loop_cpu(t_loop, prof, z_rot, key, liter, spec, wsp, top=top)
+                time_loop_cpu(t_loop, prof, z_rot, key, liter, spec, soldata, wsp, top=top)
 
                 # apply normalization term and add to outspec
                 outspec[:,t] .+= (prof .* norm_term)

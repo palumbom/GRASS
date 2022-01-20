@@ -89,6 +89,15 @@ function get_number_times(filename::String)
     return dims[2]
 end
 
+function parse_mu_string(s::String)
+    s = s[3:end]
+    return tryparse(Float64, s[1] * "." * s[2:end])
+end
+
+function parse_mu_string(s::Symbol)
+    return parse_mu_string(string(s))
+end
+
 # make one large time series for a given solar position
 function stitch_time_series(df::DataFrame; adjust_mean::Bool=false, contiguous_only::Bool=false)
     # find out size of data
