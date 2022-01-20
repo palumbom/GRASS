@@ -10,7 +10,6 @@ end
 
 function LineProperties(filename::String)
     @assert isfile(filename)
-
     lp = h5open(filename, "r") do f
         g = f["properties"]
         attr = HDF5.attributes(g)
@@ -26,3 +25,5 @@ function LineProperties(filename::String)
 end
 
 get_rest_wavelength(lp::LineProperties) = lp.λrest
+get_depth(lp::LineProperties) = lp.depth
+get_geff(lp::LineProperties) = lp.geff

@@ -1,10 +1,12 @@
 abstract type AbstractSolarData end
-struct SolarData{T1<:AF} <: AbstractSolarData
+mutable struct SolarData{T1<:AF} <: AbstractSolarData
     wav::Dict{Tuple{Symbol,Symbol}, AbstractArray{T1,2}}
     bis::Dict{Tuple{Symbol,Symbol}, AbstractArray{T1,2}}
     dep::Dict{Tuple{Symbol,Symbol}, AbstractArray{T1,2}}
     wid::Dict{Tuple{Symbol,Symbol}, AbstractArray{T1,2}}
     len::Dict{Tuple{Symbol,Symbol}, Int}
+    ax::Array{Symbol,1}
+    mu::Array{Symbol,1}
 end
 
 """
@@ -49,9 +51,13 @@ function SolarData(df::DataFrame; λrest::Float64=NaN,
         end
     end
 
+    # get unique axis and mu keys
+    axs = unique(df.axis)
+    mus = unique(df.mu)
+
     # loop over unique mu + axis pairs
-    for ax in unique(df.axis)
-        for mu in unique(df.mu)
+    for ax in axs
+        for mu in mus
             # filter data for mu + axis pair
             f1 = x -> x == ax
             f2 = y -> y == mu
@@ -104,7 +110,7 @@ function SolarData(df::DataFrame; λrest::Float64=NaN,
             lengths[(Symbol(ax), Symbol(mu))] = size(wavall,2)
         end
     end
-    return SolarData(wavdict, bisdict, depdict, widdict, lengths)
+    return SolarData(wavdict, bisdict, depdict, widdict, lengths, Symbol.(axs), sort!(Symbol.(mus)))
 end
 
 function calc_fixed_width(;λ::T1=5434.5232, M::T1=26.0, T::T1=5778.0, v_turb::T1=3.5e5) where T1<:AF
