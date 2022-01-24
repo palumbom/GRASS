@@ -60,15 +60,15 @@ function extract_input_params(s::String)
 end
 
 function read_input_data(filename::String; masknans::Bool=false)
-    wav, bis, wid, dep = h5open(filename, "r") do f
+    wav, bis, dep, wid = h5open(filename, "r") do f
         g = f["input_data"]
         wav = read(g["wavelengths"])
         bis = read(g["bisectors"])
-        wid = read(g["widths"])
         dep = read(g["depths"])
-        return wav, bis, wid, dep
+        wid = read(g["widths"])
+        return wav, bis, dep, wid
     end
-    return wav, bis, wid, dep
+    return wav, bis, dep, wid
 end
 
 function get_extension_dims(filename::String)
@@ -117,7 +117,7 @@ function stitch_time_series(df::DataFrame; adjust_mean::Bool=false, contiguous_o
 
     # loop over the files, filling arrays
     for i in 1:Nfil
-        wav, bis, wid, dep = read_input_data(df.fpath[i] * df.fname[i])
+        wav, bis, dep, wid = read_input_data(df.fpath[i] * df.fname[i])
         wavall[:, sum(Ntim[1:i-1])+1:sum(Ntim[1:i])] .= wav
         bisall[:, sum(Ntim[1:i-1])+1:sum(Ntim[1:i])] .= bis
         widall[:, sum(Ntim[1:i-1])+1:sum(Ntim[1:i])] .= wid
@@ -129,7 +129,7 @@ function stitch_time_series(df::DataFrame; adjust_mean::Bool=false, contiguous_o
         wavall = adjust_data_mean(wavall, Ntim, Nfil)
         widall = adjust_data_mean(widall, Ntim, Nfil)
     end
-    return wavall, bisall, widall, depall
+    return wavall, bisall, depall, widall
 end
 
 function adjust_data_mean(array::AA{T,2}, Ntim::Vector{Int64}, Nfil::Int) where T<:Real
