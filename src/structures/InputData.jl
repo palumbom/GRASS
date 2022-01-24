@@ -20,18 +20,6 @@ function InputData(;dir::String=soldir, kwargs...)
         prop_file = glob("*_line_properties.h5", unique_dirs[i])
         lp[i] = LineProperties(prop_file[1])
     end
-
-    # get the rest wavelengths
-    λrest = get_rest_wavelength.(lp)
-
-    # # allocate memory for data and loop through directory structure
-    # soldata = Array{SolarData,1}(undef, length(lp))
-    # for i in eachindex(lp)
-    #     # get elements of data frame with unique path
-    #     f = x -> x == unique_dirs[1]
-    #     df_temp = filter(:fpath => f, df)
-    #     soldata[i] = SolarData(df_temp, λrest=λrest[i]; kwargs...)
-    # end
     return InputData(unique_dirs, lp)
 end
 
