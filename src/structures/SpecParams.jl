@@ -97,3 +97,11 @@ function SpecParams(spec::SpecParams, idx::Int64)
                       spec.coverage, spec.resolution, spec.lambdas,
                       indata_temp, spec.data_inds[inds], spec.kwargs)
 end
+
+function SpecParams(config::String)
+    @assert isfile(config)
+
+
+
+    return nothing
+end

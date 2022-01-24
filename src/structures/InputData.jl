@@ -22,10 +22,3 @@ function InputData(;dir::String=soldir, kwargs...)
     end
     return InputData(unique_dirs, lp)
 end
-
-function InputData(config::String ;dir::String=soldir, kwargs...)
-
-
-
-    return
-end
