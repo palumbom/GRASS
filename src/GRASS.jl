@@ -117,7 +117,7 @@ function synthesize_spectra(spec::SpecParams, disk::DiskParams;
 
             # load in the appropriate input data
             if verbose
-                println(spec.indata.dirs[indata_inds[i]])
+                println("\t>>> " * spec.indata.dirs[indata_inds[i]])
             end
             soldata = SolarData(dir=spec.indata.dirs[indata_inds[i]]; spec.kwargs...)
 
