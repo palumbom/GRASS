@@ -26,8 +26,7 @@ Construct a `SpecParams` composite type instance. If `variability` is not specif
 - `resolution::Float64=7e8`: Spectral resolution of spectrum
 """
 function SpecParams(;lines=[], depths=[], geffs=[], variability=[],
-                     config=nothing, resolution=7e5, buffer=0.75,
-                     kwargs...)
+                    resolution=7e5, buffer=0.75, kwargs...)
     @assert length(lines) == length(depths)
     @assert !isempty(lines)
     @assert !isempty(depths)
@@ -67,11 +66,7 @@ function SpecParams(;lines=[], depths=[], geffs=[], variability=[],
     lambdas = exp.(lnλs)
 
     # tabulate all available input data
-    if isnothing(config)
-        indata = InputData()
-    else
-        indata = InputData(config)
-    end
+    indata = InputData()
 
     # assign indices that point synthetic line to appropriate input data
     geff_input = get_geff.(indata.lineprops)
@@ -83,6 +78,17 @@ function SpecParams(;lines=[], depths=[], geffs=[], variability=[],
         param_dist = (geff_input .- geffs[i]).^2 + (depth_input .- depths[i]).^2
         idx = argmin(param_dist)
         data_inds[i] = idx
+    end
+
+    # now make sure everything is sorted
+    if !issorted(lines)
+        inds = sortperm(lines)
+        lines = lines[inds]
+        depths = depths[inds]
+        geffs = geffs[inds]
+        blueshifts = blueshifts[inds]
+        variability = variability[inds]
+        data_inds = data_inds[inds]
     end
     return SpecParams(lines, depths, geffs, blueshifts,
                       variability, coverage, resolution,
