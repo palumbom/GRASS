@@ -87,8 +87,6 @@ function generate_indices_for_gpu(tloop, grid_cpu, data_inds_cpu, lenall_cpu; se
     return nothing
 end
 
-# TODO: compare kernel launch cost to compute cost
-# TODO: how many registers are needed?
 
 function disk_sim_gpu(spec::SpecParams, disk::DiskParams, soldata::SolarData,
                       outspec::AA{T,2}; precision::String="double",
@@ -230,11 +228,11 @@ function disk_sim_gpu(spec::SpecParams, disk::DiskParams, soldata::SolarData,
                 threads1 = (16,16)
                 blocks1 = cld(lenall_cpu[n] * 100, prod(threads1))
                 @cusync @captured @cuda threads=threads1 blocks=blocks1 trim_bisector_chop_gpu(spec.depths[l],
-                                                                                        wavall_gpu_out, bisall_gpu_out,
-                                                                                        depall_gpu_out, widall_gpu_out,
-                                                                                        wavall_gpu_in, bisall_gpu_in,
-                                                                                        depall_gpu_in, widall_gpu_in,
-                                                                                        NaN)
+                                                                                               wavall_gpu_out, bisall_gpu_out,
+                                                                                               depall_gpu_out, widall_gpu_out,
+                                                                                               wavall_gpu_in, bisall_gpu_in,
+                                                                                               depall_gpu_in, widall_gpu_in,
+                                                                                               NaN)
             end
 
             # fill workspace arrays
@@ -249,7 +247,7 @@ function disk_sim_gpu(spec::SpecParams, disk::DiskParams, soldata::SolarData,
             @cusync @captured @cuda threads=threads3 blocks=blocks3 line_profile_gpu!(starmap, grid, lambdas, λΔDs, allwavs, allints)
 
             # do array reduction and move data from GPU to CPU
-            @cusync outspec[:,t] .= Array(CUDA.view(CUDA.sum(starmap, dims=(1,2)), 1, 1, :))
+            @cusync outspec[:,t] .*= Array(CUDA.view(CUDA.sum(starmap, dims=(1,2)), 1, 1, :))
 
             # iterate tloop
             if t < Nt
@@ -257,5 +255,9 @@ function disk_sim_gpu(spec::SpecParams, disk::DiskParams, soldata::SolarData,
             end
         end
     end
+    CUDA.synchronize()
     return spec.lambdas, outspec
 end
+
+# TODO: compare kernel launch cost to compute cost
+# TODO: how many registers are needed?
