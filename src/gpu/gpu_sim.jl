@@ -87,6 +87,8 @@ function generate_indices_for_gpu(tloop, grid_cpu, data_inds_cpu, lenall_cpu; se
     return nothing
 end
 
+# TODO: compare kernel launch cost to compute cost
+# TODO: how many registers are needed?
 
 function disk_sim_gpu(spec::SpecParams, disk::DiskParams, soldata::SolarData,
                       outspec::AA{T,2}; precision::String="double",
@@ -123,10 +125,6 @@ function disk_sim_gpu(spec::SpecParams, disk::DiskParams, soldata::SolarData,
     bisall_cpu = sorted_data[5]
     widall_cpu = sorted_data[6]
     depall_cpu = sorted_data[7]
-
-    println(disc_mu_cpu)
-    println(disc_ax_cpu)
-
 
     # move input data to gpu
     # @cusync begin
@@ -189,11 +187,8 @@ function disk_sim_gpu(spec::SpecParams, disk::DiskParams, soldata::SolarData,
 
     # initialize values for data_inds, tloop, and norm_terms
     @cusync @cuda threads=threads2 blocks=blocks2 initialize_arrays_for_gpu(data_inds, norm_terms, rot_shifts,
-                                                                               grid, disc_mu, disc_ax, u1,
-                                                                               u2, polex, poley, polez)
-    if any(Array(data_inds) .== 700)
-        println("panic")
-    end
+                                                                            grid, disc_mu, disc_ax, u1,
+                                                                            u2, polex, poley, polez)
 
     # initialize values of tloop on CPU
     # TODO: on GPU generate float, multiply by what I want, and then floor it
@@ -201,7 +196,6 @@ function disk_sim_gpu(spec::SpecParams, disk::DiskParams, soldata::SolarData,
     tloop = zeros(Int32, N, N)
     generate_indices_for_gpu(tloop, grid_cpu, data_inds_cpu, lenall_cpu, verbose=verbose, seed_rng=seed_rng)
 
-    """
     # move tloop to GPU
     @cusync tloop = CuArray{Int32}(tloop)
 
@@ -244,14 +238,12 @@ function disk_sim_gpu(spec::SpecParams, disk::DiskParams, soldata::SolarData,
             end
 
             # fill workspace arrays
-            # TODO: compare kernel launch cost to compute cost
-            # TODO: how many registers are needed?
             @cusync @captured @cuda threads=threads4 blocks=blocks4 fill_workspace_arrays!(spec.lines[l], spec.conv_blueshifts[l],
-                                                                                    grid, tloop, data_inds, rot_shifts, λΔDs,
-                                                                                    wavall_gpu_loop, widall_gpu_loop,
-                                                                                    lwavgrid, rwavgrid)
+                                                                                           grid, tloop, data_inds, rot_shifts, λΔDs,
+                                                                                           wavall_gpu_loop, widall_gpu_loop,
+                                                                                           lwavgrid, rwavgrid)
             @cusync @captured @cuda threads=threads4 blocks=blocks4 concatenate_workspace_arrays!(grid, tloop, data_inds, depall_gpu_loop,
-                                                                                           lwavgrid, rwavgrid, allwavs, allints)
+                                                                                                  lwavgrid, rwavgrid, allwavs, allints)
 
             # do the line synthesis
             @cusync @captured @cuda threads=threads3 blocks=blocks3 line_profile_gpu!(starmap, grid, lambdas, λΔDs, allwavs, allints)
@@ -265,6 +257,5 @@ function disk_sim_gpu(spec::SpecParams, disk::DiskParams, soldata::SolarData,
             end
         end
     end
-    """
     return spec.lambdas, outspec
 end
