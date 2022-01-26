@@ -98,6 +98,18 @@ function parse_mu_string(s::Symbol)
     return parse_mu_string(string(s))
 end
 
+function parse_ax_string(s::String)
+    if s == "c"; return 0; end;
+    if s == "n"; return 1; end;
+    if s == "s"; return 2; end;
+    if s == "e"; return 3; end;
+    if s == "w"; return 4; end;
+end
+
+function parse_ax_string(s::Symbol)
+    return parse_ax_string(string(s))
+end
+
 # make one large time series for a given solar position
 function stitch_time_series(df::DataFrame; adjust_mean::Bool=false, contiguous_only::Bool=false)
     # find out size of data
