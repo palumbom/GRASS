@@ -100,7 +100,18 @@ function synthesize_spectra(spec::SpecParams, disk::DiskParams;
         # run the simulation and return
         for i in 1:ncalls
             outspec_temp .= 0.0
-            disk_sim_gpu(spec, disk, outspec_temp, seed_rng=seed_rng, verbose=verbose)
+
+            # get temporary specparams with lines for this run
+            spec_temp = SpecParams(spec, indata_inds[i])
+
+            # load in the appropriate input data
+            if verbose
+                println("\t>>> " * spec.indata.dirs[indata_inds[i]])
+            end
+            soldata = SolarData(dir=spec.indata.dirs[indata_inds[i]]; spec.kwargs...)
+
+            # run the simulation and multiply outspec by this spectrum
+            disk_sim_gpu(spec, disk, soldata, outspec_temp, seed_rng=seed_rng, verbose=verbose)
             outspec .*= outspec_temp
         end
         return spec.lambdas, outspec
