@@ -52,25 +52,22 @@ function calc_ccf(lambdas::AA{Float64,1}, intensities::AA{Float64,1},
     return v_grid, ccf
 end
 
-function calc_ccf(lambdas::AA{Float64,1}, intensities::AA{Float64,2},
-                  lines::AA{Float64,1}, depths::AA{Float64,1},
-                  resolution::Float64; normalize::Bool=true,
-                  mask_type::Type{T}=TopHatMask) where {T<:MaskShape}
-    func = x -> calc_ccf(lambdas, x, lines, depths, resolution, normalize=normalize, mask_type=mask_type)
+function calc_ccf(lambdas::AA{T,1}, intensities::AA{T,2},
+                  lines::AA{T,1}, depths::AA{T,1},
+                  resolution::T; kwargs...) where {T<:Float64}
+    func = x -> calc_ccf(lambdas, x, lines, depths, resolution; kwargs...)
     out = mapslices(func, intensities, dims=1)
     return out[1][1], cat([x[2] for x in out]..., dims=2)
 end
 
-function calc_ccf(lambdas::AA{Float64,1}, intensities::AA{Float64,1},
-                  spec::SpecParams{Float64}; normalize::Bool=true,
-                  mask_type::Type{T}=TopHatMask) where {T<:MaskShape}
-    return calc_ccf(lambdas, intensities, spec.lines, spec.depths, spec.resolution, normalize=normalize, mask_type=mask_type)
+function calc_ccf(lambdas::AA{T,1}, intensities::AA{T,1},
+                  spec::SpecParams{T}; kwargs...) where {T<:Float64}
+    return calc_ccf(lambdas, intensities, spec.lines, spec.depths, spec.resolution; kwargs...)
 end
 
-function calc_ccf(lambdas::AA{Float64,1}, intensities::AA{Float64,2},
-                  spec::SpecParams{Float64}; normalize::Bool=true,
-                  mask_type::Type{T}=TopHatMask) where {T<:MaskShape}
-    func = x -> calc_ccf(lambdas, x, spec, normalize=normalize, mask_type=mask_type)
+function calc_ccf(lambdas::AA{T,1}, intensities::AA{T,2},
+                  spec::SpecParams{T}; kwargs...) where {T<:Float64}
+    func = x -> calc_ccf(lambdas, x, spec; kwargs...)
     outs = mapslices(func, intensities, dims=1)
     return outs[1][1], cat([x[2] for x in outs]..., dims=2)
 end
@@ -92,10 +89,8 @@ function calc_rvs_from_ccf(v_grid::AA{Float64,1}, ccf::AA{Float64,1};
     return mrv(v_grid, ccf)
 end
 
-function calc_rvs_from_ccf(v_grid::AA{Float64,1}, ccf::AA{Float64,2};
-                           frac_of_width_to_fit::Float64=0.65,
-                           fit_type::Type{T}=GaussianFit) where {T<:FitType}
-    func = x -> calc_rvs_from_ccf(v_grid, x, frac_of_width_to_fit=frac_of_width_to_fit, fit_type=fit_type)
+function calc_rvs_from_ccf(v_grid::AA{T,1}, ccf::AA{T,2}; kwargs...) where {T<:Float64}
+    func = x -> calc_rvs_from_ccf(v_grid, x; kwargs...)
     out = mapslices(func, ccf, dims=1)
     return vec.(unzip(out))
 end
