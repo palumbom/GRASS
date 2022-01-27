@@ -124,22 +124,22 @@ function stitch_time_series(df::DataFrame; adjust_mean::Bool=false, contiguous_o
     # allocate array
     wavall = zeros(maximum(Nwav), sum(Ntim))
     bisall = zeros(maximum(Nwav), sum(Ntim))
-    widall = zeros(maximum(Nwav), sum(Ntim))
     depall = zeros(maximum(Nwav), sum(Ntim))
+    widall = zeros(maximum(Nwav), sum(Ntim))
 
     # loop over the files, filling arrays
     for i in 1:Nfil
         wav, bis, dep, wid = read_input_data(df.fpath[i] * df.fname[i])
         wavall[:, sum(Ntim[1:i-1])+1:sum(Ntim[1:i])] .= wav
         bisall[:, sum(Ntim[1:i-1])+1:sum(Ntim[1:i])] .= bis
-        widall[:, sum(Ntim[1:i-1])+1:sum(Ntim[1:i])] .= wid
         depall[:, sum(Ntim[1:i-1])+1:sum(Ntim[1:i])] .= dep
+        widall[:, sum(Ntim[1:i-1])+1:sum(Ntim[1:i])] .= wid
     end
 
     # adjust the mean if adjust_mean == true
     if adjust_mean
         wavall = adjust_data_mean(wavall, Ntim, Nfil)
-        widall = adjust_data_mean(widall, Ntim, Nfil)
+        # widall = adjust_data_mean(widall, Ntim, Nfil)
     end
     return wavall, bisall, depall, widall
 end
