@@ -10,4 +10,4 @@ The documentation for GRASS provides instructions for installation and examples 
 
 ## Citing GRASS
 
-If you use GRASS in your research, please cite the latest release as well as the GRASS paper.
+If you use GRASS in your research, please cite the [latest release](https://github.com/palumbom/GRASS/blob/main/CITATION.cff) as well as the [GRASS paper](https://arxiv.org/abs/2110.11839).
