@@ -1,6 +1,5 @@
 using DataFrames
 
-
 @testset "Synthesis" begin
 
 # get data for use in tests
@@ -107,7 +106,7 @@ end
 @testset "Testing disk-integrated spectrum synthesis" begin
     # set params
     N = 132
-    Nt = 10
+    Nt = 50
     res = 7e5
 
     # simulate spectra
