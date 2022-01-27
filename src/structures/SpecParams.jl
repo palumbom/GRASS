@@ -1,13 +1,18 @@
-struct SpecParams{T<:AF}
+# abstract type AbstractSpecParams end
+struct SpecParams{T<:AF} #<: AbstractSpecParams
     lines::AA{T,1}
     depths::AA{T,1}
+    geffs::AA{T,1}
     conv_blueshifts::AA{T,1}
     variability::AA{Bool,1}
     coverage::Tuple{T,T}
     resolution::T
     lambdas::AA{T,1}
-    soldata::SolarData{T}
+    indata::InputData
+    data_inds::AA{Int64,1}
+    kwargs::Base.Pairs
 end
+
 
 """
     SpecParams(; lines=[], depths=[], variability=[], resolution=7e5)
@@ -20,31 +25,29 @@ Construct a `SpecParams` composite type instance. If `variability` is not specif
 - `variability::AbstractArray{Bool,1}=[]`: Array of booleans controlling whether corresponding line has variability.
 - `resolution::Float64=7e8`: Spectral resolution of spectrum
 """
-function SpecParams(;lines=[], depths=[], variability=[], resolution=7e5,
-                    buffer=0.75, fixed_width=false, fixed_bisector=false,
-                    extrapolate=true, contiguous_only=false)
+function SpecParams(;lines=[], depths=[], geffs=[], variability=[],
+                    resolution=7e5, buffer=0.75, kwargs...)
+    @assert length(lines) == length(depths)
     @assert !isempty(lines)
     @assert !isempty(depths)
-    @assert length(lines) == length(depths)
+    @assert all(depths .< 1.0)
+    @assert all(depths .> 0.0)
     @assert buffer >= 0.75
 
-    # assign depths if needed, otherwise check same number of centers + depths
-    if any(isnan.(depths))
-        depths = rand(length(lines))
-    else
-        @assert !any(depths .> 1.0)
-        @assert !any(depths .< 0.0)
+    # assign lande g factors if they haven't been
+    if isempty(geffs)
+        geffs = zeros(length(lines))
     end
 
     # read in convective blueshifts
-    df = CSV.read(soldir * "../convective_blueshift.dat", DataFrame,
+    df = CSV.read(soldir * "/convective_blueshift.dat", DataFrame,
                   header=1, delim=",", type=Float64)
 
     # assign convective blueshifts and convert blueshift to z=v/c
     blueshifts = similar(lines)
     for i in eachindex(depths)
-        ind = searchsortednearest(df.depth, depths[i])
-        blueshifts[i] = df.blueshift[ind] / c_ms
+        idx = searchsortednearest(df.depth, depths[i])
+        blueshifts[i] = df.blueshift[idx] / c_ms
     end
 
     # assign fixed_width booleans
@@ -62,11 +65,49 @@ function SpecParams(;lines=[], depths=[], variability=[], resolution=7e5,
     lnλs = range(log(coverage[1]), log(coverage[2]), step=Δlnλ)
     lambdas = exp.(lnλs)
 
-    # get observational data
-    soldata = SolarData(relative=true,
-                        fixed_width=fixed_width,
-                        fixed_bisector=fixed_bisector,
-                        extrapolate=extrapolate,
-                        contiguous_only=contiguous_only)
-    return SpecParams(lines, depths, blueshifts, variability, coverage, resolution, lambdas, soldata)
+    # tabulate all available input data
+    indata = InputData()
+
+    # assign indices that point synthetic line to appropriate input data
+    geff_input = get_geff.(indata.lineprops)
+    depth_input = get_depth.(indata.lineprops)
+    data_inds = zeros(Int64, length(lines))
+
+    # loop over lines and do 2D nearest neighbor
+    for i in eachindex(lines)
+        param_dist = (geff_input .- geffs[i]).^2 + (depth_input .- depths[i]).^2
+        idx = argmin(param_dist)
+        data_inds[i] = idx
+    end
+
+    # now make sure everything is sorted
+    if !issorted(lines)
+        inds = sortperm(lines)
+        lines = lines[inds]
+        depths = depths[inds]
+        geffs = geffs[inds]
+        blueshifts = blueshifts[inds]
+        variability = variability[inds]
+        data_inds = data_inds[inds]
+    end
+    return SpecParams(lines, depths, geffs, blueshifts,
+                      variability, coverage, resolution,
+                      lambdas, indata, data_inds, kwargs)
+end
+
+function SpecParams(spec::SpecParams, idx::Int64)
+    inds = spec.data_inds .== idx
+    indata_temp = InputData(spec.indata.dirs[idx], spec.indata.lineprops[idx])
+    return SpecParams(spec.lines[inds], spec.depths[inds], spec.geffs[inds],
+                      spec.conv_blueshifts[inds], spec.variability[inds],
+                      spec.coverage, spec.resolution, spec.lambdas,
+                      indata_temp, spec.data_inds[inds], spec.kwargs)
+end
+
+function SpecParams(config::String)
+    @assert isfile(config)
+
+
+
+    return nothing
 end
