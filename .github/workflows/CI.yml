@@ -17,6 +17,7 @@ jobs:
           - macOS-latest
         arch:
           - x64
+          - x86
         exclude:
           - os: macOS-latest
             arch: x86
@@ -36,7 +37,7 @@ jobs:
             ${{ runner.os }}-test-${{ env.cache-name }}-
             ${{ runner.os }}-test-
             ${{ runner.os }}-
-      - uses: julia-actions/julia-buildpkg@v1
+      - uses: julia-actions/julia-buildpkg@latest
       - uses: julia-actions/julia-runtest@v1
       - uses: julia-actions/julia-processcoverage@v1
       - uses: codecov/codecov-action@v1
