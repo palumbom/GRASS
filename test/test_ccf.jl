@@ -12,25 +12,32 @@ end
 
 @testset "Testing velocity injection/extraction" begin
     # get line centers
-    vel = 0.5 .* sin.(range(0, 2π, length=50)) # 50 m/s sin curve
+    mid = 5434.5
+    dep = 0.75
+    amp = 0.5
+    vel = amp .* sin.(range(0, 2π, length=100)) # in m/s
     ΔλD = EchelleCCFs.calc_doppler_factor.(vel)
-    λvs = ΔλD .* 5434.5
+    λvs = ΔλD .* mid
 
-    # measure velocities for each Doppler shifted line
-    res = 1e6
-    xs = range(5433.0, 5436.0, step=5434.5/res)
-    ccfs = []
-    v_grid = []
+    # generate spectra
+    res = 7e5
+    buff = 0.75
+    Δlnλ = (1.0 / res)
+    wavs = exp.(range(log(mid-buff), log(mid+buff), step=Δlnλ))
+    flux = zeros(length(wavs), length(λvs))
     for i in eachindex(λvs)
-        ys = GRASS.gaussian_line.(xs, mid=λvs[i], width=0.1, depth=1.0)
-        v_grid, ccf = calc_ccf(xs, ys, [5434.5], [1.0], res, normalize=true)
-        push!(ccfs, ccf)
+        flux[:,i] = GRASS.fit_voigt(wavs, [-0.15, λvs[i], 0.04, 0.045, 1.0])
     end
-    ccfs = cat(ccfs..., dims=2)
-    rvs, sigs = GRASS.calc_rvs_from_ccf(v_grid, ccfs)
-    delta = vel .- rvs
 
-    # now actually test
+    # calculate ccf and measure velocity
+    v_grid, ccf = calc_ccf(wavs, flux, [mid], [dep], res, normalize=true)
+    rvs, sigs = GRASS.calc_rvs_from_ccf(v_grid, ccf)
+
+    # subtract off mean
+    rvs .-= mean(rvs)
+
+    # test that the residuals are within 10 cm/s
+    delta = vel .- rvs
     @test maximum(delta) < 0.1 # 0.1 m/s = 10 cm/s
 end
 

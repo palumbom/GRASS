@@ -171,6 +171,7 @@ end
 
 
 # TODO preliminary
+# compute a GP//smoothing to the data, then do interpolation on smooth data?
 function calc_bisector(wavs::AbstractArray{T,1}, flux::AbstractArray{T,1}; continuum::T=1.0) where T<:Real
     # check lengths
     @assert length(wavs) == length(flux)

@@ -1,5 +1,8 @@
 using LsqFit
 
+import PyPlot; plt = PyPlot; mpl = plt.matplotlib; plt.ioff()
+
+
 function calc_width_at_depth(wavs::AA{T,1}, spec::AA{T,1}; center::T=NaN,
                              len::Integer=100) where T<:Real
     # check that the length of arrays match
@@ -7,7 +10,7 @@ function calc_width_at_depth(wavs::AA{T,1}, spec::AA{T,1}; center::T=NaN,
     @assert length(wavs) == length(spec)
 
     # get better center estimate
-    if (center - 1.0) > minimum(wavs)
+    if (center - 1.0) < minimum(wavs)
         lwingλ_idx = firstindex(wavs)
     else
         lwingλ_idx = findfirst(x -> x >= center - 1.0, wavs)
@@ -115,7 +118,7 @@ function calc_bisector_at_depth(wavs::AA{T,1}, spec::AA{T,1}; center::T=NaN,
     @assert length(wavs) == length(spec)
 
     # get better center estimate
-    if (center - 1.0) > minimum(wavs)
+    if (center - 1.0) < minimum(wavs)
         lwingλ_idx = firstindex(wavs)
     else
         lwingλ_idx = findfirst(x -> x >= center - 1.0, wavs)
