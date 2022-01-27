@@ -21,8 +21,8 @@ import Glob.glob
 import Dates.DateTime
 
 # abbreviations for commonly used types
-const AA = AbstractArray
-const AF = AbstractFloat
+import Base: AbstractArray as AA
+import Base: AbstractFloat as AF
 
 # configure directories
 include("config.jl")
