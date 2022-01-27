@@ -51,18 +51,14 @@ function SolarData(df::DataFrame; λrest::Float64=NaN,
         end
     end
 
-    # get unique axis and mu keys
+    # loop over unique mu + axis pairs
     axs = unique(df.axis)
     mus = unique(df.mu)
-
-    # loop over unique mu + axis pairs
     for ax in axs
         for mu in mus
-            # filter data for mu + axis pair
-            f1 = x -> x == ax
-            f2 = y -> y == mu
-            df_temp = filter(:axis => f1, df)
-            df_temp = filter(:mu => f2, df_temp)
+            # filter the data set
+            f3 = (x,y) -> ((x == ax) & (y == mu))
+            df_temp = filter([:axis, :mu] => f3, df)
 
             # move on if no data for mu + axis pair
             if isempty(df_temp)
@@ -82,11 +78,9 @@ function SolarData(df::DataFrame; λrest::Float64=NaN,
 
             # assign key-value pairs to dictionary
             if relative
-                relwav = relative_bisector_wavelengths(wavall, λrest)
-                wavdict[(Symbol(ax), Symbol(mu))] = relwav
-            else
-                wavdict[(Symbol(ax), Symbol(mu))] = wavall
+                relative_bisector_wavelengths(wavall, λrest)
             end
+            wavdict[(Symbol(ax), Symbol(mu))] = wavall
             bisdict[(Symbol(ax), Symbol(mu))] = bisall
 
             # assign width
@@ -131,7 +125,14 @@ function clean_input(wavall::AA{T,2}, bisall::AA{T,2}, depall::AA{T,2}, widall::
 
     # find spread of data
     wav_std = std(wavall, dims=2)
-    wid_std = std(wavall, dims=2)
+    wid_std = std(widall, dims=2)
+
+    # find mean of data
+    wav_avg = mean(wavall, dims=2)
+    wid_avg = mean(widall, dims=2)
+
+    wav_med = median(wavall, dims=2)
+    wid_med = median(widall, dims=2)
 
     # loop through checking for bad columns
     for i in 1:size(wavall,2)
@@ -152,7 +153,9 @@ function clean_input(wavall::AA{T,2}, bisall::AA{T,2}, depall::AA{T,2}, widall::
         end
 
         # remove data that is significant outlier (bisector)
-        if any(abs.(wavall[5:50,1] - wavall[5:50,i]) .> (4.0 .* wav_std[5:50]))
+        wav_cond = any(abs.(wav_med[5:50] .- wavall[5:50,i]) .> (4.0 .* wav_std[5:50]))
+        wid_cond = any(abs.(wid_med .- widall[:,i]) .> (4.0 .* wid_std))
+        if wav_cond || wid_cond
             badcols[i] = true
         end
     end
@@ -180,11 +183,9 @@ function extrapolate_bisector(wavall::AA{T,2}, bisall::AA{T,2}; top::T=0.8) wher
 end
 
 function relative_bisector_wavelengths(wav::AA{T,2}, λrest::T) where T<:AF
-    # allocate array of size(wav)
-    relwav = similar(wav)
+    λgrav = (635.0/c_ms) * λrest
     for i in 1:size(wav,2)
-        λgrav = (635.0/c_ms) * λrest
-        relwav[:,i] = wav[:,i] .- λrest .- λgrav
+        wav[:,i] .-= (λrest .+ λgrav)
     end
-    return relwav
+    return nothing
 end
