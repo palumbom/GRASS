@@ -83,7 +83,7 @@ Calculate apparent radial velocity from a CCF and velocity grid.
 - `ccf::AbstractArray{Float64,1}`: CCF values returned by calc_ccf.
 """
 function calc_rvs_from_ccf(v_grid::AA{Float64,1}, ccf::AA{Float64,1};
-                           frac_of_width_to_fit::Float64=0.65,
+                           frac_of_width_to_fit::Float64=0.8,
                            fit_type::Type{T}=GaussianFit) where {T<:FitType}
     mrv = T(frac_of_width_to_fit=frac_of_width_to_fit)
     return mrv(v_grid, ccf)
