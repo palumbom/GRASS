@@ -4,9 +4,11 @@
     @test isdefined(GRASS, :SpecParams)
     @test isdefined(GRASS, :DiskParams)
     @test isdefined(GRASS, :SolarData)
+    @test isdefined(GRASS, :InputData)
 end
 
 @testset "Testing data read-in" begin
+    # default read-in for 5434.5 line
     soldat = GRASS.SolarData()
     @test !isempty(soldat.wav)
     @test !isempty(soldat.bis)

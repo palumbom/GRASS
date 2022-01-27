@@ -104,7 +104,6 @@ function mu_to_xy(mu::T, ax::Symbol) where T<:AF
     # get radial distance from disk center
     r = sqrt(one(T) - mu^2)
 
-
     if ax == :n
         return (0.0, r)
     elseif ax == :e
