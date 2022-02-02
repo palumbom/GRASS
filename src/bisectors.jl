@@ -239,66 +239,6 @@ function calc_width_function(wavs::AA{T,1}, flux::AA{T,1}; kwargs...) where T<:R
     f = (x, y) -> (y - x)
     wid, dep = calc_line_quantity(wavs, flux, f=f; kwargs...)
     return dep, wid
-
-    """
-    # TODO smooth until derivative shows function is monotonic
-    # perform moving average smoothing
-    n = 2
-    flux = moving_average(flux, n)
-    wavs = moving_average(wavs, n)
-
-    # get min and max flux, depth of line
-    min_flux_idx = argmin(flux)
-    min_flux = minimum(flux)
-    max_flux = continuum
-    depth = 1.0 - min_flux/max_flux # TODO check
-
-    # get views on either side of line
-    lflux = view(flux, min_flux_idx:-1:1)
-    rflux = view(flux, min_flux_idx:length(flux))
-    lwavs = view(wavs, min_flux_idx:-1:1)
-    rwavs = view(wavs, min_flux_idx:length(wavs))
-
-    # range of fluxes to measure bisector at
-    wid_flux = range(minimum(flux), maximum(flux), length=nflux)
-
-    # allocate memory for wavelength values
-    wid_wavs = similar(wid_flux)
-
-    # loop over flux values and measure bisector
-    for i in eachindex(wid_flux)
-        lidx = searchsortedfirst(lflux, wid_flux[i])
-        ridx = searchsortedfirst(rflux, wid_flux[i])
-        if (lidx > length(wid_flux)) || (ridx > length(wid_flux))
-            wid_wavs[i:end] .= NaN
-            break
-        else
-            # adjust indices to account for views
-            wav_lidx = min_flux_idx - lidx
-            wav_ridx = min_flux_idx + ridx
-
-            # interpolate on left
-            if lflux[lidx] != wid_flux[i]
-                w2 = (wid_flux[i] - lflux[lidx-1]) / (lflux[lidx] - lflux[lidx-1])
-                w1 = 1.0 - w2
-                lwav = lwavs[lidx-1] * w1 + lwavs[lidx] * w2
-            else
-                lwav = lwavs[ridx]
-            end
-
-            # interpolate on right
-            if rflux[ridx] != wid_flux[i]
-                w2 = (wid_flux[i] - rflux[ridx-1]) / (rflux[ridx] - rflux[ridx-1])
-                w1 = 1.0 - w2
-                rwav = rwavs[ridx-1] * w1 + rwavs[ridx] * w2
-            else
-                rwav = rwavs[ridx]
-            end
-            wid_wavs[i] = rwav - lwav
-        end
-    end
-    return wid_flux, wid_wavs
-    """
 end
 
 function calc_width_function(wavs::AA{T,2}, flux::AA{T,2}; kwargs...) where T<:Real
@@ -316,64 +256,6 @@ function calc_bisector(wavs::AA{T,1}, flux::AA{T,1}; kwargs...) where T<:Real
     f = (x, y) -> (y + x) / 2.0
     wav, bis = calc_line_quantity(wavs, flux, f=f; kwargs...)
     return wav, bis
-
-    """
-    # TODO smooth until derivative shows function is monotonic
-    # perform moving average smoothing
-    n = 2
-    flux = moving_average(flux, n)
-    wavs = moving_average(wavs, n)
-
-    # get min and max flux, depth of line
-    min_flux_idx = argmin(flux)
-    min_flux = minimum(flux)
-    max_flux = continuum
-    depth = 1.0 - min_flux/max_flux # TODO check
-
-    # get views on either side of line
-    lflux = view(flux, min_flux_idx:-1:1)
-    rflux = view(flux, min_flux_idx:length(flux))
-    lwavs = view(wavs, min_flux_idx:-1:1)
-    rwavs = view(wavs, min_flux_idx:length(wavs))
-
-    # range of fluxes to measure bisector at
-    bis_wavs = zeros(nflux)
-    bis_flux = range(minimum(flux), maximum(flux), length=nflux)
-
-    # loop over flux values and measure bisector
-    for i in eachindex(bis_flux)
-        lidx = searchsortedfirst(lflux, bis_flux[i])
-        ridx = searchsortedfirst(rflux, bis_flux[i])
-        if (lidx > length(bis_flux)) || (ridx > length(bis_flux))
-            bis_wavs[i:end] .= NaN
-            break
-        else
-            # adjust indices to account for views
-            wav_lidx = min_flux_idx - lidx
-            wav_ridx = min_flux_idx + ridx
-
-            # interpolate on left
-            if lflux[lidx] != bis_flux[i]
-                w2 = (bis_flux[i] - lflux[lidx-1]) / (lflux[lidx] - lflux[lidx-1])
-                w1 = 1.0 - w2
-                lwav = lwavs[lidx-1] * w1 + lwavs[lidx] * w2
-            else
-                lwav = lwavs[ridx]
-            end
-
-            # interpolate on right
-            if rflux[ridx] != bis_flux[i]
-                w2 = (bis_flux[i] - rflux[ridx-1]) / (rflux[ridx] - rflux[ridx-1])
-                w1 = 1.0 - w2
-                rwav = rwavs[ridx-1] * w1 + rwavs[ridx] * w2
-            else
-                rwav = rwavs[ridx]
-            end
-            bis_wavs[i] = (rwav + lwav) ./ 2.0
-        end
-    end
-    return bis_wavs, bis_flux
-    """
 end
 
 
