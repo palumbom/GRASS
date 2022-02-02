@@ -60,3 +60,13 @@ function findnearest(A::AA{T,1}, t) where T<:Real
 end
 
 unzip(A) = (getfield.(A,x) for x in fieldnames(eltype(A)))
+
+function moving_average(a, n)
+    # allocate memory
+    out = zeros(length(a) - 2n)
+    for i in eachindex(out)
+        window = view(a, i:(i+n))
+        out[i] = sum(window) / length(window)
+    end
+    return out
+end

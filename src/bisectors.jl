@@ -169,12 +169,83 @@ function bisector_uncertainty(wav::AA{T,1}, bis::AA{T,1}) where T<:AF
     return one(T)/sqrt(2.0) .* dF ./ abs.(dF ./ dv)
 end
 
+function calc_line_quantity(wavs::AA{T,1}, flux::AA{T,1}; continuum::T=1.0,
+                            n::Int=1, nflux::Int=length(flux), f::Function) where T<:Real
+    # check lengths
+    @assert n >= 0
+    @assert length(wavs) == length(flux)
 
-# TODO preliminary
-# compute a GP//smoothing to the data, then do interpolation on smooth data?
-function calc_bisector(wavs::AbstractArray{T,1}, flux::AbstractArray{T,1}; continuum::T=1.0) where T<:Real
+    # TODO smooth until derivative shows function is monotonic
+    # perform moving average smoothing
+    flux = moving_average(flux, n)
+    wavs = moving_average(wavs, n)
+
+    # get min and max flux, depth of line
+    min_flux_idx = argmin(flux)
+    min_flux = minimum(flux)
+    max_flux = continuum
+    depth = 1.0 - min_flux/max_flux # TODO check
+
+    # get views on either side of line
+    lflux = view(flux, min_flux_idx:-1:1)
+    rflux = view(flux, min_flux_idx:length(flux))
+    lwavs = view(wavs, min_flux_idx:-1:1)
+    rwavs = view(wavs, min_flux_idx:length(wavs))
+
+    # allocate memory
+    x_out = zeros(nflux)
+    y_out = range(minimum(flux), maximum(flux), length=nflux)
+
+    # loop over flux values and measure bisector
+    for i in eachindex(y_out)
+        lidx = searchsortedfirst(lflux, y_out[i])
+        ridx = searchsortedfirst(rflux, y_out[i])
+        if (lidx > length(y_out)) || (ridx > length(y_out))
+            x_out[i:end] .= NaN
+            break
+        else
+            # adjust indices to account for views
+            wav_lidx = min_flux_idx - lidx
+            wav_ridx = min_flux_idx + ridx
+
+            # interpolate on left
+            if lflux[lidx] != y_out[i]
+                w2 = (y_out[i] - lflux[lidx-1]) / (lflux[lidx] - lflux[lidx-1])
+                w1 = 1.0 - w2
+                lwav = lwavs[lidx-1] * w1 + lwavs[lidx] * w2
+            else
+                lwav = lwavs[ridx]
+            end
+
+            # interpolate on right
+            if rflux[ridx] != y_out[i]
+                w2 = (y_out[i] - rflux[ridx-1]) / (rflux[ridx] - rflux[ridx-1])
+                w1 = 1.0 - w2
+                rwav = rwavs[ridx-1] * w1 + rwavs[ridx] * w2
+            else
+                rwav = rwavs[ridx]
+            end
+            x_out[i] = f(lwav, rwav)
+        end
+    end
+    return x_out, y_out
+end
+
+function calc_width_function(wavs::AA{T,1}, flux::AA{T,1}; kwargs...) where T<:Real
     # check lengths
     @assert length(wavs) == length(flux)
+
+    # define the function to calculate widths
+    f = (x, y) -> (y - x)
+    wid, dep = calc_line_quantity(wavs, flux, f=f; kwargs...)
+    return dep, wid
+
+    """
+    # TODO smooth until derivative shows function is monotonic
+    # perform moving average smoothing
+    n = 2
+    flux = moving_average(flux, n)
+    wavs = moving_average(wavs, n)
 
     # get min and max flux, depth of line
     min_flux_idx = argmin(flux)
@@ -189,10 +260,85 @@ function calc_bisector(wavs::AbstractArray{T,1}, flux::AbstractArray{T,1}; conti
     rwavs = view(wavs, min_flux_idx:length(wavs))
 
     # range of fluxes to measure bisector at
-    bis_flux = range(minimum(flux), maximum(flux), length=100)
+    wid_flux = range(minimum(flux), maximum(flux), length=nflux)
 
     # allocate memory for wavelength values
-    bis_wavs = similar(bis_flux)
+    wid_wavs = similar(wid_flux)
+
+    # loop over flux values and measure bisector
+    for i in eachindex(wid_flux)
+        lidx = searchsortedfirst(lflux, wid_flux[i])
+        ridx = searchsortedfirst(rflux, wid_flux[i])
+        if (lidx > length(wid_flux)) || (ridx > length(wid_flux))
+            wid_wavs[i:end] .= NaN
+            break
+        else
+            # adjust indices to account for views
+            wav_lidx = min_flux_idx - lidx
+            wav_ridx = min_flux_idx + ridx
+
+            # interpolate on left
+            if lflux[lidx] != wid_flux[i]
+                w2 = (wid_flux[i] - lflux[lidx-1]) / (lflux[lidx] - lflux[lidx-1])
+                w1 = 1.0 - w2
+                lwav = lwavs[lidx-1] * w1 + lwavs[lidx] * w2
+            else
+                lwav = lwavs[ridx]
+            end
+
+            # interpolate on right
+            if rflux[ridx] != wid_flux[i]
+                w2 = (wid_flux[i] - rflux[ridx-1]) / (rflux[ridx] - rflux[ridx-1])
+                w1 = 1.0 - w2
+                rwav = rwavs[ridx-1] * w1 + rwavs[ridx] * w2
+            else
+                rwav = rwavs[ridx]
+            end
+            wid_wavs[i] = rwav - lwav
+        end
+    end
+    return wid_flux, wid_wavs
+    """
+end
+
+function calc_width_function(wavs::AA{T,2}, flux::AA{T,2}; kwargs...) where T<:Real
+    f = (x,y) -> calc_width_function(x, y; kwargs...)
+    out = map(f, eachcol(wavs), eachcol(flux))
+    return cat([x[1] for x in out]..., dims=2), cat([x[2] for x in out]..., dims=2)
+end
+
+
+function calc_bisector(wavs::AA{T,1}, flux::AA{T,1}; kwargs...) where T<:Real
+    # check lengths
+    @assert length(wavs) == length(flux)
+
+    # define the function to calculate widths
+    f = (x, y) -> (y + x) / 2.0
+    wav, bis = calc_line_quantity(wavs, flux, f=f; kwargs...)
+    return wav, bis
+
+    """
+    # TODO smooth until derivative shows function is monotonic
+    # perform moving average smoothing
+    n = 2
+    flux = moving_average(flux, n)
+    wavs = moving_average(wavs, n)
+
+    # get min and max flux, depth of line
+    min_flux_idx = argmin(flux)
+    min_flux = minimum(flux)
+    max_flux = continuum
+    depth = 1.0 - min_flux/max_flux # TODO check
+
+    # get views on either side of line
+    lflux = view(flux, min_flux_idx:-1:1)
+    rflux = view(flux, min_flux_idx:length(flux))
+    lwavs = view(wavs, min_flux_idx:-1:1)
+    rwavs = view(wavs, min_flux_idx:length(wavs))
+
+    # range of fluxes to measure bisector at
+    bis_wavs = zeros(nflux)
+    bis_flux = range(minimum(flux), maximum(flux), length=nflux)
 
     # loop over flux values and measure bisector
     for i in eachindex(bis_flux)
@@ -223,10 +369,16 @@ function calc_bisector(wavs::AbstractArray{T,1}, flux::AbstractArray{T,1}; conti
             else
                 rwav = rwavs[ridx]
             end
-
-            # bis_wavs[i] = (wavs[ridx] + wavs[lidx]) ./ 2.0
             bis_wavs[i] = (rwav + lwav) ./ 2.0
         end
     end
     return bis_wavs, bis_flux
+    """
+end
+
+
+function calc_bisector(wavs::AA{T,2}, flux::AA{T,2}; kwargs...) where T<:Real
+    f = (x,y) -> calc_bisector(x, y; kwargs...)
+    out = map(f, eachcol(wavs), eachcol(flux))
+    return cat([x[1] for x in out]..., dims=2), cat([x[2] for x in out]..., dims=2)
 end
