@@ -3,6 +3,7 @@ function calculate_bisector_span(λrest::T, wav::AA{T,1}) where T<:AF
     return abs(minw - wav[1])/wav[1] * (c /100.0)
 end
 
+
 function calculate_bisector_span(λrest::T, wav::AA{T,2}) where T<:AF
     out = zeros(size(wav,2))
     for i in eachindex(out)
@@ -10,6 +11,7 @@ function calculate_bisector_span(λrest::T, wav::AA{T,2}) where T<:AF
     end
     return out
 end
+
 
 function calculate_bisector_extreme(λrest::T, wav::AA{T,2}, bis::AA{T,2}) where T<:AF
     out = zeros(size(wav,2))
@@ -19,12 +21,14 @@ function calculate_bisector_extreme(λrest::T, wav::AA{T,2}, bis::AA{T,2}) where
     return out
 end
 
+
 function calculate_bisector_extreme(λrest::T, wav::AA{T,1}, bis::AA{T,1}) where T<:AF
     ind1 = searchsortednearest(wav, 0.4)
     ind2 = searchsortednearest(wav, 0.8)
     wpos = mean(wav[ind1:ind2])
     return (λrest - wpos)/λrest * c/100.0
 end
+
 
 function calculate_bisector_lslope(λrest::T, wav::AA{T,1}, bis::AA{T,1}) where T<:AF
     dλ = (minimum(wav[.!isnan.(wav)]) - wav[1])/λrest * c/100.0
@@ -34,6 +38,7 @@ function calculate_bisector_lslope(λrest::T, wav::AA{T,1}, bis::AA{T,1}) where 
     return dF/dλ
 end
 
+
 function calculate_bisector_lslope(λrest::T, wav::AA{T,2}, bis::AA{T,2}) where T<:AF
     out = zeros(size(wav,2))
     for i in eachindex(out)
@@ -41,6 +46,7 @@ function calculate_bisector_lslope(λrest::T, wav::AA{T,2}, bis::AA{T,2}) where 
     end
     return out
 end
+
 
 function measure_bisector(xs::AA{T,1}, ys::AA{T,1}; interpolate::Bool=true,
                           top::T=0.99, len::Integer=100) where T<:AF
@@ -50,6 +56,7 @@ function measure_bisector(xs::AA{T,1}, ys::AA{T,1}; interpolate::Bool=true,
         return measure_bisector_loop(xs, ys, top=top, len=len)
     end
 end
+
 
 function measure_bisector_interpolate(xs::AA{T,1}, ys::AA{T,1}; top::T=0.99,
                                       len::Integer=100, max_loop::Int=20) where T<:AF
@@ -111,6 +118,7 @@ function measure_bisector_interpolate(xs::AA{T,1}, ys::AA{T,1}; top::T=0.99,
     return wavs, depths
 end
 
+
 function measure_bisector_loop(xs::AA{T,1}, ys::AA{T,1}; top::T=0.99,
                                len::Integer=100) where T<:AF
     # normalize the spec, find bottom of line
@@ -163,11 +171,13 @@ function measure_bisector_loop(xs::AA{T,1}, ys::AA{T,1}; top::T=0.99,
     return wav, one(T) .- dep
 end
 
+
 function bisector_uncertainty(wav::AA{T,1}, bis::AA{T,1}) where T<:AF
     dF = diff(bis)
     dv = diff(wav)
     return one(T)/sqrt(2.0) .* dF ./ abs.(dF ./ dv)
 end
+
 
 function calc_line_quantity(wavs::AA{T,1}, flux::AA{T,1}; continuum::T=1.0,
                             n::Int=1, nflux::Int=length(flux), f::Function) where T<:Real
@@ -196,7 +206,7 @@ function calc_line_quantity(wavs::AA{T,1}, flux::AA{T,1}; continuum::T=1.0,
     x_out = zeros(nflux)
     y_out = range(minimum(flux), maximum(flux), length=nflux)
 
-    # loop over flux values and measure bisector
+    # loop over flux values and measure quantity defined by f function
     for i in eachindex(y_out)
         lidx = searchsortedfirst(lflux, y_out[i])
         ridx = searchsortedfirst(rflux, y_out[i])
@@ -231,6 +241,7 @@ function calc_line_quantity(wavs::AA{T,1}, flux::AA{T,1}; continuum::T=1.0,
     return x_out, y_out
 end
 
+
 function calc_width_function(wavs::AA{T,1}, flux::AA{T,1}; kwargs...) where T<:Real
     # check lengths
     @assert length(wavs) == length(flux)
@@ -240,6 +251,7 @@ function calc_width_function(wavs::AA{T,1}, flux::AA{T,1}; kwargs...) where T<:R
     wid, dep = calc_line_quantity(wavs, flux, f=f; kwargs...)
     return dep, wid
 end
+
 
 function calc_width_function(wavs::AA{T,2}, flux::AA{T,2}; kwargs...) where T<:Real
     f = (x,y) -> calc_width_function(x, y; kwargs...)
