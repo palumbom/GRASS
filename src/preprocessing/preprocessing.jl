@@ -20,7 +20,7 @@ function fit_line_wings(wavs, spec; center=NaN, side="left")
     return wavs, fit_voigt(wavs, fit.param)
 end
 
-function isolate_line(wavs::AA{T,1}, spec::AA{T,1}; center::T=NaN) where T<:Float64
+function clean_line(wavs::AA{T,1}, spec::AA{T,1}; center::T=NaN) where T<:Float64
     # check that the length of arrays match
     @assert !isnan(center)
     @assert length(wavs) == length(spec)
@@ -50,8 +50,8 @@ function isolate_line(wavs::AA{T,1}, spec::AA{T,1}; center::T=NaN) where T<:Floa
     rwavind = searchsortednearest(wavs, rwingλ)
 
     # take view of spectrum isolated on line
-    newwavs = wavs[lwavind:rwavind]
-    newspec = spec[lwavind:rwavind]
+    newwavs = view(wavs, lwavind:rwavind)
+    newspec = view(spec, lwavind:rwavind)
     newspec ./= maximum(newspec)
 
     # find the wings
@@ -75,26 +75,14 @@ function isolate_line(wavs::AA{T,1}, spec::AA{T,1}; center::T=NaN) where T<:Floa
     vals = slope .* (newwavs .- newwavs[1]) .+ newspec[1]
     newspec ./= vals
 
-    # now that it's cleanly isolated, trim off wings
-    botind = argmin(newspec)
-    maxflux = 0.999
-    lind = findfirst(x -> x .<= maxflux, newspec[1:botind])
-    rind = findfirst(x -> x .>= maxflux, newspec[botind:end]) + botind
-
-    # plt.plot(newwavs, newspec)
-    # plt.axvline(newwavs[botind])
-    # plt.plot(newwavs[lind:rind], newspec[lind:rind])
-    # plt.show()
-
-    # spec ./= maximum(spec[lwavind:rwavind])
-    # plt.plot(wavs[lwavind:rwavind], spec[lwavind:rwavind])
-    # plt.plot(newwavs, newspec)
-    # plt.show()
-    return newwavs, newspec
+    # now just set rest of spectrum to 1
+    spec[1:lwavind] .= 1.0
+    spec[rwavind:end] .= 1.0
+    return wavs, spec
 end
 
-function isolate_line(wavs::AA{T,2}, spec::AA{T,2}; kwargs...) where T<:Float64
-    f = (x,y) -> isolate_line(x, y; kwargs...)
+function clean_line(wavs::AA{T,2}, spec::AA{T,2}; kwargs...) where T<:Float64
+    f = (x,y) -> clean_line(x, y; kwargs...)
     out = map(f, eachcol(wavs), eachcol(spec))
     return cat([x[1] for x in out]..., dims=2), cat([x[2] for x in out]..., dims=2)
 end
