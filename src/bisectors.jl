@@ -180,7 +180,7 @@ end
 
 
 function calc_line_quantity(wavs::AA{T,1}, flux::AA{T,1}; continuum::T=1.0,
-                            n::Int=1, nflux::Int=length(flux), f::Function) where T<:Real
+                            n::Int=2, nflux::Int=length(flux), f::Function) where T<:Real
     # check lengths
     @assert n >= 0
     @assert length(wavs) == length(flux)
