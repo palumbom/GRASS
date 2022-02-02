@@ -7,20 +7,20 @@ function fit_line_wings(wavs, spec; center=NaN, side="left")
     # cut out the middle
     botind = argmin(spec)
     if side == "left"
-        wavs_fit = wavs[25:botind-15]
-        spec_fit = spec[25:botind-15]
+        wavs_fit = wavs[15:botind-15]
+        spec_fit = spec[15:botind-15]
     elseif side == "right"
-        wavs_fit = wavs[botind+15:end-25]
-        spec_fit = spec[botind+15:end-25]
+        wavs_fit = wavs[botind+15:end-15]
+        spec_fit = spec[botind+15:end-15]
     end
 
     # perform the fit
     p0 = [-0.125, center, 0.03, 0.03, 1.0]
     fit = curve_fit(fit_voigt, wavs_fit, spec_fit, p0)
-    return wavs, fit_voigt(wavs, fit.param)
+    return fit_voigt(wavs, fit.param)
 end
 
-function clean_line(wavs::AA{T,1}, spec::AA{T,1}; center::T=NaN) where T<:Float64
+function clean_line(wavs::AA{T,1}, spec::AA{T,1}; center::T=NaN, plot=false) where T<:Float64
     # check that the length of arrays match
     @assert !isnan(center)
     @assert length(wavs) == length(spec)
@@ -41,7 +41,7 @@ function clean_line(wavs::AA{T,1}, spec::AA{T,1}; center::T=NaN) where T<:Float6
     center = wavs[center_idx]
 
     # get better wing estimate
-    buffer = 0.75
+    buffer = 1.25
     lwingλ = center - buffer
     rwingλ = center + buffer
 
@@ -49,25 +49,36 @@ function clean_line(wavs::AA{T,1}, spec::AA{T,1}; center::T=NaN) where T<:Float6
     lwavind = searchsortednearest(wavs, lwingλ)
     rwavind = searchsortednearest(wavs, rwingλ)
 
+    # check the inds
+    if isnothing(lwavind)
+        lwavind = 1
+    end
+
+    if isnothing(rwavind)
+        rwavind = length(wavs)
+    end
+
+    if plot; plt.plot(wavs, spec./maximum(spec[lwavind:rwavind])); end
+
     # take view of spectrum isolated on line
     newwavs = view(wavs, lwavind:rwavind)
     newspec = view(spec, lwavind:rwavind)
     newspec ./= maximum(newspec)
 
     # find the wings
-    topint = 0.93
+    topint = 0.9
     botind = argmin(newspec)
     ind1 = findfirst(x -> x .<= topint, newspec[1:botind])
     ind2 = findfirst(x -> x .>= topint, newspec[botind:end]) + botind
 
     # get model for line wings
-    lwing_wavs, lwing_flux = fit_line_wings(newwavs, newspec, center=center, side="left")
-    rwing_wavs, rwing_flux = fit_line_wings(newwavs, newspec, center=center, side="right")
+    lwing_flux = fit_line_wings(newwavs, newspec, center=center, side="left")
+    rwing_flux = fit_line_wings(newwavs, newspec, center=center, side="right")
 
     # replace data wings with model wings
-    newwavs[1:ind1] .= lwing_wavs[1:ind1]
+    # newwavs[1:ind1] .= lwing_wavs[1:ind1]
     newspec[1:ind1] .= lwing_flux[1:ind1]
-    newwavs[ind2:end] .= rwing_wavs[ind2:end]
+    # newwavs[ind2:end] .= rwing_wavs[ind2:end]
     newspec[ind2:end] .= rwing_flux[ind2:end]
 
     # divide out slope of spectrum across line to ensure normalization
@@ -78,6 +89,7 @@ function clean_line(wavs::AA{T,1}, spec::AA{T,1}; center::T=NaN) where T<:Float6
     # now just set rest of spectrum to 1
     spec[1:lwavind] .= 1.0
     spec[rwavind:end] .= 1.0
+    if plot; plt.plot(wavs, spec); plt.show(); end;
     return wavs, spec
 end
 
