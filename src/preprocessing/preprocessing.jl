@@ -75,10 +75,15 @@ function clean_line(wavs::AA{T,1}, spec::AA{T,1}; center::T=NaN, plot=false) whe
     lwing_flux = fit_line_wings(newwavs, newspec, center=center, side="left")
     rwing_flux = fit_line_wings(newwavs, newspec, center=center, side="right")
 
+    # abort if indices are weird
+    if isnothing(ind1) || isnothing(ind2)
+        wavs .= NaN
+        spec .= NaN
+        return wavs, spec
+    end
+
     # replace data wings with model wings
-    # newwavs[1:ind1] .= lwing_wavs[1:ind1]
     newspec[1:ind1] .= lwing_flux[1:ind1]
-    # newwavs[ind2:end] .= rwing_wavs[ind2:end]
     newspec[ind2:end] .= rwing_flux[ind2:end]
 
     # divide out slope of spectrum across line to ensure normalization
