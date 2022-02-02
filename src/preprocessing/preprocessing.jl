@@ -7,11 +7,11 @@ function fit_line_wings(wavs, spec; center=NaN, side="left")
     # cut out the middle
     botind = argmin(spec)
     if side == "left"
-        wavs_fit = wavs[15:botind-15]
-        spec_fit = spec[15:botind-15]
+        wavs_fit = wavs[25:botind-15]
+        spec_fit = spec[25:botind-15]
     elseif side == "right"
-        wavs_fit = wavs[botind+10:end-15]
-        spec_fit = spec[botind+10:end-15]
+        wavs_fit = wavs[botind+15:end-25]
+        spec_fit = spec[botind+15:end-25]
     end
 
     # perform the fit
@@ -41,13 +41,15 @@ function isolate_line(wavs::AA{T,1}, spec::AA{T,1}; center::T=NaN) where T<:Floa
     center = wavs[center_idx]
 
     # get better wing estimate
-    buffer = 0.4
+    buffer = 0.75
     lwingλ = center - buffer
     rwingλ = center + buffer
 
-    # hard-coded indices to narrow region of interest
+    # indices to narrow region of interest
     lwavind = searchsortednearest(wavs, lwingλ)
     rwavind = searchsortednearest(wavs, rwingλ)
+
+    # take view of spectrum isolated on line
     newwavs = wavs[lwavind:rwavind]
     newspec = spec[lwavind:rwavind]
     newspec ./= maximum(newspec)
@@ -72,6 +74,22 @@ function isolate_line(wavs::AA{T,1}, spec::AA{T,1}; center::T=NaN) where T<:Floa
     slope = (newspec[end] - newspec[1]) / (newwavs[end] - newwavs[1])
     vals = slope .* (newwavs .- newwavs[1]) .+ newspec[1]
     newspec ./= vals
+
+    # now that it's cleanly isolated, trim off wings
+    botind = argmin(newspec)
+    maxflux = 0.999
+    lind = findfirst(x -> x .<= maxflux, newspec[1:botind])
+    rind = findfirst(x -> x .>= maxflux, newspec[botind:end]) + botind
+
+    # plt.plot(newwavs, newspec)
+    # plt.axvline(newwavs[botind])
+    # plt.plot(newwavs[lind:rind], newspec[lind:rind])
+    # plt.show()
+
+    # spec ./= maximum(spec[lwavind:rwavind])
+    # plt.plot(wavs[lwavind:rwavind], spec[lwavind:rwavind])
+    # plt.plot(newwavs, newspec)
+    # plt.show()
     return newwavs, newspec
 end
 
