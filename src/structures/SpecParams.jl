@@ -75,7 +75,7 @@ function SpecParams(;lines=[], depths=[], geffs=[], variability=[],
 
     # loop over lines and do 2D nearest neighbor
     for i in eachindex(lines)
-        param_dist = (geff_input .- geffs[i]).^2 + (depth_input .- depths[i]).^2
+        param_dist = sqrt.((geff_input .- geffs[i]).^2 + (depth_input .- depths[i]).^2)
         idx = argmin(param_dist)
         data_inds[i] = idx
     end

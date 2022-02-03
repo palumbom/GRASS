@@ -19,6 +19,7 @@ using SharedArrays
 using Interpolations
 import Glob.glob
 import Dates.DateTime
+import Polynomials: fit as pfit
 
 # abbreviations for commonly used types
 import Base: AbstractArray as AA
