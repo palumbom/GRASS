@@ -71,16 +71,16 @@ function clean_line(wavs::AA{T,1}, spec::AA{T,1}; center::T=NaN, plot=false) whe
     ind1 = findfirst(x -> x .<= topint, newspec[1:botind])
     ind2 = findfirst(x -> x .>= topint, newspec[botind:end]) + botind
 
-    # get model for line wings
-    lwing_flux = fit_line_wings(newwavs, newspec, center=center, side="left")
-    rwing_flux = fit_line_wings(newwavs, newspec, center=center, side="right")
-
     # abort if indices are weird
     if isnothing(ind1) || isnothing(ind2)
         wavs .= NaN
         spec .= NaN
         return wavs, spec
     end
+
+    # get model for line wings
+    lwing_flux = fit_line_wings(newwavs, newspec, center=center, side="left")
+    rwing_flux = fit_line_wings(newwavs, newspec, center=center, side="right")
 
     # replace data wings with model wings
     newspec[1:ind1] .= lwing_flux[1:ind1]
@@ -90,6 +90,9 @@ function clean_line(wavs::AA{T,1}, spec::AA{T,1}; center::T=NaN, plot=false) whe
     slope = (newspec[end] - newspec[1]) / (newwavs[end] - newwavs[1])
     vals = slope .* (newwavs .- newwavs[1]) .+ newspec[1]
     newspec ./= vals
+
+    # normalize it one last time
+    newspec ./= maximum(newspec)
 
     # now just set rest of spectrum to 1
     spec[1:lwavind] .= 1.0

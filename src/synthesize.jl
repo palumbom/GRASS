@@ -1,3 +1,5 @@
+import PyPlot; plt = PyPlot; mpl = plt.matplotlib; plt.ioff()
+
 # function to calc intensity at given x,y coord.
 function line_profile_cpu!(mid::T, lambdas::AA{T,1}, prof::AA{T,1}, wsp::SynthWorkspace{T}) where T<:AF
     # synthesize the line profile given bisector and width input data
@@ -22,8 +24,11 @@ function line_profile_cpu!(mid::T, lambdas::AA{T,1}, prof::AA{T,1},
     allwavs[1:len] .= view(lwavgrid, itr)
     allints[1:len] .= view(depm, itr)
 
+    # plt.plot(allwavs, allints)
+
     # interpolate onto original lambda grid, extrapolate to continuum
     itp1 = linear_interp(allwavs, allints, bc=one(T))
     prof .*= itp1.(lambdas)
+    # plt.plot(lambdas, prof); plt.show()
     return nothing
 end

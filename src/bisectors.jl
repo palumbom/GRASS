@@ -180,7 +180,8 @@ end
 
 
 function calc_line_quantity(wavs::AA{T,1}, flux::AA{T,1}; continuum::T=1.0,
-                            n::Int=2, nflux::Int=length(flux), f::Function) where T<:Real
+                            n::Int=2, top::T=maximum(flux),
+                            nflux::Int=length(flux), f::Function) where T<:Real
     # check lengths
     @assert n >= 0
     @assert length(wavs) == length(flux)
@@ -204,39 +205,37 @@ function calc_line_quantity(wavs::AA{T,1}, flux::AA{T,1}; continuum::T=1.0,
 
     # allocate memory
     x_out = zeros(nflux)
-    y_out = range(minimum(flux), maximum(flux), length=nflux)
+    y_out = range(minimum(flux), top, length=nflux)
 
     # loop over flux values and measure quantity defined by f function
     for i in eachindex(y_out)
         lidx = searchsortedfirst(lflux, y_out[i])
         ridx = searchsortedfirst(rflux, y_out[i])
-        if (lidx > length(y_out)) || (ridx > length(y_out))
-            x_out[i:end] .= NaN
-            break
+
+        # adjust indices to account for views
+        wav_lidx = min_flux_idx - lidx
+        wav_ridx = min_flux_idx + ridx
+
+        # interpolate on left
+        if lflux[lidx] != y_out[i]
+            w2 = (y_out[i] - lflux[lidx-1]) / (lflux[lidx] - lflux[lidx-1])
+            w1 = 1.0 - w2
+            lwav = lwavs[lidx-1] * w1 + lwavs[lidx] * w2
         else
-            # adjust indices to account for views
-            wav_lidx = min_flux_idx - lidx
-            wav_ridx = min_flux_idx + ridx
-
-            # interpolate on left
-            if lflux[lidx] != y_out[i]
-                w2 = (y_out[i] - lflux[lidx-1]) / (lflux[lidx] - lflux[lidx-1])
-                w1 = 1.0 - w2
-                lwav = lwavs[lidx-1] * w1 + lwavs[lidx] * w2
-            else
-                lwav = lwavs[ridx]
-            end
-
-            # interpolate on right
-            if rflux[ridx] != y_out[i]
-                w2 = (y_out[i] - rflux[ridx-1]) / (rflux[ridx] - rflux[ridx-1])
-                w1 = 1.0 - w2
-                rwav = rwavs[ridx-1] * w1 + rwavs[ridx] * w2
-            else
-                rwav = rwavs[ridx]
-            end
-            x_out[i] = f(lwav, rwav)
+            lwav = lwavs[ridx]
         end
+
+        # interpolate on right
+        if rflux[ridx] != y_out[i]
+            w2 = (y_out[i] - rflux[ridx-1]) / (rflux[ridx] - rflux[ridx-1])
+            w1 = 1.0 - w2
+            rwav = rwavs[ridx-1] * w1 + rwavs[ridx] * w2
+        else
+            rwav = rwavs[ridx]
+        end
+
+        # calculate and assign quantity value
+        x_out[i] = f(lwav, rwav)
     end
     return x_out, y_out
 end
