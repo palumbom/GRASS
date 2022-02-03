@@ -1,5 +1,3 @@
-import PyPlot; plt = PyPlot; mpl = plt.matplotlib; plt.ioff()
-
 abstract type AbstractSolarData end
 struct SolarData{T1<:AF} <: AbstractSolarData
     wav::Dict{Tuple{Symbol,Symbol}, AbstractArray{T1,2}}
