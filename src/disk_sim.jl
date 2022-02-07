@@ -3,7 +3,7 @@ function line_loop_cpu(prof::AA{T,1}, mid::T, depth::T, z_rot::T,
                        conv_blueshift::T, lambdas::AA{T,1},
                        wsp::SynthWorkspace{T}; top::T=NaN) where T<:AF
     # first trim the bisectors to the correct depth
-    trim_bisector_chop!(depth, wsp.wavt, wsp.bist, wsp.dept, wsp.widt, top=top)
+    trim_bisector!(depth, wsp.wavt, wsp.bist, wsp.dept, wsp.widt, top=top)
 
     # calculate line center given rot. and conv. doppler shift -> λrest * (1 + z)
     λΔD = mid * (one(T) + z_rot) * (one(T) + conv_blueshift)

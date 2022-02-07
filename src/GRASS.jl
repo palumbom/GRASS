@@ -25,6 +25,9 @@ import Polynomials: fit as pfit
 import Base: AbstractArray as AA
 import Base: AbstractFloat as AF
 
+# plots
+import PyPlot; plt = PyPlot; mpl = plt.matplotlib; plt.ioff()
+
 # configure directories
 include("config.jl")
 

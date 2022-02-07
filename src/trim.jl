@@ -1,3 +1,14 @@
+function trim_bisector!(depth::T, wavt::AA{T,1}, bist::AA{T,1},
+                        dept::AA{T,1}, widt::AA{T,1}; top::T=NaN) where T<:AF
+    # choose method depending if synth line is deeper than input
+    if (one(T) - depth) > minimum(bist)
+        trim_bisector_chop!(depth, wavt, bist, dept, widt, top=top)
+    else
+        trim_bisector_scale!(depth, wavt, bist, dept, widt, top=top)
+    end
+    return nothing
+end
+
 function trim_bisector_chop!(depth::T, wavt::AA{T,1}, bist::AA{T,1},
                              dept::AA{T,1}, widt::AA{T,1};
                              top::T=NaN) where T<:AF
@@ -10,3 +21,13 @@ function trim_bisector_chop!(depth::T, wavt::AA{T,1}, bist::AA{T,1},
     bist .= dept
     return nothing
 end
+
+function trim_bisector_scale!(depth::T, wavt::AA{T,1}, bist::AA{T,1},
+                              dept::AA{T,1}, widt::AA{T,1};
+                              top::T=NaN) where T<:AF
+    # get new grid of depths, effectively scaling the width and bisector data
+    dept .= range((one(T) - depth), one(T), length=length(dept))
+    bist .= dept
+    return nothing
+end
+
