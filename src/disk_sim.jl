@@ -9,8 +9,17 @@ function line_loop_cpu(prof::AA{T,1}, mid::T, depth::T, z_rot::T,
     λΔD = mid * (one(T) + z_rot) * (one(T) + conv_blueshift)
 
     # find window around shifted line
-    lind = findfirst(x -> x > λΔD - 0.5, lambdas)
-    rind = findfirst(x -> x > λΔD + 0.5, lambdas)
+    lind = findfirst(x -> x > λΔD - 1.0, lambdas)
+    if isnothing(lind)
+        lind = firstindex(lambdas)
+    end
+
+    rind = findfirst(x -> x > λΔD + 1.0, lambdas)
+    if isnothing(rind)
+        rind = lastindex(lambdas)
+    end
+
+    # only compute flux values on window around the shifted line center
     lambda_window = view(lambdas, lind:rind)
     prof_window = view(prof, lind:rind)
 

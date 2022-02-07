@@ -75,7 +75,7 @@ function SolarData(df::DataFrame; λrest::Float64=NaN,
 
             # extrapolate over data where uncertainty explodes
             if extrapolate
-                if tryparse(Int64, mu[end-1:end]) <= 3
+                if tryparse(Int64, mu[end-1:end]) <= 6 # ie mu <= 0.5
                     top = 0.8
                 else
                     top = 0.9
@@ -154,7 +154,7 @@ function clean_input(wavall::AA{T,2}, bisall::AA{T,2}, depall::AA{T,2}, widall::
 
         # check for excessive NaNs
         idx = findfirst(x->isnan(x), wavt)
-        if bist[idx] < 0.85
+        if !isnothing(idx) && (bist[idx] < 0.85)
             badcols[i] = true
         end
 
@@ -197,6 +197,10 @@ function extrapolate_width(depall::AA{T,2}, widall::AA{T,2}) where T<:AF
         # take a slice for one time snapshot
         dept = view(depall, :, i)
         widt = view(widall, :, i)
+
+        if !isnan(lastindex(widt))
+            continue
+        end
 
         # mask nans
         dept_mask = dept[.!isnan.(widt)]

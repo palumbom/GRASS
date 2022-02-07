@@ -26,7 +26,7 @@ Construct a `SpecParams` composite type instance. If `variability` is not specif
 - `resolution::Float64=7e8`: Spectral resolution of spectrum
 """
 function SpecParams(;lines=[], depths=[], geffs=[], variability=[],
-                    resolution=7e5, buffer=0.75, kwargs...)
+                    resolution=7e5, buffer=1.0, kwargs...)
     @assert length(lines) == length(depths)
     @assert !isempty(lines)
     @assert !isempty(depths)
