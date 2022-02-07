@@ -103,7 +103,7 @@ function line_profile_gpu!(star_map, grid, lambdas, λΔDs, allwavs, allints)
 
             for k in idz:sdz:CUDA.length(lambdas)
                 # skip all this work if far from line core
-                if ((lambdas[k] < (λΔDs[i,j] - 0.5)) || (lambdas[k] > (λΔDs[i,j] + 0.5)))
+                if ((lambdas[k] < (λΔDs[i,j] - 1.0)) || (lambdas[k] > (λΔDs[i,j] + 1.0)))
                     continue
                 end
 
