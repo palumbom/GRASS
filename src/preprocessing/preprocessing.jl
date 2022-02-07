@@ -41,7 +41,7 @@ function clean_line(wavs::AA{T,1}, spec::AA{T,1}; center::T=NaN, plot=false) whe
     center = wavs[center_idx]
 
     # get better wing estimate
-    buffer = 1.25
+    buffer = 1.0
     lwingλ = center - buffer
     rwingλ = center + buffer
 
