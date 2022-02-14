@@ -57,8 +57,12 @@ function read_iag(; isolate=true)
     if isolate
         ind1 = findfirst(x -> x .> 5435.5, wavs)
         ind2 = findfirst(x -> x .> 5436.55, wavs)
+
+        plt.plot(view(wavs,ind1:ind2), view(iag.nflux, ind1:ind2));plt.show()
         return wavs[ind1:ind2], iag.nflux[ind1:ind2]
     end
+
+
     return wavs, iag.nflux[ind1:ind2]
 end
 

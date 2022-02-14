@@ -1,3 +1,4 @@
+using Peaks
 using LsqFit
 import PyPlot; plt = PyPlot; mpl = plt.matplotlib; plt.ioff()
 
@@ -39,6 +40,8 @@ function clean_line(wavs::AA{T,1}, spec::AA{T,1}; center::T=NaN, plot=false) whe
     end
     center_idx = argmin(view(spec, lwingλ_idx:rwingλ_idx)) + lwingλ_idx
     center = wavs[center_idx]
+
+    plt.plot(wavs, spec); plt.show()
 
     # get better wing estimate
     buffer = 1.0

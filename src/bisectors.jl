@@ -1,6 +1,6 @@
 function calculate_bisector_span(λrest::T, wav::AA{T,1}) where T<:AF
     minw = minimum(filter(!isnan, wav))
-    return abs(minw - wav[1])/wav[1] * (c /100.0)
+    return abs(minw - wav[5])/wav[5] * (c_ms)
 end
 
 
@@ -273,5 +273,11 @@ end
 function calc_bisector(wavs::AA{T,2}, flux::AA{T,2}; kwargs...) where T<:Real
     f = (x,y) -> calc_bisector(x, y; kwargs...)
     out = map(f, eachcol(wavs), eachcol(flux))
+    return cat([x[1] for x in out]..., dims=2), cat([x[2] for x in out]..., dims=2)
+end
+
+function calc_bisector(wavs::AA{T,1}, flux::AA{T,2}; kwargs...) where T<:Real
+    f = y -> calc_bisector(wavs, y; kwargs...)
+    out = map(f, eachcol(flux))
     return cat([x[1] for x in out]..., dims=2), cat([x[2] for x in out]..., dims=2)
 end
