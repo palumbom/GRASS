@@ -32,9 +32,6 @@ function time_loop_cpu(t_loop::Int, prof::AA{T,1}, z_rot::T,
                        key::Tuple{Symbol, Symbol}, liter::UnitRange{Int},
                        spec::SpecParams{T}, soldata::SolarData,
                        wsp::SynthWorkspace{T}; top::T=NaN) where T<:AF
-    # some assertions
-    # @assert all(prof .== one(T))
-
     # get views needed for line synthesis
     wsp.wavt .= view(soldata.wav[key], :, t_loop)
     wsp.bist .= view(soldata.bis[key], :, t_loop)
