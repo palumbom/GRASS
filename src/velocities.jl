@@ -31,15 +31,12 @@ function calc_ccf(lambdas::AA{Float64,1}, intensities::AA{Float64,1},
     speed_of_light = c_ms
     mask_width = speed_of_light/resolution
     mask_shape = T(mask_width)
-    midpoint = 0.0  # just by eye so things aren't wildly shifted
-    max_bc = 0.0    #  ~ 2pi AU/year  in m/s
-    Δv_step = 400   # m/s arbitrary probably smaller/slower than you need
-    Δv_max = 30e3   # m/s arbitrary
+
+    Δv_step = 200.0
+    Δv_max = 15e3
 
     # make ccf_plan
-    ccf_plan = BasicCCFPlan(line_list=line_list, mask_shape=mask_shape,
-                            step=Δv_step, max=Δv_max, midpoint=midpoint,
-                            range_no_mask_change=max_bc)
+    ccf_plan = BasicCCFPlan(line_list=line_list, mask_shape=mask_shape, step=Δv_step, max=Δv_max)
 
     # calculate the ccf
     v_grid = EchelleCCFs.calc_ccf_v_grid(ccf_plan)
@@ -83,7 +80,7 @@ Calculate apparent radial velocity from a CCF and velocity grid.
 - `ccf::AbstractArray{Float64,1}`: CCF values returned by calc_ccf.
 """
 function calc_rvs_from_ccf(v_grid::AA{Float64,1}, ccf::AA{Float64,1};
-                           frac_of_width_to_fit::Float64=0.8,
+                           frac_of_width_to_fit::Float64=0.1,
                            fit_type::Type{T}=GaussianFit) where {T<:FitType}
     mrv = T(frac_of_width_to_fit=frac_of_width_to_fit)
     return mrv(v_grid, ccf)

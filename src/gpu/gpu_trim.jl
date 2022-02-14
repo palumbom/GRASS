@@ -1,3 +1,4 @@
+# TODO fix this function for the case where template is shallower than synthetic
 function trim_bisector_chop_gpu(depth, wavall_out, bisall_out, depall_out, widall_out,
                                 wavall_in, bisall_in, depall_in, widall_in, top)
     # get indices from GPU blocks + threads
@@ -41,7 +42,6 @@ function trim_bisector_chop_gpu(depth, wavall_out, bisall_out, depall_out, widal
             end
 
             # assign bisector fluxes from dept
-            # @inbounds bist_out[j] = new_dept # TODO this is unnecessary
             @inbounds dept_out[j] = new_dept
         end
     end
