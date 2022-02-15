@@ -40,6 +40,7 @@ function find_data_index_gpu(x, y, disc_mu, disc_ax)
         end
         return mu_ind
     end
+    return nothing
 end
 
 function sort_data_for_gpu(soldata::SolarData{T}) where T<:AbstractFloat
