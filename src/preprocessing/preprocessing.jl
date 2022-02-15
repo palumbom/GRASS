@@ -26,27 +26,62 @@ function clean_line(wavs::AA{T,1}, spec::AA{T,1}; center::T=NaN, plot=false) whe
     @assert !isnan(center)
     @assert length(wavs) == length(spec)
 
+    # find peaks in spectrum
+    m_inds = Peaks.argminima(spec, 12, strict=false)
+    m_inds, m_proms = Peaks.peakproms(m_inds, spec, minprom=0.1*std(spec), strict=false)
+    m_inds, m_widths, m_left, m_right = Peaks.peakwidths(m_inds, spec, m_proms, strict=false)
+
     # get better center estimate
-    if (center - 1.0) < minimum(wavs)
-        lwingλ_idx = firstindex(wavs)
-    else
-        lwingλ_idx = findfirst(x -> x >= center - 1.0, wavs)
-    end
+    m_inds_idx = argmin(abs.(wavs[m_inds] .- center))
+    center_idx = m_inds[m_inds_idx]
+    center_wav = wavs[center_idx]
 
-    if (center + 1.0) > maximum(wavs)
-        rwingλ_idx = lastindex(wavs)
-    else
-        rwingλ_idx = findfirst(x -> x >= center + 1.0, wavs)
-    end
-    center_idx = argmin(view(spec, lwingλ_idx:rwingλ_idx)) + lwingλ_idx
-    center = wavs[center_idx]
+    # find indices for continuum on either side of line
+    c_inds = Peaks.argmaxima(spec, 10, strict=false)
+    c_idx_r = findfirst(wavs[c_inds] .> center_wav)
+    c_idx_l = c_idx_r - 1
 
-    plt.plot(wavs, spec); plt.show()
+    @show m_proms[m_inds_idx]
+    @show m_proms
+    # if m_proms[center_idx + 1]
+
+    # iterate until at end or within a standard deviation of max
+    # while abs.(maximum(spec) - spec[c_idx_r]) > 0.03 * std(spec)
+    #     if c_idx_r == length(c_inds)
+    #         break
+    #     else
+    #         c_idx_r += 1
+    #     end
+    # end
+
+    # while abs.(maximum(spec) - spec[c_idx_l]) > 0.03 * std(spec)
+    #     if c_idx_l == 1
+    #         break
+    #     else
+    #         c_idx_l -= 1
+    #     end
+    # end
+
+    # for i in wavs[m_inds]
+    #     plt.axvline(i, c="k")
+    # end
+    # plt.axvline(wavs[floor(Int64, m_left[m_inds_idx])])
+    # plt.axvline(wavs[ceil(Int64, m_right[m_inds_idx])])
+
+    # for i in wavs[c_inds]
+    #     plt.axvline(i, c="k")
+    # end
+
+    plt.axvline(wavs[c_inds][c_idx_l], c="k")
+    plt.axvline(wavs[c_inds][c_idx_r], c="k")
+    plt.axvline(center_wav, c="orange")
+    plt.plot(wavs, spec./maximum(spec)); plt.show()
+
 
     # get better wing estimate
     buffer = 1.0
-    lwingλ = center - buffer
-    rwingλ = center + buffer
+    lwingλ = center_wav - buffer
+    rwingλ = center_wav + buffer
 
     # indices to narrow region of interest
     lwavind = searchsortednearest(wavs, lwingλ)
