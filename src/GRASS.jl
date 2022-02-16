@@ -19,10 +19,14 @@ using SharedArrays
 using Interpolations
 import Glob.glob
 import Dates.DateTime
+import Polynomials: fit as pfit
 
 # abbreviations for commonly used types
 import Base: AbstractArray as AA
 import Base: AbstractFloat as AF
+
+# plots
+import PyPlot; plt = PyPlot; mpl = plt.matplotlib; plt.ioff()
 
 # configure directories
 include("config.jl")

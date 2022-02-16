@@ -54,7 +54,7 @@ end
     GRASS.trim_bisector_chop!(dep, wavt1, bist1, dept1, widt1, top=top)
 
     # allocate memory for line
-    λs = range(5434.0, 5435.0, length=1000)
+    λs = range(5433.5, 5435.5, length=1000)
     lwavgrid = zeros(100)
     rwavgrid = zeros(100)
     allwavs = zeros(200)
@@ -84,7 +84,7 @@ end
     GRASS.trim_bisector_chop!(dep, wavt1, bist1, dept1, widt1, top=top)
 
     # allocate memory for line
-    λs = range(5434.0, 5435.0, length=1000)
+    λs = range(5433.5, 5435.5, length=1000)
     lwavgrid = zeros(100)
     rwavgrid = zeros(100)
     allwavs = zeros(200)
@@ -96,7 +96,7 @@ end
     GRASS.line_profile_cpu!(mid, λs, prof, wavt1, dept1, widt1, lwavgrid, rwavgrid, allwavs, allints)
 
     # measure the bisector of synth line
-    wavo, biso = GRASS.measure_bisector(λs, prof, interpolate=false)
+    wavo, biso = GRASS.calc_bisector(λs, prof, nflux=100)#interpolate=true)
     wavo .-= mid
 
     # test that output bisector matches input bisector
