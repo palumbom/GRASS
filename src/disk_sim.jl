@@ -3,14 +3,23 @@ function line_loop_cpu(prof::AA{T,1}, mid::T, depth::T, z_rot::T,
                        conv_blueshift::T, lambdas::AA{T,1},
                        wsp::SynthWorkspace{T}; top::T=NaN) where T<:AF
     # first trim the bisectors to the correct depth
-    trim_bisector_chop!(depth, wsp.wavt, wsp.bist, wsp.dept, wsp.widt, top=top)
+    trim_bisector!(depth, wsp.wavt, wsp.bist, wsp.dept, wsp.widt, top=top)
 
     # calculate line center given rot. and conv. doppler shift -> λrest * (1 + z)
     λΔD = mid * (one(T) + z_rot) * (one(T) + conv_blueshift)
 
     # find window around shifted line
-    lind = findfirst(x -> x > λΔD - 0.5, lambdas)
-    rind = findfirst(x -> x > λΔD + 0.5, lambdas)
+    lind = findfirst(x -> x > λΔD - 1.0, lambdas)
+    if isnothing(lind)
+        lind = firstindex(lambdas)
+    end
+
+    rind = findfirst(x -> x > λΔD + 1.0, lambdas)
+    if isnothing(rind)
+        rind = lastindex(lambdas)
+    end
+
+    # only compute flux values on window around the shifted line center
     lambda_window = view(lambdas, lind:rind)
     prof_window = view(prof, lind:rind)
 
@@ -23,9 +32,6 @@ function time_loop_cpu(t_loop::Int, prof::AA{T,1}, z_rot::T,
                        key::Tuple{Symbol, Symbol}, liter::UnitRange{Int},
                        spec::SpecParams{T}, soldata::SolarData,
                        wsp::SynthWorkspace{T}; top::T=NaN) where T<:AF
-    # some assertions
-    # @assert all(prof .== one(T))
-
     # get views needed for line synthesis
     wsp.wavt .= view(soldata.wav[key], :, t_loop)
     wsp.bist .= view(soldata.bis[key], :, t_loop)
