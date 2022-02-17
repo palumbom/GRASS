@@ -1,10 +1,25 @@
 struct Planet{T<:AF}
     radius::T
     period::T
+    semiaxis::T
+    vcirc::T
+    eccentricity::T
+end
+
+"""
+units:
+    - radius: fractional solar radius (rplanet/rstar)
+    - period: years
+    - semiaxis: AU
+"""
+function Planet(;radius=NaN, period=NaN, semiaxis=NaN)
+    # get circular velocity from period, convert to solar radii/s
+    vcirc = 2π * semiaxis / period
+    vcirc *= (0.00465/3.154e7)
+    return Planet(radius, period, semiaxis, vcirc, 0.0)
 end
 
 function calc_planet_position(t::T, planet::Planet{T}) where T<:AF
-
 
     return x_planet, y_planet
 end
