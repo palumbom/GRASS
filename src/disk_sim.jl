@@ -104,7 +104,7 @@ function disk_sim(spec::SpecParams{T}, disk::DiskParams{T,Int64},
     end
 
     # loop over spatial grid positions
-    rm = false
+    rm = true
     if !rm
         f = (t) -> spatial_loop(t[1], t[2], spec, disk, soldata, wsp, prof,
                                 outspec, liter, mu_symb, disc_mu; kwargs...)
@@ -171,6 +171,14 @@ function spatial_loop_rm(i::Int64, j::Int64, grid::AA{T,1}, spec::SpecParams{T},
     # get positions and move to next iteration if off grid
     x = grid[i]; y = grid[j];
     calc_r2(x,y) > one(T) && return nothing
+
+    # figure out if planet is inside this cell
+    planet_pos = @MVector [-0.5, 0.0]
+    r_planet = 0.01
+    planet_in_cell = is_occulted(x, y, planet_pos[1], planet_pos[2], r_planet)
+    if planet_in_cell
+        return nothing
+    end
 
     # get input data for place on disk
     key = get_key_for_pos(x, y, disc_mu, mu_symb)
