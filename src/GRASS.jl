@@ -47,6 +47,9 @@ include("starphysics.jl")
 include("inputIO.jl")
 include("bisectors.jl")
 
+# rossiter mclaughlin
+include("rm_effect.jl")
+
 # star simulation
 include("trim.jl")
 include("synthesize.jl")
@@ -73,7 +76,7 @@ include("gpu/gpu_sim.jl")
 include("gpu/gpu_synthesis.jl")
 
 """
-    synthesize_spectra(spec, disk; seed_rng=false, verbose=true, top=NaN)
+    synthesize_spectra(spec, disk; seed_rng=false, verbose=true)
 
 Synthesize spectra given parameters in `spec` and `disk` instances.
 
@@ -81,9 +84,8 @@ Synthesize spectra given parameters in `spec` and `disk` instances.
 - `spec::SpecParams`: SpecParams instance
 - `disk::DiskParams`: DiskParams instance
 """
-function synthesize_spectra(spec::SpecParams, disk::DiskParams;
-                            top::Float64=NaN, seed_rng::Bool=false,
-                            verbose::Bool=true, use_gpu::Bool=false)
+function synthesize_spectra(spec::SpecParams, disk::DiskParams; verbose::Bool=true,
+                            use_gpu::Bool=false, seed_rng::Bool=false)
     # parse out dimensions for memory allocation
     N = disk.N
     Nλ = length(spec.lambdas)
@@ -131,7 +133,7 @@ function synthesize_spectra(spec::SpecParams, disk::DiskParams;
             soldata = SolarData(dir=spec.indata.dirs[indata_inds[i]]; spec.kwargs...)
 
             # run the simulation and multiply outspec by this spectrum
-            disk_sim(spec_temp, disk, soldata, prof, outspec_temp, seed_rng=seed_rng, verbose=verbose, top=top)
+            disk_sim(spec_temp, disk, soldata, prof, outspec_temp, seed_rng=seed_rng, verbose=verbose)
             outspec .*= outspec_temp
         end
         return spec.lambdas, outspec
