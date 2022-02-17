@@ -108,11 +108,13 @@ function disk_sim(spec::SpecParams{T}, disk::DiskParams{T,Int64},
     if !rm
         f = (t) -> spatial_loop(t[1], t[2], spec, disk, soldata, wsp, prof,
                                 outspec, liter, mu_symb, disc_mu; kwargs...)
-        map(f, ((x, y) for x in grid, y in grid))
+        map(f, grid)
     else
-        f = (t) -> spatial_loop_rm(t[1], t[2], grid, spec, disk, soldata, wsp, prof,
-                                   outspec, liter, mu_symb, disc_mu; kwargs...)
-        map(f, ((i, j) for i in eachindex(grid), j in eachindex(grid)))
+        grid1D = make_grid_range(disk.N)
+        f = (t) -> spatial_loop_rm(t[1], t[2], grid1D, spec, disk,
+                                   soldata, wsp, prof, outspec, liter,
+                                   mu_symb, disc_mu; kwargs...)
+        map(f, CartesianIndices(collect(grid)))
     end
 
     return nothing
@@ -158,7 +160,7 @@ function spatial_loop(x::T, y::T, spec::SpecParams{T}, disk::DiskParams{T,Int64}
     return nothing
 end
 
-function spatial_loop_rm(i::Int64, j::Int64, grid::StepRangeLen, spec::SpecParams{T},
+function spatial_loop_rm(i::Int64, j::Int64, grid::AA{T,1}, spec::SpecParams{T},
                          disk::DiskParams{T,Int64}, soldata::SolarData{T},
                          wsp::SynthWorkspace{T}, prof::AA{T,1},
                          outspec::AA{T,2}, liter::UnitRange{Int64},
