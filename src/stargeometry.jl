@@ -3,8 +3,9 @@
 # const mu_symb = [:mu02, :mu03, :mu04, :mu05, :mu06, :mu07, :mu08, :mu085, :mu09, :mu095, :mu10]
 const disc_ax = [:n, :e, :s, :w, :c]
 
-make_grid(N::Integer) = range(-1.0, 1.0, length=N)
-make_grid(;N::Integer=256) = make_grid(N)
+make_grid(N::Integer) = Iterators.product(range(-1.0, 1.0, length=N), range(-1.0, 1.0, length=N))
+make_grid(;N::Integer=132) = make_grid(N)
+make_grid_range(N::Integer) = range(-1.0, 1.0, length=N)
 
 
 function calc_r2(x::T,y::T) where T<:AF
@@ -30,8 +31,8 @@ function calc_mu(t::Tuple{T,T}) where T<:AF
 end
 
 # Calculate mu for each position on a grid
-function mu_map(grid::AA{T,1}) where T<:AF
-    return calc_mu.((x,y) for x in grid, y in grid)
+function mu_map(grid::ProductIterator) where T<:AF
+    return map(calc_mu, grid)
 end
 
 function mu_map(N::Integer)
