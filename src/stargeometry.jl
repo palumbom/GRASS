@@ -7,6 +7,8 @@ make_grid(N::Integer) = Iterators.product(range(-1.0, 1.0, length=N), range(-1.0
 make_grid(;N::Integer=132) = make_grid(N)
 make_grid_range(N::Integer) = range(-1.0, 1.0, length=N)
 
+get_grid_xs(grid::ProductIterator) = getindex.(collect(grid), 1)
+get_grid_ys(grid::ProductIterator) = getindex.(collect(grid), 2)
 
 function calc_r2(x::T,y::T) where T<:AF
     return x*x + y*y
