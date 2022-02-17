@@ -10,7 +10,6 @@ dept = data.dep[(:c, :mu10)][:,1]
 widt = data.wid[(:c, :mu10)][:,1]
 
 # set trimming parameters
-top = NaN
 dep = 0.75
 
 @testset "Testing function definitions" begin
@@ -27,7 +26,7 @@ end
     widt1 = copy(widt)
 
     # do the trimming
-    GRASS.trim_bisector_chop!(dep, wavt1, bist1, dept1, widt1, top=top)
+    GRASS.trim_bisector_chop!(dep, wavt1, bist1, dept1, widt1)
 
     # test that it wasn't changed
     @test wavt1 !== wavt
@@ -51,7 +50,7 @@ end
     widt1 = copy(widt)
 
     # do the trimming
-    GRASS.trim_bisector_chop!(dep, wavt1, bist1, dept1, widt1, top=top)
+    GRASS.trim_bisector_chop!(dep, wavt1, bist1, dept1, widt1)
 
     # allocate memory for line
     λs = range(5433.5, 5435.5, length=1000)
@@ -81,7 +80,7 @@ end
     widt1 = copy(widt)
 
     # do the trimming
-    GRASS.trim_bisector_chop!(dep, wavt1, bist1, dept1, widt1, top=top)
+    GRASS.trim_bisector_chop!(dep, wavt1, bist1, dept1, widt1)
 
     # allocate memory for line
     λs = range(5433.5, 5435.5, length=1000)

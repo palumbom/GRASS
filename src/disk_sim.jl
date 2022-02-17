@@ -117,6 +117,8 @@ function disk_sim(spec::SpecParams{T}, disk::DiskParams{T,Int64},
         map(f, CartesianIndices(collect(grid)))
     end
 
+    # ensure normalization and return
+    outspec ./= maximum(outspec, dims=1)
     return nothing
 end
 

@@ -85,7 +85,7 @@ Synthesize spectra given parameters in `spec` and `disk` instances.
 - `spec::SpecParams`: SpecParams instance
 - `disk::DiskParams`: DiskParams instance
 """
-function synthesize_spectra(spec::SpecParams, disk::DiskParams; verbose::Bool=true,
+function synthesize_spectra(spec::SpecParams, disk::DiskParams; verbose::Bool=false,
                             use_gpu::Bool=false, seed_rng::Bool=false)
     # parse out dimensions for memory allocation
     N = disk.N

@@ -4,6 +4,7 @@ struct Planet{T<:AF}
     semiaxis::T
     vcirc::T
     eccentricity::T
+    # pos::AA{T,1}
 end
 
 """
