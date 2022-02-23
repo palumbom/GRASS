@@ -86,8 +86,9 @@ Synthesize spectra given parameters in `spec` and `disk` instances.
 - `spec::SpecParams`: SpecParams instance
 - `disk::DiskParams`: DiskParams instance
 """
-function synthesize_spectra(spec::SpecParams, disk::DiskParams; verbose::Bool=false,
-                            use_gpu::Bool=false, seed_rng::Bool=false)
+function synthesize_spectra(spec::SpecParams, disk::DiskParams,
+                            planet::Vararg{Union{Nothing,Planet}}=nothing;
+                            verbose::Bool=false, use_gpu::Bool=false, seed_rng::Bool=false)
     # parse out dimensions for memory allocation
     N = disk.N
     Nλ = length(spec.lambdas)
@@ -135,7 +136,7 @@ function synthesize_spectra(spec::SpecParams, disk::DiskParams; verbose::Bool=fa
             soldata = SolarData(dir=spec.indata.dirs[indata_inds[i]]; spec.kwargs...)
 
             # run the simulation and multiply outspec by this spectrum
-            disk_sim(spec_temp, disk, soldata, prof, outspec_temp, seed_rng=seed_rng, verbose=verbose)
+            disk_sim(spec_temp, disk, soldata, prof, outspec_temp, planet..., seed_rng=seed_rng, verbose=verbose)
             outspec .*= outspec_temp
         end
         return spec.lambdas, outspec

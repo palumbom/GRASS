@@ -10,6 +10,20 @@ make_grid_range(N::Integer) = range(-1.0, 1.0, length=N)
 get_grid_xs(grid::ProductIterator) = getindex.(collect(grid), 1)
 get_grid_ys(grid::ProductIterator) = getindex.(collect(grid), 2)
 
+function get_grid_edges(grid::StepRangeLen)
+    start = first(grid) - 0.5 * step(grid)
+    stop = last(grid) + 0.5 * step(grid)
+    return range(start, stop, step=step(grid))
+end
+
+function calc_dist2(x1::T, y1::T, x2::T, y2::T) where T<:AF
+    return (x1 - x2)^2 + (y1 - y2)^2
+end
+
+function calc_dist2(t1::Tuple{T,T}, t2::Tuple{T,T}) where T<:AF
+    return calc_dist2(t1..., t2...)
+end
+
 function calc_r2(x::T,y::T) where T<:AF
     return x*x + y*y
 end
