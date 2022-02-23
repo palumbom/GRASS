@@ -107,16 +107,27 @@ function disk_sim(spec::SpecParams{T}, disk::DiskParams{T,Int64},
     # loop over spatial grid positions
     rm = !isnothing(planet...)
     if !rm
+        # anonymous func for calling spatial loop
         f = (t) -> spatial_loop(t[1], t[2], spec, disk, soldata, wsp, prof,
                                 outspec, liter, mu_symb, disc_mu; kwargs...)
         map(f, grid)
     else
+        # get planet positions
+        tvec = get_simulation_times(disk)
+        xpos, ypos = calc_planet_position(tvec, planet...)
+
+        # xpos = [-0.9, 0.0, 0.8]
+        # ypos = [0.0, 0.0, 0.0]
+
+        # get grid details
         grid_range = make_grid_range(disk.N)
         grid_edges = get_grid_edges(grid_range)
+
+        # anonymous func for calling spatial loop
         f = (t) -> spatial_loop_rm(t[1], t[2], grid_range, grid_edges,
                                    spec, disk, planet..., soldata, wsp,
                                    prof, outspec, liter, mu_symb,
-                                   disc_mu; kwargs...)
+                                   disc_mu, xpos, ypos; kwargs...)
         map(f, CartesianIndices(collect(grid)))
     end
 
@@ -170,16 +181,12 @@ function spatial_loop_rm(i::Int64, j::Int64, grid::AA{T,1}, grid_edges::AA{T,1},
                          planet::Planet, soldata::SolarData{T},
                          wsp::SynthWorkspace{T}, prof::AA{T,1},
                          outspec::AA{T,2}, liter::UnitRange{Int64},
-                         mu_symb::AA{Symbol,1}, disc_mu::AA{T,1};
-                         nsubgrid::Int64=100,
+                         mu_symb::AA{Symbol,1}, disc_mu::AA{T,1},
+                         xpos::AA{T,1}, ypos::AA{T,1}; nsubgrid::Int64=256,
                          skip_times::BitVector=BitVector(zeros(disk.Nt))) where T<:AF
     # get positions and move to next iteration if off grid
     x = grid[i]; y = grid[j];
     calc_r2(x,y) > one(T) && return nothing
-
-    # figure out if planet is inside this cell
-    xpos = -0.5
-    ypos = 0.0
 
     # get input data for place on disk
     key = get_key_for_pos(x, y, disc_mu, mu_symb)
@@ -205,14 +212,14 @@ function spatial_loop_rm(i::Int64, j::Int64, grid::AA{T,1}, grid_edges::AA{T,1},
         skip_times[t] && continue
 
         # figure out if planet is on patch at this time
-        dist2 = GRASS.calc_dist2(x, y, xpos, ypos)
+        dist2 = GRASS.calc_dist2(x, y, xpos[t], ypos[t])
         if dist2 <= (planet.radius + 1.5 * step(grid))^2
             xrange = range(grid_edges[i], grid_edges[i+1], length=nsubgrid)
             yrange = range(grid_edges[j], grid_edges[j+1], length=nsubgrid)
             subgrid = Iterators.product(xrange, yrange)
 
             # calculate subgrid element distances from planet and weight
-            subdists2 = map(t -> GRASS.calc_dist2(t, (xpos, ypos)), subgrid)
+            subdists2 = map(z -> GRASS.calc_dist2(z, (xpos[t], ypos[t])), subgrid)
             weight = 1.0 - sum(subdists2 .<= planet.radius^2)/nsubgrid^2
             if iszero(weight)
                 continue
