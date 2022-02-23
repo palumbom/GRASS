@@ -83,7 +83,8 @@ function generate_indices(Nt::Integer, len::Integer)
 end
 
 function disk_sim(spec::SpecParams{T}, disk::DiskParams{T,Int64},
-                  soldata::SolarData{T}, prof::AA{T,1}, outspec::AA{T,2};
+                  soldata::SolarData{T}, prof::AA{T,1}, outspec::AA{T,2},
+                  planet::Vararg{Union{Nothing, Planet},1}=nothing;
                   seed_rng::Bool=false, verbose::Bool=true, kwargs...) where T<:AF
     # make grid
     grid = make_grid(N=disk.N)
@@ -104,14 +105,14 @@ function disk_sim(spec::SpecParams{T}, disk::DiskParams{T,Int64},
     end
 
     # loop over spatial grid positions
-    rm = true
+    rm = !isnothing(planet...)
     if !rm
         f = (t) -> spatial_loop(t[1], t[2], spec, disk, soldata, wsp, prof,
                                 outspec, liter, mu_symb, disc_mu; kwargs...)
         map(f, grid)
     else
         grid1D = make_grid_range(disk.N)
-        f = (t) -> spatial_loop_rm(t[1], t[2], grid1D, spec, disk,
+        f = (t) -> spatial_loop_rm(t[1], t[2], grid1D, spec, disk, planet...,
                                    soldata, wsp, prof, outspec, liter,
                                    mu_symb, disc_mu; kwargs...)
         map(f, CartesianIndices(collect(grid)))
@@ -163,7 +164,8 @@ function spatial_loop(x::T, y::T, spec::SpecParams{T}, disk::DiskParams{T,Int64}
 end
 
 function spatial_loop_rm(i::Int64, j::Int64, grid::AA{T,1}, spec::SpecParams{T},
-                         disk::DiskParams{T,Int64}, soldata::SolarData{T},
+                         disk::DiskParams{T,Int64}, planet::Planet,
+                         soldata::SolarData{T},
                          wsp::SynthWorkspace{T}, prof::AA{T,1},
                          outspec::AA{T,2}, liter::UnitRange{Int64},
                          mu_symb::AA{Symbol,1}, disc_mu::AA{T,1};
@@ -173,12 +175,13 @@ function spatial_loop_rm(i::Int64, j::Int64, grid::AA{T,1}, spec::SpecParams{T},
     calc_r2(x,y) > one(T) && return nothing
 
     # figure out if planet is inside this cell
-    planet_pos = @MVector [-0.5, 0.0]
-    r_planet = 0.01
-    planet_in_cell = is_occulted(x, y, planet_pos[1], planet_pos[2], r_planet)
-    if planet_in_cell
-        return nothing
-    end
+    @show planet.radius
+    # planet_pos = @MVector [-0.5, 0.0]
+    # r_planet = 0.01
+    # planet_in_cell = is_occulted(x, y, planet_pos[1], planet_pos[2], r_planet)
+    # if planet_in_cell
+    #     return nothing
+    # end
 
     # get input data for place on disk
     key = get_key_for_pos(x, y, disc_mu, mu_symb)
