@@ -35,12 +35,12 @@ function Planet(;radius=NaN, period=NaN, semiaxis=NaN, inclination=90.0)
     return Planet(radius, period, semiaxis, 0.0, inclination, vcirc, b)
 end
 
-function calc_planet_position(t::T; planet::Planet{T}) where T<:AF
+function calc_planet_position(t::T, planet::Planet{T}) where T<:AF
     return planet.vcirc * (t) - 1.0, planet.b
 end
 
-function calc_planet_position(t::AA{T,1}; planet::Planet{T}) where T<:AF
-    out = map(x -> calc_planet_position(x; planet), t)
+function calc_planet_position(t::AA{T,1}, planet::Planet{T}) where T<:AF
+    out = map(x -> calc_planet_position(x, planet), t)
     return map(collect, zip(out...))
 end
 

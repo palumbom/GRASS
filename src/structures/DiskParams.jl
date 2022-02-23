@@ -30,3 +30,7 @@ function DiskParams(;N=132, Nt=NaN, pole=(0.0, 1.0, 0.0), u1=0.4, u2=0.26)
     end
     return DiskParams(N, Nt, pole, u1, u2)
 end
+
+function get_simulation_times(d::DiskParams)
+    return range(0.0, 15.0*(d.Nt-1), step=15.0)
+end
