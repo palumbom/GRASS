@@ -201,9 +201,9 @@ function spatial_loop_rm(i::Int64, j::Int64, grid::AA{T,1}, grid_edges::AA{T,1},
     end
     len = soldata.len[key]
 
-    # get redshift z and norm term for location on disk
-    z_rot = patch_velocity_los(x, y, pole=disk.pole)
-    norm_term = calc_norm_term(x, y, disk)
+    # get initial redshift z and norm term for location on disk
+    z_rot0 = patch_velocity_los(x, y, pole=disk.pole)
+    norm_term0 = calc_norm_term(x, y, disk)
 
     # loop over time, starting at random epoch
     inds = generate_indices(disk.Nt, len)
@@ -211,21 +211,30 @@ function spatial_loop_rm(i::Int64, j::Int64, grid::AA{T,1}, grid_edges::AA{T,1},
         # if skip times is true, continue to next iter
         skip_times[t] && continue
 
+        # set z_rot and norm term back to initial value for cell
+        z_rot = z_rot0
+        norm_term = norm_term0
+
         # figure out if planet is on patch at this time
-        dist2 = GRASS.calc_dist2(x, y, xpos[t], ypos[t])
-        if dist2 <= (planet.radius + 1.5 * step(grid))^2
+        dist2 = calc_dist2(x, y, xpos[t], ypos[t])
+        if dist2 <= (planet.radius + step(grid))^2
             xrange = range(grid_edges[i], grid_edges[i+1], length=nsubgrid)
             yrange = range(grid_edges[j], grid_edges[j+1], length=nsubgrid)
             subgrid = Iterators.product(xrange, yrange)
 
-            # calculate subgrid element distances from planet and weight
-            subdists2 = map(z -> GRASS.calc_dist2(z, (xpos[t], ypos[t])), subgrid)
-            weight = 1.0 - sum(subdists2 .<= planet.radius^2)/nsubgrid^2
-            if iszero(weight)
-                continue
-            else
-                norm_term *= weight
-            end
+            # calculate subgrid element distances from planet
+            subdists2 = map(z -> calc_dist2(z, (xpos[t], ypos[t])), subgrid)
+            unocculted = subdists2 .> planet.radius^2
+
+            # calculate limb darkening in subgrid
+            sublimbdarks = quad_limb_darkening.(calc_mu.(subgrid), disk.u1, disk.u2)
+
+            # TODO: re-calculate weighted-mean z_rot in cell
+            # sub_z_rots = patch_velocity_los.(subgrid, pole=disk.pole)
+            # z_rot = sum(sub_z_rots[unocculted] .* sublimbdarks[unocculted]) / sum(sublimbdarks[unocculted])
+
+            # re-weight the normalization term accounting for blocked pixels
+            norm_term *= sum(sublimbdarks[unocculted])/sum(sublimbdarks)
         end
 
         # update profile in place
