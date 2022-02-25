@@ -116,9 +116,6 @@ function disk_sim(spec::SpecParams{T}, disk::DiskParams{T,Int64},
         tvec = get_simulation_times(disk)
         xpos, ypos = calc_planet_position(tvec, planet...)
 
-        # xpos = [-0.9, 0.0, 0.8]
-        # ypos = [0.0, 0.0, 0.0]
-
         # get grid details
         grid_range = make_grid_range(disk.N)
         grid_edges = get_grid_edges(grid_range)
@@ -226,15 +223,20 @@ function spatial_loop_rm(i::Int64, j::Int64, grid::AA{T,1}, grid_edges::AA{T,1},
             subdists2 = map(z -> calc_dist2(z, (xpos[t], ypos[t])), subgrid)
             unocculted = subdists2 .> planet.radius^2
 
-            # calculate limb darkening in subgrid
+            # move to next time step if square is completely occluded
+            !iszero(sum(unocculted)) && continue
+
+            # calculate limb darkening and redshifts in subgrid
             sublimbdarks = quad_limb_darkening.(calc_mu.(subgrid), disk.u1, disk.u2)
+            sub_z_rots = patch_velocity_los.(subgrid, pole=disk.pole)
 
-            # TODO: re-calculate weighted-mean z_rot in cell
-            # sub_z_rots = patch_velocity_los.(subgrid, pole=disk.pole)
-            # z_rot = sum(sub_z_rots[unocculted] .* sublimbdarks[unocculted]) / sum(sublimbdarks[unocculted])
+            # take views of arrays
+            z_rots_unocculted = view(sub_z_rots, unocculted)
+            sublimbdarks_unocculted = view(sublimbdarks, unocculted)
 
-            # re-weight the normalization term accounting for blocked pixels
-            norm_term *= sum(sublimbdarks[unocculted])/sum(sublimbdarks)
+            # calculate new weighted z_rot and norm_term
+            z_rot = sum(z_rots_unocculted .* sublimbdarks_unocculted) / sum(sublimbdarks_unocculted)
+            norm_term *= sum(sublimbdarks_unocculted)/sum(sublimbdarks)
         end
 
         # update profile in place
