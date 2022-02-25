@@ -101,7 +101,10 @@ function synthesize_spectra(spec::SpecParams, disk::DiskParams,
     ncalls = length(indata_inds)
 
     # call appropriate simulation function on cpu or gpu
-    if (use_gpu & CUDA.functional())
+    if use_gpu
+        # make sure there is actually a GPU to use
+        @assert CUDA.functional()
+
         # run the simulation and return
         for i in 1:ncalls
             # get temporary specparams with lines for this run
