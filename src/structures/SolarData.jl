@@ -226,9 +226,12 @@ end
 
 function calc_fixed_width(;λ::T1=5434.5232, M::T1=26.0, T::T1=5778.0, v_turb::T1=3.5e5) where T1<:AF
     wid = width_thermal(λ=λ, M=M, T=T, v_turb=v_turb)
-    λs = collect(range(λ - 1.0, λ + 1.0, step=λ/7e5))
-    prof = gaussian_line.(λs, mid=λ, width=wid, depth=0.86)
+    λs = range(λ - 1.0, λ + 1.0, step=λ/7e6)
+    prof = gaussian_line.(λs, mid=λ, width=wid, depth=0.9)
     depall, widall = calc_width_function(λs, prof, nflux=100)
-    widall[1] = 0.01
+
+    # replace las(widall[end-1] - widall[end-2])/(depall[end-1] - depall[end-2])t measurement with extrapolation
+    dydx = (widall[end-1] - widall[end-2])/(depall[end-1] - depall[end-2])
+    widall[end] =  dydx * (depall[end] - depall[end-1]) + widall[end-1]
     return depall, widall
 end
