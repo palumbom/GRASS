@@ -87,9 +87,6 @@ function disk_sim(spec::SpecParams{T}, disk::DiskParams{T,Int64},
                   planet::Vararg{Union{Nothing, Planet},1}=nothing;
                   seed_rng::Bool=false, verbose::Bool=true, nsubgrid::Int=256,
                   kwargs...) where T<:AF
-    # make grid
-    grid = make_grid(N=disk.N)
-
     # set pre-allocations and make generator that will be re-used
     outspec .= zero(T)
     wsp = SynthWorkspace(spec)
@@ -105,13 +102,19 @@ function disk_sim(spec::SpecParams{T}, disk::DiskParams{T,Int64},
         Random.seed!(42)
     end
 
+    # pre-calculate the norm terms
+    norm_terms = calc_norm_terms(disk)
+
     # loop over spatial grid positions
     rm = !isnothing(planet...)
     if !rm
+        # make grid
+        grid = make_grid(N=disk.N)
+
         # anonymous func for calling spatial loop
-        f = (t) -> spatial_loop(t[1], t[2], spec, disk, soldata, wsp, prof,
-                                outspec, liter, mu_symb, disc_mu; kwargs...)
-        map(f, grid)
+        f = (t,n) -> spatial_loop(t[1], t[2], n, spec, disk, soldata, wsp, prof,
+                                  outspec, liter, mu_symb, disc_mu; kwargs...)
+        map(f, grid, norm_terms)
     else
         # get planet positions
         tvec = get_simulation_times(disk)
@@ -128,12 +131,12 @@ function disk_sim(spec::SpecParams{T}, disk::DiskParams{T,Int64},
 
 
         # anonymous func for calling spatial loop
-        f = (t) -> spatial_loop_rm(t[1], t[2], grid_range, grid_edges,
-                                   spec, disk, planet..., soldata, wsp,
-                                   prof, outspec, unocculted, sublimbdarks,
-                                   sub_z_rots, liter, mu_symb, disc_mu,
-                                   xpos, ypos; nsubgrid=nsubgrid, kwargs...)
-        map(f, CartesianIndices(collect(grid)))
+        f = (t,n) -> spatial_loop_rm(t[1], t[2], n, grid_range, grid_edges,
+                                     spec, disk, planet..., soldata, wsp,
+                                     prof, outspec, unocculted, sublimbdarks,
+                                     sub_z_rots, liter, mu_symb, disc_mu,
+                                     xpos, ypos; nsubgrid=nsubgrid, kwargs...)
+        map(f, CartesianIndices((1:disk.N, 1:disk.N)), norm_terms)
     end
 
     # ensure normalization and return
@@ -141,10 +144,10 @@ function disk_sim(spec::SpecParams{T}, disk::DiskParams{T,Int64},
     return nothing
 end
 
-function spatial_loop(x::T, y::T, spec::SpecParams{T}, disk::DiskParams{T,Int64},
-                      soldata::SolarData{T}, wsp::SynthWorkspace{T},
-                      prof::AA{T,1}, outspec::AA{T,2}, liter::UnitRange{Int64},
-                      mu_symb::AA{Symbol,1}, disc_mu::AA{T,1};
+function spatial_loop(x::T, y::T, norm_term::T, spec::SpecParams{T},
+                      disk::DiskParams{T,Int64}, soldata::SolarData{T},
+                      wsp::SynthWorkspace{T}, prof::AA{T,1}, outspec::AA{T,2},
+                      liter::UnitRange{Int64}, mu_symb::AA{Symbol,1}, disc_mu::AA{T,1};
                       skip_times::BitVector=BitVector(zeros(disk.Nt))) where T<:AF
     # move to next iteration if off grid
     calc_r2(x,y) > one(T) && return nothing
@@ -162,9 +165,8 @@ function spatial_loop(x::T, y::T, spec::SpecParams{T}, disk::DiskParams{T,Int64}
     end
     len = soldata.len[key]
 
-    # get redshift z and norm term for location on disk
+    # get redshift z for location on disk
     z_rot = patch_velocity_los(x, y, pole=disk.pole)
-    norm_term = calc_norm_term(x, y, disk)
 
     # loop over time, starting at random epoch
     inds = generate_indices(disk.Nt, len)
@@ -181,11 +183,11 @@ function spatial_loop(x::T, y::T, spec::SpecParams{T}, disk::DiskParams{T,Int64}
     return nothing
 end
 
-function spatial_loop_rm(i::Int64, j::Int64, grid::AA{T,1}, grid_edges::AA{T,1},
-                         spec::SpecParams{T}, disk::DiskParams{T,Int64},
-                         planet::Planet, soldata::SolarData{T},
-                         wsp::SynthWorkspace{T}, prof::AA{T,1},
-                         outspec::AA{T,2}, unocculted::AA{Bool,2},
+function spatial_loop_rm(i::Int64, j::Int64, norm_term0::T, grid::AA{T,1},
+                         grid_edges::AA{T,1}, spec::SpecParams{T},
+                         disk::DiskParams{T,Int64}, planet::Planet,
+                         soldata::SolarData{T}, wsp::SynthWorkspace{T},
+                         prof::AA{T,1}, outspec::AA{T,2}, unocculted::AA{Bool,2},
                          sublimbdarks::AA{T,2}, sub_z_rots::AA{T,2},
                          liter::UnitRange{Int64}, mu_symb::AA{Symbol,1},
                          disc_mu::AA{T,1}, xpos::AA{T,1}, ypos::AA{T,1};
@@ -208,9 +210,8 @@ function spatial_loop_rm(i::Int64, j::Int64, grid::AA{T,1}, grid_edges::AA{T,1},
     end
     len = soldata.len[key]
 
-    # get initial redshift z and norm term for location on disk
+    # get initial redshift z for location on disk
     z_rot0 = patch_velocity_los(x, y, pole=disk.pole)
-    norm_term0 = calc_norm_term(x, y, disk)
 
     # loop over time, starting at random epoch
     inds = generate_indices(disk.Nt, len)
@@ -230,7 +231,8 @@ function spatial_loop_rm(i::Int64, j::Int64, grid::AA{T,1}, grid_edges::AA{T,1},
             subgrid = Iterators.product(xrange, yrange)
 
             # calculate subgrid element distances from planet
-            unocculted .= map(z -> (calc_dist2(z, (xpos[t], ypos[t])) > planet.radius^2) && calc_mu(z) >= 0.0, subgrid)
+            f = z -> (calc_dist2(z, (xpos[t], ypos[t])) > planet.radius^2) && calc_mu(z) >= 0.0
+            unocculted .= map(f, subgrid)
 
             # move to next time step if square is completely occluded
             iszero(sum(unocculted)) && continue
@@ -238,8 +240,6 @@ function spatial_loop_rm(i::Int64, j::Int64, grid::AA{T,1}, grid_edges::AA{T,1},
             # calculate limb darkening and redshifts in subgrid
             sublimbdarks .= quad_limb_darkening.(calc_mu.(subgrid), disk.u1, disk.u2)
             sub_z_rots .= patch_velocity_los.(subgrid, pole=disk.pole)
-            # sublimbdarks = map(z -> unocculted ? quad_limb_darkening(calc_mu(z)) : 0.0, subgrid)
-            # sub_z_rots = map(z -> unocculated ? patch_velocity_los(z, pole=disk.pole) : 0.0, subgrid)
 
             # take views of arrays
             z_rots_unocculted = view(sub_z_rots, unocculted)
