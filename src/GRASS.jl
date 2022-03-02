@@ -117,7 +117,12 @@ function synthesize_spectra(spec::SpecParams, disk::DiskParams,
             soldata = SolarData(dir=spec.indata.dirs[indata_inds[i]]; spec.kwargs...)
 
             # run the simulation and multiply outspec by this spectrum
-            disk_sim_gpu(spec_temp, disk, soldata, outspec, seed_rng=seed_rng, verbose=verbose)
+            rm = !isnothing(planet...)
+            if !rm
+                disk_sim_gpu(spec_temp, disk, soldata, outspec, seed_rng=seed_rng, verbose=verbose)
+            else
+                disk_sim_rm_gpu(spec_temp, disk, planet..., soldata, outspec, seed_rng=seed_rng, verbose=verbose)
+            end
         end
         return spec.lambdas, outspec
     else
