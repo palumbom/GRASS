@@ -120,6 +120,9 @@ function disk_sim(spec::SpecParams{T}, disk::DiskParams{T,Int64},
         tvec = get_simulation_times(disk)
         xpos, ypos = calc_planet_position(tvec, planet...)
 
+        # TODO hardcoded for debugging
+        xpos = range(-1.25, 1.25, length=disk.Nt)
+
         # get grid details
         grid_range = make_grid_range(disk.N)
         grid_edges = get_grid_edges(grid_range)
