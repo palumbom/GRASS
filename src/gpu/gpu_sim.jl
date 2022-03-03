@@ -154,7 +154,7 @@ function disk_sim_gpu(spec::SpecParams, disk::DiskParams, soldata::SolarData,
     end
 
     # move other data to the gpu
-    grid_cpu = make_grid(N)
+    grid_cpu = make_grid_range(N)
     @cusync begin
         grid = CuArray{precision}(grid_cpu)
         lambdas = CuArray{precision}(spec.lambdas)
