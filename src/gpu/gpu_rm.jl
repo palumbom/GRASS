@@ -64,7 +64,7 @@ function disk_sim_rm_gpu(spec::SpecParams, disk::DiskParams, planet::Planet,
     end
 
     # move other data to the gpu
-    grid_cpu = make_grid(N)
+    grid_cpu = make_grid_range(N)
     @cusync begin
         grid = CuArray{precision}(grid_cpu)
         lambdas = CuArray{precision}(spec.lambdas)
@@ -77,6 +77,10 @@ function disk_sim_rm_gpu(spec::SpecParams, disk::DiskParams, planet::Planet,
         rot_shifts = CuArray{precision,2}(undef, N, N)
         λΔDs = CuArray{precision,2}(undef, N, N)
     end
+
+    # get planet positions
+    tvec = get_simulation_times(disk)
+    xpos, ypos = calc_planet_position(tvec, planet)
 
     # set number of threads and blocks for N*N matrix gpu functions
     # threads2 = (16, 16)
@@ -114,8 +118,14 @@ function disk_sim_rm_gpu(spec::SpecParams, disk::DiskParams, planet::Planet,
             continue
         end
 
-        # initialize starmap with fresh copy of weights
-        @cusync starmap .= norm_terms
+        # slice out position of planet
+        xplanet = xpos[t]
+        yplanet = ypos[t]
+
+        # initialize starmap with fresh copy of weights, accounting for planet position
+        @cusync @captured @cuda calc_norm_term_rm_gpu(starmap, norm_terms, rot_shifts, grid, xplanet,
+                                                      yplanet, planet.radius, u1, u2, polex, poley, polez)
+        # @cusync starmap .= norm_terms
 
         # loop over lines to synthesize
         for l in eachindex(spec.lines)
@@ -167,4 +177,20 @@ function disk_sim_rm_gpu(spec::SpecParams, disk::DiskParams, planet::Planet,
     end
     CUDA.synchronize()
     return spec.lambdas, outspec
+end
+
+function calc_norm_term_rm_gpu(star_map, norm_terms, rot_shifts, grid, xpos, ypos, r_planet, u1, u2, polex, poley, polez)
+    # get indices from GPU blocks + threads
+    idx = threadIdx().x + blockDim().x * (blockIdx().x-1)
+    sdx = blockDim().x * gridDim().x
+    idy = threadIdx().y + blockDim().y * (blockIdx().y-1)
+    sdy = blockDim().y * gridDim().y
+
+    # parallelized loop over grid
+    for i in idx:sdx:CUDA.length(grid)
+        for j in idy:sdy:CUDA.length(grid)
+            @inbounds star_map[i,j,:] .= norm_terms[i,j]
+        end
+    end
+    return nothing
 end
