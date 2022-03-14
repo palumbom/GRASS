@@ -80,7 +80,7 @@ function plot_planet_transit(disk::DiskParams, planet::Planet)
     #                  extent=[-1,1,-1,1],
     #                  vmin=minimum(filter(!isnan, vels)),
     #                  vmax=maximum(filter(!isnan, vels)))
-    img = axs.pcolormesh(grid_xs, grid_ys, vels, cmap=cmap,
+    img = axs.pcolormesh(grid_xs, grid_ys, vels, cmap=cmap, shading="auto",
                          vmin=minimum(filter(!isnan, vels)),
                          vmax=maximum(filter(!isnan, vels)))
     axs.axhline(planet.b, c="k")
