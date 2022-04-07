@@ -179,6 +179,9 @@ function disk_sim_rm_gpu(spec::SpecParams, disk::DiskParams, planet::Planet,
     return spec.lambdas, outspec
 end
 
+# TODO: allocate the most I'll need
+# TODO: add up whole sun where i,j are normal pixels
+# TODO: then calculate profiles for occulted cells and subtract off
 function calc_norm_term_rm_gpu(star_map, norm_terms, rot_shifts, grid, xpos, ypos, r_planet, u1, u2, polex, poley, polez)
     # get indices from GPU blocks + threads
     idx = threadIdx().x + blockDim().x * (blockIdx().x-1)
