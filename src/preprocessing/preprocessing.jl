@@ -54,10 +54,22 @@ function clean_line(wavs::AA{T,1}, spec::AA{T,1}; center::T=NaN, plot=false,
     @assert !isnan(center)
     @assert length(wavs) == length(spec)
 
+    # compute a moving average
+    n_avg = 5
+    wavs_ma = moving_average(wavs, 5)
+    spec_ma = moving_average(spec, 5)
+
+    # strip plateaus
+    plat_inds = Array{Bool,1}(undef, length(spec_ma))
+    plat_inds .= false
+    for i in 2:length(spec_ma)
+        if isequal(spec_ma[i-1], spec_ma[i])
+            plat_inds[i] = true
+        end
+    end
+
     # find peaks in spectrum
-    m_inds = Peaks.argminima(spec, 2, strict=false)
-    m_inds, m_proms = Peaks.peakproms(m_inds, spec, minprom=0.1*std(spec), strict=false)
-    m_inds, m_widths, m_left, m_right = Peaks.peakwidths(m_inds, spec, m_proms, strict=false)
+    m_inds = Peaks.argminima(spec_ma[.!plat_inds], 10, strict=false)
 
     # get better center estimate
     m_inds_idx = argmin(abs.(wavs[m_inds] .- center))
@@ -100,43 +112,33 @@ function clean_line(wavs::AA{T,1}, spec::AA{T,1}; center::T=NaN, plot=false,
     spec ./= maximum(newspec)
     newspec ./= maximum(newspec)
 
-    # find fluxes above 90% to replace
-    topint = 0.9
-    botind = argmin(newspec);
-    ind1 = findfirst(x -> x .<= topint, newspec[1:botind])
-    ind2 = findfirst(x -> x .>= topint, newspec[botind:end]) + botind
+    # # find fluxes above 90% to replace
+    # topint = 0.9
+    # botind = argmin(newspec);
+    # # @show botind
+    # # if botind == 134
+    # #     for i in m_inds
+    # #         plt.axvline(wavs[i])
+    # #     end
+    # #     plt.plot(wavs_ma, spec_ma)
+    # #     plt.plot(newwavs, newspec)
+    # #     plt.show()
+    # # end
+    # ind1 = findfirst(x -> x .<= topint, newspec[1:botind])
+    # ind2 = findfirst(x -> x .>= topint, newspec[botind:end]) + botind
 
-    # abort if indices are weird
-    if isnothing(ind1) || isnothing(ind2)
-        println("Indices are weird!!")
-        wavs .= NaN
-        spec .= NaN
-        return wavs, spec
-    end
-
-    # # get model for line wings
-    # lwing_flux = fit_line_wings(newwavs, newspec, center=center, side="left")
-    # rwing_flux = fit_line_wings(newwavs, newspec, center=center, side="right")
-
-    # if plot
-    #     plt.plot(newwavs[1:ind1], lwing_flux[1:ind1], c="tab:orange")
-    #     plt.plot(newwavs[ind2:end], rwing_flux[ind2:end], c="tab:orange")
-    #     plt.show()
+    # # abort if indices are weird
+    # if isnothing(ind1) || isnothing(ind2)
+    #     println("Indices are weird!!")
+    #     wavs .= NaN
+    #     spec .= NaN
+    #     return wavs, spec
     # end
-
-    # replace data wings with model wings
-    # newspec[1:ind1] .= lwing_flux[1:ind1]
-    # newspec[ind2:end] .= rwing_flux[ind2:end]
-
-    # divide out slope of spectrum across line to ensure normalization
-    # slope = (newspec[end] - newspec[1]) / (newwavs[end] - newwavs[1])
-    # vals = slope .* (newwavs .- newwavs[1]) .+ newspec[1]
-    # newspec ./= vals
 
     # now just set rest of spectrum to 1
     spec[1:lwing_idx] .= 1.0
     spec[rwing_idx:end] .= 1.0
-    # if plot; plt.plot(wavs, spec); plt.show(); end;
+    if plot; plt.plot(wavs, spec); plt.show(); end;
     return wavs, spec
 end
 
