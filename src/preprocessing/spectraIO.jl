@@ -1,8 +1,12 @@
 function sort_spectrum_data(;dir::String=soldir, write::Bool=false)
     # glob the files
     @assert isdir(dir);
-    @assert isdir(dir * "spectra/")
-    files = glob("*.chvtt.fits", dir * "spectra/")
+
+    if isdir(dir * "spectra/")
+        files = glob("*.chvtt.fits", dir * "spectra/")
+    else
+        files = glob("*.chvtt.fits", dir)
+    end
     @assert !isempty(files)
 
     # extract file parametersl put in data frame
