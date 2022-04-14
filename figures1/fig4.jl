@@ -13,7 +13,7 @@ using LaTeXStrings
 using LsqFit
 
 # define some functions
-include(GRASS.moddir * "figures/fig_functions.jl")
+include(GRASS.moddir * "figures1/fig_functions.jl")
 
 # some global stuff
 const N = round.(Int, 2 .^ range(6, 10, step=0.5))

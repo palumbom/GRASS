@@ -13,7 +13,7 @@ using LaTeXStrings
 using LsqFit
 
 # define rms loop function
-include(GRASS.moddir * "figures/fig_functions.jl")
+include(GRASS.moddir * "figures1/fig_functions.jl")
 
 # some global stuff
 const N = 132
