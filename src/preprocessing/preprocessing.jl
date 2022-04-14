@@ -5,15 +5,17 @@ import PyPlot; plt = PyPlot; mpl = plt.matplotlib; plt.ioff()
 function fit_line_wings(wavs, spec; center=NaN, side="left")
     @assert !isnan(center)
 
-    # find flux at 25 and 80 percent depth
-    flux_lo = 0.10 * (1.0 - minimum(spec)) + minimum(spec)
-    flux_hi = 0.9 #0.80 * (1.0 - minimum(spec)) + minimum(spec)
-
-    # cut out the middle
+    # find flux at percent depths
     botind = argmin(spec)
+    flux_lo = 0.25 * (1.0 - minimum(spec)) + minimum(spec)
+    flux_hi = 0.80 * (1.0 - minimum(spec)) + minimum(spec)
+
+    plt.axhline(flux_lo, c="k")
+    plt.axhline(flux_hi, c="k")
+
     if side == "left"
         idx_lo = findfirst(x -> x .<= flux_lo, spec)
-        idx_hi = 1#findfirst(x -> x .<= flux_hi, spec)
+        idx_hi = findfirst(x -> x .<= flux_hi, spec)
         wavs_fit = wavs[idx_hi:idx_lo]
         spec_fit = spec[idx_hi:idx_lo]
 
@@ -23,9 +25,8 @@ function fit_line_wings(wavs, spec; center=NaN, side="left")
         # plt.axhline(spec[idx_hi], c="k")
         # plt.show()
     elseif side == "right"
-        idx_lo = findfirst(x -> x .>= flux_lo, spec[botind:end]) + botind
-        idx_hi = length(spec)#findfirst(x -> x .>= flux_hi, spec[botind:end]) + botind
-        idx_hi = length(spec)
+        idx_lo = findfirst(x -> x .>= flux_lo, view(spec, botind:length(spec))) + botind
+        idx_hi = findfirst(x -> x .>= flux_hi, view(spec, botind:length(spec))) + botind
         wavs_fit = wavs[idx_lo:idx_hi]
         spec_fit = spec[idx_lo:idx_hi]
 
@@ -36,9 +37,14 @@ function fit_line_wings(wavs, spec; center=NaN, side="left")
         # plt.axhline(spec[idx_hi], c="k")
     end
 
+    plt.plot(wavs_fit, spec_fit, c="tab:green")
+
     # perform the fit
+    lb = [-1.0, center-0.05, 0.0, 0.0, 1.0]
+    ub = [0.0, center+0.05, 5.0, 5.0, 1.0]
     p0 = [-0.125, center, 0.03, 0.03, 1.0]
-    fit = curve_fit(fit_voigt, wavs_fit, spec_fit, p0)
+    fit = curve_fit(fit_voigt, wavs_fit, spec_fit, p0)# lower=lb, upper=ub)
+    # @show fit.param
     return fit_voigt(wavs, fit.param)
 end
 
@@ -49,7 +55,7 @@ function clean_line(wavs::AA{T,1}, spec::AA{T,1}; center::T=NaN, plot=false,
     @assert length(wavs) == length(spec)
 
     # find peaks in spectrum
-    m_inds = Peaks.argminima(spec, 12, strict=false)
+    m_inds = Peaks.argminima(spec, 2, strict=false)
     m_inds, m_proms = Peaks.peakproms(m_inds, spec, minprom=0.1*std(spec), strict=false)
     m_inds, m_widths, m_left, m_right = Peaks.peakwidths(m_inds, spec, m_proms, strict=false)
 
@@ -64,8 +70,8 @@ function clean_line(wavs::AA{T,1}, spec::AA{T,1}; center::T=NaN, plot=false,
         c_idx_r = findfirst(wavs[c_inds] .> center_wav)
         c_idx_l = c_idx_r - 1
 
-        @show c_inds[c_idx_l]
-        @show c_inds[c_idx_r]
+        @show center_idx - c_inds[c_idx_l]
+        @show c_inds[c_idx_r] - center_idx
 
         plt.axvline(wavs[c_inds][c_idx_l], c="k")
         plt.axvline(wavs[c_inds][c_idx_r], c="k")
@@ -89,12 +95,14 @@ function clean_line(wavs::AA{T,1}, spec::AA{T,1}; center::T=NaN, plot=false,
     # take view of spectrum isolated on line to fit
     newwavs = view(wavs, lwing_idx:rwing_idx)
     newspec = view(spec, lwing_idx:rwing_idx)
-    newspec ./= maximum(newspec)
-    spec ./= maximum(newspec)
 
-    # find fluxes above 90% to replace with fit
+    # do normalization
+    spec ./= maximum(newspec)
+    newspec ./= maximum(newspec)
+
+    # find fluxes above 90% to replace
     topint = 0.9
-    botind = argmin(newspec)
+    botind = argmin(newspec);
     ind1 = findfirst(x -> x .<= topint, newspec[1:botind])
     ind2 = findfirst(x -> x .>= topint, newspec[botind:end]) + botind
 
@@ -106,29 +114,29 @@ function clean_line(wavs::AA{T,1}, spec::AA{T,1}; center::T=NaN, plot=false,
         return wavs, spec
     end
 
-    # get model for line wings
-    lwing_flux = fit_line_wings(newwavs, newspec, center=center, side="left")
-    rwing_flux = fit_line_wings(newwavs, newspec, center=center, side="right")
+    # # get model for line wings
+    # lwing_flux = fit_line_wings(newwavs, newspec, center=center, side="left")
+    # rwing_flux = fit_line_wings(newwavs, newspec, center=center, side="right")
 
-    if plot
-        plt.plot(newwavs[1:ind1], lwing_flux[1:ind1], c="tab:orange")
-        plt.plot(newwavs[ind2:end], rwing_flux[ind2:end], c="tab:orange")
-        plt.show()
-    end
+    # if plot
+    #     plt.plot(newwavs[1:ind1], lwing_flux[1:ind1], c="tab:orange")
+    #     plt.plot(newwavs[ind2:end], rwing_flux[ind2:end], c="tab:orange")
+    #     plt.show()
+    # end
 
     # replace data wings with model wings
-    newspec[1:ind1] .= lwing_flux[1:ind1]
-    newspec[ind2:end] .= rwing_flux[ind2:end]
+    # newspec[1:ind1] .= lwing_flux[1:ind1]
+    # newspec[ind2:end] .= rwing_flux[ind2:end]
 
     # divide out slope of spectrum across line to ensure normalization
-    slope = (newspec[end] - newspec[1]) / (newwavs[end] - newwavs[1])
-    vals = slope .* (newwavs .- newwavs[1]) .+ newspec[1]
-    newspec ./= vals
+    # slope = (newspec[end] - newspec[1]) / (newwavs[end] - newwavs[1])
+    # vals = slope .* (newwavs .- newwavs[1]) .+ newspec[1]
+    # newspec ./= vals
 
     # now just set rest of spectrum to 1
     spec[1:lwing_idx] .= 1.0
     spec[rwing_idx:end] .= 1.0
-    if plot; plt.plot(wavs, spec); plt.show(); end;
+    # if plot; plt.plot(wavs, spec); plt.show(); end;
     return wavs, spec
 end
 
