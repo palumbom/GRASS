@@ -28,6 +28,7 @@ function main()
     for dir in dirs
         # figure out line name
         line_name = splitpath(dir)[end]
+        line_title = replace(line_name, "_"=>" ")
 
         # get input data
         bisinfo = GRASS.SolarData(dir=dir, relative=true, extrapolate=true)
@@ -60,7 +61,7 @@ function main()
         # set axis limits + labels
         ax1.set_xlim(xlims...)
         ax1.set_ylim(0.1, 1.0)
-        ax1.set_title(latexstring(line_name))
+        ax1.set_title(latexstring(line_title))
         ax1.set_xlabel(L"{\rm Relative\ Wavelength\ (m\AA)}")
         ax1.set_ylabel(L"{\rm Normalized\ Intensity}")
 
@@ -81,6 +82,7 @@ function main()
         end
 
         # set axis limits + labels
+        ax1.set_title(latexstring(line_title))
         ax1.set_xlabel(L"{\rm Normalized\ Intensity}")
         ax1.set_ylabel(L"{\rm Width\ across\ line\ (\AA)}")
 
