@@ -16,10 +16,10 @@ using Peaks
 using LaTeXStrings
 import PyPlot; plt = PyPlot; mpl = plt.matplotlib; plt.ioff()
 using PyCall; animation = pyimport("matplotlib.animation");
-mpl.style.use(GRASS.moddir * "figures/fig.mplstyle")
+mpl.style.use(GRASS.moddir * "figures1/fig.mplstyle")
 
 # define some functions
-include(GRASS.moddir * "figures/fig_functions.jl")
+include(GRASS.moddir * "figures1/fig_functions.jl")
 
 # get command line args and output directories
 run, plot = parse_args(ARGS)
