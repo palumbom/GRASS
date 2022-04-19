@@ -70,9 +70,9 @@ function main()
         cb.set_label(L"{\rm Time\ from\ first\ observation\ (min)}")
 
         # save the plot
-        fig.savefig(plotdir * line_name * "_bisector.pdf")
+        fig.savefig(plotdir * "new_stuff/" * line_name * "_bisector.pdf")
         plt.clf(); plt.close()
-        println(">>> Figure written to: " * plotdir * line_name * "_bisector.pdf")
+        println(">>> Figure written to: " * plotdir * "new_stuff/" * line_name * "_bisector.pdf")
 
         # plot the widths
         fig = plt.figure()
@@ -91,9 +91,9 @@ function main()
         cb.set_label(L"{\rm Time\ from\ first\ observation\ (min)}")
 
         # save the plot
-        fig.savefig(plotdir * line_name * "_width.pdf")
+        fig.savefig(plotdir * "new_stuff/" * line_name * "_width.pdf")
         plt.clf(); plt.close()
-        println(">>> Figure written to: " * plotdir * line_name * "_width.pdf")
+        println(">>> Figure written to: " * plotdir * "new_stuff/" * line_name * "_width.pdf")
     end
     return nothing
 end
