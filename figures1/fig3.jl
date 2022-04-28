@@ -29,14 +29,14 @@ use_gpu = CUDA.functional()
 function download_iag()
     println(">>> Downloading IAG atlas...")
     file = HTTP.download("https://cdsarc.unistra.fr/ftp/J/A+A/587/A65/spvis.dat.gz",
-                         GRASS.moddir * "figures/", update_period=Inf)
+                         GRASS.moddir * "input_data/", update_period=Inf)
     println(">>> IAG atlas downloaded!")
     return nothing
 end
 
 function read_iag(; isolate=true)
     # download the IAG atlas
-    file = GRASS.moddir * "figures/spvis.dat.gz"
+    file = GRASS.moddir * "input_data/spvis.dat.gz"
     if !isfile(file)
         download_iag()
     end
