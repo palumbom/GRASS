@@ -26,7 +26,7 @@ Construct a `SpecParams` composite type instance. If `variability` is not specif
 - `resolution::Float64=7e8`: Spectral resolution of spectrum
 """
 function SpecParams(;lines=[], depths=[], geffs=[], variability=[],
-                    resolution=7e5, buffer=1.0, kwargs...)
+                    indirs=[], resolution=7e5, buffer=1.0, kwargs...)
     @assert length(lines) == length(depths)
     @assert !isempty(lines)
     @assert !isempty(depths)
@@ -74,10 +74,17 @@ function SpecParams(;lines=[], depths=[], geffs=[], variability=[],
     data_inds = zeros(Int64, length(lines))
 
     # loop over lines and do 2D nearest neighbor
-    for i in eachindex(lines)
-        param_dist = sqrt.((geff_input .- geffs[i]).^2 + (depth_input .- depths[i]).^2)
-        idx = argmin(param_dist)
-        data_inds[i] = idx
+    if isempty(indirs)
+        for i in eachindex(lines)
+            param_dist = sqrt.((geff_input .- geffs[i]).^2 + (depth_input .- depths[i]).^2)
+            idx = argmin(param_dist)
+            data_inds[i] = idx
+        end
+    else
+        @assert length(indirs) == length(lines)
+        for i in eachindex(indirs)
+            data_inds[i] = findfirst(indirs[i] .== indata.dirs)
+        end
     end
 
     # now make sure everything is sorted

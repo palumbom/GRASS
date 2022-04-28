@@ -92,7 +92,7 @@ function disk_sim(spec::SpecParams{T}, disk::DiskParams{T,Int64}, soldata::Solar
     # set pre-allocations and make generator that will be re-used
     outspec .= zero(T)
     wsp = SynthWorkspace(spec)
-    liter = 1:length(spec.lines)
+    liter = 1:length(spec.lines); @assert length(liter) >= 1
 
     # get list of discrete mu's in input data
     mu_symb = soldata.mu
@@ -116,7 +116,7 @@ function disk_sim(spec::SpecParams{T}, disk::DiskParams{T,Int64}, soldata::Solar
             # use data for same mu from different axis if axis is missing
             while !(key in keys(soldata.len))
                 idx = findfirst(key[1] .== soldata.ax)
-                if idx == length(soldata.ax)
+                if isnothing(idx) || idx == length(soldata.ax)
                     idx = 1
                 end
                 key = (soldata.ax[idx+1], key[2])

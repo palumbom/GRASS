@@ -1,5 +1,6 @@
 using Peaks
 using LsqFit
+using Interpolations
 import PyPlot; plt = PyPlot; mpl = plt.matplotlib; plt.ioff()
 
 function fit_line_wings(wavs, spec; center=NaN, side="left")
@@ -112,20 +113,37 @@ function clean_line(wavs::AA{T,1}, spec::AA{T,1}; center::T=NaN, plot=false,
     spec ./= maximum(newspec)
     newspec ./= maximum(newspec)
 
-    # # find fluxes above 90% to replace
-    # topint = 0.9
-    # botind = argmin(newspec);
-    # # @show botind
-    # # if botind == 134
-    # #     for i in m_inds
-    # #         plt.axvline(wavs[i])
-    # #     end
-    # #     plt.plot(wavs_ma, spec_ma)
-    # #     plt.plot(newwavs, newspec)
-    # #     plt.show()
-    # # end
-    # ind1 = findfirst(x -> x .<= topint, newspec[1:botind])
-    # ind2 = findfirst(x -> x .>= topint, newspec[botind:end]) + botind
+    # find fluxes above 90% to replace
+    topint = 0.9
+    botind = argmin(newspec);
+    ind1 = findfirst(x -> x .<= topint, newspec[1:botind]) + lwing_idx
+    ind2 = findfirst(x -> x .>= topint, newspec[botind:end]) + botind + lwing_idx
+
+    # set far wings to 1.0
+    spec[1:lwing_idx-50] .= 1.0
+    spec[rwing_idx+50:end] .= 1.0
+    spec[lwing_idx-50:ind1] .= NaN
+    spec[ind2:rwing_idx+50] .= NaN
+
+    # do interpolations
+    itp = CubicSplineInterpolation(wavs, spec)
+    @show itp
+
+    # replace data wings with model wings
+    # newspec[1:ind1] .= lwing_flux[1:ind1]
+    # newspec[ind2:end] .= rwing_flux[ind2:end]
+
+    # # fit it
+    # lwing_flux = fit_line_wings(newwavs, newspec, center=center, side="left")
+    # rwing_flux = fit_line_wings(newwavs, newspec, center=center, side="right")
+
+    # divide out slope of spectrum across line to ensure normalization
+    # slope = (newspec[end] - newspec[1]) / (newwavs[end] - newwavs[1])
+    # vals = slope .* (newwavs .- newwavs[1]) .+ newspec[1]
+    # newspec ./= vals
+
+    # normalize it one last time
+    # newspec ./= maximum(newspec)
 
     # # abort if indices are weird
     # if isnothing(ind1) || isnothing(ind2)
@@ -136,8 +154,8 @@ function clean_line(wavs::AA{T,1}, spec::AA{T,1}; center::T=NaN, plot=false,
     # end
 
     # now just set rest of spectrum to 1
-    spec[1:lwing_idx] .= 1.0
-    spec[rwing_idx:end] .= 1.0
+    # spec[1:lwing_idx] .= 1.0
+    # spec[rwing_idx:end] .= 1.0
     if plot; plt.plot(wavs, spec); plt.show(); end;
     return wavs, spec
 end
