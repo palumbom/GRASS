@@ -20,25 +20,31 @@ function find_data_index_gpu(x, y, disc_mu, disc_ax)
     mu_ind = searchsortednearest_gpu(disc_mu, mu)
     ax_val = find_nearest_ax_gpu(x, y)
 
+    # find the first index of disc_mu with that discrete mu val
+    i = 1
+    while disc_mu[i] != disc_mu[mu_ind]
+        i += 1
+    end
+    mu_ind = i
+
     # calculate the data index
     if mu_ind == CUDA.length(disc_mu)
+        # return immediately if nearest mu is disk center
         return CUDA.length(disc_mu)
     else
-        mu_orig = disc_mu[mu_ind]
-        while (disc_ax[mu_ind] != ax_val)
-            if mu > disc_mu[mu_ind]
-                mu_ind -= 1
-                if disc_mu[mu_ind] != mu_orig
-                    return mu_ind + 1
-                end
-            else
-                mu_ind += 1
-                if disc_mu[mu_ind] != mu_orig
-                    return mu_ind - 1
-                end
-            end
+        # otherwise we need the right axis value
+        mu_ind_orig = mu_ind
+        mu_val_orig = disc_mu[mu_ind_orig]
+        while ((disc_ax[mu_ind] != ax_val) & (disc_mu[mu_ind] == mu_val_orig))
+            mu_ind += 1
         end
-        return mu_ind
+
+        # check that we haven't overflowed into the next batch of mus
+        if disc_mu[mu_ind] == mu_val_orig
+            return mu_ind
+        else
+            return mu_ind_orig
+        end
     end
     return nothing
 end
@@ -46,10 +52,11 @@ end
 function sort_data_for_gpu(soldata::SolarData{T}) where T<:AbstractFloat
     # allocate memory for arrays to pass to gpu
     len = collect(values(soldata.len))
-    wav = zeros(100, maximum(len), length(soldata.len))
-    bis = zeros(100, maximum(len), length(soldata.len))
-    wid = zeros(100, maximum(len), length(soldata.len))
-    dep = zeros(100, maximum(len), length(soldata.len))
+    npositions = length(len)
+    wav = zeros(100, maximum(len), npositions)
+    bis = zeros(100, maximum(len), npositions)
+    wid = zeros(100, maximum(len), npositions)
+    dep = zeros(100, maximum(len), npositions)
     for (ind,(key,val)) in enumerate(soldata.len)
         wav[:, 1:val, ind] .= soldata.wav[key]
         bis[:, 1:val, ind] .= soldata.bis[key]

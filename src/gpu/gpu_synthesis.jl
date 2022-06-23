@@ -16,6 +16,7 @@ function fill_workspace_arrays!(line, z_convs, grid, tloop, data_inds, rot_shift
             y = grid[j]
             r2 = calc_r2(x, y)
             if r2 > 1.0
+                @inbounds λΔDs[i,j] = 0.0
                 continue
             end
 
