@@ -6,6 +6,8 @@ struct LineProperties{T<:AF} <: AbstractLineProperties
     λrest::T            # angstroms
     geff::T
     height::T           # km
+    lower_level::T      # eV
+    upper_level::T      # eV
 end
 
 function LineProperties(filename::String)
@@ -19,11 +21,17 @@ function LineProperties(filename::String)
         λrest = read(attr["air_wavelength"])
         geff = read(attr["g_eff"])
         height = read(attr["height"])
-        return LineProperties(species, mass, depth, λrest, geff, height)
+        lower_level = read(attr["lower_level"])
+        upper_level = read(attr["upper_level"])
+        return LineProperties(species, mass, depth, λrest, geff, height, lower_level, upper_level)
     end
     return lp
 end
 
+get_species(lp::LineProperties) = lp.species
 get_rest_wavelength(lp::LineProperties) = lp.λrest
+get_energy(lp::LineProperties) = lp.upper_level - lp.lower_level
+get_lower_level(lp::LineProperties) = lp.lower_level
 get_depth(lp::LineProperties) = lp.depth
 get_geff(lp::LineProperties) = lp.geff
+get_height(lp::LineProperties) = lp.height
