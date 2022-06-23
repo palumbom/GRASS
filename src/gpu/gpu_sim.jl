@@ -1,3 +1,5 @@
+import PyPlot; plt = PyPlot; mpl = plt.matplotlib; plt.ioff()
+
 function iterate_tloop_gpu(tloop, data_inds, lenall, grid)
     # get indices from GPU blocks + threads
     idx = threadIdx().x + blockDim().x * (blockIdx().x-1)
@@ -46,6 +48,9 @@ function initialize_arrays_for_gpu(data_inds, norm_terms, rot_shifts,
             y = grid[j]
             r2 = calc_r2(x, y)
             if r2 > 1.0
+                @inbounds data_inds[i,j] = 0
+                @inbounds norm_terms[i,j] = 0.0
+                @inbounds rot_shifts[i,j] = 0.0
                 continue
             end
 
