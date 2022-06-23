@@ -7,7 +7,7 @@ using Distributed
     avg0 = zeros(Nloop)
     for j in 1:Nloop
         # synthesize spectra
-        lambdas, outspec = synthesize_spectra(spec, disk, seed_rng=false, top=top, use_gpu=use_gpu)
+        lambdas, outspec = synthesize_spectra(spec, disk, seed_rng=false, top=top, use_gpu=use_gpu, verbose=false)
 
         # extract velocities
         v_grid, ccf = calc_ccf(lambdas, outspec, spec, normalize=true)
