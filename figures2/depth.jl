@@ -115,12 +115,13 @@ if plot
 
     # loop over unique airwavs
     airwavs = unique(df.airwav)
-    j = 0
     for i in eachindex(airwavs)
         if !(airwavs[i] in goodwavs)
             continue
         end
-        j += 1
+
+        # get index of goodwav
+        j = findfirst(airwavs[i] .== goodwavs)
 
         # assign to variable names
         inds = df.airwav .== airwavs[i]
