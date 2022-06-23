@@ -8,6 +8,7 @@ using Distributed
 @everywhere using SharedArrays
 @everywhere using EchelleCCFs
 using CSV
+using Glob
 using DataFrames
 using LaTeXStrings
 using LsqFit
@@ -17,8 +18,8 @@ include(GRASS.moddir * "figures1/fig_functions.jl")
 
 # some global stuff
 const N = 132
-const Nt = 5
-const Nloop = 3
+const Nt = 100
+const Nloop = 50
 
 # get command line args and output directories
 run, plot = parse_args(ARGS)
@@ -79,50 +80,82 @@ end
 # run the simulation
 if run
     for l in eachindex(airwavs)
-        single_line_variability(airwavs[l], indir[l])
+        single_line_variability(airwavs[l], indirs[l])
     end
 end
 
-# if plot
-#     # plotting imports
-#     import PyPlot; plt = PyPlot; mpl = plt.matplotlib; plt.ioff()
-#     using PyCall; animation = pyimport("matplotlib.animation")
-#     mpl.style.use(GRASS.moddir * "figures/fig.mplstyle")
+if plot
+    # plotting imports
+    import PyPlot; plt = PyPlot; mpl = plt.matplotlib; plt.ioff()
+    using PyCall; animation = pyimport("matplotlib.animation")
+    mpl.style.use(GRASS.moddir * "figures1/fig.mplstyle")
 
-#     # read in the data
-#     fname = datadir * "rms_vs_depth_" * string(N) * ".csv"
-#     df = CSV.read(fname, DataFrame)
+    # create data frame
+    df = DataFrame(airwav=[], depths=[], avg_avg_depth=[], std_avg_depth=[], avg_rms_depth=[], std_rms_depth=[])
 
-#     # assign to variable names
-#     depths = df.depths
-#     avg_avg_depth = df.avg_avg_depth
-#     std_avg_depth = df.std_avg_depth
-#     avg_rms_depth = df.avg_rms_depth
-#     std_rms_depth = df.std_rms_depth
+    # read in the data
+    files = Glob.glob("rms_vs_depth_*.csv", datadir)
+    for f in files
+        if splitpath(f)[end] ==  "rms_vs_depth_132.csv"
+            continue
+        end
+        append!(df, CSV.read(f, DataFrame))
+    end
 
-#     # get the errors
-#     err_avg_depth = std_avg_depth ./ sqrt(Nloop)
-#     err_rms_depth = std_rms_depth ./ sqrt(Nloop)
+    # make sure its sorted on airwavs
+    sort!(df, :airwav)
 
-#     # plot the results
-#     fig, ax1 = plt.subplots()
-#     ax1.errorbar(depths, avg_rms_depth, yerr=err_rms_depth, capsize=3.0, color="black", fmt=".")
-#     ax1.fill_between(depths, avg_rms_depth .- std_rms_depth, avg_rms_depth .+ std_rms_depth, color="tab:blue", alpha=0.3)
-#     ax1.fill_betweenx(range(0.0, 1.0, length=5), zeros(5), zeros(5) .+ 0.2, hatch="/", fc="black", ec="white", alpha=0.15, zorder=0)
+    # set color, label lists, etc.
+    goodwavs = [5434.5232, 5432.9470, 6173.3344]
+    geffs = [L"g_{\rm eff} = 0.00", L"g_{\rm eff} = 0.50", L"g_{\rm eff} = 2.50"]
+    colors = ["tab:blue", "tab:green", "tab:orange"]
 
-#     # set labels, etc.
-#     ax1.set_xlabel(L"{\rm Line\ Depth}")
-#     ax1.set_ylabel(L"{\rm RMS}_{\rm RV}\ {\rm (m s}^{-1})")
-#     ax1.set_xlim(0.0, 1.0)
-#     ax1.set_ylim(0.375, 0.675)
+    # create figure objects
+    fig, ax1 = plt.subplots()
 
-#     # annotate the axes and save the figure
-#     arrowprops = Dict("facecolor"=>"black", "shrink"=>0.05, "width"=>2.0,"headwidth"=>8.0)
-#     ax1.annotate(L"{\rm Shallow}", xy=(0.85,0.39), xytext=(0.05,0.388), arrowprops=arrowprops)
-#     ax1.annotate(L"{\rm Deep}", xy=(0.86, 0.388))
-#     fig.savefig(plotdir * "fig5.pdf")
-#     plt.clf(); plt.close()
-#     println(">>> Figure written to: " * plotdir * "fig5.pdf")
-# end
+    # loop over unique airwavs
+    airwavs = unique(df.airwav)
+    j = 0
+    for i in eachindex(airwavs)
+        if !(airwavs[i] in goodwavs)
+            continue
+        end
+        j += 1
+
+        # assign to variable names
+        inds = df.airwav .== airwavs[i]
+        depths = df.depths[inds]
+        avg_avg_depth = df.avg_avg_depth[inds]
+        std_avg_depth = df.std_avg_depth[inds]
+        avg_rms_depth = df.avg_rms_depth[inds]
+        std_rms_depth = df.std_rms_depth[inds]
+
+        # get the errors
+        err_avg_depth = std_avg_depth ./ sqrt(Nloop)
+        err_rms_depth = std_rms_depth ./ sqrt(Nloop)
+
+        # plot the results
+        ax1.errorbar(depths, avg_rms_depth, yerr=err_rms_depth, capsize=3.0, color=colors[j], fmt=".", label=geffs[j])
+        ax1.fill_between(depths, avg_rms_depth .- std_rms_depth, avg_rms_depth .+ std_rms_depth, color=colors[j], alpha=0.3)
+    end
+
+    # shade the low depth area
+    ax1.fill_betweenx(range(0.0, 1.0, length=5), zeros(5), zeros(5) .+ 0.2, hatch="/", fc="black", ec="white", alpha=0.15, zorder=0)
+
+    # set labels, etc.
+    ax1.set_xlabel(L"{\rm Line\ Depth}")
+    ax1.set_ylabel(L"{\rm RMS}_{\rm RV}\ {\rm (m s}^{-1})")
+    ax1.set_xlim(0.0, 1.0)
+    ax1.set_ylim(0.0, 0.675)
+
+    # annotate the axes and save the figure
+    arrowprops = Dict("facecolor"=>"black", "shrink"=>0.05, "width"=>2.0,"headwidth"=>8.0)
+    ax1.annotate(L"{\rm Shallow}", xy=(0.85,0.05), xytext=(0.05,0.04), arrowprops=arrowprops)
+    ax1.annotate(L"{\rm Deep}", xy=(0.86, 0.04))
+    ax1.legend(loc="upper right")
+    fig.savefig(plotdir * "depths.pdf")
+    plt.clf(); plt.close()
+    println(">>> Figure written to: " * plotdir * "depths.pdf")
+end
 
 
