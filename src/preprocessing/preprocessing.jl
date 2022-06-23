@@ -2,8 +2,6 @@ using Peaks
 using LsqFit
 import PyPlot; plt = PyPlot; mpl = plt.matplotlib; plt.ioff()
 
-using Debugger
-
 function fit_line_wings(wavs, spec; center=NaN, side="left")
     @assert !isnan(center)
 
