@@ -79,17 +79,24 @@ function bin_spectrum(wavs::AbstractArray{T,2}, spec::AbstractArray{T,2};
     @assert binsize >= 1
     @assert binsize < size(wavs,2)
 
-    # get sizes, allocate memory
+    # get sizes
     nwave = size(wavs,1)
     ntime = size(wavs,2)
     nbins = floor(Int, ntime/binsize)
+
+    # old code that allocates mem
     wavsb = zeros(nwave, nbins)
     specb = zeros(nwave, nbins)
-
-    # do the binning
     for i in 0:(nbins-1)
         wavsb[:,i+1] = mean(wavs[:, i*binsize+1:(i+1)*binsize], dims=2)
         specb[:,i+1] = mean(spec[:, i*binsize+1:(i+1)*binsize], dims=2)
     end
-    return wavsb, specb
+
+    # do the binning
+    # for i in 0:(nbins-1)
+    #     wavs[:,i+1] = mean(wavs[:, i*binsize+1:(i+1)*binsize], dims=2)
+    #     spec[:,i+1] = mean(spec[:, i*binsize+1:(i+1)*binsize], dims=2)
+    # end
+
+    return wavs[:,1:nbins], spec[:,1:nbins]
 end
