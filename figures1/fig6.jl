@@ -95,7 +95,7 @@ if plot
     # plotting imports
     import PyPlot; plt = PyPlot; mpl = plt.matplotlib; plt.ioff()
     using PyCall; animation = pyimport("matplotlib.animation")
-    mpl.style.use(GRASS.moddir * "figures/fig.mplstyle")
+    mpl.style.use(GRASS.moddir * "figures1/fig.mplstyle")
 
     # read in the data
     fname = datadir * "inclination_" *  string(N) * ".csv"
