@@ -1,7 +1,8 @@
 using Peaks
 using LsqFit
-using Interpolations
 import PyPlot; plt = PyPlot; mpl = plt.matplotlib; plt.ioff()
+
+using Debugger
 
 function fit_line_wings(wavs, spec; center=NaN, side="left")
     @assert !isnan(center)
@@ -79,6 +80,7 @@ function clean_line(wavs::AA{T,1}, spec::AA{T,1}; center::T=NaN, plot=false,
 
     # find indices for continuum on either side of line
     if iszero(lwing_Δ_idx) && iszero(rwing_Δ_idx)
+        println(">>> Plotting spectrum w/ line annotation...")
         c_inds = Peaks.argmaxima(spec, 10, strict=false)
         c_idx_r = findfirst(wavs[c_inds] .> center_wav)
         c_idx_l = c_idx_r - 1
@@ -90,6 +92,7 @@ function clean_line(wavs::AA{T,1}, spec::AA{T,1}; center::T=NaN, plot=false,
         plt.axvline(wavs[c_inds][c_idx_r], c="k")
         plt.axvline(center_wav, c="orange")
         plt.plot(wavs, spec./maximum(spec))
+        plt.title(string(center))
         plt.show()
         return nothing
     end
@@ -120,14 +123,19 @@ function clean_line(wavs::AA{T,1}, spec::AA{T,1}; center::T=NaN, plot=false,
     ind2 = findfirst(x -> x .>= topint, newspec[botind:end]) + botind + lwing_idx
 
     # set far wings to 1.0
-    spec[1:lwing_idx-50] .= 1.0
-    spec[rwing_idx+50:end] .= 1.0
-    spec[lwing_idx-50:ind1] .= NaN
-    spec[ind2:rwing_idx+50] .= NaN
+    # spec[1:lwing_idx-50] .= 1.0
+    # spec[rwing_idx+50:end] .= 1.0
+    spec[1:lwing_idx] .= 1.0
+    spec[rwing_idx:end] .= 1.0
+    # spec[lwing_idx-50:ind1] .= NaN
+    # spec[ind2:rwing_idx+50] .= NaN
 
-    # do interpolations
-    itp = CubicSplineInterpolation(wavs, spec)
-    @show itp
+    # wavs_not_nan = wavs[findall(.!isnan, spec)]
+    # spec_not_nan = filter(.!isnan, spec)
+
+    # fit it
+    # lwing_flux = fit_line_wings(newwavs, newspec, center=center, side="left")
+    # rwing_flux = fit_line_wings(newwavs, newspec, center=center, side="right")
 
     # replace data wings with model wings
     # newspec[1:ind1] .= lwing_flux[1:ind1]
