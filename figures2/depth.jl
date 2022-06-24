@@ -80,11 +80,11 @@ function single_line_variability(airwav, indir)
 end
 
 # run the simulation
-# if run
-#     for l in eachindex(airwavs)
-#         single_line_variability(airwavs[l], indirs[l])
-#     end
-# end
+if run
+    for l in eachindex(airwavs)
+        single_line_variability(airwavs[l], indirs[l])
+    end
+end
 
 if plot
     # plotting imports
