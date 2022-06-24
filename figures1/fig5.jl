@@ -71,9 +71,9 @@ function main()
 end
 
 # run the simulation
-if run
-    main()
-end
+# if run
+#     main()
+# end
 
 if plot
     # plotting imports

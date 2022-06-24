@@ -80,11 +80,11 @@ function single_line_variability(airwav, indir)
 end
 
 # run the simulation
-if run
-    for l in eachindex(airwavs)
-        single_line_variability(airwavs[l], indirs[l])
-    end
-end
+# if run
+#     for l in eachindex(airwavs)
+#         single_line_variability(airwavs[l], indirs[l])
+#     end
+# end
 
 if plot
     # plotting imports
@@ -98,7 +98,12 @@ if plot
     # read in the data
     files = Glob.glob("rms_vs_depth_*.csv", datadir)
     for f in files
-        if splitpath(f)[end] ==  "rms_vs_depth_132.csv"
+        if splitpath(f)[end] ==  "rms_vs_depth_FeI_5434.csv"
+            continue
+        elseif splitpath(f)[end] ==  "rms_vs_depth_132.csv"
+            df_temp = CSV.read(f, DataFrame)
+            df_temp[!, :airwav] = repeat([5434.5232], length(df_temp.depths))
+            append!(df, df_temp)
             continue
         end
         append!(df, CSV.read(f, DataFrame))
@@ -108,9 +113,9 @@ if plot
     sort!(df, :airwav)
 
     # set color, label lists, etc.
-    goodwavs = [5434.5232, 5432.9470, 6173.3344]
-    geffs = [L"g_{\rm eff} = 0.00", L"g_{\rm eff} = 0.50", L"g_{\rm eff} = 2.50"]
-    colors = ["tab:blue", "tab:green", "tab:orange"]
+    goodwavs = [5434.5232]#, 5432.9470, 6173.3344]
+    geffs = [L"g_{\rm eff} = 0.00"]#, L"g_{\rm eff} = 0.50", L"g_{\rm eff} = 2.50"]
+    colors = ["tab:blue"]#, "tab:green", "tab:orange"]
 
     # create figure objects
     fig, ax1 = plt.subplots()
@@ -154,8 +159,8 @@ if plot
     # annotate the axes and save the figure
     arrowprops = Dict("facecolor"=>"black", "shrink"=>0.05, "width"=>2.0,"headwidth"=>8.0)
     ax1.annotate(" ", xy=(0.85,0.39), xytext=(0.2,0.39), arrowprops=arrowprops)
-    ax1.annotate(L"{\rm Shallow}", xy=(0.05, 0.388))
-    ax1.annotate(L"{\rm Deep}", xy=(0.86, 0.388))
+    ax1.annotate(L"{\rm Shallow}", xy=(0.05, 0.385))
+    ax1.annotate(L"{\rm Deep}", xy=(0.86, 0.385))
     ax1.legend(loc="upper center", ncol=3, fontsize=12)
     fig.savefig(plotdir * "depths.pdf")
     plt.clf(); plt.close()
