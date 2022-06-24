@@ -23,7 +23,7 @@ function main()
     ncurves = 25
 
     # get input data
-    bisinfo = GRASS.SolarData(relative=true, extrapolate=true)
+    bisinfo = GRASS.SolarData(dir=GRASS.soldir * "FeI_5434/")
     key = (:c, :mu10)
     bis = bisinfo.bis[key]
     wav = bisinfo.wav[key]
