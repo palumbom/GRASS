@@ -98,24 +98,21 @@ if plot
     # read in the data
     files = Glob.glob("rms_vs_depth_*.csv", datadir)
     for f in files
-        if splitpath(f)[end] ==  "rms_vs_depth_FeI_5434.csv"
+        if splitpath(f)[end] ==  "rms_vs_depth_132.csv"
             continue
-        elseif splitpath(f)[end] ==  "rms_vs_depth_132.csv"
-            df_temp = CSV.read(f, DataFrame)
-            df_temp[!, :airwav] = repeat([5434.5232], length(df_temp.depths))
-            append!(df, df_temp)
-            continue
+        else
+            append!(df, CSV.read(f, DataFrame))
         end
-        append!(df, CSV.read(f, DataFrame))
+
     end
 
     # make sure its sorted on airwavs
     sort!(df, :airwav)
 
     # set color, label lists, etc.
-    goodwavs = [5434.5232]#, 5432.9470, 6173.3344]
-    geffs = [L"g_{\rm eff} = 0.00"]#, L"g_{\rm eff} = 0.50", L"g_{\rm eff} = 2.50"]
-    colors = ["tab:blue"]#, "tab:green", "tab:orange"]
+    goodwavs = [5434.5232, 5432.9470, 6173.3344]
+    geffs = [L"g_{\rm eff} = 0.00", L"g_{\rm eff} = 0.50", L"g_{\rm eff} = 2.50"]
+    colors = ["tab:blue", "tab:green", "tab:orange"]
 
     # create figure objects
     fig, ax1 = plt.subplots()
