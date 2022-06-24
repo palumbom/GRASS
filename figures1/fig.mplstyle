@@ -6,4 +6,4 @@ grid.linestyle           : :
 figure.autolayout        : True
 savefig.bbox             : tight
 axes.formatter.useoffset : False
-text.usetex              : False
+text.usetex              : True
