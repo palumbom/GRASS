@@ -29,8 +29,10 @@ grassdir, plotdir, datadir = check_plot_dirs()
 use_gpu = CUDA.functional()
 
 # lines to run
-airwavs = [5250.2084, 5432.9470, 5434.5232, 5576.0881, 6173.3344]
-indirs = ["FeI_5250.2/", "FeI_5432/", "FeI_5434/", "FeI_5576/", "FeI_6173/"]
+# airwavs = [5250.2084, 5432.9470, 5434.5232, 5576.0881, 6173.3344]
+airwavs = [5432.9470, 5434.5232, 6173.3344]
+# indirs = ["FeI_5250.2/", "FeI_5432/", "FeI_5434/", "FeI_5576/", "FeI_6173/"]
+indirs = ["FeI_5432/", "FeI_5434/", "FeI_6173/"]
 
 function single_line_variability(airwav, indir)
     # set up parameters for lines
