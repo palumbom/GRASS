@@ -46,7 +46,9 @@ end
 
 function simulate_observations(obs::ObservationPlan, spec::SpecParams;
                                N::Int=128, snr::T=Inf, new_res::T=NaN,
-                               use_gpu::Bool=false) where T<:AF
+                               planet::Vararg{Union{Nothing,Planet}}=nothing;
+                               verbose::Bool=false, seed_rng::Bool=false,
+                               use_gpu::Bool=false; kwargs...) where T<:AF
     # assertions
     @assert (isnan(new_res) | (new_res < 7e5))
 
@@ -66,13 +68,40 @@ function simulate_observations(obs::ObservationPlan, spec::SpecParams;
     # synthesize the spectra at default resolution
     Nλ = length(spec.lambdas)
     outspec = zeros(Nλ, disk.Nt)
+
+    # get number of calls to disk_sim needed
+    indata_inds = unique(spec.data_inds)
+    ncalls = length(indata_inds)
+
+    # call disk_sim to simulate the spectra
     if use_gpu
-        disk_sim_gpu(spec, disk, outspec, skip_times=skip_times)
+        # make sure there is actually a GPU to use
+        @assert CUDA.functional()
+
+        for i in 1:ncalls
+            spec_temp = SpecParams(spec, indata_inds[i])
+
+            # load in the appropriate input data
+            if verbose
+                println("\t>>> " * spec.indata.dirs[indata_inds[i]])
+            end
+            soldata = SolarData(dir=spec.indata.dirs[indata_inds[i]]; spec.kwargs...)
+
+            # run the simulation and multiply outspec by this spectrum
+            rm = !isnothing(planet...)
+            if !rm
+                disk_sim_gpu(spec_temp, disk, soldata, outspec,
+                             skip_times=skip_times, seed_rng=seed_rng,
+                             verbose=verbose)
+            else
+                disk_sim_rm_gpu(spec_temp, disk, planet...,
+                                soldata, outspec, seed_rng=seed_rng,
+                                verbose=verbose)
+            end
+        end
     else
         disk_sim(spec, disk, prof, outspec, skip_times=skip_times)
-        prof = ones(Nλ)
     end
-
 
     # allocate memory for binned spectra
     flux_binned = zeros(Nλ, obs.N_obs)
