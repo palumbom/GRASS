@@ -136,7 +136,6 @@ function disk_sim_gpu(spec::SpecParams, disk::DiskParams, soldata::SolarData,
         disc_ax = CuArray{Int}(disc_ax_cpu)
         lenall_gpu = CuArray{Int}(lenall_cpu)
         wavall_gpu = CuArray{precision}(wavall_cpu)
-        bisall_gpu = CuArray{precision}(bisall_cpu)
         widall_gpu = CuArray{precision}(widall_cpu)
         depall_gpu = CuArray{precision}(depall_cpu)
     end
@@ -144,8 +143,6 @@ function disk_sim_gpu(spec::SpecParams, disk::DiskParams, soldata::SolarData,
     # allocate arrays for fresh copy of input data to copy to each loop
     @cusync begin
         wavall_gpu_loop = CUDA.copy(wavall_gpu)
-        bisall_gpu_loop = CUDA.copy(bisall_gpu)
-        widall_gpu_loop = CUDA.copy(widall_gpu)
         depall_gpu_loop = CUDA.copy(depall_gpu)
     end
 
@@ -217,33 +214,25 @@ function disk_sim_gpu(spec::SpecParams, disk::DiskParams, soldata::SolarData,
             # pre-trim the data, loop over all disk positions
             for n in eachindex(lenall_cpu)
                 @cusync begin
-                    # get correct index for position of input data
-                    wavall_gpu_out = CUDA.view(wavall_gpu_loop, :, 1:lenall_cpu[n], n)
-                    bisall_gpu_out = CUDA.view(bisall_gpu_loop, :, 1:lenall_cpu[n], n)
-                    widall_gpu_out = CUDA.view(widall_gpu_loop, :, 1:lenall_cpu[n], n)
-                    depall_gpu_out = CUDA.view(depall_gpu_loop, :, 1:lenall_cpu[n], n)
-
+                    # view of unaltered input data
                     wavall_gpu_in = CUDA.view(wavall_gpu, :, 1:lenall_cpu[n], n) .* spec.variability[l]
-                    bisall_gpu_in = CUDA.view(bisall_gpu, :, 1:lenall_cpu[n], n)
-                    widall_gpu_in = CUDA.view(widall_gpu, :, 1:lenall_cpu[n], n)
                     depall_gpu_in = CUDA.view(depall_gpu, :, 1:lenall_cpu[n], n)
+
+                    # view of arrays to put modified bisectors in
+                    wavall_gpu_out = CUDA.view(wavall_gpu_loop, :, 1:lenall_cpu[n], n)
+                    depall_gpu_out = CUDA.view(depall_gpu_loop, :, 1:lenall_cpu[n], n)
                 end
 
                 # do the trim
                 threads1 = (16,16)
                 blocks1 = cld(lenall_cpu[n] * 100, prod(threads1))
-                @cusync @captured @cuda threads=threads1 blocks=blocks1 trim_bisector_chop_gpu(spec.depths[l],
-                                                                                               wavall_gpu_out, bisall_gpu_out,
-                                                                                               depall_gpu_out, widall_gpu_out,
-                                                                                               wavall_gpu_in, bisall_gpu_in,
-                                                                                               depall_gpu_in, widall_gpu_in,
-                                                                                               NaN)
+                @cusync @captured @cuda threads=threads1 blocks=blocks1 trim_bisector_gpu(spec.depths[l], wavall_gpu_out, depall_gpu_out, wavall_gpu_in, depall_gpu_in)
             end
 
             # fill workspace arrays
             @cusync @captured @cuda threads=threads4 blocks=blocks4 fill_workspace_arrays!(spec.lines[l], spec.conv_blueshifts[l],
                                                                                            grid, tloop, data_inds, rot_shifts, λΔDs,
-                                                                                           wavall_gpu_loop, widall_gpu_loop,
+                                                                                           wavall_gpu_loop, widall_gpu,
                                                                                            lwavgrid, rwavgrid)
             @cusync @captured @cuda threads=threads4 blocks=blocks4 concatenate_workspace_arrays!(grid, tloop, data_inds, depall_gpu_loop,
                                                                                                   lwavgrid, rwavgrid, allwavs, allints)
