@@ -20,7 +20,7 @@ grassdir, plotdir, datadir = check_plot_dirs()
 # figure 1b -- input bisectors w/ variability
 function main()
     # get input data
-    bisinfo = GRASS.SolarData()
+    bisinfo = GRASS.SolarData(dir = GRASS.soldir * "FeI_5434/")
 
     # initialize plot objects
     fig, ax1 = plt.subplots()

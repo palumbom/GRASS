@@ -32,8 +32,7 @@ function main()
     lines = [5434.5]
     depths = range(0.05, stop=0.95, step=0.05)
     resolution=700000.0
-    top = NaN
-    contiguous_only=false
+    indirs = [GRASS.soldir * "FeI_5434/"]
 
     # allocate shared arrays
     avg_avg_depth = SharedArray{Float64}(length(depths))
@@ -47,11 +46,10 @@ function main()
         println("running depth = " * string(depths[i]))
 
         # create spec instance
-        spec = SpecParams(lines=lines, depths=[depths[i]], resolution=resolution,
-                          extrapolate=true, contiguous_only=contiguous_only)
+        spec = SpecParams(lines=lines, depths=[depths[i]], indirs=indirs, resolution=resolution)
 
         # synthesize spectra, get velocities and stats
-        avg_avg1, std_avg1, avg_rms1, std_rms1 = spec_loop(spec, disk, Nloop, top=top, use_gpu=use_gpu)
+        avg_avg1, std_avg1, avg_rms1, std_rms1 = spec_loop(spec, disk, Nloop, use_gpu=use_gpu)
         avg_avg_depth[i] = avg_avg1
         std_avg_depth[i] = std_avg1
         avg_rms_depth[i] = avg_rms1
