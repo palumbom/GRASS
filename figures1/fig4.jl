@@ -25,7 +25,8 @@ run, plot = parse_args(ARGS)
 grassdir, plotdir, datadir = check_plot_dirs()
 
 # decide whether to use gpu
-use_gpu = CUDA.functional()
+# use_gpu = CUDA.functional()
+use_gpu = false
 
 function main()
     # set up parameters for lines
@@ -33,7 +34,7 @@ function main()
     depths = [0.8]
     indirs = [GRASS.soldir * "FeI_5434/"]
     res = 700000.0
-    spec = SpecParams(lines=lines, depths=depths, resolution=res, indirs=indirs, contiguous_only=contiguous_only)
+    spec = SpecParams(lines=lines, depths=depths, resolution=res, indirs=indirs, contiguous_only=true)
 
     # allocate shared arrays
     avg_avg_res = SharedArray{Float64}(length(N))

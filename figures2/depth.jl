@@ -147,13 +147,14 @@ if plot
     ax1.set_xlabel(L"{\rm Line\ Depth}")
     ax1.set_ylabel(L"{\rm RMS}_{\rm RV}\ {\rm (m s}^{-1})")
     ax1.set_xlim(0.0, 1.0)
-    ax1.set_ylim(0.0, 0.675)
+    ax1.set_ylim(0.32, 0.9)
 
     # annotate the axes and save the figure
     arrowprops = Dict("facecolor"=>"black", "shrink"=>0.05, "width"=>2.0,"headwidth"=>8.0)
-    ax1.annotate(L"{\rm Shallow}", xy=(0.85,0.05), xytext=(0.05,0.04), arrowprops=arrowprops)
-    ax1.annotate(L"{\rm Deep}", xy=(0.86, 0.04))
-    ax1.legend(loc="upper right")
+    ax1.annotate(" ", xy=(0.85,0.39), xytext=(0.2,0.39), arrowprops=arrowprops)
+    ax1.annotate(L"{\rm Shallow}", xy=(0.05, 0.388))
+    ax1.annotate(L"{\rm Deep}", xy=(0.86, 0.388))
+    ax1.legend(loc="upper center", ncol=3, fontsize=12)
     fig.savefig(plotdir * "depths.pdf")
     plt.clf(); plt.close()
     println(">>> Figure written to: " * plotdir * "depths.pdf")
