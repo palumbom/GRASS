@@ -104,10 +104,9 @@ function line_profile_gpu!(star_map, grid, lambdas, λΔDs, allwavs, allints)
 
             for k in idz:sdz:CUDA.length(lambdas)
                 # skip all this work if far from line core
-                # if (lambdas[k] < (λΔDs[i,j] - 1.0)) || (lambdas[k] > (λΔDs[i,j] + 1.0))
-                #     @cuprintln("derp")
-                #     continue
-                # end
+                if (lambdas[k] < (λΔDs[i,j] - 1.0)) || (lambdas[k] > (λΔDs[i,j] + 1.0))
+                    continue
+                end
 
                 # do the interpolation
                 if ((lambdas[k] < CUDA.first(allwavs_ij)) || (lambdas[k] > CUDA.last(allwavs_ij)))
@@ -117,10 +116,8 @@ function line_profile_gpu!(star_map, grid, lambdas, λΔDs, allwavs, allints)
                     m = CUDA.searchsortedfirst(allwavs_ij, lambdas[k]) - 1
                     m0 = CUDA.clamp(m, CUDA.firstindex(allints_ij), CUDA.lastindex(allints_ij))
                     m1 = CUDA.clamp(m+1, CUDA.firstindex(allints_ij), CUDA.lastindex(allints_ij))
-                    # factor = (allints_ij[m0] * (allwavs_ij[m1] - lambdas[k]) + allints_ij[m1] * (lambdas[k] - allwavs_ij[m0])) / (allwavs_ij[m1] - allwavs_ij[m0])
                     @inbounds star_map[i,j,k] *= ((allints_ij[m0] * (allwavs_ij[m1] - lambdas[k]) + allints_ij[m1] * (lambdas[k] - allwavs_ij[m0])) / (allwavs_ij[m1] - allwavs_ij[m0]))
                 end
-                # @inbounds star_map[i,j,k] = star_map[i,j,k] * factor
             end
         end
     end
