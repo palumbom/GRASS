@@ -7,7 +7,7 @@ function disk_sim_gpu(spec::SpecParams, disk::DiskParams, soldata::SolarData,
     # set single or double precision
     if precision == "single"
         precision = Float32
-        println(">>> Single precision is broken right now!!")
+        println(">>> Single precision is untested!")
     elseif precision  == "double"
         precision = Float64
     else
@@ -44,8 +44,8 @@ function disk_sim_gpu(spec::SpecParams, disk::DiskParams, soldata::SolarData,
     # move input data to gpu
     @cusync begin
         disc_mu = CuArray{precision}(disc_mu_cpu)
-        disc_ax = CuArray{Int}(disc_ax_cpu)
-        lenall_gpu = CuArray{Int}(lenall_cpu)
+        disc_ax = CuArray{Int32}(disc_ax_cpu)
+        lenall_gpu = CuArray{Int32}(lenall_cpu)
         wavall_gpu = CuArray{precision}(wavall_cpu)
         widall_gpu = CuArray{precision}(widall_cpu)
         depall_gpu = CuArray{precision}(depall_cpu)
@@ -58,7 +58,6 @@ function disk_sim_gpu(spec::SpecParams, disk::DiskParams, soldata::SolarData,
     end
 
     # allocate memory for synthesis on the GPU
-    outspec_temp = similar(outspec)
     @cusync begin
         # indices, redshifts, and limb darkening
         tloop = CUDA.zeros(Int32, N, N)
@@ -143,6 +142,8 @@ function disk_sim_gpu(spec::SpecParams, disk::DiskParams, soldata::SolarData,
                                                                                            grid, tloop, data_inds, rot_shifts, λΔDs,
                                                                                            wavall_gpu_loop, widall_gpu,
                                                                                            lwavgrid, rwavgrid)
+
+            # concatenate workspace arrays before interpolating
             @cusync @captured @cuda threads=threads4 blocks=blocks4 concatenate_workspace_arrays!(grid, tloop, data_inds, depall_gpu_loop,
                                                                                                   lwavgrid, rwavgrid, allwavs, allints)
 
