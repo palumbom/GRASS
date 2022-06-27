@@ -75,10 +75,10 @@ function sort_data_for_gpu(soldata::SolarData{T}) where T<:AbstractFloat
 
     # get the arrays in mu sorted order
     len .= len[inds_mu]
-    wav .= wav[:, :, inds_mu]
-    bis .= bis[:, :, inds_mu]
-    wid .= wid[:, :, inds_mu]
-    dep .= dep[:, :, inds_mu]
+    wav .= view(wav, :, :, inds_mu)
+    bis .= view(bis, :, :, inds_mu)
+    wid .= view(wid, :, :, inds_mu)
+    dep .= view(dep, :, :, inds_mu)
 
     # get indices to sort by axis within mu sort
     for (idx, val) in enumerate(unique(disc_mu))
