@@ -10,7 +10,6 @@ function trim_bisector_gpu(depth, wavall_out, depall_out, wavall_in, depall_in)
     for i in idx:sdx:CUDA.size(wavall_in, 2)
         # get views of the correct time slice in input
         wavt_in = CUDA.view(wavall_in, :, i)
-        # bist_in = CUDA.view(bisall_in, :, i)
         dept_in = CUDA.view(depall_in, :, i)
 
         # get views of the correct time slice in output

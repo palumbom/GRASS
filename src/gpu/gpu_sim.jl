@@ -171,18 +171,15 @@ function disk_sim_gpu(spec::SpecParams, disk::DiskParams, soldata::SolarData,
     end
 
     # set number of threads and blocks for N*N matrix gpu functions
-    # threads2 = (16, 16)
     threads2 = (16, 16)
     blocks2 = cld(N^2, prod(threads2))
 
     # set number of threads and blocks for N*N*Nλ matrix gpu functions
-    # threads3 = (7,7,7)
     threads3 = (7,7,7)
     blocks3 = cld(N^2 * Nλ, prod(threads3))
 
     # set number of threads and blocks for N*N*100 matrix gpu functions
     threads4 = (6,6,6)
-    # threads4 = (4,4,8)
     blocks4 = cld(N^2 * 100, prod(threads4))
 
     # initialize values for data_inds, tloop, and norm_terms
@@ -249,7 +246,7 @@ function disk_sim_gpu(spec::SpecParams, disk::DiskParams, soldata::SolarData,
             end
         end
     end
-    CUDA.synchronize()
+    # CUDA.synchronize()
     return spec.lambdas, outspec
 end
 
