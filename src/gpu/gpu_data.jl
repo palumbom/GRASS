@@ -1,3 +1,44 @@
+function sort_data_for_gpu(soldata::SolarData{T}) where T<:AbstractFloat
+    # allocate memory for arrays to pass to gpu
+    len = collect(values(soldata.len))
+    npositions = length(len)
+    wav = zeros(100, maximum(len), npositions)
+    bis = zeros(100, maximum(len), npositions)
+    wid = zeros(100, maximum(len), npositions)
+    dep = zeros(100, maximum(len), npositions)
+    for (ind,(key,val)) in enumerate(soldata.len)
+        wav[:, 1:val, ind] .= soldata.wav[key]
+        bis[:, 1:val, ind] .= soldata.bis[key]
+        wid[:, 1:val, ind] .= soldata.wid[key]
+        dep[:, 1:val, ind] .= soldata.dep[key]
+    end
+
+    # get the value of mu and ax codes
+    disc_ax = parse_ax_string.(getindex.(keys(soldata.len),1))
+    disc_mu = parse_mu_string.(getindex.(keys(soldata.len),2))
+
+    # get indices to sort by mus
+    inds_mu = sortperm(disc_mu)
+    disc_mu .= disc_mu[inds_mu]
+    disc_ax .= disc_ax[inds_mu]
+
+    # get the arrays in mu sorted order
+    len .= len[inds_mu]
+    wav .= view(wav, :, :, inds_mu)
+    bis .= view(bis, :, :, inds_mu)
+    wid .= view(wid, :, :, inds_mu)
+    dep .= view(dep, :, :, inds_mu)
+
+    # get indices to sort by axis within mu sort
+    for (idx, val) in enumerate(unique(disc_mu))
+        inds1 = (disc_mu .== val)
+        inds2 = sortperm(disc_ax[inds1])
+        disc_mu[inds1] .= disc_mu[inds1][inds2]
+        disc_ax[inds1] .= disc_ax[inds1][inds2]
+    end
+    return disc_mu, disc_ax, len, wav, bis, wid, dep
+end
+
 function find_nearest_ax_gpu(x::T, y::T) where T<:AbstractFloat
     if (CUDA.iszero(x) & CUDA.iszero(y))
         return 0 # center
@@ -49,44 +90,94 @@ function find_data_index_gpu(x, y, disc_mu, disc_ax)
     return nothing
 end
 
-function sort_data_for_gpu(soldata::SolarData{T}) where T<:AbstractFloat
-    # allocate memory for arrays to pass to gpu
-    len = collect(values(soldata.len))
-    npositions = length(len)
-    wav = zeros(100, maximum(len), npositions)
-    bis = zeros(100, maximum(len), npositions)
-    wid = zeros(100, maximum(len), npositions)
-    dep = zeros(100, maximum(len), npositions)
-    for (ind,(key,val)) in enumerate(soldata.len)
-        wav[:, 1:val, ind] .= soldata.wav[key]
-        bis[:, 1:val, ind] .= soldata.bis[key]
-        wid[:, 1:val, ind] .= soldata.wid[key]
-        dep[:, 1:val, ind] .= soldata.dep[key]
+function generate_tloop_gpu(tloop, grid, data_inds_gpu, lenall_gpu)
+    # get indices from GPU blocks + threads
+    idx = threadIdx().x + blockDim().x * (blockIdx().x-1)
+    sdx = blockDim().x * gridDim().x
+    idy = threadIdx().y + blockDim().y * (blockIdx().y-1)
+    sdy = blockDim().y * gridDim().y
+
+    # parallelized loop over grid
+    for i in idx:sdx:CUDA.length(grid)
+        for j in idy:sdy:CUDA.length(grid)
+            x = grid[i]
+            y = grid[j]
+            r2 = calc_r2(x, y)
+            if r2 > 1.0
+                continue
+            end
+
+            # generate random number in range of input data
+            idx = data_inds_gpu[i,j]
+            @inbounds tloop[i,j] = CUDA.floor(Int32, rand() * lenall_gpu[idx]) + 1
+        end
     end
-
-    # get the value of mu and ax codes
-    disc_ax = parse_ax_string.(getindex.(keys(soldata.len),1))
-    disc_mu = parse_mu_string.(getindex.(keys(soldata.len),2))
-
-    # get indices to sort by mus
-    inds_mu = sortperm(disc_mu)
-    disc_mu .= disc_mu[inds_mu]
-    disc_ax .= disc_ax[inds_mu]
-
-    # get the arrays in mu sorted order
-    len .= len[inds_mu]
-    wav .= view(wav, :, :, inds_mu)
-    bis .= view(bis, :, :, inds_mu)
-    wid .= view(wid, :, :, inds_mu)
-    dep .= view(dep, :, :, inds_mu)
-
-    # get indices to sort by axis within mu sort
-    for (idx, val) in enumerate(unique(disc_mu))
-        inds1 = (disc_mu .== val)
-        inds2 = sortperm(disc_ax[inds1])
-        disc_mu[inds1] .= disc_mu[inds1][inds2]
-        disc_ax[inds1] .= disc_ax[inds1][inds2]
-    end
-    return disc_mu, disc_ax, len, wav, bis, wid, dep
+    return nothing
 end
 
+function iterate_tloop_gpu(tloop, data_inds, lenall, grid)
+    # get indices from GPU blocks + threads
+    idx = threadIdx().x + blockDim().x * (blockIdx().x-1)
+    sdx = blockDim().x * gridDim().x
+    idy = threadIdx().y + blockDim().y * (blockIdx().y-1)
+    sdy = blockDim().y * gridDim().y
+
+    # parallelized loop over grid
+    for i in idx:sdx:CUDA.length(grid)
+        for j in idy:sdy:CUDA.length(grid)
+            # find position on disk and move to next iter if off disk
+            x = grid[i]
+            y = grid[j]
+            r2 = calc_r2(x, y)
+            if r2 > 1.0
+                continue
+            end
+
+            # check that tloop didn't overshoot the data and iterate
+            ntimes = lenall[data_inds[i,j]]
+            if tloop[i,j] < ntimes
+                @inbounds tloop[i,j] += 1
+            else
+                @inbounds tloop[i,j] = 1
+            end
+        end
+    end
+    return nothing
+end
+
+function initialize_arrays_for_gpu(data_inds, norm_terms, rot_shifts,
+                                   grid, disc_mu, disc_ax, u1, u2,
+                                   polex, poley, polez)
+    # get indices from GPU blocks + threads
+    idx = threadIdx().x + blockDim().x * (blockIdx().x-1)
+    sdx = blockDim().x * gridDim().x
+    idy = threadIdx().y + blockDim().y * (blockIdx().y-1)
+    sdy = blockDim().y * gridDim().y
+
+    len = CUDA.length(grid)
+    rstar = one(eltype(grid))
+
+
+    # parallelized loop over grid
+    for i in idx:sdx:CUDA.length(grid)
+        for j in idy:sdy:CUDA.length(grid)
+            # find position on disk and move to next iter if off disk
+            x = grid[i]
+            y = grid[j]
+            r2 = calc_r2(x, y)
+            if r2 > 1.0
+                continue
+            end
+
+            # find the correct data index
+            @inbounds data_inds[i,j] = find_data_index_gpu(x, y, disc_mu, disc_ax)
+
+            # calculate the normalization
+            @inbounds norm_terms[i,j] = calc_norm_term(x, y, len, u1, u2)
+
+            # calculate the rotational doppler shift
+            @inbounds rot_shifts[i,j] = patch_velocity_los_gpu(x, y, rstar, polex, poley, polez)
+        end
+    end
+    return nothing
+end
