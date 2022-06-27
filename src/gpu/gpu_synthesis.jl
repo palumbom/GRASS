@@ -102,17 +102,13 @@ function line_profile_gpu!(star_map, grid, lambdas, λΔDs, allwavs, allints)
             allwavs_ij = CUDA.view(allwavs, i, j, :)
             allints_ij = CUDA.view(allints, i, j, :)
 
+            # loop over wavelengths
             for k in idz:sdz:CUDA.length(lambdas)
-                # skip all this work if far from line core
-                if (lambdas[k] < (λΔDs[i,j] - 1.0)) || (lambdas[k] > (λΔDs[i,j] + 1.0))
-                    continue
-                end
-
-                # do the interpolation
+                # just leave the value as continuum if far from line core
                 if ((lambdas[k] < CUDA.first(allwavs_ij)) || (lambdas[k] > CUDA.last(allwavs_ij)))
-                    # factor = 1.0
                     continue
                 else
+                    # do the interpolation
                     m = CUDA.searchsortedfirst(allwavs_ij, lambdas[k]) - 1
                     m0 = CUDA.clamp(m, CUDA.firstindex(allints_ij), CUDA.lastindex(allints_ij))
                     m1 = CUDA.clamp(m+1, CUDA.firstindex(allints_ij), CUDA.lastindex(allints_ij))
