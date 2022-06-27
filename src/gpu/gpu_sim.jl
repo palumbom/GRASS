@@ -92,6 +92,37 @@ function generate_indices_for_gpu(tloop, grid_cpu, data_inds_cpu, lenall_cpu; se
     return nothing
 end
 
+# function derp()
+#     @cushow CUDA.rand()
+#     return nothing
+# end
+
+function generate_indices_for_gpu2(tloop, grid_cpu, data_inds_gpu, lenall_gpu; seed_rng=false, verbose=false)
+    # seeding rng
+    if seed_rng
+        if verbose println("Seeding RNG") end
+        Random.seed!(42)
+    end
+
+    for i in idx:sdx:CUDA.length(grid)
+        for j in idy:sdy:CUDA.length(grid)
+            x = grid_cpu[i]
+            y = grid_cpu[j]
+            r2 = calc_r2(x, y)
+            if r2 > 1.0
+                @inbounds data_inds_gpu[i,j] = 0
+                continue
+            end
+
+            # generate random mnumber in range of input data
+            idx = data_inds_cpu[i,j]
+            tloop[i,j] = rand(1:lenall_cpu[idx])
+        end
+    end
+    return nothing
+end
+
+
 
 function disk_sim_gpu(spec::SpecParams, disk::DiskParams, soldata::SolarData,
                       outspec::AA{T,2}; precision::String="double",

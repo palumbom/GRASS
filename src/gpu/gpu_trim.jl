@@ -18,18 +18,14 @@ function trim_bisector_gpu(depth, wavall_out, depall_out, wavall_in, depall_in)
 
         # loop over the length of the bisector
         step = depth/(CUDA.length(dept_in) - 1)
-        if (1.0 - depth) < CUDA.first(dept_in)
-            # if depth is greater than input depth, stretch the bisector
-            for j in idy:sdy:CUDA.size(wavall_in, 1)
-                # set the new depth value
-                new_dept = (1.0 - depth) + (j-1) * step
-                @inbounds dept_out[j] = new_dept
-            end
-        else
-            for j in idy:sdy:CUDA.size(wavall_in, 1)
-                # set the new depth value
-                new_dept = (1.0 - depth) + (j-1) * step
+        for j in idy:sdy:CUDA.size(wavall_in, 1)
+            # set the new depth value
+            new_dept = (1.0 - depth) + (j-1) * step
 
+            # if depth is greater than input depth, stretch the bisector
+            if (1.0 - depth) < CUDA.first(dept_in)
+                @inbounds dept_out[j] = new_dept
+            else
                 # interpolate to get the new wavelength value
                 if new_dept <= CUDA.first(dept_in)
                     @inbounds wavt_out[j] = CUDA.first(wavt_in)
