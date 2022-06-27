@@ -1,129 +1,5 @@
 import PyPlot; plt = PyPlot; mpl = plt.matplotlib; plt.ioff()
 
-function iterate_tloop_gpu(tloop, data_inds, lenall, grid)
-    # get indices from GPU blocks + threads
-    idx = threadIdx().x + blockDim().x * (blockIdx().x-1)
-    sdx = blockDim().x * gridDim().x
-    idy = threadIdx().y + blockDim().y * (blockIdx().y-1)
-    sdy = blockDim().y * gridDim().y
-
-    # parallelized loop over grid
-    for i in idx:sdx:CUDA.length(grid)
-        for j in idy:sdy:CUDA.length(grid)
-            # find position on disk and move to next iter if off disk
-            x = grid[i]
-            y = grid[j]
-            r2 = calc_r2(x, y)
-            if r2 > 1.0
-                continue
-            end
-
-            # iterate tloop
-            @inbounds tloop[i,j] = tloop[i,j] + 1
-
-            # check that tloop didn't overshoot the data
-            ntimes = lenall[data_inds[i,j]]
-            if tloop[i,j] >= ntimes
-                @inbounds tloop[i,j] = 1
-            end
-        end
-    end
-    return nothing
-end
-
-function initialize_arrays_for_gpu(data_inds, norm_terms, rot_shifts,
-                                   grid, disc_mu, disc_ax, u1, u2,
-                                   polex, poley, polez)
-    # get indices from GPU blocks + threads
-    idx = threadIdx().x + blockDim().x * (blockIdx().x-1)
-    sdx = blockDim().x * gridDim().x
-    idy = threadIdx().y + blockDim().y * (blockIdx().y-1)
-    sdy = blockDim().y * gridDim().y
-
-    # parallelized loop over grid
-    for i in idx:sdx:CUDA.length(grid)
-        for j in idy:sdy:CUDA.length(grid)
-            # find position on disk and move to next iter if off disk
-            x = grid[i]
-            y = grid[j]
-            r2 = calc_r2(x, y)
-            if r2 > 1.0
-                @inbounds data_inds[i,j] = 0
-                @inbounds norm_terms[i,j] = 0.0
-                @inbounds rot_shifts[i,j] = 0.0
-                continue
-            end
-
-            # find the correct data index
-            @inbounds data_inds[i,j] = find_data_index_gpu(x, y, disc_mu, disc_ax)
-
-            # calculate the normalization
-            @inbounds norm_terms[i,j] = calc_norm_term(x, y, CUDA.length(grid), u1, u2)
-
-            # calculate the rotational doppler shift
-            rstar = one(eltype(grid))
-            @inbounds rot_shifts[i,j] = patch_velocity_los_gpu(x, y, rstar, polex, poley, polez)
-        end
-    end
-    return nothing
-end
-
-function generate_indices_for_gpu(tloop, grid_cpu, data_inds_cpu, lenall_cpu; seed_rng=false, verbose=false)
-    # seeding rng
-    if seed_rng
-        if verbose println("Seeding RNG") end
-        Random.seed!(42)
-    end
-
-    for i in eachindex(grid_cpu)
-        for j in eachindex(grid_cpu)
-            x = grid_cpu[i]
-            y = grid_cpu[j]
-            r2 = calc_r2(x, y)
-            if r2 > 1.0
-                continue
-            end
-
-            # generate random mnumber in range of input data
-            idx = data_inds_cpu[i,j]
-            tloop[i,j] = rand(1:lenall_cpu[idx])
-        end
-    end
-    return nothing
-end
-
-# function derp()
-#     @cushow CUDA.rand()
-#     return nothing
-# end
-
-function generate_indices_for_gpu2(tloop, grid_cpu, data_inds_gpu, lenall_gpu; seed_rng=false, verbose=false)
-    # seeding rng
-    if seed_rng
-        if verbose println("Seeding RNG") end
-        Random.seed!(42)
-    end
-
-    for i in idx:sdx:CUDA.length(grid)
-        for j in idy:sdy:CUDA.length(grid)
-            x = grid_cpu[i]
-            y = grid_cpu[j]
-            r2 = calc_r2(x, y)
-            if r2 > 1.0
-                @inbounds data_inds_gpu[i,j] = 0
-                continue
-            end
-
-            # generate random mnumber in range of input data
-            idx = data_inds_cpu[i,j]
-            tloop[i,j] = rand(1:lenall_cpu[idx])
-        end
-    end
-    return nothing
-end
-
-
-
 function disk_sim_gpu(spec::SpecParams, disk::DiskParams, soldata::SolarData,
                       outspec::AA{T,2}; precision::String="double",
                       seed_rng::Bool=false, verbose::Bool=false,
@@ -136,6 +12,11 @@ function disk_sim_gpu(spec::SpecParams, disk::DiskParams, soldata::SolarData,
         precision = Float64
     else
         precision = Float64
+    end
+
+    # seeding
+    if seed_rng
+        println(" >>> Seeding currently not implemented on GPU!")
     end
 
     # get dimensions for memory alloc
@@ -161,7 +42,6 @@ function disk_sim_gpu(spec::SpecParams, disk::DiskParams, soldata::SolarData,
     depall_cpu = sorted_data[7]
 
     # move input data to gpu
-    # @cusync begin
     @cusync begin
         disc_mu = CuArray{precision}(disc_mu_cpu)
         disc_ax = CuArray{Int}(disc_ax_cpu)
@@ -178,7 +58,16 @@ function disk_sim_gpu(spec::SpecParams, disk::DiskParams, soldata::SolarData,
     end
 
     # allocate memory for synthesis on the GPU
+    outspec_temp = similar(outspec)
     @cusync begin
+        # indices, redshifts, and limb darkening
+        tloop = CUDA.zeros(Int32, N, N)
+        data_inds = CUDA.zeros(Int32, N, N)
+        norm_terms = CUDA.zeros(precision, N, N)
+        rot_shifts = CUDA.zeros(precision, N, N)
+        λΔDs = CUDA.zeros(precision, N, N)
+
+        # pre-allocated memory for interpolations
         starmap = CUDA.ones(precision, N, N, Nλ)
         lwavgrid = CUDA.zeros(precision, N, N, 100)
         rwavgrid = CUDA.zeros(precision, N, N, 100)
@@ -186,20 +75,15 @@ function disk_sim_gpu(spec::SpecParams, disk::DiskParams, soldata::SolarData,
         allints = CUDA.zeros(precision, N, N, 200)
     end
 
-    # move other data to the gpu
-    grid_cpu = make_grid(N)
+    # move spatial and lambda grid to GPU
     @cusync begin
-        grid = CuArray{precision}(grid_cpu)
+        grid = CuArray{precision}(make_grid(N))
         lambdas = CuArray{precision}(spec.lambdas)
     end
 
-    # allocate memory for input data indices and normalization terms
-    @cusync begin
-        data_inds = CuArray{Int32,2}(undef, N, N)
-        norm_terms = CuArray{precision,2}(undef, N, N)
-        rot_shifts = CuArray{precision,2}(undef, N, N)
-        λΔDs = CuArray{precision,2}(undef, N, N)
-    end
+    # set number of threads and blocks for trimming functions
+    threads1 = (16,16)
+    blocks1 = cld.(lenall_cpu .* 100, prod(threads1))
 
     # set number of threads and blocks for N*N matrix gpu functions
     threads2 = (16, 16)
@@ -213,19 +97,13 @@ function disk_sim_gpu(spec::SpecParams, disk::DiskParams, soldata::SolarData,
     threads4 = (6,6,6)
     blocks4 = cld(N^2 * 100, prod(threads4))
 
-    # initialize values for data_inds, tloop, and norm_terms
+    # initialize values for data_inds, rot_shifts, and norm_terms
     @cusync @cuda threads=threads2 blocks=blocks2 initialize_arrays_for_gpu(data_inds, norm_terms, rot_shifts,
                                                                             grid, disc_mu, disc_ax, u1,
                                                                             u2, polex, poley, polez)
 
-    # initialize values of tloop on CPU
-    # TODO: on GPU generate float, multiply by what I want, and then floor it
-    data_inds_cpu = Array(data_inds)
-    tloop = zeros(Int32, N, N)
-    generate_indices_for_gpu(tloop, grid_cpu, data_inds_cpu, lenall_cpu, verbose=verbose, seed_rng=seed_rng)
-
-    # move tloop to GPU
-    @cusync tloop = CuArray{Int32}(tloop)
+    # generate random indices for input data
+    @cusync @cuda threads=threads2 blocks=blocks2 generate_tloop_gpu(tloop, grid, data_inds, lenall_gpu)
 
     # loop over time
     for t in 1:Nt
@@ -241,20 +119,23 @@ function disk_sim_gpu(spec::SpecParams, disk::DiskParams, soldata::SolarData,
         for l in eachindex(spec.lines)
             # pre-trim the data, loop over all disk positions
             for n in eachindex(lenall_cpu)
+                epoch_range = 1:lenall_cpu[n]
                 @cusync begin
                     # view of unaltered input data
-                    wavall_gpu_in = CUDA.view(wavall_gpu, :, 1:lenall_cpu[n], n) .* spec.variability[l]
-                    depall_gpu_in = CUDA.view(depall_gpu, :, 1:lenall_cpu[n], n)
+                    wavall_gpu_in = CUDA.view(wavall_gpu, :, epoch_range, n) .* spec.variability[l]
+                    depall_gpu_in = CUDA.view(depall_gpu, :, epoch_range, n)
 
                     # view of arrays to put modified bisectors in
-                    wavall_gpu_out = CUDA.view(wavall_gpu_loop, :, 1:lenall_cpu[n], n)
-                    depall_gpu_out = CUDA.view(depall_gpu_loop, :, 1:lenall_cpu[n], n)
+                    wavall_gpu_out = CUDA.view(wavall_gpu_loop, :, epoch_range, n)
+                    depall_gpu_out = CUDA.view(depall_gpu_loop, :, epoch_range, n)
                 end
 
                 # do the trim
-                threads1 = (16,16)
-                blocks1 = cld(lenall_cpu[n] * 100, prod(threads1))
-                @cusync @captured @cuda threads=threads1 blocks=blocks1 trim_bisector_gpu(spec.depths[l], wavall_gpu_out, depall_gpu_out, wavall_gpu_in, depall_gpu_in)
+                @cusync @captured @cuda threads=threads1 blocks=blocks1[n] trim_bisector_gpu(spec.depths[l],
+                                                                                             wavall_gpu_out,
+                                                                                             depall_gpu_out,
+                                                                                             wavall_gpu_in,
+                                                                                             depall_gpu_in)
             end
 
             # fill workspace arrays
@@ -272,9 +153,7 @@ function disk_sim_gpu(spec::SpecParams, disk::DiskParams, soldata::SolarData,
             @cusync outspec[:,t] .*= Array(CUDA.view(CUDA.sum(starmap, dims=(1,2)), 1, 1, :))
 
             # iterate tloop
-            if t < Nt
-                @cusync @cuda threads=threads2 blocks=blocks2 iterate_tloop_gpu(tloop, data_inds, lenall_gpu, grid)
-            end
+            @cusync @cuda threads=threads2 blocks=blocks2 iterate_tloop_gpu(tloop, data_inds, lenall_gpu, grid)
         end
     end
     # CUDA.synchronize()
