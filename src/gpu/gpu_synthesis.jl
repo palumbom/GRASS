@@ -27,7 +27,6 @@ function fill_workspace_arrays!(line, z_convs, grid, tloop, data_inds, rot_shift
             wavt = CUDA.view(wavall, :, tloop[i,j], data_inds[i,j])
             widt = CUDA.view(widall, :, tloop[i,j], data_inds[i,j])
 
-            len = CUDA.size(rwavgrid,3)
             for k in idz:sdz:CUDA.size(rwavgrid,3)
                 # set tgrids based on bisector + wid data
                 @inbounds lwavgrid[i,j,k] = (λΔDs[i,j] - (0.5 * widt[k] - wavt[k]))

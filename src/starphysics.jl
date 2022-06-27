@@ -49,7 +49,7 @@ function rotation_period(sin_lat::T, A::T=14.713, B::T=-2.396, C::T=-1.787) wher
     return 360.0/(A + B * sin_lat^2 + C * sin_lat^4)
 end
 
-function rotation_period_gpu(sin_lat::T, A::T, B,::T C::T) where T<:AF
+function rotation_period_gpu(sin_lat::T, A::T, B,::T, C::T) where T<:AF
     return 360.0/(A + B * sin_lat^2 + C * sin_lat^4)
 end
 
