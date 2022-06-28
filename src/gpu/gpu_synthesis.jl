@@ -30,9 +30,9 @@ function fill_workspace_arrays!(line, z_convs, grid, tloop, data_inds, rot_shift
                 # set tgrids based on bisector + wid data
                 @inbounds lwavgrid[i,j,k] = (λΔD - (0.5 * widt[k] - wavt[k]))
                 @inbounds rwavgrid[i,j,k] = (λΔD + (0.5 * widt[k] + wavt[k]))
-                if k == 1
-                    @inbounds rwavgrid[i,j,1] = lwavgrid[i,j,1] + 1e-3
-                end
+                # if k == 1
+                #     @inbounds rwavgrid[i,j,1] = lwavgrid[i,j,1] + 1e-3
+                # end
             end
         end
     end
