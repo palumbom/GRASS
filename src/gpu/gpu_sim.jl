@@ -6,13 +6,14 @@ function disk_sim_gpu(spec::SpecParams, disk::DiskParams, soldata::SolarData,
                       skip_times::BitVector=BitVector(zeros(disk.Nt))) where T<:AbstractFloat
     # set single or double precision
     if precision == "single"
-        precision = Float32
+        prec = Float32
         println(">>> Single precision is untested!")
     elseif precision  == "double"
-        precision = Float64
+        prec = Float64
     else
-        precision = Float64
+        prec = Float64
     end
+    prec::DataType
 
     # seeding
     if seed_rng
@@ -24,12 +25,17 @@ function disk_sim_gpu(spec::SpecParams, disk::DiskParams, soldata::SolarData,
     Nt = convert(Int32, disk.Nt)
     Nλ = convert(Int32, length(spec.lambdas))
 
+    # get line parameters in correct precision
+    lines = convert.(prec, spec.lines)
+    depths = convert.(prec, spec.depths)
+    conv_blueshifts = convert.(prec, spec.conv_blueshifts)
+
     # get pole component vectors and limb darkening parameters
-    polex = convert(precision, disk.pole[1])
-    poley = convert(precision, disk.pole[2])
-    polez = convert(precision, disk.pole[3])
-    u1 = convert(precision, disk.u1)
-    u2 = convert(precision, disk.u2)
+    polex = convert(prec, disk.pole[1])
+    poley = convert(prec, disk.pole[2])
+    polez = convert(prec, disk.pole[3])
+    u1 = convert(prec, disk.u1)
+    u2 = convert(prec, disk.u2)
 
     # sort the input data for use on GPU
     sorted_data = sort_data_for_gpu(soldata)
@@ -43,12 +49,12 @@ function disk_sim_gpu(spec::SpecParams, disk::DiskParams, soldata::SolarData,
 
     # move input data to gpu
     @cusync begin
-        disc_mu = CuArray{precision}(disc_mu_cpu)
+        disc_mu = CuArray{prec}(disc_mu_cpu)
         disc_ax = CuArray{Int32}(disc_ax_cpu)
         lenall_gpu = CuArray{Int32}(lenall_cpu)
-        wavall_gpu = CuArray{precision}(wavall_cpu)
-        widall_gpu = CuArray{precision}(widall_cpu)
-        depall_gpu = CuArray{precision}(depall_cpu)
+        wavall_gpu = CuArray{prec}(wavall_cpu)
+        widall_gpu = CuArray{prec}(widall_cpu)
+        depall_gpu = CuArray{prec}(depall_cpu)
     end
 
     # allocate arrays for fresh copy of input data to copy to each loop
@@ -62,21 +68,21 @@ function disk_sim_gpu(spec::SpecParams, disk::DiskParams, soldata::SolarData,
         # indices, redshifts, and limb darkening
         tloop = CUDA.zeros(Int32, N, N)
         data_inds = CUDA.zeros(Int32, N, N)
-        norm_terms = CUDA.zeros(precision, N, N)
-        rot_shifts = CUDA.zeros(precision, N, N)
+        norm_terms = CUDA.zeros(prec, N, N)
+        rot_shifts = CUDA.zeros(prec, N, N)
 
         # pre-allocated memory for interpolations
-        starmap = CUDA.ones(precision, N, N, Nλ)
-        lwavgrid = CUDA.zeros(precision, N, N, 100)
-        rwavgrid = CUDA.zeros(precision, N, N, 100)
-        allwavs = CUDA.zeros(precision, N, N, 200)
-        allints = CUDA.zeros(precision, N, N, 200)
+        starmap = CUDA.ones(prec, N, N, Nλ)
+        lwavgrid = CUDA.zeros(prec, N, N, 100)
+        rwavgrid = CUDA.zeros(prec, N, N, 100)
+        allwavs = CUDA.zeros(prec, N, N, 200)
+        allints = CUDA.zeros(prec, N, N, 200)
     end
 
     # move spatial and lambda grid to GPU
     @cusync begin
-        grid = CuArray{precision}(make_grid(N))
-        lambdas = CuArray{precision}(spec.lambdas)
+        grid = CuArray{prec}(make_grid(N))
+        lambdas = CuArray{prec}(spec.lambdas)
     end
 
     # set number of threads and blocks for trimming functions
@@ -129,7 +135,7 @@ function disk_sim_gpu(spec::SpecParams, disk::DiskParams, soldata::SolarData,
                 end
 
                 # do the trim
-                @cusync @captured @cuda threads=threads1 blocks=blocks1[n] trim_bisector_gpu(spec.depths[l],
+                @cusync @captured @cuda threads=threads1 blocks=blocks1[n] trim_bisector_gpu(depths[l],
                                                                                              wavall_gpu_out,
                                                                                              depall_gpu_out,
                                                                                              wavall_gpu_in,
@@ -137,7 +143,7 @@ function disk_sim_gpu(spec::SpecParams, disk::DiskParams, soldata::SolarData,
             end
 
             # fill workspace arrays
-            @cusync @captured @cuda threads=threads4 blocks=blocks4 fill_workspace_arrays!(spec.lines[l], spec.conv_blueshifts[l],
+            @cusync @captured @cuda threads=threads4 blocks=blocks4 fill_workspace_arrays!(lines[l], conv_blueshifts[l],
                                                                                            grid, tloop, data_inds, rot_shifts,
                                                                                            wavall_gpu_loop, widall_gpu,
                                                                                            lwavgrid, rwavgrid)

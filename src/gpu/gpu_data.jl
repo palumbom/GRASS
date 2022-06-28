@@ -29,12 +29,19 @@ function sort_data_for_gpu(soldata::SolarData{T}) where T<:AbstractFloat
     wid .= view(wid, :, :, inds_mu)
     dep .= view(dep, :, :, inds_mu)
 
+    # TODO I THINK SOMETHING IS FISHY HERE!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     # get indices to sort by axis within mu sort
     for (idx, val) in enumerate(unique(disc_mu))
         inds1 = (disc_mu .== val)
         inds2 = sortperm(disc_ax[inds1])
         disc_mu[inds1] .= disc_mu[inds1][inds2]
         disc_ax[inds1] .= disc_ax[inds1][inds2]
+
+        # len[inds1] .= len[inds1][inds2]
+        # wav[:, :, inds1] .== wav[:,:,inds1][:, :, inds2]
+        # bis[:, :, inds1] .== bis[:,:,inds1][:, :, inds2]
+        # wid[:, :, inds1] .== wid[:,:,inds1][:, :, inds2]
+        # dep[:, :, inds1] .== dep[:,:,inds1][:, :, inds2]
     end
     return disc_mu, disc_ax, len, wav, bis, wid, dep
 end
@@ -154,9 +161,9 @@ function initialize_arrays_for_gpu(data_inds, norm_terms, rot_shifts,
     idy = threadIdx().y + blockDim().y * (blockIdx().y-1)
     sdy = blockDim().y * gridDim().y
 
+    # make some aliases
     len = CUDA.length(grid)
     rstar = one(eltype(grid))
-
 
     # parallelized loop over grid
     for i in idx:sdx:CUDA.length(grid)
