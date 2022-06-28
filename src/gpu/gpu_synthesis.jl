@@ -1,5 +1,5 @@
 function fill_workspace_arrays!(line, z_convs, grid, tloop, data_inds, rot_shifts,
-                                λΔDs, wavall, widall, lwavgrid, rwavgrid)
+                                wavall, widall, lwavgrid, rwavgrid)
     # get indices from GPU blocks + threads
     idx = threadIdx().x + blockDim().x * (blockIdx().x-1)
     sdx = blockDim().x * gridDim().x
@@ -16,12 +16,11 @@ function fill_workspace_arrays!(line, z_convs, grid, tloop, data_inds, rot_shift
             y = grid[j]
             r2 = calc_r2(x, y)
             if r2 > 1.0
-                @inbounds λΔDs[i,j] = 0.0
                 continue
             end
 
             # calculate the shifted center of the line
-            @inbounds λΔDs[i,j] = line * (1.0 + rot_shifts[i,j]) * (1.0 + z_convs)
+            λΔD = line * (1.0 + rot_shifts[i,j]) * (1.0 + z_convs)
 
             # slice out the correct views of the input data for position
             wavt = CUDA.view(wavall, :, tloop[i,j], data_inds[i,j])
@@ -29,8 +28,8 @@ function fill_workspace_arrays!(line, z_convs, grid, tloop, data_inds, rot_shift
 
             for k in idz:sdz:CUDA.size(rwavgrid,3)
                 # set tgrids based on bisector + wid data
-                @inbounds lwavgrid[i,j,k] = (λΔDs[i,j] - (0.5 * widt[k] - wavt[k]))
-                @inbounds rwavgrid[i,j,k] = (λΔDs[i,j] + (0.5 * widt[k] + wavt[k]))
+                @inbounds lwavgrid[i,j,k] = (λΔD - (0.5 * widt[k] - wavt[k]))
+                @inbounds rwavgrid[i,j,k] = (λΔD + (0.5 * widt[k] + wavt[k]))
                 if k == 1
                     @inbounds rwavgrid[i,j,1] = lwavgrid[i,j,1] + 1e-3
                 end
@@ -63,7 +62,6 @@ function concatenate_workspace_arrays!(grid, tloop, data_inds, depall,
 
             # slice out the correct views of the input data for position
             dept = CUDA.view(depall, :, tloop[i,j], data_inds[i,j])
-
             len = CUDA.size(rwavgrid,3)
             for k in idz:sdz:CUDA.size(rwavgrid,3)
                 @inbounds allwavs[i,j,k+len] = rwavgrid[i,j,k]
@@ -77,7 +75,7 @@ function concatenate_workspace_arrays!(grid, tloop, data_inds, depall,
 end
 
 
-function line_profile_gpu!(star_map, grid, lambdas, λΔDs, allwavs, allints)
+function line_profile_gpu!(star_map, grid, lambdas, allwavs, allints)
     # get indices from GPU blocks + threads
     idx = threadIdx().x + blockDim().x * (blockIdx().x-1)
     sdx = blockDim().x * gridDim().x

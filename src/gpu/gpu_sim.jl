@@ -20,9 +20,9 @@ function disk_sim_gpu(spec::SpecParams, disk::DiskParams, soldata::SolarData,
     end
 
     # get dimensions for memory alloc
-    N = disk.N
-    Nt = disk.Nt
-    Nλ = length(spec.lambdas)
+    N = convert(Int32, disk.N)
+    Nt = convert(Int32, disk.Nt)
+    Nλ = convert(Int32, length(spec.lambdas))
 
     # get pole component vectors and limb darkening parameters
     polex = convert(precision, disk.pole[1])
@@ -64,7 +64,6 @@ function disk_sim_gpu(spec::SpecParams, disk::DiskParams, soldata::SolarData,
         data_inds = CUDA.zeros(Int32, N, N)
         norm_terms = CUDA.zeros(precision, N, N)
         rot_shifts = CUDA.zeros(precision, N, N)
-        λΔDs = CUDA.zeros(precision, N, N)
 
         # pre-allocated memory for interpolations
         starmap = CUDA.ones(precision, N, N, Nλ)
@@ -139,7 +138,7 @@ function disk_sim_gpu(spec::SpecParams, disk::DiskParams, soldata::SolarData,
 
             # fill workspace arrays
             @cusync @captured @cuda threads=threads4 blocks=blocks4 fill_workspace_arrays!(spec.lines[l], spec.conv_blueshifts[l],
-                                                                                           grid, tloop, data_inds, rot_shifts, λΔDs,
+                                                                                           grid, tloop, data_inds, rot_shifts,
                                                                                            wavall_gpu_loop, widall_gpu,
                                                                                            lwavgrid, rwavgrid)
 
@@ -148,7 +147,7 @@ function disk_sim_gpu(spec::SpecParams, disk::DiskParams, soldata::SolarData,
                                                                                                   lwavgrid, rwavgrid, allwavs, allints)
 
             # do the line synthesis
-            @cusync @captured @cuda threads=threads3 blocks=blocks3 line_profile_gpu!(starmap, grid, lambdas, λΔDs, allwavs, allints)
+            @cusync @captured @cuda threads=threads3 blocks=blocks3 line_profile_gpu!(starmap, grid, lambdas, allwavs, allints)
 
             # do array reduction and move data from GPU to CPU
             @cusync outspec[:,t] .*= Array(CUDA.view(CUDA.sum(starmap, dims=(1,2)), 1, 1, :))
