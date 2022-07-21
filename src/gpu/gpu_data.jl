@@ -29,19 +29,28 @@ function sort_data_for_gpu(soldata::SolarData{T}) where T<:AbstractFloat
     wid .= view(wid, :, :, inds_mu)
     dep .= view(dep, :, :, inds_mu)
 
-    # TODO I THINK SOMETHING IS FISHY HERE!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    # get indices to sort by axis within mu sort
-    for (idx, val) in enumerate(unique(disc_mu))
-        inds1 = (disc_mu .== val)
-        inds2 = sortperm(disc_ax[inds1])
-        disc_mu[inds1] .= disc_mu[inds1][inds2]
-        disc_ax[inds1] .= disc_ax[inds1][inds2]
+    # TODO is the copy necessary?
+    # make copies so we don't mess with memory
+    disc_mu_og = copy(disc_mu)
+    disc_ax_og = copy(disc_ax)
+    len_og = copy(len)
+    wav_og = copy(wav)
+    bis_og = copy(bis)
+    wid_og = copy(wid)
+    dep_og = copy(dep)
 
-        # len[inds1] .= len[inds1][inds2]
-        # wav[:, :, inds1] .== wav[:,:,inds1][:, :, inds2]
-        # bis[:, :, inds1] .== bis[:,:,inds1][:, :, inds2]
-        # wid[:, :, inds1] .== wid[:,:,inds1][:, :, inds2]
-        # dep[:, :, inds1] .== dep[:,:,inds1][:, :, inds2]
+    # get indices to sort by axis within mu sort
+    for mu_val in unique(disc_mu)
+        inds1 = (disc_mu .== mu_val)
+        inds2 = sortperm(disc_ax[inds1])
+        disc_mu[inds1] .= disc_mu_og[inds1][inds2]
+        disc_ax[inds1] .= disc_ax_og[inds1][inds2]
+
+        len[inds1] .= len_og[inds1][inds2]
+        wav[:, :, inds1] .= wav_og[:,:,inds1][:, :, inds2]
+        bis[:, :, inds1] .= bis_og[:,:,inds1][:, :, inds2]
+        wid[:, :, inds1] .= wid_og[:,:,inds1][:, :, inds2]
+        dep[:, :, inds1] .= dep_og[:,:,inds1][:, :, inds2]
     end
     return disc_mu, disc_ax, len, wav, bis, wid, dep
 end
