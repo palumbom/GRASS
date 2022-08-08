@@ -1,5 +1,3 @@
-import PyPlot; plt = PyPlot; mpl = plt.matplotlib; plt.ioff()
-
 function disk_sim_gpu(spec::SpecParams, disk::DiskParams, soldata::SolarData,
                       outspec::AA{T,2}; precision::String="double",
                       seed_rng::Bool=false, verbose::Bool=false,
@@ -112,9 +110,7 @@ function disk_sim_gpu(spec::SpecParams, disk::DiskParams, soldata::SolarData,
     # loop over time
     for t in 1:Nt
         # don't do all this work if skip_times is true
-        if skip_times[t]
-            continue
-        end
+        skip_times[t] && continue
 
         # initialize starmap with fresh copy of weights
         @cusync starmap .= norm_terms
