@@ -1,7 +1,5 @@
-using Distributed
-
 # parallelized for loop
-@everywhere function spec_loop(spec::SpecParams, disk::DiskParams, Nloop::T;
+function spec_loop(spec::SpecParams, disk::DiskParams, Nloop::T;
                                top::Float64=NaN, use_gpu::Bool=false) where T<:Integer
     rms0 = zeros(Nloop)
     avg0 = zeros(Nloop)
@@ -68,3 +66,4 @@ function parse_args(args)
     end
     return run, plot
 end
+
