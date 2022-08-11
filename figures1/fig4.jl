@@ -1,19 +1,17 @@
 # import stuff
-using Distributed
-@everywhere using Pkg
-@everywhere Pkg.activate(".")
-@everywhere using Statistics
-@everywhere using CUDA
-@everywhere using GRASS
-@everywhere using SharedArrays
-@everywhere using EchelleCCFs
 using CSV
+using LsqFit
 using DataFrames
 using LaTeXStrings
-using LsqFit
-
-# define some functions
-include(GRASS.moddir * "figures1/fig_functions.jl")
+using Distributed
+@everywhere begin
+    using Pkg; Pkg.activate(".")
+    using Statistics
+    using CUDA
+    using GRASS
+    using SharedArrays
+    using EchelleCCFs
+end
 
 # some global stuff
 const N = round.(Int, 2 .^ range(6, 10, step=0.5))
