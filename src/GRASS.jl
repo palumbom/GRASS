@@ -73,6 +73,10 @@ include("gpu/gpu_trim.jl")
 include("gpu/gpu_sim.jl")
 include("gpu/gpu_synthesis.jl")
 
+# functions for plotting figures
+include("fig_functions.jl")
+include("iag_utils.jl")
+
 """
     synthesize_spectra(spec, disk; seed_rng=false, verbose=true, top=NaN)
 
@@ -146,6 +150,8 @@ end
 precompile(synthesize_spectra, (SpecParams, DiskParams, Float64, Bool, Bool, Bool))
 
 # export some stuff
-export SpecParams, DiskParams, LineProperties, synthesize_spectra, calc_ccf, calc_rvs_from_ccf, calc_rms, use_gpu
+export SpecParams, DiskParams, LineProperties, synthesize_spectra,
+       calc_ccf, calc_rvs_from_ccf, calc_rms, parse_args, check_plot_dirs,
+       read_iag
 
 end # module

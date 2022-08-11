@@ -1,3 +1,4 @@
+using Pkg; Pkg.activate(".")
 using CSV
 using DataFrames
 using Statistics
