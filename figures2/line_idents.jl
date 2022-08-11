@@ -5,10 +5,8 @@ using GRASS
 
 import PyPlot; plt = PyPlot; mpl = plt.matplotlib; plt.ioff()
 using LaTeXStrings
-# mpl.style.use(GRASS.moddir * "figures1/fig.mplstyle")
+mpl.style.use(GRASS.moddir * "figures1/fig.mplstyle")
 
-# plotting functions
-include(GRASS.moddir * "figures1/fig_functions.jl")
 grassdir, plotdir, datadir = check_plot_dirs()
 
 # read in table summarizing line info and spectra directories
