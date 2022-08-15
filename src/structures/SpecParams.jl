@@ -30,8 +30,7 @@ function SpecParams(;lines=[], depths=[], geffs=[], variability=[],
     @assert length(lines) == length(depths)
     @assert !isempty(lines)
     @assert !isempty(depths)
-    @assert all(depths .< 1.0)
-    @assert all(depths .> 0.0)
+    @assert all(depths .< 1.0) && all(depths .> 0.0)
     @assert buffer >= 0.75
 
     # assign lande g factors if they haven't been
