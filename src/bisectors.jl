@@ -171,6 +171,58 @@ function measure_bisector_loop(xs::AA{T,1}, ys::AA{T,1}; top::T=0.99,
     return wav, one(T) .- dep
 end
 
+function measure_width_loop(xs::AA{T,1}, ys::AA{T,1}; top::T=0.99,
+                            len::Integer=100) where T<:AF
+    # normalize the spec, find bottom of line
+    ys ./= maximum(ys)
+
+    # assign depths to measure bisector at
+    dep = range(one(T)-minimum(ys)-0.01, one(T) - top, length=len)
+
+    # set iterators
+    nccf = Int(length(xs) ÷ 2)
+    L = nccf
+    R = nccf
+
+    # allocate memory
+    xL = zeros(len)
+    xR = zeros(len)
+    wav = zeros(len)
+
+    # loop over depths
+    for d in eachindex(dep)
+        y = one(T) - dep[d]
+        while((ys[L] < y) & (L > 0))
+            L -= 1
+        end
+
+        while ((ys[R] < y) & (R < length(xs)))
+            R += 1
+        end
+
+        if ((y > maximum(ys[1:nccf])) | (y > maximum(ys[nccf+1:end])))
+            L = 0
+            R = length(xs)
+        end
+
+        if L == 0
+            xL[d] = xL[d-1]
+        else
+            mL = (xs[L+1] - xs[L]) / (ys[L+1] - ys[L])
+            xL[d] = xs[L] + mL * (y - ys[L])
+        end
+
+        if R == length(xs)
+            xR[d] = xR[d-1]
+        else
+            mR = (xs[R-1] - xs[R]) / (ys[R-1] - ys[R])
+            xR[d] = xs[R] + mR * (y - ys[R])
+        end
+        wav[d] = (xR[d] - xL[d])
+    end
+    return wav, one(T) .- dep
+end
+
 
 function bisector_uncertainty(wav::AA{T,1}, bis::AA{T,1}) where T<:AF
     dF = diff(bis)
