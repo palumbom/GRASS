@@ -60,8 +60,41 @@ function preprocess_line(line_name::String)
     # read in the spectrum and bin into 15-second bins
     wavs, flux = GRASS.bin_spectrum(GRASS.read_spectrum(fits_files[1])...)
 
+    # normalize the spectra
+    flux ./= maximum(flux, dims=1)
 
-    return
+    # loop over epochs in data
+    for t in 1:size(wavs, 2)
+        # refine the location of the minimum
+        idx = findfirst(x -> x .>= line_df.air_wav[1], wavs[:,t])
+        min = argmin(flux[idx-50:idx+50, t]) + idx - 50
+
+        # isolate the line
+        idx1 = findfirst(x -> x .>= wavs[min - 75, t], wavs[:, t])
+        idx2 = findfirst(x -> x .>= wavs[min + 75, t], wavs[idx1:end, t]) + idx1
+        wavs_iso = wavs[idx1:idx2]
+        flux_iso = flux[idx1:idx2]
+
+        # measure a bisector
+        wav, bis = GRASS.measure_bisector(wavs_iso, flux_iso, interpolate=false)
+        wid, dep = GRASS.measure_width_loop(wavs_iso, flux_iso)
+
+        plt.plot(wavs[:,t], flux[:,t])
+        plt.plot(wavs_iso, flux_iso)
+        plt.show()
+        # plt.axvline(wavs[min, t])
+
+
+    end
+    # plt.show()
+
+
+
+    plt.plot(wavs, flux)
+    plt.axvline(line_df.air_wav[1])
+
+
+    return nothing
 end
 
 function main()
