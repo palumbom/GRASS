@@ -10,7 +10,7 @@ using LaTeXStrings
 # mpl.style.use(GRASS.moddir * "figures1/fig.mplstyle")
 
 # set LARS spectra absolute dir
-data_dir = "/storage/home/mlp95/ford_dir/michael/lars_spectra/"
+data_dir = "/storage/group/ebf11/default/mlp95/lars_spectra/"
 
 # read in table summarizing line info and spectra directories
 line_info = CSV.read(GRASS.soldir * "line_info.csv", DataFrame)
