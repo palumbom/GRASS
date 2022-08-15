@@ -57,6 +57,10 @@ function preprocess_line(line_name::String)
     # find all the spectra files associated with this line
     fits_files = Glob.glob("*.fits", data_dir * line_df.spectra_dir[1] * "/")
 
+    # read in the spectrum and bin into 15-second bins
+    wavs, flux = GRASS.bin_spectrum(GRASS.read_spectrum(fits_files[1])...)
+
+
     return
 end
 
