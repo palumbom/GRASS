@@ -6,8 +6,8 @@ using EchelleCCFs: λ_air_to_vac, λ_vac_to_air
 
 function download_iag()
     println(">>> Downloading IAG atlas...")
-    file = HTTP.download("https://cdsarc.unistra.fr/ftp/J/A+A/587/A65/spvis.dat.gz",
-                         moddir * "input_data/", update_period=Inf)
+    url = "http://cdsarc.u-strasbg.fr/viz-bin/nph-Cat/txt.gz?J/A+A/587/A65/spvis.dat.gz"
+    file = HTTP.download(url, moddir * "input_data/spvis.dat.gz", update_period=Inf)
     println(">>> IAG atlas downloaded!")
     return nothing
 end
@@ -15,13 +15,14 @@ end
 function read_iag(; isolate::Bool=false, airwav::Float64=5434.5)
     # download the IAG atlas
     file = GRASS.moddir * "input_data/spvis.dat.gz"
-    if !isfile(file)
+    if !isfile(file) || mtime(file) < 1.66e9
         download_iag()
     end
 
     # read in the IAG atlas
     iag = GZip.open(file, "r") do io
-        CSV.read(io, DataFrame, ignorerepeated=true, delim=" ", header=["wavenum", "nflux", "flux"])
+        CSV.read(io, DataFrame, ignorerepeated=true, delim="|", skipto=5,
+                 footerskip=1, header=["wavenum", "nflux", "flux"])
     end
 
     # convert wavenumber to wavelength in angstroms
