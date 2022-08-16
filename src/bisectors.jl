@@ -125,7 +125,7 @@ function measure_bisector_loop(xs::AA{T,1}, ys::AA{T,1}; top::T=0.99,
     ys ./= maximum(ys)
 
     # assign depths to measure bisector at
-    dep = range(one(T)-minimum(ys)-0.01, one(T) - top, length=len)
+    dep = range(one(T)-minimum(ys), one(T) - top, length=len)
 
     # set iterators
     nccf = Int(length(xs) ÷ 2)
@@ -140,15 +140,15 @@ function measure_bisector_loop(xs::AA{T,1}, ys::AA{T,1}; top::T=0.99,
     # loop over depths
     for d in eachindex(dep)
         y = one(T) - dep[d]
-        while((ys[L] < y) & (L > 0))
+        while((L > 0) && (ys[L] < y))
             L -= 1
         end
 
-        while ((ys[R] < y) & (R < length(xs)))
+        while ((R < length(xs)) && (ys[R] < y))
             R += 1
         end
 
-        if ((y > maximum(ys[1:nccf])) | (y > maximum(ys[nccf+1:end])))
+        if ((y > maximum(ys[1:nccf])) || (y > maximum(ys[nccf+1:end])))
             L = 0
             R = length(xs)
         end
@@ -192,15 +192,15 @@ function measure_width_loop(xs::AA{T,1}, ys::AA{T,1}; top::T=0.99,
     # loop over depths
     for d in eachindex(dep)
         y = one(T) - dep[d]
-        while((ys[L] < y) & (L > 0))
+        while((L > 0) && (ys[L] < y))
             L -= 1
         end
 
-        while ((ys[R] < y) & (R < length(xs)))
+        while ((R < length(xs)) && (ys[R] < y))
             R += 1
         end
 
-        if ((y > maximum(ys[1:nccf])) | (y > maximum(ys[nccf+1:end])))
+        if ((y > maximum(ys[1:nccf])) || (y > maximum(ys[nccf+1:end])))
             L = 0
             R = length(xs)
         end
@@ -220,7 +220,7 @@ function measure_width_loop(xs::AA{T,1}, ys::AA{T,1}; top::T=0.99,
         end
         wav[d] = (xR[d] - xL[d])
     end
-    return wav, one(T) .- dep
+    return one(T) .- dep, wav
 end
 
 
