@@ -1,4 +1,4 @@
-name,species,mass,air_wav,g_eff,height,lower_level,upper_level,spectra_dir
+name,species,mass,air_wavelength,g_eff,height,lower_level,upper_level,spectra_dir
 FeI_5250.2,FeI,55.845,5250.2084,3.00,310,0.12126572,2.48211840,FeI_5250
 FeI_5250.6,FeI,55.845,5250.6453,1.50,360,2.19786640,4.55852281,FeI_5250
 FeI_5379,FeI,55.845,5379.5734,1.1,,3.69459719,5.99867825,CI_5380
