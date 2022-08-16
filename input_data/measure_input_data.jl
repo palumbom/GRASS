@@ -97,9 +97,10 @@ function preprocess_line(line_name::String; verbose::Bool=true)
 
     # find row with line info and write the line_params file
     line_df = subset(line_info, :name => x -> x .== line_name)
-    write_line_params(line_df)
+    write_line_params(line_df, clobber=true)
 
     # find all the spectra files associated with this line
+    """
     fits_files = Glob.glob("*.fits", data_dir * line_df.spectra_dir[1] * "/")
 
     # read in the spectrum and bin into 15-second bins
@@ -152,15 +153,16 @@ function preprocess_line(line_name::String; verbose::Bool=true)
         # write input data to disk
         write_input_data(line_name, line_df.air_wavelength[1], fparams, wav, bis, dep, wid)
     end
+    """
     return nothing
 end
 
 function main()
     for name in line_info.name
-        if name == "NiI_5578"
+        # if name == "FeI_5576"
             println(">>> Processing " * name * "...")
             preprocess_line(name)
-        end
+        # end
     end
     return nothing
 end
