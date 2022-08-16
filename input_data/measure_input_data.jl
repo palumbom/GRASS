@@ -97,10 +97,9 @@ function preprocess_line(line_name::String; verbose::Bool=true)
 
     # find row with line info and write the line_params file
     line_df = subset(line_info, :name => x -> x .== line_name)
-    write_line_params(line_df, clobber=true)
+    write_line_params(line_df)
 
     # find all the spectra files associated with this line
-    """
     fits_files = Glob.glob("*.fits", data_dir * line_df.spectra_dir[1] * "/")
 
     # read in the spectrum and bin into 15-second bins
@@ -109,11 +108,9 @@ function preprocess_line(line_name::String; verbose::Bool=true)
         if verbose println("\t >>> Processing " * splitdir(f)[end]) end
 
         # DEBUGGING STUFF
-        """
-        if splitdir(f)[end] != "lars_l12_20180427-114647_clv5576_mu09_s.ns.chvtt.fits"
-            continue
-        end
-        """
+        # if splitdir(f)[end] != "lars_l12_20180427-114647_clv5576_mu09_s.ns.chvtt.fits"
+        #     continue
+        # end
 
         # get spec parameters
         fparams = GRASS.extract_line_params(f)
@@ -153,7 +150,6 @@ function preprocess_line(line_name::String; verbose::Bool=true)
         # write input data to disk
         write_input_data(line_name, line_df.air_wavelength[1], fparams, wav, bis, dep, wid)
     end
-    """
     return nothing
 end
 
