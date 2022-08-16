@@ -19,11 +19,16 @@ function spec_loop(spec::SpecParams, disk::DiskParams, Nloop::T;
 end
 
 # small function to check and create file structure
-function check_plot_dirs()
+function check_plot_dirs(;topdir=nothing)
+    # set the directory you want the outpout to be in
+    if isnothing(topdir)
+        topdir = homedir()
+    end
+
     # directories
-    dirs = [homedir() * "/grass_output/",
-            homedir() * "/grass_output/plots/",
-            homedir() * "/grass_output/data/"]
+    dirs = [topdir * "/grass_output/",
+            topdir * "/grass_output/plots/",
+            topdir * "/grass_output/data/"]
 
     # create dirs if they dont exist, and return dir names
     for dir in dirs

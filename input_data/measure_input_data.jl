@@ -15,19 +15,19 @@ const data_dir = "/storage/group/ebf11/default/mlp95/lars_spectra/"
 const line_info = CSV.read(GRASS.soldir * "line_info.csv", DataFrame)
 
 # function to write line parameters file
-function write_line_params(line_df::DataFrame)
+function write_line_params(line_df::DataFrame; clobber::Bool=false)
     # get the filename
     line_dir = GRASS.soldir * line_df.name[1] * "/"
     prop_file =  line_dir * line_df.name[1] * "_line_properties.h5"
 
     # don't bother if the file already exists
-    if isfile(prop_file)
+    if isfile(prop_file) & !clobber
         println("\t >>> " * splitdir(prop_file)[end] * " already exists...")
         return nothing
     end
 
     # read in the IAG data and isolate the line
-    iag_wavs, iag_flux = read_iag(isolate=true, airwav=line_df.air_wav[1])
+    iag_wavs, iag_flux = read_iag(isolate=true, airwav=line_df.air_wavelength[1])
     iag_depth = 1.0 - minimum(iag_flux)
 
     # write the line properties file
@@ -50,7 +50,7 @@ function write_line_params(line_df::DataFrame)
     return nothing
 end
 
-function write_input_data(line_name, air_wav, fparams, wav, bis, dep, wid)
+function write_input_data(line_name, air_wavelength, fparams, wav, bis, dep, wid)
     # create output file name
     new_file = line_name * "_" * string(fparams[3]) * "_" * fparams[5] * "_" * fparams[6] * "_input.h5"
 
@@ -69,7 +69,7 @@ function write_input_data(line_name, air_wav, fparams, wav, bis, dep, wid)
         # make attributes
         attr = attributes(g)
         attr["datetime"] = string(fparams[3])
-        attr["wavelength"] = air_wav
+        attr["air_wavelength"] = air_wavelength
 
         # convert mu to number
         mu_num = []
@@ -131,7 +131,7 @@ function preprocess_line(line_name::String; verbose::Bool=true)
         dep = zeros(100, size(wavs,2))
         for t in 1:size(wavs, 2)
             # refine the location of the minimum
-            idx = findfirst(x -> x .>= line_df.air_wav[1], wavs[:,t])
+            idx = findfirst(x -> x .>= line_df.air_wavelength[1], wavs[:,t])
             min = argmin(flux[idx-50:idx+50, t]) + idx - 50
 
             # isolate the line
@@ -150,7 +150,7 @@ function preprocess_line(line_name::String; verbose::Bool=true)
         end
 
         # write input data to disk
-        write_input_data(line_name, line_df.air_wav[1], fparams, wav, bis, dep, wid)
+        write_input_data(line_name, line_df.air_wavelength[1], fparams, wav, bis, dep, wid)
     end
     return nothing
 end
