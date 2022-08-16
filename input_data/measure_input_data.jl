@@ -109,11 +109,9 @@ function preprocess_line(line_name::String; verbose::Bool=true)
         if verbose println("\t >>> Processing " * splitdir(f)[end]) end
 
         # DEBUGGING STUFF
-        """
-        if splitdir(f)[end] != "lars_l12_20180427-114647_clv5576_mu09_s.ns.chvtt.fits"
-            continue
-        end
-        """
+        # if splitdir(f)[end] != "lars_l12_20180427-114647_clv5576_mu09_s.ns.chvtt.fits"
+        #     continue
+        # end
 
         # get spec parameters
         fparams = GRASS.extract_line_params(f)
