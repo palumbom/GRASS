@@ -108,16 +108,14 @@ function preprocess_line(line_name::String; verbose::Bool=true)
         if verbose println("\t >>> Processing " * splitdir(f)[end]) end
 
         # DEBUGGING STUFF
-        # if splitdir(f)[end] != "lars_l12_20180427-114647_clv5576_mu09_s.ns.chvtt.fits"
-        #     continue
-        # end
+        if splitdir(f)[end] != "lars_l12_20160822-164727_clv5434_mu10.ns.chvtt.fits"
+            continue
+        end
+        # DEBUGGING STUFF
 
         # get spec parameters
         fparams = GRASS.extract_line_params(f)
         wavs, flux = GRASS.bin_spectrum(GRASS.read_spectrum(f)...)
-
-        # fparams = GRASS.extract_line_params(fits_files[1])
-        # wavs, flux = GRASS.bin_spectrum(GRASS.read_spectrum(fits_files[1])...)
 
         # normalize the spectra
         flux ./= maximum(flux, dims=1)
@@ -128,19 +126,43 @@ function preprocess_line(line_name::String; verbose::Bool=true)
         wid = zeros(100, size(wavs,2))
         dep = zeros(100, size(wavs,2))
         for t in 1:size(wavs, 2)
+            # DEBUGGING STUFF
+            if t != 1
+                continue
+            end
+            # DEBUGGING STUFF
+
             # refine the location of the minimum
             idx = findfirst(x -> x .>= line_df.air_wavelength[1], wavs[:,t])
             min = argmin(flux[idx-50:idx+50, t]) + idx - 50
 
             # isolate the line
-            idx1 = findfirst(x -> x .>= wavs[min - 75, t], wavs[:, t])
-            idx2 = findfirst(x -> x .>= wavs[min + 75, t], wavs[idx1:end, t]) + idx1
+            # idx1 = findfirst(x -> x .>= wavs[min - 75, t], wavs[:, t])
+            # idx2 = findfirst(x -> x .>= wavs[min + 75, t], wavs[idx1:end, t]) + idx1
+            idx1 = min - findfirst(x -> x .> 0.95, reverse(flux[1:min, t]))
+            idx2 = findfirst(x -> x .> 0.95, flux[min:end, t]) + min
             wavs_iso = view(wavs, idx1:idx2, t)
             flux_iso = view(flux, idx1:idx2, t)
 
             # measure a bisector
-            wav[:,t], bis[:,t] = GRASS.measure_bisector(wavs_iso, flux_iso, interpolate=false)
+            wav[:,t], bis[:,t] = GRASS.measure_bisector_loop(wavs_iso, flux_iso)
             dep[:,t], wid[:,t] = GRASS.measure_width_loop(wavs_iso, flux_iso)
+
+            # set any widths less than zero to 0
+            idx = findall(x -> x .< 0.0, view(wid, :, t))
+            wid[idx,t] .= 0.0
+
+            # DEBUGGING STUFF
+            plt.plot(wavs[:,t], flux[:,t], c="k")
+            plt.plot(wavs_iso, flux_iso, c="tab:blue")
+            plt.plot(wav[:,t], bis[:,t], c="k")
+            plt.axvline(wavs[idx1], c="k")
+            plt.axvline(wavs[idx2], c="k")
+            plt.show()
+
+            plt.plot(dep, wid)
+            plt.show()
+            # DEBUGGING STUFF
 
             # TODO REVIEW BISECTOR CODE
             # wav[:,t], bis[:,t] = GRASS.calc_bisector(wavs_iso, flux_iso)
@@ -155,10 +177,10 @@ end
 
 function main()
     for name in line_info.name
-        # if name == "FeI_5576"
+        if name == "FeI_5434"
             println(">>> Processing " * name * "...")
             preprocess_line(name)
-        # end
+        end
     end
     return nothing
 end
