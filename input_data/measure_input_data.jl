@@ -2,8 +2,10 @@ using Pkg; Pkg.activate(".")
 using CSV
 using HDF5
 using Glob
+using LsqFit
 using DataFrames
 using Statistics
+using Polynomials
 using GRASS
 
 import PyPlot; plt = PyPlot; mpl = plt.matplotlib; plt.ioff()
@@ -89,6 +91,36 @@ function write_input_data(line_name, air_wavelength, fparams, wav, bis, dep, wid
     return nothing
 end
 
+function fit_line_wings(wavs_iso, flux_iso)
+    # get min and flux thresholds
+    min = argmin(flux_iso)
+    dep = 1.0 - flux_iso[min]
+    lidx50 = min - findfirst(x -> x .>= 0.5 * dep, reverse(flux_iso[1:min]))
+    ridx50 = findfirst(x -> x .>= 0.5 * dep, flux_iso[min:end]) + min
+    lidx60 = min - findfirst(x -> x .>= 0.6 * dep, reverse(flux_iso[1:min]))
+    ridx60 = findfirst(x -> x .>= 0.6 * dep, flux_iso[min:end]) + min
+    lidx70 = min - findfirst(x -> x .>= 0.7 * dep, reverse(flux_iso[1:min]))
+    ridx70 = findfirst(x -> x .>= 0.7 * dep, flux_iso[min:end]) + min
+    lidx80 = min - findfirst(x -> x .>= 0.8 * dep, reverse(flux_iso[1:min]))
+    ridx80 = findfirst(x -> x .>= 0.8 * dep, flux_iso[min:end]) + min
+    lidx90 = min - findfirst(x -> x .>= 0.9 * dep, reverse(flux_iso[1:min]))
+    ridx90 = findfirst(x -> x .>= 0.9 * dep, flux_iso[min:end]) + min
+
+    # isolate the line wings
+    wavs_fit = vcat(wavs_iso[lidx90:lidx60], wavs_iso[ridx60:ridx90])
+    flux_fit = vcat(flux_iso[lidx90:lidx60], flux_iso[ridx60:ridx90])
+
+    # set boundary conditions and initial guess
+    lb = [0.0, wavs_iso[min], 0.0, 0.0, 1.0]
+    ub = [1.0, wavs_iso[min], Inf, Inf, 1.0]
+    p0 = [0.125, wavs_iso[min], 0.00, 0.01, 1.0]
+
+    # perform the fit
+    fit = curve_fit(GRASS.fit_voigt, wavs_fit, flux_fit, p0, lower=lb, upper=ub)
+    @show fit.param
+    return fit
+end
+
 function preprocess_line(line_name::String; verbose::Bool=true)
     # create subdirectory structure if it doesn't already exist
     if !isdir(GRASS.soldir * line_name)
@@ -103,19 +135,15 @@ function preprocess_line(line_name::String; verbose::Bool=true)
     fits_files = Glob.glob("*.fits", data_dir * line_df.spectra_dir[1] * "/")
 
     # read in the spectrum and bin into 15-second bins
-    for f in fits_files
+    # for f in fits_files
+    for f in fits_files[1:1]
         # print the filename
         if verbose println("\t >>> Processing " * splitdir(f)[end]) end
-
-        # DEBUGGING STUFF
-        if splitdir(f)[end] != "lars_l12_20160822-164727_clv5434_mu10.ns.chvtt.fits"
-            continue
-        end
-        # DEBUGGING STUFF
 
         # get spec parameters
         fparams = GRASS.extract_line_params(f)
         wavs, flux = GRASS.bin_spectrum(GRASS.read_spectrum(f)...)
+        plt.plot(wavs[:,1], flux[:,1]./maximum(flux[:,1]), c="k")
 
         # normalize the spectra
         flux ./= maximum(flux, dims=1)
@@ -137,37 +165,74 @@ function preprocess_line(line_name::String; verbose::Bool=true)
             min = argmin(flux[idx-50:idx+50, t]) + idx - 50
 
             # isolate the line
-            # idx1 = findfirst(x -> x .>= wavs[min - 75, t], wavs[:, t])
-            # idx2 = findfirst(x -> x .>= wavs[min + 75, t], wavs[idx1:end, t]) + idx1
-            idx1 = min - findfirst(x -> x .> 0.95, reverse(flux[1:min, t]))
-            idx2 = findfirst(x -> x .> 0.95, flux[min:end, t]) + min
-            wavs_iso = view(wavs, idx1:idx2, t)
-            flux_iso = view(flux, idx1:idx2, t)
+            idx1 = min - findfirst(x -> x .>= 0.95, reverse(flux[1:min, t]))
+            idx2 = findfirst(x -> x .>= 0.95, flux[min:end, t]) + min
+            idxl = min - findfirst(x -> x .>= 0.9, reverse(flux[1:min, t]))
+            idxr = findfirst(x -> x .>= 0.9, flux[min:end, t]) + min
+            wavs_iso = copy(view(wavs, idx1:idx2, t))
+            flux_iso = copy(view(flux, idx1:idx2, t))
 
-            # measure a bisector
-            wav[:,t], bis[:,t] = GRASS.measure_bisector_loop(wavs_iso, flux_iso)
-            dep[:,t], wid[:,t] = GRASS.measure_width_loop(wavs_iso, flux_iso)
+            # fit the line wings
+            fit = fit_line_wings(wavs_iso, flux_iso)
 
-            # set any widths less than zero to 0
-            idx = findall(x -> x .< 0.0, view(wid, :, t))
-            wid[idx,t] .= 0.0
+            # get fit curve on original grid of wavelengths
+            flux_new = GRASS.fit_voigt(view(wavs, :, t), fit.param)
 
-            # DEBUGGING STUFF
-            plt.plot(wavs[:,t], flux[:,t], c="k")
-            plt.plot(wavs_iso, flux_iso, c="tab:blue")
-            plt.plot(wav[:,t], bis[:,t], c="k")
-            plt.axvline(wavs[idx1], c="k")
-            plt.axvline(wavs[idx2], c="k")
-            plt.show()
+            # replace wings with model
+            flux[1:idxl, t] .= flux_new[1:idxl]
+            flux[idxr:end, t] .= flux_new[idxr:end]
 
-            plt.plot(dep, wid)
-            plt.show()
-            # DEBUGGING STUFF
+            # do a quick "normalization"
+            flux[:,t] ./= maximum(flux[:,t])
+
+            # oversample it to get better precision in wings
+            itp = GRASS.linear_interp(wavs[:,t], flux[:,t])
+            wavs_meas = range(first(wavs[:,t]), last(wavs[:,t]), step=wavs[min,t]/1e6)
+            flux_meas = itp.(wavs_meas)
 
             # TODO REVIEW BISECTOR CODE
-            # wav[:,t], bis[:,t] = GRASS.calc_bisector(wavs_iso, flux_iso)
-            # dep[:,t], wid[:,t] = GRASS.calc_width_function(wavs_iso, flux_iso)
+            # measure a bisector
+            # wav[:,t], bis[:,t] = GRASS.measure_bisector_interpolate(wavs_meas, flux_meas)
+            # dep[:,t], wid[:,t] = GRASS.measure_width_interpolate(wavs_meas, flux_meas)
+
+            # # set any widths less than zero to 0
+            # idx = findall(x -> x .< 0.0, view(wid, :, t))
+            # wid[idx,t] .= 0.0
+
+            # # polyfit the last three points and extrapolate to continuum
+            # idx8 = findfirst(x -> x .>= 0.8, dep[:,t])
+            # idx9 = findfirst(x -> x .>= 0.9, dep[:,t])
+            # pfit = Polynomials.fit(dep[idx9-10:idx9,t], wid[idx9-10:idx9,t], 2)
+            # wid[idx9:end, t] = pfit.(dep[idx9:end, t])
+
+            # DEBUGGING STUFF
+            plt.plot(wavs[:,t], flux[:,t], c="tab:orange")
+            plt.plot(wavs_iso, flux_iso, c="tab:blue")
+            # plt.plot(wav[:,t], bis[:,t], c="k")
+            plt.show()
+
+            # plt.plot(dep[:,t], wid[:,t]); plt.show()
+
+            # plt.plot(dep[1:idx9,t], wid[1:idx9,t], c="k", label="original")
+            # plt.plot(dep[idx9:end,t], wid[idx9:end,t], label="extrap")
+            # DEBUGGING STUFF
         end
+
+        # DEBUGGING STUFF
+        # lambdas = range(5433, 5436, step=5434.5/1e6)
+        # prof = ones(length(lambdas))
+        # lwavgrid = zeros(100)
+        # rwavgrid = zeros(100)
+        # allwavs = zeros(200)
+        # allints = zeros(200)
+        # GRASS.extrapolate_bisector(view(wav,:,1:1), view(bis,:,1:1))
+        # GRASS.extrapolate_width(view(dep,:,1:1), view(wid,:,1:1))
+        # plt.plot(wav[:,1], bis[:,1], c="tab:orange", ls="--")
+        # GRASS.line_profile_cpu!(5434.535, lambdas, prof, wav[:,1] .- mean(wav[:,1]), dep[:,1], wid[:,1], lwavgrid, rwavgrid, allwavs, allints)
+
+        # plt.plot(lambdas, prof, c="k", ls="--")
+        # plt.show()
+        # DEBUGGING STUFF
 
         # write input data to disk
         write_input_data(line_name, line_df.air_wavelength[1], fparams, wav, bis, dep, wid)
