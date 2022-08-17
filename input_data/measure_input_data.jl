@@ -112,15 +112,15 @@ function fit_line_wings(wavs_iso, flux_iso)
     flux_fit = vcat(flux_iso[lidx90:lidx50], flux_iso[min-5:min+5], flux_iso[ridx50:ridx90])
 
     # set boundary conditions and initial guess
-    # GOOD NUMBERS FOR 5434
-    lb = [0.0, wavs_iso[min], 0.0, 0.0, 1.0]
-    ub = [1.0, wavs_iso[min], 0.0, 0.25, 1.0]
-    p0 = [dep, wavs_iso[min], 0.0, 0.07, 1.0]
-    # GOOD NUMBERS FOR 5434
+    # GOOD FOR FeI LINES
+    lb = [0.0, wavs_iso[min], 0.0, 0.0]
+    ub = [1.0, wavs_iso[min], 0.25, 0.25]
+    p0 = [dep, wavs_iso[min], 0.05, 0.01]
+    # GOOD FOR FeI LINES
 
-    lb = [0.0, wavs_iso[min], 0.0, 0.0, 1.0]
-    ub = [1.0, wavs_iso[min], 0.25, 0.25, 1.0]
-    p0 = [dep, wavs_iso[min], 0.03, 0.01, 1.0]
+    lb = [0.0, wavs_iso[min], 0.0, 0.0]
+    ub = [1.0, wavs_iso[min], 0.5, 0.5]
+    p0 = [dep, wavs_iso[min], 0.05, 0.01]
 
     # perform the fit
     fit = curve_fit(GRASS.fit_voigt, wavs_fit, flux_fit, p0, lower=lb, upper=ub)
