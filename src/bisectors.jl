@@ -58,7 +58,7 @@ function measure_bisector(xs::AA{T,1}, ys::AA{T,1}; interpolate::Bool=true,
 end
 
 
-function measure_bisector_interpolate(xs::AA{T,1}, ys::AA{T,1}; top::T=0.99,
+function measure_bisector_interpolate(xs::AA{T,1}, ys::AA{T,1}; top::T=one(T),
                                       len::Integer=100, max_loop::Int=20) where T<:AF
     # check lengths and normalization
     @assert length(xs) == length(ys)
@@ -221,6 +221,66 @@ function measure_width_loop(xs::AA{T,1}, ys::AA{T,1}; top::T=0.99,
         wav[d] = (xR[d] - xL[d])
     end
     return one(T) .- dep, wav
+end
+
+function measure_width_interpolate(xs::AA{T,1}, ys::AA{T,1}; top::T=one(T),
+                                   len::Integer=100, max_loop::Int=20) where T<:AF
+    # check lengths and normalization
+    @assert length(xs) == length(ys)
+
+    # normalize the spec, find bottom of line
+    ys ./= maximum(ys)
+    botind = argmin(ys)
+    depths = range(ys[botind], top, length=len)
+
+    # find left and right halves
+    lind = findfirst(ys .< top)
+    rind = findlast(ys .< top)
+    lspec = reverse(ys[lind:botind])
+    rspec = ys[botind:rind]
+    lwav = reverse(xs[lind:botind])
+    rwav = xs[botind:rind]
+
+    # make sure lspec is sorted
+    num_loop = 0
+    unsorted = !issorted(lspec)
+    while unsorted
+        num_loop += 1
+        ldiff = diff(lspec)
+        inds = BitArray(vcat(0, ldiff .< 0))
+        lspec[inds] .= NaN
+        itp = LinearInterpolation(reverse(lwav[.!inds]),
+                                  reverse(lspec[.!inds]),
+                                  extrapolation_bc=Flat())
+        lspec .= itp.(lwav)
+        unsorted = !issorted(lspec)
+        if num_loop > max_loop
+            break
+        end
+    end
+
+    # make sure rspec is sorted
+    num_loop = 0
+    unsorted = !issorted(rspec)
+    while unsorted
+        num_loop += 1
+        rdiff = diff(rspec)
+        inds = BitArray(vcat(0, rdiff .< 0))
+        rspec[inds] .= NaN
+        itp = LinearInterpolation(rwav[.!inds], rspec[.!inds],
+                                  extrapolation_bc=Flat())
+        rspec .= itp.(rwav)
+        unsorted = !issorted(rspec)
+        if num_loop > max_loop
+            break
+        end
+    end
+
+    # interpolate wavelengths onto intensity grid
+    lspline = LinearInterpolation(lspec, lwav, extrapolation_bc=Flat())
+    rspline = LinearInterpolation(rspec, rwav, extrapolation_bc=Flat())
+    wavs = rspline(depths) .- lspline(depths)
+    return depths, wavs
 end
 
 
