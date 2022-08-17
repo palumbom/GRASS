@@ -27,5 +27,4 @@ function voigt(x, amp, mu, sigma, gamma)
     return nothing
 end
 
-# @. fit_voigt(x, p) = p[5] - p[1] * voigt(x, p[2], p[3], p[4])
 @. fit_voigt(x, p) = voigt(x, p[1], p[2], p[3], p[4])
