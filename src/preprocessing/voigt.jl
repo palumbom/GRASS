@@ -1,32 +1,31 @@
 import SpecialFunctions.erfcx
 
-function gaussian(x, mu, sigma)
+function gaussian(x, amp, mu, sigma)
     # return 1.0/(sigma * sqrt(2π)) * exp(-0.5 * ((x - mu)/sigma)^2)
-    return exp(-0.5 * ((x - mu)/sigma)^2)
+    return 1.0 - amp * exp(-0.5 * ((x - mu)/sigma)^2)
 end
 
 
-function lorentzian(x, mu, gamma)
+function lorentzian(x, amp, mu, gamma)
     # return 1.0/(gamma * π) * (gamma^2 / ((x - mu)^2 + gamma^2))
-    return (gamma^2 / ((x - mu)^2 + gamma^2))
+    return 1.0 - amp * (gamma^2 / ((x - mu)^2 + gamma^2))
 end
 
 function faddeeva(x::Complex{T}) where T<:AF
     return erfcx(-im * x)
 end
 
-function voigt(x, mu, sigma, gamma)
+function voigt(x, amp, mu, sigma, gamma)
     if iszero(sigma)
-        return lorentzian(x, mu, gamma)
+        return lorentzian(x, amp, mu, gamma)
     elseif iszero(gamma)
-        return gaussian(x, mu, sigma)
+        return gaussian(x, amp, mu, sigma)
     else
         z = ((x - mu) + im * gamma) / (sqrt(2) * sigma)
-        return real(faddeeva(z)) / (sigma * sqrt(2π))
+        return 1.0 - amp * real(faddeeva(z)) / (sigma * sqrt(2π))
     end
     return nothing
 end
 
-@. fit_voigt(x, p) = p[5] - p[1] * voigt(x, p[2], p[3], p[4])
-# @. fit_voigt(x, p) = voigt(x, p[2], p[3], p[4])
-# @. fit_voigt(x, p) = voigt(x - p[1], p[2], p[3])
+# @. fit_voigt(x, p) = p[5] - p[1] * voigt(x, p[2], p[3], p[4])
+@. fit_voigt(x, p) = voigt(x, p[1], p[2], p[3], p[4])

@@ -94,26 +94,33 @@ end
 function fit_line_wings(wavs_iso, flux_iso)
     # get min and flux thresholds
     min = argmin(flux_iso)
-    dep = 1.0 - flux_iso[min]
-    lidx50 = min - findfirst(x -> x .>= 0.5 * dep, reverse(flux_iso[1:min]))
-    ridx50 = findfirst(x -> x .>= 0.5 * dep, flux_iso[min:end]) + min
-    lidx60 = min - findfirst(x -> x .>= 0.6 * dep, reverse(flux_iso[1:min]))
-    ridx60 = findfirst(x -> x .>= 0.6 * dep, flux_iso[min:end]) + min
-    lidx70 = min - findfirst(x -> x .>= 0.7 * dep, reverse(flux_iso[1:min]))
-    ridx70 = findfirst(x -> x .>= 0.7 * dep, flux_iso[min:end]) + min
-    lidx80 = min - findfirst(x -> x .>= 0.8 * dep, reverse(flux_iso[1:min]))
-    ridx80 = findfirst(x -> x .>= 0.8 * dep, flux_iso[min:end]) + min
-    lidx90 = min - findfirst(x -> x .>= 0.9 * dep, reverse(flux_iso[1:min]))
-    ridx90 = findfirst(x -> x .>= 0.9 * dep, flux_iso[min:end]) + min
+    bot = flux_iso[min]
+    dep = 1.0 - bot
+    lidx50 = min - findfirst(x -> x .>= 0.5 * dep + bot, reverse(flux_iso[1:min]))
+    ridx50 = findfirst(x -> x .>= 0.5 * dep + bot, flux_iso[min:end]) + min
+    lidx60 = min - findfirst(x -> x .>= 0.6 * dep + bot, reverse(flux_iso[1:min]))
+    ridx60 = findfirst(x -> x .>= 0.6 * dep + bot, flux_iso[min:end]) + min
+    lidx70 = min - findfirst(x -> x .>= 0.7 * dep + bot, reverse(flux_iso[1:min]))
+    ridx70 = findfirst(x -> x .>= 0.7 * dep + bot, flux_iso[min:end]) + min
+    lidx80 = min - findfirst(x -> x .>= 0.8 * dep + bot, reverse(flux_iso[1:min]))
+    ridx80 = findfirst(x -> x .>= 0.8 * dep + bot, flux_iso[min:end]) + min
+    lidx90 = min - findfirst(x -> x .>= 0.9 * dep + bot, reverse(flux_iso[1:min]))
+    ridx90 = findfirst(x -> x .>= 0.9 * dep + bot, flux_iso[min:end]) + min
 
     # isolate the line wings
-    wavs_fit = vcat(wavs_iso[lidx90:lidx60], wavs_iso[ridx60:ridx90])
-    flux_fit = vcat(flux_iso[lidx90:lidx60], flux_iso[ridx60:ridx90])
+    wavs_fit = vcat(wavs_iso[lidx90:lidx50], wavs_iso[min-5:min+5], wavs_iso[ridx50:ridx90])
+    flux_fit = vcat(flux_iso[lidx90:lidx50], flux_iso[min-5:min+5], flux_iso[ridx50:ridx90])
 
     # set boundary conditions and initial guess
+    # GOOD NUMBERS FOR 5434
     lb = [0.0, wavs_iso[min], 0.0, 0.0, 1.0]
-    ub = [1.0, wavs_iso[min], Inf, Inf, 1.0]
-    p0 = [0.125, wavs_iso[min], 0.00, 0.01, 1.0]
+    ub = [1.0, wavs_iso[min], 0.0, 0.25, 1.0]
+    p0 = [dep, wavs_iso[min], 0.0, 0.07, 1.0]
+    # GOOD NUMBERS FOR 5434
+
+    lb = [0.0, wavs_iso[min], 0.0, 0.0, 1.0]
+    ub = [1.0, wavs_iso[min], 0.25, 0.25, 1.0]
+    p0 = [dep, wavs_iso[min], 0.03, 0.01, 1.0]
 
     # perform the fit
     fit = curve_fit(GRASS.fit_voigt, wavs_fit, flux_fit, p0, lower=lb, upper=ub)
@@ -163,14 +170,20 @@ function preprocess_line(line_name::String; verbose::Bool=true)
             # refine the location of the minimum
             idx = findfirst(x -> x .>= line_df.air_wavelength[1], wavs[:,t])
             min = argmin(flux[idx-50:idx+50, t]) + idx - 50
+            bot = flux[min, t]
+            dep = 1.0 - bot
 
             # isolate the line
             idx1 = min - findfirst(x -> x .>= 0.95, reverse(flux[1:min, t]))
             idx2 = findfirst(x -> x .>= 0.95, flux[min:end, t]) + min
-            idxl = min - findfirst(x -> x .>= 0.9, reverse(flux[1:min, t]))
-            idxr = findfirst(x -> x .>= 0.9, flux[min:end, t]) + min
+            idxl = min - findfirst(x -> x .>= 0.9 * dep + bot, reverse(flux[1:min, t]))
+            idxr = findfirst(x -> x .>= 0.9 * dep + bot, flux[min:end, t]) + min
             wavs_iso = copy(view(wavs, idx1:idx2, t))
             flux_iso = copy(view(flux, idx1:idx2, t))
+
+            plt.axvline(wavs[idxl, t])
+            plt.axvline(wavs[idxr, t])
+
 
             # fit the line wings
             fit = fit_line_wings(wavs_iso, flux_iso)
@@ -179,6 +192,8 @@ function preprocess_line(line_name::String; verbose::Bool=true)
             flux_new = GRASS.fit_voigt(view(wavs, :, t), fit.param)
 
             # replace wings with model
+            idx_lw = argmin(flux_new[1:min])
+            idx_rw = argmin(flux_new[min:end])
             flux[1:idxl, t] .= flux_new[1:idxl]
             flux[idxr:end, t] .= flux_new[idxr:end]
 
@@ -207,7 +222,8 @@ function preprocess_line(line_name::String; verbose::Bool=true)
 
             # DEBUGGING STUFF
             plt.plot(wavs[:,t], flux[:,t], c="tab:orange")
-            plt.plot(wavs_iso, flux_iso, c="tab:blue")
+            plt.plot(wavs[:,t], flux_new, c="tab:purple")
+            # plt.plot(wavs_iso, flux_iso, c="tab:blue")
             # plt.plot(wav[:,t], bis[:,t], c="k")
             plt.show()
 
