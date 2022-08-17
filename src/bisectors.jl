@@ -122,7 +122,7 @@ end
 function measure_bisector_loop(xs::AA{T,1}, ys::AA{T,1}; top::T=0.99,
                                len::Integer=100) where T<:AF
     # normalize the spec, find bottom of line
-    ys ./= maximum(ys)
+    # ys ./= maximum(ys)
 
     # assign depths to measure bisector at
     dep = range(one(T)-minimum(ys), one(T) - top, length=len)
@@ -174,10 +174,10 @@ end
 function measure_width_loop(xs::AA{T,1}, ys::AA{T,1}; top::T=0.99,
                             len::Integer=100) where T<:AF
     # normalize the spec, find bottom of line
-    ys ./= maximum(ys)
+    # ys ./= maximum(ys)
 
     # assign depths to measure bisector at
-    dep = range(one(T)-minimum(ys)-0.01, one(T) - top, length=len)
+    dep = range(one(T)-minimum(ys), one(T) - top, length=len)
 
     # set iterators
     nccf = Int(length(xs) ÷ 2)
