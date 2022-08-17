@@ -187,7 +187,7 @@ function extrapolate_bisector(wavall::AA{T,2}, bisall::AA{T,2}; top::T=0.9) wher
 
         # calculate an average slope and extrapolate it up to continuum
         dydx = mean((wavt[(ind2+1:ind1)] .- wavt[(ind2:ind1-1)]) ./ (bist[ind2+1:ind1] .- bist[(ind2:ind1-1)]))
-        wavt[ind1:end] .= (dydx .* (bist[ind1:end] .- bist[ind1]) .+ wavt[ind1])
+        wavt[ind2:end] .= (dydx .* (bist[ind2:end] .- bist[ind2]) .+ wavt[ind2])
     end
     return nothing
 end
