@@ -91,24 +91,28 @@ function write_input_data(line_name, air_wavelength, fparams, wav, bis, dep, wid
     return nothing
 end
 
+function find_wing_index(val, arr; min=argmin(arr))
+    lidx = min - findfirst(x -> x .>= val, reverse(arr[1:min]))
+    ridx = findfirst(x -> x .>= val, arr[min:end]) + min
+    return lidx, ridx
+end
+
+
 function fit_line_wings(wavs_iso, flux_iso)
-    # get min and flux thresholds
+    # get indices and values for minimum, depth, and bottom
     min = argmin(flux_iso)
     bot = flux_iso[min]
     dep = 1.0 - bot
-    lidx50 = min - findfirst(x -> x .>= 0.5 * dep + bot, reverse(flux_iso[1:min]))
-    ridx50 = findfirst(x -> x .>= 0.5 * dep + bot, flux_iso[min:end]) + min
-    lidx60 = min - findfirst(x -> x .>= 0.6 * dep + bot, reverse(flux_iso[1:min]))
-    ridx60 = findfirst(x -> x .>= 0.6 * dep + bot, flux_iso[min:end]) + min
-    lidx70 = min - findfirst(x -> x .>= 0.7 * dep + bot, reverse(flux_iso[1:min]))
-    ridx70 = findfirst(x -> x .>= 0.7 * dep + bot, flux_iso[min:end]) + min
-    lidx80 = min - findfirst(x -> x .>= 0.8 * dep + bot, reverse(flux_iso[1:min]))
-    ridx80 = findfirst(x -> x .>= 0.8 * dep + bot, flux_iso[min:end]) + min
-    lidx90 = min - findfirst(x -> x .>= 0.9 * dep + bot, reverse(flux_iso[1:min]))
-    ridx90 = findfirst(x -> x .>= 0.9 * dep + bot, flux_iso[min:end]) + min
 
-    # isolate the line wings
-    Δbot = 1
+    # get wing indices for various percentage depths into line
+    lidx50, ridx50 = find_wing_index(0.5 * dep + bot, flux_iso, min=min)
+    lidx60, ridx60 = find_wing_index(0.6 * dep + bot, flux_iso, min=min)
+    lidx70, ridx70 = find_wing_index(0.7 * dep + bot, flux_iso, min=min)
+    lidx80, ridx80 = find_wing_index(0.8 * dep + bot, flux_iso, min=min)
+    lidx90, ridx90 = find_wing_index(0.9 * dep + bot, flux_iso, min=min)
+
+    # isolate the line wings and mask area around line core for fitting
+    Δbot = 2
     core = min-Δbot:min+Δbot
     lwing = lidx90:lidx50
     rwing = ridx50:ridx90
@@ -128,6 +132,20 @@ function fit_line_wings(wavs_iso, flux_iso)
     return fit
 end
 
+function replace_line_wings(fit, wavst, fluxt, min)
+    # get fit curve on original grid of wavelengths
+    flux_new = GRASS.fit_voigt(wavst, fit.param)
+
+    # find indices above which to replace wings
+
+    # replace wings with model
+    # idx_lw = argmin(flux_new[1:min])
+    # idx_rw = argmin(flux_new[min:end])
+    fluxt[1:idx1] .= flux_new[1:idx1]
+    fluxt[idx2:end] .= flux_new[idx2:end]
+    return nothing
+end
+
 function preprocess_line(line_name::String; verbose::Bool=true)
     # create subdirectory structure if it doesn't already exist
     if !isdir(GRASS.soldir * line_name)
@@ -143,7 +161,10 @@ function preprocess_line(line_name::String; verbose::Bool=true)
 
     # read in the spectrum and bin into 15-second bins
     # for f in fits_files
+
+    # DEBUGGING STUFF
     for f in fits_files[1:1]
+    # DEBUGGING STUFF
         # print the filename
         if verbose println("\t >>> Processing " * splitdir(f)[end]) end
 
@@ -167,33 +188,33 @@ function preprocess_line(line_name::String; verbose::Bool=true)
             end
             # DEBUGGING STUFF
 
+            # get view of this time slice
+            wavst = view(wavs, :, t)
+            fluxt = view(flux, :, t)
+
             # refine the location of the minimum
-            idx = findfirst(x -> x .>= line_df.air_wavelength[1], wavs[:,t])
-            min = argmin(flux[idx-50:idx+50, t]) + idx - 50
-            bot = flux[min, t]
+            idx = findfirst(x -> x .>= line_df.air_wavelength[1], wavst)
+            min = argmin(fluxt[idx-50:idx+50]) + idx - 50
+            bot = fluxt[min]
             dep = 1.0 - bot
 
             # isolate the line
-            idx1 = min - findfirst(x -> x .>= 0.95, reverse(flux[1:min, t]))
-            idx2 = findfirst(x -> x .>= 0.95, flux[min:end, t]) + min
-            idxl = min - findfirst(x -> x .>= 0.9 * dep + bot, reverse(flux[1:min, t]))
-            idxr = findfirst(x -> x .>= 0.9 * dep + bot, flux[min:end, t]) + min
-            wavs_iso = copy(view(wavs, idx1:idx2, t))
-            flux_iso = copy(view(flux, idx1:idx2, t))
-
-            plt.axvline(wavs[idxl, t])
-            plt.axvline(wavs[idxr, t])
-
+            idx1, idx2 = find_wing_index(0.95, fluxt, min=min)
+            wavs_iso = copy(view(wavst, idx1:idx2))
+            flux_iso = copy(view(fluxt, idx1:idx2))
 
             # fit the line wings
             fit = fit_line_wings(wavs_iso, flux_iso)
 
-            # get fit curve on original grid of wavelengths
-            flux_new = GRASS.fit_voigt(view(wavs, :, t), fit.param)
+            # replace the line wings
+            # replace_line_wings(fit, wavst, fluxt, min)
+            flux_new = GRASS.fit_voigt(wavst, fit.param)
 
             # replace wings with model
-            idx_lw = argmin(flux_new[1:min])
-            idx_rw = argmin(flux_new[min:end])
+            idxl = min - findfirst(x -> x .>= 0.9 * dep + bot, reverse(fluxt[1:min]))
+            idxr = findfirst(x -> x .>= 0.9 * dep + bot, fluxt[min:end]) + min
+
+
             flux[1:idxl, t] .= flux_new[1:idxl]
             flux[idxr:end, t] .= flux_new[idxr:end]
 
@@ -201,9 +222,9 @@ function preprocess_line(line_name::String; verbose::Bool=true)
             flux[:,t] ./= maximum(flux[:,t])
 
             # oversample it to get better precision in wings
-            itp = GRASS.linear_interp(wavs[:,t], flux[:,t])
-            wavs_meas = range(first(wavs[:,t]), last(wavs[:,t]), step=wavs[min,t]/1e6)
-            flux_meas = itp.(wavs_meas)
+            # itp = GRASS.linear_interp(wavs[:,t], flux[:,t])
+            # wavs_meas = range(first(wavs[:,t]), last(wavs[:,t]), step=wavs[min,t]/1e6)
+            # flux_meas = itp.(wavs_meas)
 
             # TODO REVIEW BISECTOR CODE
             # measure a bisector
@@ -221,10 +242,10 @@ function preprocess_line(line_name::String; verbose::Bool=true)
             # wid[idx9:end, t] = pfit.(dep[idx9:end, t])
 
             # DEBUGGING STUFF
+            plt.axhline(fluxt[idxl], c="k", ls="--", alpha=0.5)
+            plt.axhline(fluxt[idxr], c="k", ls="--", alpha=0.5)
             plt.plot(wavs[:,t], flux[:,t], c="tab:orange")
             plt.plot(wavs[:,t], flux_new, c="tab:purple")
-            # plt.plot(wavs_iso, flux_iso, c="tab:blue")
-            # plt.plot(wav[:,t], bis[:,t], c="k")
             plt.show()
 
             # plt.plot(dep[:,t], wid[:,t]); plt.show()
@@ -258,7 +279,7 @@ end
 
 function main()
     for name in line_info.name
-        if name == "FeI_6173"
+        if name == "FeI_5434"
             println(">>> Processing " * name * "...")
             preprocess_line(name)
         end
