@@ -89,7 +89,7 @@ function preprocess_line(line_name::String; verbose::Bool=true, debug::Bool=fals
             idx1, idx2 = GRASS.find_wing_index(0.9 * depth + bot, fluxt, min=min)
 
             # check that the indices dont take us into another line
-            wavbuff = 0.5
+            wavbuff = 0.25
             if line_name != "NaI_5896" && wavst[min] - wavst[idx1] > wavbuff
                 idx1 = findfirst(x -> x .> wavst[min] - wavbuff, wavst)
             elseif line_name != "NaI_5896" && wavst[idx2] - wavst[min] > wavbuff
@@ -104,14 +104,14 @@ function preprocess_line(line_name::String; verbose::Bool=true, debug::Bool=fals
             fit = GRASS.fit_line_wings(wavs_iso, flux_iso)
 
             # pad the spectrum if line is close to edge of spectral region
-            buff = 1.25
-            if wavst[min] - first(wavst) < buff
-                wavs_pad = range(first(wavst) - buff, first(wavst), step=minimum(diff(wavst)))
+            specbuff = 1.5
+            if wavst[min] - first(wavst) < specbuff
+                wavs_pad = range(first(wavst) - specbuff, first(wavst), step=minimum(diff(wavst)))
                 wavs_meas = vcat(wavs_pad[1:end-1], wavst)
                 flux_meas = vcat(ones(length(wavs_pad)-1), fluxt)
                 min += (length(wavs_pad) - 1)
-            elseif last(wavst) - wavst[min] < buff
-                wavs_pad = range(last(wavst), last(wavst) + buff, step=minimum(diff(wavst)))
+            elseif last(wavst) - wavst[min] < specbuff
+                wavs_pad = range(last(wavst), last(wavst) + specbuff, step=minimum(diff(wavst)))
                 wavs_meas = vcat(wavst, wavs_pad[2:end])
                 flux_meas = vcat(fluxt, ones(length(wavs_pad)-1))
             else
@@ -171,7 +171,7 @@ function main()
 
         # print the line name and preprocess it
         println(">>> Processing " * name)
-        preprocess_line(name, debug=false)
+        preprocess_line(name, debug=true)
     end
     return nothing
 end

@@ -74,9 +74,14 @@ function write_input_data(line_name, air_wavelength, fparams, wav, bis, dep, wid
 end
 
 function find_wing_index(val, arr; min=argmin(arr))
-    lidx = min - findfirst(x -> x .>= val, reverse(arr[1:min]))
-    ridx = findfirst(x -> x .>= val, arr[min:end]) + min
-    return lidx, ridx
+    lidx = findfirst(x -> x .>= val, reverse(arr[1:min]))
+    ridx = findfirst(x -> x .>= val, arr[min:end])
+    if isnothing(lidx)
+        lidx = lastindex(reverse(arr[1:min])) - 1
+    elseif isnothing(ridx)
+        ridx = lastindex(arr[min:end]) - 1
+    end
+    return min - lidx, ridx + min
 end
 
 
