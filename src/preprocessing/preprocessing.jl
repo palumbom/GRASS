@@ -81,7 +81,7 @@ function find_wing_index(val, arr; min=argmin(arr))
     elseif isnothing(ridx)
         ridx = lastindex(arr[min:end]) - 1
     end
-    return min - lidx, ridx + min
+    return clamp(min - lidx, 1, min), clamp(ridx + min, min, length(arr))
 end
 
 
