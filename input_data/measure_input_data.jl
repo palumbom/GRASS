@@ -1,6 +1,5 @@
 using Pkg; Pkg.activate(".")
 using CSV
-using HDF5
 using Glob
 using DataFrames
 using Statistics
@@ -29,7 +28,7 @@ function preprocess_line(line_name::String; verbose::Bool=true, debug::Bool=fals
     # find row with line info and write the line_params file
     line_df = subset(line_info, :name => x -> x .== line_name)
     if !debug
-        write_line_params(line_df)
+        GRASS.write_line_params(line_df)
     end
 
     # find all the spectra files associated with this line
@@ -41,6 +40,10 @@ function preprocess_line(line_name::String; verbose::Bool=true, debug::Bool=fals
         if debug && i > 1
             break
         end
+
+        # if debug && splitdir(fits_files[i])[end] != "lars_l12_20160518-093007_clv5250_mu09_e.ns.chvtt.fits"
+        #     continue
+        # end
 
         # print the filename
         if verbose
@@ -76,13 +79,24 @@ function preprocess_line(line_name::String; verbose::Bool=true, debug::Bool=fals
             end
 
             # refine the location of the minimum
+            minbuff = 25
             idx = findfirst(x -> x .>= line_df.air_wavelength[1], wavst)
-            min = argmin(fluxt[idx-50:idx+50]) + idx - 50
+            min = argmin(fluxt[idx-minbuff:idx+minbuff]) + idx - (minbuff+1)
             bot = fluxt[min]
             depth = 1.0 - bot
 
-            # isolate the line
-            idx1, idx2 = GRASS.find_wing_index(0.95, fluxt, min=min)
+            # find indices to isolate the line
+            idx1, idx2 = GRASS.find_wing_index(0.9 * depth + bot, fluxt, min=min)
+
+            # check that the indices dont take us into another line
+            wavbuff = 0.5
+            if line_name != "NaI_5896" && wavst[min] - wavst[idx1] > wavbuff
+                idx1 = findfirst(x -> x .> wavst[min] - wavbuff, wavst)
+            elseif line_name != "NaI_5896" && wavst[idx2] - wavst[min] > wavbuff
+                idx2 = findfirst(x -> x .> wavst[min] + wavbuff, wavst)
+            end
+
+            # view of isolated line
             wavs_iso = copy(view(wavst, idx1:idx2))
             flux_iso = copy(view(fluxt, idx1:idx2))
 
@@ -95,6 +109,7 @@ function preprocess_line(line_name::String; verbose::Bool=true, debug::Bool=fals
                 wavs_pad = range(first(wavst) - buff, first(wavst), step=minimum(diff(wavst)))
                 wavs_meas = vcat(wavs_pad[1:end-1], wavst)
                 flux_meas = vcat(ones(length(wavs_pad)-1), fluxt)
+                min += (length(wavs_pad) - 1)
             elseif last(wavst) - wavst[min] < buff
                 wavs_pad = range(last(wavst), last(wavst) + buff, step=minimum(diff(wavst)))
                 wavs_meas = vcat(wavst, wavs_pad[2:end])
@@ -105,7 +120,7 @@ function preprocess_line(line_name::String; verbose::Bool=true, debug::Bool=fals
             end
 
             # replace the line wings above val% continuum
-            val = 0.9 #* depth + bot
+            val = 0.9 * depth + bot
             if debug
                 idxl, idxr = GRASS.find_wing_index(val, flux_meas, min=min)
                 ax1.axhline(flux_meas[idxl], c="k", ls="--", alpha=0.5)
@@ -116,8 +131,10 @@ function preprocess_line(line_name::String; verbose::Bool=true, debug::Bool=fals
 
             # TODO REVIEW BISECTOR CODE
             # measure the bisector and width function
-            wav[:,t], bis[:,t] = GRASS.measure_bisector_interpolate(wavs_meas, flux_meas, top=0.999)
-            dep[:,t], wid[:,t] = GRASS.measure_width_interpolate(wavs_meas, flux_meas, top=0.999)
+            # wav[:,t], bis[:,t] = GRASS.measure_bisector_interpolate(wavs_meas, flux_meas, top=0.999)
+            # dep[:,t], wid[:,t] = GRASS.measure_width_interpolate(wavs_meas, flux_meas, top=0.999)
+            wav[:,t], bis[:,t] = GRASS.calc_bisector(wavs_meas, flux_meas, nflux=100, top=0.999)
+            dep[:,t], wid[:,t] = GRASS.calc_width_function(wavs_meas, flux_meas, nflux=100, top=0.999)
 
             # debug plottings
             if debug
@@ -138,7 +155,7 @@ function preprocess_line(line_name::String; verbose::Bool=true, debug::Bool=fals
 
         # write input data to disk
         if !debug
-            write_input_data(line_name, line_df.air_wavelength[1], fparams, wav, bis, dep, wid)
+            GRASS.write_input_data(line_name, line_df.air_wavelength[1], fparams, wav, bis, dep, wid)
         end
     end
     return nothing
@@ -147,14 +164,14 @@ end
 function main()
     for name in line_info.name
         # skip the "hard" lines for now
-        name == "CI_5380" && continue
-        name == "FeI_5382" && continue
-        name == "NaI_5896" && continue
-        name == "FeII_6149" && continue
+        # name != "CI_5380" && continue
+        # name != "FeI_5382" && continue
+        # name != "NaI_5896" && continue
+        # name == "FeII_6149" && continue
 
         # print the line name and preprocess it
         println(">>> Processing " * name)
-        preprocess_line(name, debug=true)
+        preprocess_line(name, debug=false)
     end
     return nothing
 end

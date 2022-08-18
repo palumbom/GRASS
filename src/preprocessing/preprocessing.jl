@@ -1,5 +1,3 @@
-using LsqFit
-
 # function to write line parameters file
 function write_line_params(line_df::DataFrame; clobber::Bool=false)
     # get the filename
@@ -23,7 +21,7 @@ function write_line_params(line_df::DataFrame; clobber::Bool=false)
         g = fid["properties"]
 
         # fill out attributes
-        attr = attributes(g)
+        attr = HDF5.attributes(g)
         for n in names(line_df)
             if ismissing(line_df[!, n][1])
                 attr[n] = NaN
@@ -46,14 +44,8 @@ function write_input_data(line_name, air_wavelength, fparams, wav, bis, dep, wid
         create_group(fid, "input_data")
         g = fid["input_data"]
 
-        # fill out the datasets
-        g["wavelengths"] = wav
-        g["bisectors"] = bis
-        g["depths"] = dep
-        g["widths"] = wid
-
         # make attributes
-        attr = attributes(g)
+        attr = HDF5.attributes(g)
         attr["datetime"] = string(fparams[3])
         attr["air_wavelength"] = air_wavelength
 
@@ -71,6 +63,12 @@ function write_input_data(line_name, air_wavelength, fparams, wav, bis, dep, wid
             attr["mu"] = parse(Float64, "0." * new_string[2:end])
             attr["axis"] = fparams[6]
         end
+
+        # fill out the datasets
+        g["wavelengths"] = wav
+        g["bisectors"] = bis
+        g["depths"] = dep
+        g["widths"] = wid
     end
     return nothing
 end

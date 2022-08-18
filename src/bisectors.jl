@@ -321,8 +321,16 @@ function calc_line_quantity(wavs::AA{T,1}, flux::AA{T,1}; continuum::T=1.0,
 
     # loop over flux values and measure quantity defined by f function
     for i in eachindex(y_out)
-        lidx = searchsortedfirst(lflux, y_out[i])
-        ridx = searchsortedfirst(rflux, y_out[i])
+        lidx = findfirst(x -> x .>= y_out[i], lflux)
+        ridx = findfirst(x -> x .>= y_out[i], rflux)
+
+        if isnothing(lidx)
+            lidx = length(lflux)
+        end
+
+        if isnothing(ridx)
+            ridx = length(rflux)
+        end
 
         # adjust indices to account for views
         wav_lidx = min_flux_idx - lidx
