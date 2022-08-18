@@ -141,11 +141,6 @@ function replace_line_wings(fit, wavst, fluxt, min, val; debug=false)
 
     # find indices
     idxl, idxr = find_wing_index(val, fluxt, min=min)
-    if debug
-        plt.axhline(fluxt[idxl], c="k", ls="--", alpha=0.5)
-        plt.axhline(fluxt[idxr], c="k", ls="--", alpha=0.5)
-        plt.plot(wavst, flux_new, c="tab:purple", label="model")
-    end
 
     # replace wings with model
     fluxt[1:idxl] .= flux_new[1:idxl]
@@ -161,7 +156,9 @@ function preprocess_line(line_name::String; verbose::Bool=true, debug::Bool=fals
 
     # find row with line info and write the line_params file
     line_df = subset(line_info, :name => x -> x .== line_name)
-    write_line_params(line_df)
+    if !debug
+        write_line_params(line_df)
+    end
 
     # find all the spectra files associated with this line
     fits_files = Glob.glob("*.fits", data_dir * line_df.spectra_dir[1] * "/")
@@ -185,11 +182,6 @@ function preprocess_line(line_name::String; verbose::Bool=true, debug::Bool=fals
         # normalize the spectra
         flux ./= maximum(flux, dims=1)
 
-        # debugging plot
-        if debug
-            plt.plot(wavs[:,1], flux[:,1], c="k", label="raw spec")
-        end
-
         # allocate memory for input data
         wav = zeros(100, size(wavs,2))
         bis = zeros(100, size(wavs,2))
@@ -206,6 +198,10 @@ function preprocess_line(line_name::String; verbose::Bool=true, debug::Bool=fals
             # get view of this time slice
             wavst = view(wavs, :, t)
             fluxt = view(flux, :, t)
+            if debug
+                fig, (ax1, ax2) = plt.subplots(1,2, figsize=(9,6))
+                ax1.plot(wavst, fluxt, c="k", label="raw spec")
+            end
 
             # refine the location of the minimum
             idx = findfirst(x -> x .>= line_df.air_wavelength[1], wavst)
@@ -223,63 +219,39 @@ function preprocess_line(line_name::String; verbose::Bool=true, debug::Bool=fals
 
             # replace the line wings above val% continuum
             val = 0.9 #* depth + bot
+            if debug
+                idxl, idxr = find_wing_index(val, fluxt, min=min)
+                ax1.axhline(fluxt[idxl], c="k", ls="--", alpha=0.5)
+                ax1.axhline(fluxt[idxr], c="k", ls="--", alpha=0.5)
+                ax1.plot(wavst, GRASS.fit_voigt(wavst, fit.param), c="tab:purple", label="model")
+            end
             replace_line_wings(fit, wavst, fluxt, min, val, debug=debug)
-
-            # oversample it to get better precision in wings
-            # itp = GRASS.linear_interp(wavs[:,t], flux[:,t])
-            # wavs_meas = range(first(wavs[:,t]), last(wavs[:,t]), step=wavs[min,t]/1.5e6)
-            # flux_meas = itp.(wavs_meas)
 
             # TODO REVIEW BISECTOR CODE
             # measure the bisector and width function
             wav[:,t], bis[:,t] = GRASS.measure_bisector_interpolate(wavst, fluxt, top=0.99)
             dep[:,t], wid[:,t] = GRASS.measure_width_interpolate(wavst, fluxt, top=0.99)
 
-            # # set any widths less than zero to 0
-            # idx = findall(x -> x .< 0.0, view(wid, :, t))
-            # wid[idx,t] .= 0.0
-
-            # # polyfit the last three points and extrapolate to continuum
-            # idx8 = findfirst(x -> x .>= 0.8, dep[:,t])
-            # idx9 = findfirst(x -> x .>= 0.9, dep[:,t])
-            # pfit = Polynomials.fit(dep[idx9-10:idx9,t], wid[idx9-10:idx9,t], 2)
-            # wid[idx9:end, t] = pfit.(dep[idx9:end, t])
-
-            # DEBUGGING STUFF
+            # debug plottings
             if debug
-                plt.plot(wavst, fluxt, c="tab:orange", ls="--", label="cleaned")
-                plt.plot(wav[:,t], bis[:,t], c="tab:blue")
-                plt.legend()
+                ax1.plot(wavst, fluxt, c="tab:orange", ls="--", label="cleaned")
+                ax1.plot(wav[:,t], bis[:,t], c="tab:blue")
+                ax1.set_xlabel("Wavelength")
+                ax1.set_ylabel("Normalized Intensity")
+                ax1.legend()
+
+                ax2.plot(dep[:,t], wid[:,t])
+                ax2.set_xlabel("Normalized Intensity")
+                ax2.set_ylabel("Width across line")
                 plt.show()
-
-                plt.plot(dep[:,t], wid[:,t])
+                plt.clf(); plt.close()
             end
-
-            # plt.plot(dep[:,t], wid[:,t]); plt.show()
-
-            # plt.plot(dep[1:idx9,t], wid[1:idx9,t], c="k", label="original")
-            # plt.plot(dep[idx9:end,t], wid[idx9:end,t], label="extrap")
-            # DEBUGGING STUFF
         end
 
-        # DEBUGGING STUFF
-        # lambdas = range(5433, 5436, step=5434.5/1e6)
-        # prof = ones(length(lambdas))
-        # lwavgrid = zeros(100)
-        # rwavgrid = zeros(100)
-        # allwavs = zeros(200)
-        # allints = zeros(200)
-        # GRASS.extrapolate_bisector(view(wav,:,1:1), view(bis,:,1:1))
-        # GRASS.extrapolate_width(view(dep,:,1:1), view(wid,:,1:1))
-        # plt.plot(wav[:,1], bis[:,1], c="tab:orange", ls="--")
-        # GRASS.line_profile_cpu!(5434.535, lambdas, prof, wav[:,1] .- mean(wav[:,1]), dep[:,1], wid[:,1], lwavgrid, rwavgrid, allwavs, allints)
-
-        # plt.plot(lambdas, prof, c="k", ls="--")
-        # plt.show()
-        # DEBUGGING STUFF
-
         # write input data to disk
-        write_input_data(line_name, line_df.air_wavelength[1], fparams, wav, bis, dep, wid)
+        if !debug
+            write_input_data(line_name, line_df.air_wavelength[1], fparams, wav, bis, dep, wid)
+        end
     end
     return nothing
 end
