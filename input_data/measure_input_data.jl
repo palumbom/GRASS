@@ -41,7 +41,7 @@ function preprocess_line(line_name::String; verbose::Bool=true, debug::Bool=fals
             break
         end
 
-        # if debug && splitdir(fits_files[i])[end] != "lars_l12_20160518-093007_clv5250_mu09_e.ns.chvtt.fits"
+        # if splitdir(fits_files[i])[end] != "lars_l12_20161018-082428_clv6302_mu08_e.ns.chvtt.fits"
         #     continue
         # end
 
@@ -92,8 +92,10 @@ function preprocess_line(line_name::String; verbose::Bool=true, debug::Bool=fals
             wavbuff = 0.25
             if line_name != "NaI_5896" && wavst[min] - wavst[idx1] > wavbuff
                 idx1 = findfirst(x -> x .> wavst[min] - wavbuff, wavst)
+                idx1 = argmax(fluxt[idx1:min]) + idx1
             elseif line_name != "NaI_5896" && wavst[idx2] - wavst[min] > wavbuff
                 idx2 = findfirst(x -> x .> wavst[min] + wavbuff, wavst)
+                idx2 = argmax(fluxt[min:idx2]) + min
             end
 
             # view of isolated line
@@ -165,10 +167,6 @@ function main()
     for name in line_info.name
         # skip the "hard" lines for now
         # name != "CI_5380" && continue
-        # name != "FeI_5382" && continue
-        # name != "FeI_5434" && continue
-        # name != "NaI_5896" && continue
-        # name == "FeII_6149" && continue
 
         # print the line name and preprocess it
         println(">>> Processing " * name)
