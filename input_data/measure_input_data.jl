@@ -16,6 +16,12 @@ mpl.style.use(GRASS.moddir * "figures1/fig.mplstyle")
 const data_dir = "/storage/group/ebf11/default/mlp95/lars_spectra/"
 const line_info = CSV.read(GRASS.soldir * "line_info.csv", DataFrame)
 
+# output directories for misc stuff
+const grassdir, plotdir, datadir = GRASS.check_plot_dirs()
+if !isdir(plotdir * "spectra_fits")
+    mkdir(plotdir * "spectra_fits")
+end
+
 # function to write line parameters file
 function write_line_params(line_df::DataFrame; clobber::Bool=false)
     # get the filename
@@ -172,7 +178,7 @@ function preprocess_line(line_name::String; verbose::Bool=true, debug::Bool=fals
 
         # print the filename
         if verbose
-            println("\t >>> Processing " * splitdir(fits_files[i])[end])
+            println("\t >>> " * splitdir(fits_files[i])[end])
         end
 
         # get spec parameters
@@ -243,7 +249,8 @@ function preprocess_line(line_name::String; verbose::Bool=true, debug::Bool=fals
                 ax2.plot(dep[:,t], wid[:,t])
                 ax2.set_xlabel("Normalized Intensity")
                 ax2.set_ylabel("Width across line")
-                plt.show()
+                fig.suptitle("\${\\rm " * replace(line_df.name[1], "_" => "\\ ") * "}\$")
+                fig.savefig(plotdir * "spectra_fits/" * line_df.name[1] * ".pdf")
                 plt.clf(); plt.close()
             end
         end
@@ -258,10 +265,12 @@ end
 
 function main()
     for name in line_info.name
-        if name == "FeI_5434"
-            println(">>> Processing " * name * "...")
-            preprocess_line(name, debug=true)
-        end
+        name == "CI_5380" && continue
+        name == "FeI_5382" && continue
+        name == "NaI_5896" && continue
+        name == "FeII_6149" && continue
+        println(">>> Processing " * name)
+        preprocess_line(name, debug=true)
     end
     return nothing
 end
