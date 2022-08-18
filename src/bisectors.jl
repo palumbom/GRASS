@@ -58,7 +58,7 @@ function measure_bisector(xs::AA{T,1}, ys::AA{T,1}; interpolate::Bool=true,
 end
 
 
-function measure_bisector_interpolate(xs::AA{T,1}, ys::AA{T,1}; top::T=one(T),
+function measure_bisector_interpolate(xs::AA{T,1}, ys::AA{T,1}; top::T=0.99,
                                       len::Integer=100, max_loop::Int=20) where T<:AF
     # check lengths and normalization
     @assert length(xs) == length(ys)
@@ -115,7 +115,7 @@ function measure_bisector_interpolate(xs::AA{T,1}, ys::AA{T,1}; top::T=one(T),
     lspline = LinearInterpolation(lspec, lwav, extrapolation_bc=Flat())
     rspline = LinearInterpolation(rspec, rwav, extrapolation_bc=Flat())
     wavs = (lspline(depths) .+ rspline(depths)) ./ 2.0
-    return wavs, depths
+    return wavs, collect(depths)
 end
 
 
@@ -223,7 +223,7 @@ function measure_width_loop(xs::AA{T,1}, ys::AA{T,1}; top::T=0.99,
     return one(T) .- dep, wav
 end
 
-function measure_width_interpolate(xs::AA{T,1}, ys::AA{T,1}; top::T=one(T),
+function measure_width_interpolate(xs::AA{T,1}, ys::AA{T,1}; top::T=0.99,
                                    len::Integer=100, max_loop::Int=20) where T<:AF
     # check lengths and normalization
     @assert length(xs) == length(ys)
@@ -280,7 +280,7 @@ function measure_width_interpolate(xs::AA{T,1}, ys::AA{T,1}; top::T=one(T),
     lspline = LinearInterpolation(lspec, lwav, extrapolation_bc=Flat())
     rspline = LinearInterpolation(rspec, rwav, extrapolation_bc=Flat())
     wavs = rspline(depths) .- lspline(depths)
-    return depths, wavs
+    return collect(depths), wavs
 end
 
 
