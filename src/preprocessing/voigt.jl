@@ -1,13 +1,11 @@
 import SpecialFunctions.erfcx
 
 function gaussian(x, amp, mu, sigma)
-    # return 1.0/(sigma * sqrt(2π)) * exp(-0.5 * ((x - mu)/sigma)^2)
     return 1.0 - amp * exp(-0.5 * ((x - mu)/sigma)^2)
 end
 
 
 function lorentzian(x, amp, mu, gamma)
-    # return 1.0/(gamma * π) * (gamma^2 / ((x - mu)^2 + gamma^2))
     return 1.0 - amp * (gamma^2 / ((x - mu)^2 + gamma^2))
 end
 
