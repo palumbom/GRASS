@@ -108,19 +108,19 @@ function fit_line_wings(wavs_iso, flux_iso)
     ridx90 = findfirst(x -> x .>= 0.9 * dep + bot, flux_iso[min:end]) + min
 
     # isolate the line wings
-    wavs_fit = vcat(wavs_iso[lidx90:lidx50], wavs_iso[min-5:min+5], wavs_iso[ridx50:ridx90])
-    flux_fit = vcat(flux_iso[lidx90:lidx50], flux_iso[min-5:min+5], flux_iso[ridx50:ridx90])
+    Δbot = 1
+    core = min-Δbot:min+Δbot
+    lwing = lidx90:lidx50
+    rwing = ridx50:ridx90
+    wavs_fit = vcat(wavs_iso[lwing], wavs_iso[core], wavs_iso[rwing])
+    flux_fit = vcat(flux_iso[lwing], flux_iso[core], flux_iso[rwing])
 
     # set boundary conditions and initial guess
-    # GOOD FOR FeI LINES
-    lb = [0.0, wavs_iso[min], 0.0, 0.0]
-    ub = [1.0, wavs_iso[min], 0.25, 0.25]
-    p0 = [dep, wavs_iso[min], 0.05, 0.01]
-    # GOOD FOR FeI LINES
-
+    # GOOD FOR FeI 5434 + others
     lb = [0.0, wavs_iso[min], 0.0, 0.0]
     ub = [1.0, wavs_iso[min], 0.5, 0.5]
-    p0 = [dep, wavs_iso[min], 0.05, 0.01]
+    p0 = [1.0 - dep, wavs_iso[min], 0.02, 0.01]
+    # GOOD FOR FeI 5434 + others
 
     # perform the fit
     fit = curve_fit(GRASS.fit_voigt, wavs_fit, flux_fit, p0, lower=lb, upper=ub)
@@ -258,7 +258,7 @@ end
 
 function main()
     for name in line_info.name
-        if name == "FeI_5434"
+        if name == "FeI_6173"
             println(">>> Processing " * name * "...")
             preprocess_line(name)
         end
