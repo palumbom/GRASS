@@ -166,7 +166,7 @@ function main()
         # skip the "hard" lines for now
         # name != "CI_5380" && continue
         # name != "FeI_5382" && continue
-        name != "FeI_5434" && continue
+        # name != "FeI_5434" && continue
         # name != "NaI_5896" && continue
         # name == "FeII_6149" && continue
 
