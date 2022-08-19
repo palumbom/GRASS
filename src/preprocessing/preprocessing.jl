@@ -128,8 +128,23 @@ function replace_line_wings(fit, wavst, fluxt, min, val; debug=false)
     # find indices
     idxl, idxr = find_wing_index(val, fluxt, min=min)
 
+    # adjust any "kinks" between the wing model and and raw spec
+    flux_new_l = copy(flux_new)
+    Δfluxl = fluxt[idxl] - flux_new_l[idxl]
+    while Δfluxl > 0.0 && !isapprox(flux_new_l[idxl], fluxt[idxl], atol=1e-4)
+        flux_new_l = circshift(flux_new_l, 1)
+        Δfluxl = fluxt[idxl] - flux_new_l[idxl]
+    end
+
+    flux_new_r = copy(flux_new)
+    Δfluxr = flux_new_r[idxr] - fluxt[idxr]
+    while Δfluxr > 0.0 && !isapprox(flux_new_r[idxr], fluxt[idxr], atol=1e-4)
+        flux_new_r = circshift(flux_new_r, -1)
+        Δfluxr = fluxt[idxr] - flux_new_r[idxr]
+    end
+
     # replace wings with model
-    fluxt[1:idxl] .= flux_new[1:idxl]
-    fluxt[idxr:end] .= flux_new[idxr:end]
+    fluxt[1:idxl] .= flux_new_l[1:idxl]
+    fluxt[idxr:end] .= flux_new_r[idxr:end]
     return nothing
 end
