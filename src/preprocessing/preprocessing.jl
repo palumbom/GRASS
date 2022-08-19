@@ -1,112 +1,52 @@
-# function to write line parameters file
-"""
 function write_line_params(line_df::DataFrame; clobber::Bool=false)
     # get the filename
-    line_dir = GRASS.soldir * line_df.name[1] * "/"
-    prop_file =  line_dir * line_df.name[1] * "_line_properties.h5"
-
-    # don't bother if the file already exists
-    if isfile(prop_file) & !clobber
-        println("\t >>> " * splitdir(prop_file)[end] * " already exists...")
-        return nothing
-    end
-
-    # read in the IAG data and isolate the line
-    iag_wavs, iag_flux = read_iag(isolate=true, airwav=line_df.air_wavelength[1])
-    iag_depth = 1.0 - minimum(iag_flux)
-
-    # write the line properties file
-    println("\t >>> Writing " * line_df.name[1] * "_line_properties.h5")
-    h5open(prop_file, "w") do fid
-        create_group(fid, "properties")
-        g = fid["properties"]
-
-        # fill out attributes
-        attr = HDF5.attributes(g)
-        for n in names(line_df)
-            if ismissing(line_df[!, n][1])
-                attr[n] = NaN
-            else
-                attr[n] = line_df[!, n][1]
-            end
-        end
-        attr["depth"] = iag_depth
-    end
-    return nothing
-end
-
-function write_input_data(line_name, air_wavelength, fparams, wav, bis, dep, wid)
-    # create output file name
-    new_file = line_name * "_" * string(fparams[3]) * "_" * fparams[5] * "_" * fparams[6] * "_input.h5"
-
-    # write the input data to the file
-    h5open(GRASS.soldir * line_name * "/" * new_file, "w") do fid
-        # create the group
-        create_group(fid, "input_data")
-        g = fid["input_data"]
-
-        # make attributes
-        attr = HDF5.attributes(g)
-        attr["datetime"] = string(fparams[3])
-        attr["air_wavelength"] = air_wavelength
-
-        # convert mu to number
-        mu_num = []
-        for ch in fparams[5]
-            push!(mu_num, tryparse(Int64, string(ch)))
-        end
-
-        new_string = prod(string.(mu_num[.!isnothing.(mu_num)]))
-        if new_string[1] == '1'
-            attr["mu"] = 1.0
-            attr["axis"] = "c"
-        elseif new_string[1] == '0'
-            attr["mu"] = parse(Float64, "0." * new_string[2:end])
-            attr["axis"] = fparams[6]
-        end
-
-        # fill out the datasets
-        g["wavelengths"] = wav
-        g["bisectors"] = bis
-        g["depths"] = dep
-        g["widths"] = wid
-    end
-    return nothing
-end
-"""
-
-function write_line_params(line_df::DataFrame)#; clobber::Bool=false)
-    # get the filename
-    fname = GRASS.soldir * line_df.name * ".h5"
+    fname = GRASS.soldir * line_df.name[1] * ".h5"
 
     # create the file if it doesn't exist
-    if !isfile(fname)
+    if clobber | !isfile(fname)
         h5open(fname, "w") do f; end
     end
 
-    # read in the IAG data and isolate the line
-    iag_wavs, iag_flux = read_iag(isolate=true, airwav=line_df.air_wavelength[1])
-    iag_depth = 1.0 - minimum(iag_flux)
-
     # write the line properties as attributes of the file
-    println("\t >>> Writing line properties to " * splitdir(fname)[end])
-    h5open(prop_file, "r+") do fid
+    h5open(fname, "r+") do f
+        # get the attrributes
         attr = HDF5.attributes(f)
-        for n in names(line_df)
-            if ismissing(line_df[!, n][1])
-                attr[n] = NaN
-            else
-                attr[n] = line_df[!, n][1]
+
+        # check if the metadata already exists
+        if haskey(attr, "depth")
+            println("\t >>> " * splitdir(fname)[end] * " metadata already exists...")
+        else
+            # read in the IAG data and isolate the line
+            println("\t >>> Writing line properties to " * splitdir(fname)[end])
+            iag_wavs, iag_flux = read_iag(isolate=true, airwav=line_df.air_wavelength[1])
+            iag_depth = 1.0 - minimum(iag_flux)
+
+            # write the attributes to file metadata
+            for n in names(line_df)
+                if ismissing(line_df[!, n][1])
+                    attr[n] = NaN
+                else
+                    attr[n] = line_df[!, n][1]
+                end
+            end
+            attr["depth"] = iag_depth
+        end
+
+        # look for any pre-existing input data and delete it
+        if !isempty(keys(f))
+            println("\t >>> Purging old input data...")
+            for k in keys(f)
+                delete_object(f, k)
             end
         end
-        attr["depth"] = iag_depth
     end
     return nothing
 end
 
-function write_input_data(line_df::DataFrame, mu, ax, wav, bis, dep, wid)#; clobber::Bool=False)
+function write_input_data(line_df::DataFrame, ax::String, mu::String, datetime::Dates.DateTime,
+                          wav::AA{T,2}, bis::AA{T,2}, dep::AA{T,2}, wid::AA{T,2}) where T<:AF#; clobber::Bool=False)
     # get the filename
-    fname = GRASS.soldir * line_df.name * ".h5"
+    fname = GRASS.soldir * line_df.name[1] * ".h5"
 
     # create the file if it doesn't exist
     if !isfile(fname)
@@ -115,14 +55,21 @@ function write_input_data(line_df::DataFrame, mu, ax, wav, bis, dep, wid)#; clob
 
     # write the data
     h5open(fname, "r+") do f
-        # create the group for this disk position
-        create_group(f, mu * "_" * ax)
-        g = f[mu * "_" * ax]
+        # create the group for this disk position if it doesn't exists
+        if !haskey(f, ax * "_" * mu)
+            create_group(f, ax * "_" * mu)
+            pos_group = f[ax * "_" * mu]
 
-        # create the attributes
-        attr = HDF5.attributes(g)
-        attr["mu"] = mu
-        attr["axis"] = ax
+            # create the attributes for position group
+            attr = HDF5.attributes(pos_group)
+            attr["mu"] = mu
+            attr["axis"] = ax
+        end
+
+        # create the sub-group for this specific datetime
+        pos_group = f[ax * "_" * mu]
+        create_group(pos_group, string(datetime))
+        g = pos_group[string(datetime)]
 
         # fill out the datasets
         g["wavelengths"] = wav
@@ -178,7 +125,7 @@ function fit_line_wings(wavs_iso::AA{T,1}, flux_iso::AA{T,1}) where T<:AF
     return fit
 end
 
-function replace_line_wings(fit, wavst::AA{T,1}, fluxt::AA{T,1}, min::T, val::T; debug::Bool=false) where T<:AF
+function replace_line_wings(fit, wavst::AA{T,1}, fluxt::AA{T,1}, min::Int, val::T; debug::Bool=false) where T<:AF
     # get line model for all wavelengths in original spectrum
     flux_new = GRASS.fit_voigt(wavst, fit.param)
 
