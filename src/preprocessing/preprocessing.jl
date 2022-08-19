@@ -60,9 +60,9 @@ function write_input_data(line_df::DataFrame, ax::String, mu::String, datetime::
             create_group(f, ax * "_" * mu)
             pos_group = f[ax * "_" * mu]
 
-            # create the attributes for position group
+            # set attributes for this group
             attr = HDF5.attributes(pos_group)
-            attr["mu"] = mu
+            attr["mu"] = parse_mu_string(mu)
             attr["axis"] = ax
         end
 
@@ -70,6 +70,11 @@ function write_input_data(line_df::DataFrame, ax::String, mu::String, datetime::
         pos_group = f[ax * "_" * mu]
         create_group(pos_group, string(datetime))
         g = pos_group[string(datetime)]
+
+        # set attributes
+        attr = HDF5.attributes(g)
+        attr["datetime"] = string(datetime)
+        attr["length"] = size(wav,2)
 
         # fill out the datasets
         g["wavelengths"] = wav

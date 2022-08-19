@@ -26,6 +26,7 @@ function preprocess_line(line_name::String; verbose::Bool=true, debug::Bool=fals
 
     # parse out parameters from file names
     spec_df = GRASS.sort_spectrum_data(dir=data_dir * line_df.spectra_dir[1] * "/")
+    sort!(spec_df, :mu, rev=true)
 
     # loop over the files
     fits_files = spec_df.fpath .* spec_df.fname
