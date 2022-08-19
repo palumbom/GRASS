@@ -29,26 +29,21 @@ function SolarData(;dir::String=soldir*"FeI_5434/", λrest::Float64=NaN,
                      contiguous_only=contiguous_only, adjust_mean=adjust_mean)
 end
 
-function SolarData(df::DataFrame; λrest::Float64=NaN,
-                   relative::Bool=true, fixed_width::Bool=false,
+function SolarData(fname::String, relative::Bool=true, fixed_width::Bool=false,
                    fixed_bisector::Bool=false, extrapolate::Bool=true,
                    contiguous_only::Bool=false, adjust_mean::Bool=true)
-    # allocate memory for data dictionaries
+    # set up data structure for input data
     wavdict = Dict{Tuple{Symbol,Symbol}, AA{Float64,2}}()
     bisdict = Dict{Tuple{Symbol,Symbol}, AA{Float64,2}}()
     depdict = Dict{Tuple{Symbol,Symbol}, AA{Float64,2}}()
     widdict = Dict{Tuple{Symbol,Symbol}, AA{Float64,2}}()
     lengths = Dict{Tuple{Symbol,Symbol}, Int}()
 
-    # get rest wavelength for data if not passed
-    if isnan(λrest)
-        filename = glob("*_line_properties.h5", df.fpath[1])
-        λrest = h5open(filename[1], "r") do f
-            g = f["properties"]
-            attr = HDF5.attributes(g)
-            λrest = read(attr["air_wavelength"])
-            return λrest
-        end
+    # get rest wavelength for line
+    λrest = h5open(fname, "r") do f
+        attr = HDF5.attributes(f)
+        λrest = read(attr["air_wavelength"])
+        return λrest
     end
 
     # loop over unique mu + axis pairs

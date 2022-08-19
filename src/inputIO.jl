@@ -1,3 +1,4 @@
+"""
 function sort_input_data(;dir::String=soldir, write::Bool=false)
     @assert isdir(dir)
 
@@ -40,6 +41,37 @@ function sort_input_data(;dir::String=soldir, write::Bool=false)
     if write
         CSV.write(df.wave[1] * "_bisectors.csv", df)
     end
+    return df
+end
+"""
+
+function sort_input_data(fname)
+    # loop over directories
+    if !isempty(linedirs)
+        for d in linedirs
+            files = glob("*input.h5", d)
+            if isempty(files)
+                println(">>> No input data files found in " * d)
+                continue
+            end
+
+            for f in files
+                push!(df, extract_input_params(f))
+            end
+        end
+    else
+        files = glob("*input.h5", dir)
+        if isempty(files)
+            println(">>> No input data files found in " * dir)
+            return nothing
+        end
+        for f in files
+                push!(df, extract_input_params(f))
+        end
+    end
+
+    # sort dataframe in place
+    sort!(df, [:axis, :mu, :datetime], rev=[false, true, false])
     return df
 end
 
