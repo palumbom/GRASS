@@ -20,15 +20,12 @@ if !isdir(plotdir * "spectra_fits")
 end
 
 function preprocess_line(line_name::String; verbose::Bool=true, debug::Bool=false)
-    # create subdirectory structure if it doesn't already exist
-    if !isdir(GRASS.soldir * line_name)
-        mkdir(GRASS.soldir * line_name)
-    end
-
     # find row with line info and write the line_params file
     line_df = subset(line_info, :name => x -> x .== line_name)
-    if !debug
-        GRASS.write_line_params(line_df)
+    GRASS.write_line_params(line_df)
+
+    if debug
+        return nothing
     end
 
     # find all the spectra files associated with this line
@@ -160,7 +157,7 @@ function preprocess_line(line_name::String; verbose::Bool=true, debug::Bool=fals
 
         # write input data to disk
         if !debug
-            GRASS.write_input_data(line_name, line_df.air_wavelength[1], fparams, wav, bis, dep, wid)
+            # GRASS.write_input_data(line_name, line_df.air_wavelength[1], fparams, wav, bis, dep, wid)
         end
     end
     return nothing
@@ -169,11 +166,11 @@ end
 function main()
     for name in line_info.name
         # skip the "hard" lines for now
-        # name != "FeI_5436.3" && continue
+        name != "FeI_5434" && continue
 
         # print the line name and preprocess it
         println(">>> Processing " * name)
-        preprocess_line(name, debug=false)
+        preprocess_line(name, debug=true)
     end
     return nothing
 end

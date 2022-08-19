@@ -1,4 +1,5 @@
 # function to write line parameters file
+"""
 function write_line_params(line_df::DataFrame; clobber::Bool=false)
     # get the filename
     line_dir = GRASS.soldir * line_df.name[1] * "/"
@@ -72,6 +73,65 @@ function write_input_data(line_name, air_wavelength, fparams, wav, bis, dep, wid
     end
     return nothing
 end
+"""
+
+function write_line_params(line_df::DataFrame)#; clobber::Bool=false)
+    # get the filename
+    fname = GRASS.soldir * line_df.name * ".h5"
+
+    # create the file if it doesn't exist
+    if !isfile(fname)
+        h5open(fname, "w") do f; end
+    end
+
+    # read in the IAG data and isolate the line
+    iag_wavs, iag_flux = read_iag(isolate=true, airwav=line_df.air_wavelength[1])
+    iag_depth = 1.0 - minimum(iag_flux)
+
+    # write the line properties as attributes of the file
+    println("\t >>> Writing line properties to " * splitdir(fname)[end])
+    h5open(prop_file, "r+") do fid
+        attr = HDF5.attributes(f)
+        for n in names(line_df)
+            if ismissing(line_df[!, n][1])
+                attr[n] = NaN
+            else
+                attr[n] = line_df[!, n][1]
+            end
+        end
+        attr["depth"] = iag_depth
+    end
+    return nothing
+end
+
+function write_input_data(line_df::DataFrame, mu, ax, wav, bis, dep, wid)#; clobber::Bool=False)
+    # get the filename
+    fname = GRASS.soldir * line_df.name * ".h5"
+
+    # create the file if it doesn't exist
+    if !isfile(fname)
+        h5open(fname, "w") do f; end
+    end
+
+    # write the data
+    h5open(fname, "r+") do f
+        # create the group for this disk position
+        create_group(f, mu * "_" * ax)
+        g = f[mu * "_" * ax]
+
+        # create the attributes
+        attr = HDF5.attributes(g)
+        attr["mu"] = mu
+        attr["axis"] = ax
+
+        # fill out the datasets
+        g["wavelengths"] = wav
+        g["bisectors"] = bis
+        g["depths"] = dep
+        g["widths"] = wid
+    end
+    return nothing
+end
 
 function find_wing_index(val, arr; min=argmin(arr))
     lidx = findfirst(x -> x .>= val, reverse(arr[1:min]))
@@ -85,7 +145,7 @@ function find_wing_index(val, arr; min=argmin(arr))
 end
 
 
-function fit_line_wings(wavs_iso, flux_iso)
+function fit_line_wings(wavs_iso::AA{T,1}, flux_iso::AA{T,1}) where T<:AF
     # get indices and values for minimum, depth, and bottom
     min = argmin(flux_iso)
     bot = flux_iso[min]
@@ -118,7 +178,7 @@ function fit_line_wings(wavs_iso, flux_iso)
     return fit
 end
 
-function replace_line_wings(fit, wavst, fluxt, min, val; debug=false)
+function replace_line_wings(fit, wavst::AA{T,1}, fluxt::AA{T,1}, min::T, val::T; debug::Bool=false) where T<:AF
     # get line model for all wavelengths in original spectrum
     flux_new = GRASS.fit_voigt(wavst, fit.param)
 
