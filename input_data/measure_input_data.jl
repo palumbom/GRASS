@@ -41,10 +41,6 @@ function preprocess_line(line_name::String; verbose::Bool=true, debug::Bool=fals
             break
         end
 
-        # if splitdir(fits_files[i])[end] != "lars_l12_20161018-082428_clv6302_mu08_e.ns.chvtt.fits"
-        #     continue
-        # end
-
         # print the filename
         if verbose
             println("\t >>> " * splitdir(fits_files[i])[end])
@@ -89,7 +85,7 @@ function preprocess_line(line_name::String; verbose::Bool=true, debug::Bool=fals
             idx1, idx2 = GRASS.find_wing_index(0.9 * depth + bot, fluxt, min=min)
 
             # check that the indices dont take us into another line
-            wavbuff = 0.25
+            wavbuff = 0.2
             if line_name != "NaI_5896" && wavst[min] - wavst[idx1] > wavbuff
                 idx1 = findfirst(x -> x .> wavst[min] - wavbuff, wavst)
                 idx1 = argmax(fluxt[idx1:min]) + idx1
@@ -102,12 +98,14 @@ function preprocess_line(line_name::String; verbose::Bool=true, debug::Bool=fals
             wavs_iso = copy(view(wavst, idx1:idx2))
             flux_iso = copy(view(fluxt, idx1:idx2))
 
-            # edge case for weird line ID
-            if last(wavs_iso) - first(wavs_iso) > 2.0
-                println("\t >>> Problem with t = " * string(t) * ", moving on...")
+            # if the spectrum is bad and line isolation didn't work, move on
+            if line_name != "NaI_5896" && last(wavs_iso) - first(wavs_iso) > 0.6
+                println("\t\t >>> Problem with t = " * string(t) * ", moving on...")
+                continue
+            elseif std(flux_iso) < 0.01
+                println("\t\t >>> Problem with t = " * string(t) * ", moving on...")
+                continue
             end
-
-            plt.plot(wavs_iso, flux_iso)
 
             # fit the line wings
             fit = GRASS.fit_line_wings(wavs_iso, flux_iso)
@@ -165,18 +163,17 @@ function preprocess_line(line_name::String; verbose::Bool=true, debug::Bool=fals
             GRASS.write_input_data(line_name, line_df.air_wavelength[1], fparams, wav, bis, dep, wid)
         end
     end
-    plt.show()
     return nothing
 end
 
 function main()
     for name in line_info.name
         # skip the "hard" lines for now
-        # name != "CI_5380" && continue
+        # name != "FeI_5436.3" && continue
 
         # print the line name and preprocess it
         println(">>> Processing " * name)
-        preprocess_line(name, debug=false)
+        preprocess_line(name, debug=true)
     end
     return nothing
 end
