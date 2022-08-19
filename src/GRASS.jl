@@ -10,6 +10,7 @@ using SharedArrays
 # import external modules
 using CSV
 using HDF5
+using Dates
 using LsqFit
 using FITSIO
 using Random
