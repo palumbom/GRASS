@@ -11,7 +11,7 @@ mpl.style.use(GRASS.moddir * "figures1/fig.mplstyle")
 
 # set LARS spectra absolute dir and read line info file
 const data_dir = "/storage/group/ebf11/default/mlp95/lars_spectra/"
-const line_info = CSV.read(GRASS.soldir * "line_info.csv", DataFrame)
+const line_info = CSV.read(GRASS.datdir * "line_info.csv", DataFrame)
 
 # output directories for misc stuff
 const grassdir, plotdir, datadir = GRASS.check_plot_dirs()
@@ -24,27 +24,25 @@ function preprocess_line(line_name::String; verbose::Bool=true, debug::Bool=fals
     line_df = subset(line_info, :name => x -> x .== line_name)
     GRASS.write_line_params(line_df)
 
-    if debug
-        return nothing
-    end
+    # parse out parameters from file names
+    spec_df = GRASS.sort_spectrum_data(dir=data_dir * line_df.spectra_dir[1] * "/")
 
-    # find all the spectra files associated with this line
-    fits_files = Glob.glob("*.fits", data_dir * line_df.spectra_dir[1] * "/")
-
-    # read in the spectrum and bin into 15-second bins
+    # loop over the files
+    fits_files = spec_df.fpath .* spec_df.fname
     for i in eachindex(fits_files)
-        # debugging block
+        # debugging block + filename printing
         if debug && i > 1
             break
-        end
-
-        # print the filename
-        if verbose
+        elseif verbose
             println("\t >>> " * splitdir(fits_files[i])[end])
         end
 
-        # get spec parameters
-        fparams = GRASS.extract_line_params(fits_files[i])
+        # get parameters for spectrum
+        datetime = spec_df.datetime[i]
+        mu_string = spec_df.mu[i]
+        ax_string = spec_df.axis[i]
+
+        # read in the spectrum
         wavs, flux = GRASS.bin_spectrum(GRASS.read_spectrum(fits_files[i])...)
 
         # normalize the spectra
@@ -157,7 +155,7 @@ function preprocess_line(line_name::String; verbose::Bool=true, debug::Bool=fals
 
         # write input data to disk
         if !debug
-            # GRASS.write_input_data(line_name, line_df.air_wavelength[1], fparams, wav, bis, dep, wid)
+            GRASS.write_input_data(line_df, ax_string, mu_string, datetime, wav, bis, dep, wid)
         end
     end
     return nothing
@@ -169,8 +167,8 @@ function main()
         name != "FeI_5434" && continue
 
         # print the line name and preprocess it
-        println(">>> Processing " * name)
-        preprocess_line(name, debug=true)
+        println(">>> Processing " * name * "...")
+        preprocess_line(name, debug=false)
     end
     return nothing
 end
