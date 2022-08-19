@@ -102,6 +102,13 @@ function preprocess_line(line_name::String; verbose::Bool=true, debug::Bool=fals
             wavs_iso = copy(view(wavst, idx1:idx2))
             flux_iso = copy(view(fluxt, idx1:idx2))
 
+            # edge case for weird line ID
+            if last(wavs_iso) - first(wavs_iso) > 2.0
+                println("\t >>> Problem with t = " * string(t) * ", moving on...")
+            end
+
+            plt.plot(wavs_iso, flux_iso)
+
             # fit the line wings
             fit = GRASS.fit_line_wings(wavs_iso, flux_iso)
 
@@ -133,8 +140,6 @@ function preprocess_line(line_name::String; verbose::Bool=true, debug::Bool=fals
 
             # TODO REVIEW BISECTOR CODE
             # measure the bisector and width function
-            # wav[:,t], bis[:,t] = GRASS.measure_bisector_interpolate(wavs_meas, flux_meas, top=0.999)
-            # dep[:,t], wid[:,t] = GRASS.measure_width_interpolate(wavs_meas, flux_meas, top=0.999)
             wav[:,t], bis[:,t] = GRASS.calc_bisector(wavs_meas, flux_meas, nflux=100, top=0.999)
             dep[:,t], wid[:,t] = GRASS.calc_width_function(wavs_meas, flux_meas, nflux=100, top=0.999)
 
@@ -160,6 +165,7 @@ function preprocess_line(line_name::String; verbose::Bool=true, debug::Bool=fals
             GRASS.write_input_data(line_name, line_df.air_wavelength[1], fparams, wav, bis, dep, wid)
         end
     end
+    plt.show()
     return nothing
 end
 
