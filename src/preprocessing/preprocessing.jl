@@ -44,7 +44,7 @@ function write_line_params(line_df::DataFrame; clobber::Bool=false)
 end
 
 function write_input_data(line_df::DataFrame, ax::String, mu::String, datetime::Dates.DateTime,
-                          wav::AA{T,2}, bis::AA{T,2}, dep::AA{T,2}, wid::AA{T,2}) where T<:AF#; clobber::Bool=False)
+                          bis::AA{T,2}, int::AA{T,2}, wid::AA{T,2}) where T<:AF#; clobber::Bool=False)
     # get the filename
     fname = GRASS.soldir * line_df.name[1] * ".h5"
 
@@ -74,12 +74,11 @@ function write_input_data(line_df::DataFrame, ax::String, mu::String, datetime::
         # set attributes
         attr = HDF5.attributes(g)
         attr["datetime"] = string(datetime)
-        attr["length"] = size(wav,2)
+        attr["length"] = size(bis,2)
 
         # fill out the datasets
-        g["wavelengths"] = wav
         g["bisectors"] = bis
-        g["depths"] = dep
+        g["intensities"] = int
         g["widths"] = wid
     end
     return nothing

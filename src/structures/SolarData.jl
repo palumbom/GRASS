@@ -1,8 +1,7 @@
 abstract type AbstractSolarData end
 struct SolarData{T1<:AF} <: AbstractSolarData
-    wav::Dict{Tuple{Symbol,Symbol}, AbstractArray{T1,2}}
     bis::Dict{Tuple{Symbol,Symbol}, AbstractArray{T1,2}}
-    dep::Dict{Tuple{Symbol,Symbol}, AbstractArray{T1,2}}
+    int::Dict{Tuple{Symbol,Symbol}, AbstractArray{T1,2}}
     wid::Dict{Tuple{Symbol,Symbol}, AbstractArray{T1,2}}
     len::Dict{Tuple{Symbol,Symbol}, Int}
     ax::Array{Symbol,1}
@@ -18,13 +17,13 @@ Construct a `SpecParams` composite type instance.
 - `dir::String=soldir`: Directory containing the pre-processed input data. Default directory is set in src/config.jl
 - `relative::Bool=true`: Set whether wavelengths are on absolute scale or expressed relative to rest wavelength.
 """
-function SolarData(;dir::String=soldir*"FeI_5434/", λrest::Float64=NaN,
-                   relative::Bool=true, fixed_width::Bool=false,
+function SolarData(;fname::String=nothing, relative::Bool=true, fixed_width::Bool=false,
                    fixed_bisector::Bool=false, extrapolate::Bool=true,
                    contiguous_only::Bool=false, adjust_mean::Bool=true)
-    @assert isdir(dir)
-    df = sort_input_data(dir=dir)
-    return SolarData(df, λrest=λrest, relative=relative, fixed_width=fixed_width,
+    if isnothing(fname)
+        fname = GRASS.soldir * "FeI_5434.h5"
+    end
+    return SolarData(fname, relative=relative, fixed_width=fixed_width,
                      fixed_bisector=fixed_bisector, extrapolate=extrapolate,
                      contiguous_only=contiguous_only, adjust_mean=adjust_mean)
 end
@@ -32,18 +31,31 @@ end
 function SolarData(fname::String, relative::Bool=true, fixed_width::Bool=false,
                    fixed_bisector::Bool=false, extrapolate::Bool=true,
                    contiguous_only::Bool=false, adjust_mean::Bool=true)
-    # set up data structure for input data
-    wavdict = Dict{Tuple{Symbol,Symbol}, AA{Float64,2}}()
+    # initialize data structure for input data
     bisdict = Dict{Tuple{Symbol,Symbol}, AA{Float64,2}}()
-    depdict = Dict{Tuple{Symbol,Symbol}, AA{Float64,2}}()
+    intdict = Dict{Tuple{Symbol,Symbol}, AA{Float64,2}}()
     widdict = Dict{Tuple{Symbol,Symbol}, AA{Float64,2}}()
     lengths = Dict{Tuple{Symbol,Symbol}, Int}()
 
-    # get rest wavelength for line
-    λrest = h5open(fname, "r") do f
+    # open the file
+    h5open(fname, "r") do f
+        # get rest wavelength for line
         attr = HDF5.attributes(f)
         λrest = read(attr["air_wavelength"])
-        return λrest
+
+        # loop over the keys corresponding to disk positions
+        for k in keys(fid)
+            if contiguous_only
+                t = first(keys(fid[k]))
+                bis = read(fid[k][t]["bisectors"])
+                int = read(fid[k][t]["intensities"])
+                wid = read(fid[k][t]["widths"])
+            else
+                println("derp")
+            end
+
+
+        end
     end
 
     # loop over unique mu + axis pairs
