@@ -164,9 +164,9 @@ function preprocess_line(line_name::String; verbose::Bool=true, debug::Bool=fals
                 bad_cols[i] = true
             end
         end
-        bis = strip_columns(bis, badcols)
-        int = strip_columns(int1, badcols)
-        wid = strip_columns(wid, badcols)
+        bis = GRASS.strip_columns(bis, badcols)
+        int = GRASS.strip_columns(int1, badcols)
+        wid = GRASS.strip_columns(wid, badcols)
 
         # write input data to disk
         if !debug
@@ -179,7 +179,7 @@ end
 function main()
     for name in line_info.name
         # skip the "hard" lines for now
-        name != "FeI_5434" && continue
+        !(name in ["FeI_5434", "FeI_5576", "FeI_6173"]) && continue
 
         # print the line name and preprocess it
         println(">>> Processing " * name * "...")
