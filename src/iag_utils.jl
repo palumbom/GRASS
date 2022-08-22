@@ -7,14 +7,14 @@ using EchelleCCFs: λ_air_to_vac, λ_vac_to_air
 function download_iag()
     println(">>> Downloading IAG atlas...")
     url = "http://cdsarc.u-strasbg.fr/viz-bin/nph-Cat/txt.gz?J/A+A/587/A65/spvis.dat.gz"
-    file = HTTP.download(url, moddir * "input_data/spvis.dat.gz", update_period=Inf)
+    file = HTTP.download(url, datdir * "spvis.dat.gz", update_period=Inf)
     println(">>> IAG atlas downloaded!")
     return nothing
 end
 
 function read_iag(; isolate::Bool=false, airwav::Float64=5434.5)
     # download the IAG atlas
-    file = GRASS.moddir * "input_data/spvis.dat.gz"
+    file = datdir * "spvis.dat.gz"
     if !isfile(file) || mtime(file) < 1.66e9
         download_iag()
     end
