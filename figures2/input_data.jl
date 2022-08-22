@@ -96,8 +96,8 @@ function plot_input_data(line_name::String, line_info::DataFrame)
     line_df = subset(line_info, :name => x -> x .== line_name)
 
     # get directory of input data
-    indir = GRASS.soldir * line_name * "/"
-    soldata = GRASS.SolarData(dir=indir)
+    fname = GRASS.soldir * line_name * ".h5"
+    soldata = GRASS.SolarData(fname)
 
     key = (:c, :mu10)
     bis = soldata.bis[key]
@@ -168,7 +168,7 @@ function main()
     end
 
     # get summary of present lines
-    line_info = CSV.read(GRASS.soldir * "line_info.csv", DataFrame)
+    line_info = CSV.read(GRASS.datdir * "line_info.csv", DataFrame)
 
     # loop over lines in line list
     for name in line_info.name

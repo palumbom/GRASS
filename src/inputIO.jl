@@ -56,29 +56,28 @@ function clean_input(bisall::AA{T,2}, intall::AA{T,2}, widall::AA{T,2}) where T<
     # loop through checking for bad columns
     for i in 1:size(bisall,2)
         bist = view(bisall, :, i)
-        intalt = view(intall, :, i)
+        intt = view(intall, :, i)
         widt = view(widall, :, i)
 
-        # check for monotinicity
-        if !ismonotonic(widt[.!isnan.(widt)])
+        # check for monotinicity in measurements
+        if !ismonotonic(widt)
             badcols[i] = true
         end
 
-        # check for bad width measurements
-        if all(iszero(widt))
+        if !ismonotonic(intt)
             badcols[i] = true
         end
 
-        # check for excessive NaNs
-        idx = findfirst(x->isnan(x), bist)
-        if !isnothing(idx) && (bist[idx] < 0.85)
+        # check for skipped epochs in preprocessing
+        if all(iszero.(intt))
             badcols[i] = true
         end
 
-        # remove data that is significant outlier (bisector)
-        bis_cond = any(abs.(bis_avg[5:50] .- bist[5:50]) .> (4.0 .* bis_std[5:50]))
-        wid_cond = any(abs.(wid_avg .- widt) .> (4.0 .* wid_std))
-        if bis_cond || wid_cond
+        # remove data that is significant outlier
+        idx = searchsortedfirst(intt, 0.9)
+        bis_cond = any(abs.(bis_avg[1:idx] .- bist[1:idx]) .> (5.0 .* bis_std[1:idx]))
+        wid_cond = any(abs.(wid_avg[1:idx] .- widt[1:idx]) .> (5.0 .* wid_std[1:idx]))
+        if bis_cond | wid_cond
             badcols[i] = true
         end
     end
