@@ -164,9 +164,9 @@ function preprocess_line(line_name::String; verbose::Bool=true, debug::Bool=fals
                 bad_cols[i] = true
             end
         end
-        bis = GRASS.strip_columns(bis, badcols)
-        int = GRASS.strip_columns(int1, badcols)
-        wid = GRASS.strip_columns(wid, badcols)
+        bis = GRASS.strip_columns(bis, bad_cols)
+        int = GRASS.strip_columns(int1, bad_cols)
+        wid = GRASS.strip_columns(wid, bad_cols)
 
         # write input data to disk
         if !debug
