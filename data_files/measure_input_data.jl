@@ -50,10 +50,10 @@ function preprocess_line(line_name::String; verbose::Bool=true, debug::Bool=fals
         flux ./= maximum(flux, dims=1)
 
         # allocate memory for input data
-        wav = zeros(100, size(wavs,2))
         bis = zeros(100, size(wavs,2))
+        int1 = zeros(100, size(wavs,2))
+        int2 = zeros(100, size(wavs,2))
         wid = zeros(100, size(wavs,2))
-        dep = zeros(100, size(wavs,2))
 
         # loop over epochs in spectrum file
         for t in 1:size(wavs, 2)
