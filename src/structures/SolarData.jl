@@ -15,22 +15,22 @@ Construct a `SpecParams` composite type instance.
 
 # Arguments
 - `dir::String=soldir`: Directory containing the pre-processed input data. Default directory is set in src/config.jl
-- `relative::Bool=true`: Set whether wavelengths are on absolute scale or expressed relative to rest wavelength.
+- `relative::Bool=true`: Set whether bisectors are measured on absolute wavelength scale or expressed relative to rest wavelength of the line.
 """
-function SolarData(;fname::String="", relative::Bool=true, fixed_width::Bool=false,
-                   fixed_bisector::Bool=false, extrapolate::Bool=true,
-                   contiguous_only::Bool=false, adjust_mean::Bool=true)
+function SolarData(;fname::String="", relative::Bool=true, extrapolate::Bool=true,
+                    adjust_mean::Bool=true, contiguous_only::Bool=false,
+                    fixed_width::Bool=false, fixed_bisector::Bool=false,)
     if isempty(fname)
         fname = GRASS.soldir * "FeI_5434.h5"
     end
-    return SolarData(fname, relative=relative, fixed_width=fixed_width,
-                     fixed_bisector=fixed_bisector, extrapolate=extrapolate,
-                     contiguous_only=contiguous_only, adjust_mean=adjust_mean)
+    return SolarData(fname, relative=relative, extrapolate=extrapolate,
+                     adjust_mean=adjust_mean, contiguous_only=contiguous_only,
+                     fixed_width=fixed_width, fixed_bisector=fixed_bisector)
 end
 
-function SolarData(fname::String; relative::Bool=true, fixed_width::Bool=false,
-                   fixed_bisector::Bool=false, extrapolate::Bool=false,
-                   contiguous_only::Bool=false, adjust_mean::Bool=true)
+function SolarData(fname::String; relative::Bool=true, extrapolate::Bool=true,
+                    adjust_mean::Bool=true, contiguous_only::Bool=false,
+                    fixed_width::Bool=false, fixed_bisector::Bool=false,)
     # make sure the file exists
     @assert isfile(fname)
 
