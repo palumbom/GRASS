@@ -1,35 +1,29 @@
-function trim_bisector!(depth::T, wavt::AA{T,1}, bist::AA{T,1},
-                        dept::AA{T,1}, widt::AA{T,1}; top::T=NaN) where T<:AF
+function trim_bisector!(depth::T, bist::AA{T,1}, intt::AA{T,1}, widt::AA{T,1}) where T<:AF
     # choose method depending if synth line is deeper than input
     if (one(T) - depth) > minimum(bist)
-        trim_bisector_chop!(depth, wavt, bist, dept, widt, top=top)
+        trim_bisector_chop!(depth, bist, intt, widt)
     else
-        trim_bisector_scale!(depth, wavt, bist, dept, widt, top=top)
+        trim_bisector_scale!(depth, bist, intt, widt)
     end
     return nothing
 end
 
-function trim_bisector_chop!(depth::T, wavt::AA{T,1}, bist::AA{T,1},
-                             dept::AA{T,1}, widt::AA{T,1};
-                             top::T=NaN) where T<:AF
+function trim_bisector_chop!(depth::T, bist::AA{T,1}, intt::AA{T,1}, widt::AA{T,1}) where T<:AF
     # create interpolators
-    itp1 = linear_interp(bist, wavt)
-    itp2 = linear_interp(dept, widt)
+    itp1 = linear_interp(intt, bist)
+    itp2 = linear_interp(intt, widt)
 
     # get new grid of depths, interpolate the data, and return
-    dept .= range((one(T) - depth), one(T), length=length(dept))
-    wavt .= itp1.(dept)
-    widt .= itp2.(dept)
-    bist .= dept
+    # TODO check if there is a memory clash with overwriting intt?
+    intt .= range((one(T) - depth), one(T), length=length(intt))
+    bist .= itp1.(intt)
+    widt .= itp2.(intt)
     return nothing
 end
 
-function trim_bisector_scale!(depth::T, wavt::AA{T,1}, bist::AA{T,1},
-                              dept::AA{T,1}, widt::AA{T,1};
-                              top::T=NaN) where T<:AF
+function trim_bisector_scale!(depth::T, bist::AA{T,1}, intt::AA{T,1}, widt::AA{T,1}) where T<:AF
     # get new grid of depths, effectively scaling the width and bisector data
-    dept .= range((one(T) - depth), one(T), length=length(dept))
-    bist .= dept
+    intt .= range((one(T) - depth), one(T), length=length(intt))
     return nothing
 end
 

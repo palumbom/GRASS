@@ -8,7 +8,6 @@ struct SpecParams{T<:AF} #<: AbstractSpecParams
     coverage::Tuple{T,T}
     resolution::T
     lambdas::AA{T,1}
-    data_inds::AA{Int64,1}
     kwargs::Base.Pairs
 end
 
@@ -63,14 +62,6 @@ function SpecParams(;lines=[], depths=[], geffs=[], variability=[],
     lnλs = range(log(coverage[1]), log(coverage[2]), step=Δlnλ)
     lambdas = exp.(lnλs)
 
-    # tabulate all available input data
-    # indata = InputData()
-
-    # assign indices that point synthetic line to appropriate input data
-    geff_input = get_geff.(indata.lineprops)
-    depth_input = get_depth.(indata.lineprops)
-    data_inds = zeros(Int64, length(lines))
-
     # loop over lines and do 2D nearest neighbor
     if isempty(indirs)
         for i in eachindex(lines)
@@ -109,10 +100,10 @@ function SpecParams(spec::SpecParams, idx::Int64)
                       indata_temp, spec.data_inds[inds], spec.kwargs)
 end
 
-function SpecParams(config::String)
-    @assert isfile(config)
+# function SpecParams(config::String)
+#     @assert isfile(config)
 
 
 
-    return nothing
-end
+#     return nothing
+# end

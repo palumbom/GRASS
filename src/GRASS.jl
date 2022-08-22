@@ -90,9 +90,9 @@ Synthesize spectra given parameters in `spec` and `disk` instances.
 - `spec::SpecParams`: SpecParams instance
 - `disk::DiskParams`: DiskParams instance
 """
-function synthesize_spectra(spec::SpecParams, disk::DiskParams;
-                            top::Float64=NaN, seed_rng::Bool=false,
-                            verbose::Bool=true, use_gpu::Bool=false)
+function synthesize_spectra(spec::SpecParams{T}, disk::DiskParams{T};
+                            seed_rng::Bool=false, verbose::Bool=true,
+                            use_gpu::Bool=false) where T<:AF
     # parse out dimensions for memory allocation
     N = disk.N
     Nλ = length(spec.lambdas)
@@ -151,10 +151,10 @@ function synthesize_spectra(spec::SpecParams, disk::DiskParams;
 end
 
 # precompile this function
-precompile(synthesize_spectra, (SpecParams, DiskParams, Float64, Bool, Bool, Bool))
+# precompile(synthesize_spectra, (SpecParams, DiskParams, Float64, Bool, Bool, Bool))
 
 # export some stuff
-export SpecParams, DiskParams, LineProperties, synthesize_spectra,
+export SpecParams, DiskParams, LineProperties, SolarData, synthesize_spectra,
        calc_ccf, calc_rvs_from_ccf, calc_rms, parse_args, check_plot_dirs,
        read_iag
 

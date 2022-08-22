@@ -79,8 +79,8 @@ function identify_bad_cols(bisall::AA{T,2}, intall::AA{T,2}, widall::AA{T,2}) wh
         if isnothing(idx2)
             badcols[i] = true
         else
-            bis_cond = any(abs.(bis_avg[idx1:idx2] .- bist[idx1:idx2]) .> (5.0 .* bis_std[idx1:idx2]))
-            wid_cond = any(abs.(wid_avg[idx1:idx2] .- widt[idx1:idx2]) .> (5.0 .* wid_std[idx1:idx2]))
+            bis_cond = any(abs.(bis_avg[idx1:idx2] .- bist[idx1:idx2]) .> (4.0 .* bis_std[idx1:idx2]))
+            wid_cond = any(abs.(wid_avg[idx1:idx2] .- widt[idx1:idx2]) .> (4.0 .* wid_std[idx1:idx2]))
             if bis_cond | wid_cond
                 badcols[i] = true
             end
