@@ -8,7 +8,6 @@ struct SpecParams{T<:AF} #<: AbstractSpecParams
     coverage::Tuple{T,T}
     resolution::T
     lambdas::AA{T,1}
-    indata::InputData
     data_inds::AA{Int64,1}
     kwargs::Base.Pairs
 end
@@ -65,7 +64,7 @@ function SpecParams(;lines=[], depths=[], geffs=[], variability=[],
     lambdas = exp.(lnλs)
 
     # tabulate all available input data
-    indata = InputData()
+    # indata = InputData()
 
     # assign indices that point synthetic line to appropriate input data
     geff_input = get_geff.(indata.lineprops)
@@ -103,7 +102,7 @@ end
 
 function SpecParams(spec::SpecParams, idx::Int64)
     inds = spec.data_inds .== idx
-    indata_temp = InputData(spec.indata.dirs[idx], spec.indata.lineprops[idx])
+    # indata_temp = InputData(spec.indata.dirs[idx], spec.indata.lineprops[idx])
     return SpecParams(spec.lines[inds], spec.depths[inds], spec.geffs[inds],
                       spec.conv_blueshifts[inds], spec.variability[inds],
                       spec.coverage, spec.resolution, spec.lambdas,
