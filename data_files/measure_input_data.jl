@@ -139,7 +139,6 @@ function preprocess_line(line_name::String; verbose::Bool=true, debug::Bool=fals
 
             # make sure the intensities are the same
             @assert all(int1[:,t] .== int2[:,t])
-            int = int1
 
             # debug plottings
             if debug
@@ -160,7 +159,7 @@ function preprocess_line(line_name::String; verbose::Bool=true, debug::Bool=fals
 
         # write input data to disk
         if !debug
-            GRASS.write_input_data(line_df, ax_string, mu_string, datetime, bis, int, wid)
+            GRASS.write_input_data(line_df, ax_string, mu_string, datetime, bis, int1, wid)
         end
     end
     return nothing
