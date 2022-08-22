@@ -45,14 +45,55 @@ function SolarData(fname::String, relative::Bool=true, fixed_width::Bool=false,
 
         # loop over the keys corresponding to disk positions
         for k in keys(fid)
+            # get the axis and mu values
+            attr = HDF5.attributes(fid[k])
+            ax = read(attr["axis"])
+            mu = read(attr["mu"])
+
+            # only read in the first set of observations
             if contiguous_only
                 t = first(keys(fid[k]))
                 bis = read(fid[k][t]["bisectors"])
                 int = read(fid[k][t]["intensities"])
                 wid = read(fid[k][t]["widths"])
+            # stitch together all observations of given disk position
             else
-                println("derp")
+                # get total number of epochs
+                ntimes = zeros(Int, length(fid[k]))
+                for (i, t) in enumerate(keys(fid[k]))
+                    ntimes[i] = read(attributes(fid[k][t])["length"])
+                end
+
+                # allocate memory
+                bis = zeros(100, sum(ntimes))
+                int = zeros(100, sum(ntimes))
+                wid = zeros(100, sum(ntimes))
+
+                # read in
+                for (i, t) in enumerate(keys(fid[k]))
+                    bis[:, sum(ntimes[1:i-1])+1:sum(ntimes[1:i])] = read(fid[k][t]["bisectors"])
+                    int[:, sum(ntimes[1:i-1])+1:sum(ntimes[1:i])] = read(fid[k][t]["intensities"])
+                    wid[:, sum(ntimes[1:i-1])+1:sum(ntimes[1:i])] = read(fid[k][t]["widths"])
+                end
             end
+
+            # clean the input data
+            println("derp")
+
+            # extrapolate over data where uncertainty explodes
+            if extrapolate
+                println("extrapolate")
+            end
+
+            # express bisector wavelengths relative to λrest
+            if relative
+                println("relative")
+            end
+
+            # assign data to dictionary
+            bisdict[Symbol(ax), Symbol(mu)] = bis
+
+
 
 
         end

@@ -62,7 +62,7 @@ function write_input_data(line_df::DataFrame, ax::String, mu::String, datetime::
 
             # set attributes for this group
             attr = HDF5.attributes(pos_group)
-            attr["mu"] = parse_mu_string(mu)
+            attr["mu"] = mu
             attr["axis"] = ax
         end
 
