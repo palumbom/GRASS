@@ -19,9 +19,11 @@ using DataFrames
 using Statistics
 using SharedArrays
 using Interpolations
+
+# import specific methods
 import Glob.glob
 import Dates.DateTime
-import Polynomials: fit as pfit
+import Polynomials: fit as pfit, coeffs
 
 # abbreviations for commonly used types
 import Base: AbstractArray as AA

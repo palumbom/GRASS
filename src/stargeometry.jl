@@ -1,6 +1,4 @@
 # set discrete values of mu for input observations
-# const disc_mu = [0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.85, 0.9, 0.95, 1.0]
-# const mu_symb = [:mu02, :mu03, :mu04, :mu05, :mu06, :mu07, :mu08, :mu085, :mu09, :mu095, :mu10]
 const disc_ax = [:n, :e, :s, :w, :c]
 
 make_grid(N::Integer) = range(-1.0, 1.0, length=N)

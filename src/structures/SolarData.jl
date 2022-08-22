@@ -23,19 +23,24 @@ function SolarData(;fname::String=nothing, relative::Bool=true, fixed_width::Boo
     if isnothing(fname)
         fname = GRASS.soldir * "FeI_5434.h5"
     end
-    return SolarData(fname, relative=relative, fixed_width=fixed_width,
+    return SolarData(fname::String; relative=relative, fixed_width=fixed_width,
                      fixed_bisector=fixed_bisector, extrapolate=extrapolate,
                      contiguous_only=contiguous_only, adjust_mean=adjust_mean)
 end
 
 function SolarData(fname::String, relative::Bool=true, fixed_width::Bool=false,
-                   fixed_bisector::Bool=false, extrapolate::Bool=true,
+                   fixed_bisector::Bool=false, extrapolate::Bool=false,
                    contiguous_only::Bool=false, adjust_mean::Bool=true)
+    # make sure the file exists
+    @assert isfile(fname)
+
     # initialize data structure for input data
     bisdict = Dict{Tuple{Symbol,Symbol}, AA{Float64,2}}()
     intdict = Dict{Tuple{Symbol,Symbol}, AA{Float64,2}}()
     widdict = Dict{Tuple{Symbol,Symbol}, AA{Float64,2}}()
     lengths = Dict{Tuple{Symbol,Symbol}, Int}()
+    axs = []
+    mus = []
 
     # open the file
     h5open(fname, "r") do f
@@ -44,24 +49,24 @@ function SolarData(fname::String, relative::Bool=true, fixed_width::Bool=false,
         λrest = read(attr["air_wavelength"])
 
         # loop over the keys corresponding to disk positions
-        for k in keys(fid)
+        for k in keys(f)
             # get the axis and mu values
-            attr = HDF5.attributes(fid[k])
+            attr = HDF5.attributes(f[k])
             ax = read(attr["axis"])
             mu = read(attr["mu"])
 
             # only read in the first set of observations
             if contiguous_only
-                t = first(keys(fid[k]))
-                bis = read(fid[k][t]["bisectors"])
-                int = read(fid[k][t]["intensities"])
-                wid = read(fid[k][t]["widths"])
+                t = first(keys(f[k]))
+                bis = read(f[k][t]["bisectors"])
+                int = read(f[k][t]["intensities"])
+                wid = read(f[k][t]["widths"])
             # stitch together all observations of given disk position
             else
                 # get total number of epochs
-                ntimes = zeros(Int, length(fid[k]))
-                for (i, t) in enumerate(keys(fid[k]))
-                    ntimes[i] = read(attributes(fid[k][t])["length"])
+                ntimes = zeros(Int, length(f[k]))
+                for (i, t) in enumerate(keys(f[k]))
+                    ntimes[i] = read(HDF5.attributes(f[k][t])["length"])
                 end
 
                 # allocate memory
@@ -70,213 +75,63 @@ function SolarData(fname::String, relative::Bool=true, fixed_width::Bool=false,
                 wid = zeros(100, sum(ntimes))
 
                 # read in
-                for (i, t) in enumerate(keys(fid[k]))
-                    bis[:, sum(ntimes[1:i-1])+1:sum(ntimes[1:i])] = read(fid[k][t]["bisectors"])
-                    int[:, sum(ntimes[1:i-1])+1:sum(ntimes[1:i])] = read(fid[k][t]["intensities"])
-                    wid[:, sum(ntimes[1:i-1])+1:sum(ntimes[1:i])] = read(fid[k][t]["widths"])
+                for (i, t) in enumerate(keys(f[k]))
+                    bis[:, sum(ntimes[1:i-1])+1:sum(ntimes[1:i])] = read(f[k][t]["bisectors"])
+                    int[:, sum(ntimes[1:i-1])+1:sum(ntimes[1:i])] = read(f[k][t]["intensities"])
+                    wid[:, sum(ntimes[1:i-1])+1:sum(ntimes[1:i])] = read(f[k][t]["widths"])
+                end
+
+                # match the means of the various datasets
+                if adjust_mean
+                    adjust_data_mean(bis, ntimes)
                 end
             end
 
             # clean the input data
-            println("derp")
+            # TODO: revisit this
+            clean_input(bis, int, wid)
 
             # extrapolate over data where uncertainty explodes
             if extrapolate
-                println("extrapolate")
+                for i in 1:size(bis,2)
+                    # take a slice for one time snapshot
+                    bist = view(bis, :, i)
+                    intt = view(int, :, i)
+
+                    # fix the bottom
+                    idx1 = searchsortedfirst(intt, minimum(intt) + 0.1)
+                    idx2 = searchsortedfirst(intt, minimum(intt) + 0.2)
+                    fit = pfit(intt[idx1:idx2], bist[idx1:idx2], 1)
+                    bist[1:idx1] .= evalpoly.(intt[1:idx1], tuple(coeffs(fit)))
+
+                    # find indices, fit the data, and replace with fit
+                    idx1 = searchsortedfirst(intt, 0.7)
+                    idx2 = searchsortedfirst(intt, 0.8)
+                    fit = pfit(intt[idx1:idx2], bist[idx1:idx2], 1)
+                    bist[idx2:end] .= evalpoly.(intt[idx2:end], tuple(coeffs(fit)))
+                end
             end
 
             # express bisector wavelengths relative to λrest
             if relative
-                println("relative")
+                relative_bisector_wavelengths(bis, λrest)
             end
 
-            # assign data to dictionary
-            bisdict[Symbol(ax), Symbol(mu)] = bis
-
-
-
-
-        end
-    end
-
-    # loop over unique mu + axis pairs
-    axs = unique(df.axis)
-    mus = unique(df.mu)
-    for ax in axs
-        for mu in mus
-            # filter the data set
-            f3 = (x,y) -> ((x == ax) & (y == mu))
-            df_temp = filter([:axis, :mu] => f3, df)
-
-            # move on if no data for mu + axis pair
-            if isempty(df_temp)
-                continue
-            end
-
-            # stitch the time series
-            wavall, bisall, depall, widall = stitch_time_series(df_temp, adjust_mean=adjust_mean, contiguous_only=contiguous_only)
-
-            # clean the input (loop through twice to catch outliers)
-            for i in 1:2
-                wavall, bisall, depall, widall = clean_input(wavall, bisall, depall, widall)
-            end
-
-            # extrapolate over data where uncertainty explodes
-            if extrapolate
-                if tryparse(Int64, mu[end-1:end]) <= 6 # ie mu <= 0.5
-                    top = 0.8
-                else
-                    top = 0.9
-                end
-                extrapolate_bisector(wavall, bisall, top=top)
-                extrapolate_width(depall, widall)
-            end
-
-            # assign key-value pairs to dictionary
-            if relative
-                relative_bisector_wavelengths(wavall, λrest)
-            end
-            wavdict[(Symbol(ax), Symbol(mu))] = wavall
-            bisdict[(Symbol(ax), Symbol(mu))] = bisall
-
-            # assign width
-            if fixed_width
-                dep, wid = calc_fixed_width()
-                depdict[(Symbol(ax), Symbol(mu))] = zeros(size(depall))
-                widdict[(Symbol(ax), Symbol(mu))] = zeros(size(depall))
-                depdict[(Symbol(ax), Symbol(mu))] .= dep
-                widdict[(Symbol(ax), Symbol(mu))] .= wid
-
-                extrapolate_width(depdict[(Symbol(ax), Symbol(mu))],
-                                  widdict[(Symbol(ax), Symbol(mu))])
+            # assign input data to dictionary
+            lengths[Symbol(ax), Symbol(mu)] = size(bis, 2)
+            bisdict[Symbol(ax), Symbol(mu)] = (bis .* !fixed_bisector) .+ (λrest .* fixed_bisector * !relative)
+            intdict[Symbol(ax), Symbol(mu)] = int
+            if !fixed_width
+                widdict[Symbol(ax), Symbol(mu)] = wid
             else
-                depdict[(Symbol(ax), Symbol(mu))] = depall
-                widdict[(Symbol(ax), Symbol(mu))] = widall
+                wid .= wid[:,1]
+                widdict[Symbol(ax), Symbol(mu)] = wid
             end
-
-            # set bisector to zero if fixed
-            if fixed_bisector
-                wavdict[(Symbol(ax), Symbol(mu))] = zeros(size(wavall))
-            end
-
-            # get length
-            lengths[(Symbol(ax), Symbol(mu))] = size(wavall,2)
+            push!(axs, ax)
+            push!(mus, mu)
         end
     end
-    return SolarData(wavdict, bisdict, depdict, widdict, lengths, Symbol.(axs), sort!(Symbol.(mus)))
-end
-
-function clean_input(wavall::AA{T,2}, bisall::AA{T,2}, depall::AA{T,2}, widall::AA{T,2}) where T<:AF
-    @assert size(wavall) == size(bisall)
-    @assert size(depall) == size(widall)
-
-    # make boolean array (column will be stripped if badcol[i] == true)
-    badcols = zeros(Bool, size(wavall,2))
-
-    # find spread of data
-    wav_std = std(wavall, dims=2)
-    wid_std = std(widall, dims=2)
-
-    # find mean and median of data
-    wav_avg = mean(wavall, dims=2)
-    wid_avg = mean(widall, dims=2)
-    wav_med = median(wavall, dims=2)
-    wid_med = median(widall, dims=2)
-
-    # loop through checking for bad columns
-    for i in 1:size(wavall,2)
-        wavt = view(wavall, :, i)
-        bist = view(bisall, :, i)
-        dept = view(depall, :, i)
-        widt = view(widall, :, i)
-
-        # check for monotinicity
-        if !ismonotonic(widt[.!isnan.(widt)])
-            badcols[i] = true
-        end
-
-        # check for bad width measurements
-        if all(iszero(widt))
-            badcols[i] = true
-        end
-
-        # check for excessive NaNs
-        idx = findfirst(x->isnan(x), wavt)
-        if !isnothing(idx) && (bist[idx] < 0.85)
-            badcols[i] = true
-        end
-
-        # remove data that is significant outlier (bisector)
-        wav_cond = any(abs.(wav_avg[5:50] .- wavt[5:50]) .> (4.0 .* wav_std[5:50]))
-        wid_cond = any(abs.(wid_avg .- widt) .> (4.0 .* wid_std))
-        if wav_cond || wid_cond
-            badcols[i] = true
-        end
-    end
-
-    # strip the bad columns and return new arrays
-    return strip_columns(wavall, badcols), strip_columns(bisall, badcols),
-           strip_columns(depall, badcols), strip_columns(widall, badcols)
-end
-
-function extrapolate_bisector(wavall::AA{T,2}, bisall::AA{T,2}; top::T=0.9) where T<:AF
-    for i in 1:size(wavall,2)
-        # take a slice for one time snapshot
-        wavt = view(wavall, :, i)
-        bist = view(bisall, :, i)
-
-        # first fix the bottom-most measurements in bisector
-        dydx = (wavt[5] - wavt[4])/(bist[5] - bist[4])
-        wavt[1:3] .= dydx * (bist[1:3] .- bist[4]) .+ wavt[4]
-
-        # find the last index for good data
-        ind1 = searchsortedfirst(bist, top)
-        ind2 = searchsortedfirst(bist, top-0.1)
-
-        # calculate an average slope and extrapolate it up to continuum
-        dydx = mean((wavt[(ind2+1:ind1)] .- wavt[(ind2:ind1-1)]) ./ (bist[ind2+1:ind1] .- bist[(ind2:ind1-1)]))
-        wavt[ind2:end] .= (dydx .* (bist[ind2:end] .- bist[ind2]) .+ wavt[ind2])
-    end
-    return nothing
-end
-
-function extrapolate_width(depall::AA{T,2}, widall::AA{T,2}) where T<:AF
-    for i in 1:size(depall,2)
-        # take a slice for one time snapshot
-        dept = view(depall, :, i)
-        widt = view(widall, :, i)
-
-        if !isnan(lastindex(widt))
-            continue
-        end
-
-        # mask nans
-        dept_mask = dept[.!isnan.(widt)]
-        widt_mask = widt[.!isnan.(widt)]
-
-        # fit a polynomial and extrapolate width up to continuum
-        idx = findlast(x -> .!isnan.(x), widt)
-        poly = pfit(dept_mask[idx-2:idx], widt_mask[idx-2:idx], 1)
-
-        dept[end] = 1.0
-        widt[idx:end] .= poly.(dept[idx:end])
-    end
-    return nothing
-end
-
-function relative_bisector_wavelengths(wav::AA{T,2}, λrest::T) where T<:AF
-    λgrav = (635.0/c_ms) * λrest
-    for i in 1:size(wav,2)
-        wav[:,i] .-= (λrest .+ λgrav)
-    end
-    return nothing
-end
-
-function calc_fixed_width(;λ::T1=5434.5232, M::T1=26.0, T::T1=5778.0, v_turb::T1=3.5e5) where T1<:AF
-    wid = width_thermal(λ=λ, M=M, T=T, v_turb=v_turb)
-    λs = collect(range(λ - 1.0, λ + 1.0, step=λ/7e5))
-    prof = gaussian_line.(λs, mid=λ, width=wid, depth=0.86)
-    depall, widall = calc_width_function(λs, prof, nflux=100)
-    widall[1] = 0.01
-    return depall, widall
+    axs = Symbol.(unique(axs))
+    mus = Symbol.(sort!(unique(mus)))
+    return SolarData(bisdict, intdict, widdict, lengths, axs, mus)
 end
