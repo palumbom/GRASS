@@ -134,18 +134,22 @@ function preprocess_line(line_name::String; verbose::Bool=true, debug::Bool=fals
 
             # TODO REVIEW BISECTOR CODE
             # measure the bisector and width function
-            wav[:,t], bis[:,t] = GRASS.calc_bisector(wavs_meas, flux_meas, nflux=100, top=0.999)
-            dep[:,t], wid[:,t] = GRASS.calc_width_function(wavs_meas, flux_meas, nflux=100, top=0.999)
+            bis[:,t], int1[:,t] = GRASS.calc_bisector(wavs_meas, flux_meas, nflux=100, top=0.999)
+            int2[:,t], wid[:,t] = GRASS.calc_width_function(wavs_meas, flux_meas, nflux=100, top=0.999)
+
+            # make sure the intensities are the same
+            @assert all(int1[:,t] .== int2[:,t])
+            int = int1
 
             # debug plottings
             if debug
                 ax1.plot(wavs_meas, flux_meas, c="tab:orange", ls="--", label="cleaned")
-                ax1.plot(wav[:,t], bis[:,t], c="tab:blue", label="bisector")
+                ax1.plot(bis[:,t], int1[:,t], c="tab:blue", label="bisector")
                 ax1.set_xlabel("Wavelength")
                 ax1.set_ylabel("Normalized Intensity")
                 ax1.legend()
 
-                ax2.plot(dep[:,t], wid[:,t])
+                ax2.plot(int2[:,t], wid[:,t])
                 ax2.set_xlabel("Normalized Intensity")
                 ax2.set_ylabel("Width across line")
                 fig.suptitle("\${\\rm " * replace(line_df.name[1], "_" => "\\ ") * "}\$")
@@ -156,7 +160,7 @@ function preprocess_line(line_name::String; verbose::Bool=true, debug::Bool=fals
 
         # write input data to disk
         if !debug
-            GRASS.write_input_data(line_df, ax_string, mu_string, datetime, wav, bis, dep, wid)
+            GRASS.write_input_data(line_df, ax_string, mu_string, datetime, bis, int, wid)
         end
     end
     return nothing
