@@ -1,9 +1,9 @@
 # line loop function, update prof in place
 function line_loop_cpu(prof::AA{T,1}, mid::T, depth::T, z_rot::T,
                        conv_blueshift::T, lambdas::AA{T,1},
-                       wsp::SynthWorkspace{T}; top::T=NaN) where T<:AF
+                       wsp::SynthWorkspace{T}) where T<:AF
     # first trim the bisectors to the correct depth
-    trim_bisector!(depth, wsp.wavt, wsp.bist, wsp.dept, wsp.widt, top=top)
+    trim_bisector!(depth, wsp.bist, wsp.intt, wsp.widt)
 
     # calculate line center given rot. and conv. doppler shift -> λrest * (1 + z)
     λΔD = mid * (one(T) + z_rot) * (one(T) + conv_blueshift)
@@ -31,19 +31,18 @@ end
 function time_loop_cpu(t_loop::Int, prof::AA{T,1}, z_rot::T,
                        key::Tuple{Symbol, Symbol}, liter::UnitRange{Int},
                        spec::SpecParams{T}, soldata::SolarData,
-                       wsp::SynthWorkspace{T}; top::T=NaN) where T<:AF
+                       wsp::SynthWorkspace{T}) where T<:AF
     # get views needed for line synthesis
-    wsp.wavt .= view(soldata.wav[key], :, t_loop)
     wsp.bist .= view(soldata.bis[key], :, t_loop)
-    wsp.dept .= view(soldata.dep[key], :, t_loop)
+    wsp.intt .= view(soldata.int[key], :, t_loop)
     wsp.widt .= view(soldata.wid[key], :, t_loop)
 
     # loop over specified synthetic lines
     prof .= one(T)
     for l in liter
-        wsp.wavt .*= spec.variability[l]
+        wsp.bist .*= spec.variability[l]
         line_loop_cpu(prof, spec.lines[l], spec.depths[l], z_rot,
-                      spec.conv_blueshifts[l], spec.lambdas, wsp, top=top)
+                      spec.conv_blueshifts[l], spec.lambdas, wsp)
     end
     return nothing
 end
@@ -83,7 +82,7 @@ function generate_indices(Nt::Integer, len::Integer)
 end
 
 function disk_sim(spec::SpecParams{T}, disk::DiskParams{T,Int64}, soldata::SolarData{T},
-                  prof::AA{T,1}, outspec::AA{T,2}; top::T=NaN, seed_rng::Bool=false,
+                  prof::AA{T,1}, outspec::AA{T,2}; seed_rng::Bool=false,
                   skip_times::BitVector=BitVector(zeros(disk.Nt)),
                   verbose::Bool=true) where T<:AF
     # make grid
@@ -134,7 +133,7 @@ function disk_sim(spec::SpecParams{T}, disk::DiskParams{T,Int64}, soldata::Solar
                 skip_times[t] && continue
 
                 # update profile in place
-                time_loop_cpu(t_loop, prof, z_rot, key, liter, spec, soldata, wsp, top=top)
+                time_loop_cpu(t_loop, prof, z_rot, key, liter, spec, soldata, wsp)
 
                 # apply normalization term and add to outspec
                 outspec[:,t] .+= (prof .* norm_term)
