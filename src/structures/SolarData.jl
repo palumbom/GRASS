@@ -57,14 +57,14 @@ function SolarData(fname::String; relative::Bool=true, extrapolate::Bool=true,
 
             # only read in the first set of observations
             if contiguous_only
+                # get key and length of data set
                 t = first(keys(f[k]))
+                ntimes = [read(HDF5.attributes(f[k][t])["length"])]
+
+                # read in
                 bis = read(f[k][t]["bisectors"])
                 int = read(f[k][t]["intensities"])
                 wid = read(f[k][t]["widths"])
-
-                # clean the input
-                bis, int, wid = clean_input(bis, int, wid)
-
             # stitch together all observations of given disk position
             else
                 # get total number of epochs
@@ -84,14 +84,29 @@ function SolarData(fname::String; relative::Bool=true, extrapolate::Bool=true,
                     int[:, sum(ntimes[1:i-1])+1:sum(ntimes[1:i])] = read(f[k][t]["intensities"])
                     wid[:, sum(ntimes[1:i-1])+1:sum(ntimes[1:i])] = read(f[k][t]["widths"])
                 end
+            end
 
-                # clean the input
-                bis, int, wid = clean_input(bis, int, wid)
+            # identify bad columns and strip them out
+            badcols = identify_bad_cols(bis, int, wid)
 
-                # match the means of the various datasets
-                if adjust_mean
-                    adjust_data_mean(bis, ntimes)
+            if sum(badcols) > 0
+                bis = strip_columns(bis, badcols)
+                int = strip_columns(int, badcols)
+                wid = strip_columns(wid, badcols)
+            end
+
+            # match the means of the various datasets
+            if adjust_mean && !contiguous_only
+                # fix ntimes to deal with removed columns
+                inds = findall(badcols)
+                ntimes_cum = cumsum(ntimes)
+                for i in inds
+                    idx = findfirst(x -> x .>= i, ntimes_cum)
+                    ntimes[idx] -= 1
                 end
+
+                # now adjust the mean
+                adjust_data_mean(bis, ntimes)
             end
 
             # extrapolate over data where uncertainty explodes
