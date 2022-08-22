@@ -37,21 +37,21 @@ function adjust_data_mean(arr::AA{T,2}, ntimes::Vector{Int64}) where T<:Real
     return nothing
 end
 
-function clean_input(bisall::AA{T,2}, intall::AA{T,2}, widall::AA{T,2}) where T<:AF
+function identify_bad_cols(bisall::AA{T,2}, intall::AA{T,2}, widall::AA{T,2}) where T<:AF
     @assert size(bisall) == size(intall) == size(widall)
 
     # make boolean array (column will be stripped if badcol[i] == true)
     badcols = zeros(Bool, size(bisall,2))
 
     # find standarad deviation of data
-    bis_std = std(bisall, dims=2)
-    wid_std = std(widall, dims=2)
+    bis_std = dropdims(std(bisall, dims=2), dims=2)
+    wid_std = dropdims(std(widall, dims=2), dims=2)
 
     # find mean and median of data
-    bis_avg = mean(bisall, dims=2)
-    wid_avg = mean(widall, dims=2)
-    bis_med = median(bisall, dims=2)
-    wid_med = median(widall, dims=2)
+    bis_avg = dropdims(mean(bisall, dims=2), dims=2)
+    wid_avg = dropdims(mean(widall, dims=2), dims=2)
+    bis_med = dropdims(median(bisall, dims=2), dims=2)
+    wid_med = dropdims(median(widall, dims=2), dims=2)
 
     # loop through checking for bad columns
     for i in 1:size(bisall,2)
@@ -75,16 +75,18 @@ function clean_input(bisall::AA{T,2}, intall::AA{T,2}, widall::AA{T,2}) where T<
 
         # remove data that is significant outlier
         idx1 = 10
-        idx2 = searchsortedfirst(intt, 0.8)
-        bis_cond = any(abs.(bis_avg[idx1:idx2] .- bist[idx1:idx2]) .> (5.0 .* bis_std[idx1:idx2]))
-        wid_cond = any(abs.(wid_avg[idx1:idx2] .- widt[idx1:idx2]) .> (5.0 .* wid_std[idx1:idx2]))
-        if bis_cond | wid_cond
+        idx2 = findfirst(x -> x .>= 0.8, intt)
+        if isnothing(idx2)
             badcols[i] = true
+        else
+            bis_cond = any(abs.(bis_avg[idx1:idx2] .- bist[idx1:idx2]) .> (5.0 .* bis_std[idx1:idx2]))
+            wid_cond = any(abs.(wid_avg[idx1:idx2] .- widt[idx1:idx2]) .> (5.0 .* wid_std[idx1:idx2]))
+            if bis_cond | wid_cond
+                badcols[i] = true
+            end
         end
     end
-
-    # strip the bad columns and return new arrays
-    return strip_columns(bisall, badcols), strip_columns(intall, badcols), strip_columns(widall, badcols)
+    return badcols
 end
 
 function relative_bisector_wavelengths(bis::AA{T,2}, λrest::T) where T<:AF
