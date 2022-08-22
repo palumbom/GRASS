@@ -157,9 +157,20 @@ function preprocess_line(line_name::String; verbose::Bool=true, debug::Bool=fals
             end
         end
 
+        # remove columns that we skipped measuring
+        bad_cols = zeros(Bool, size(int1,2))
+        for i in 1:size(int1,2)
+            if all(iszero.(int1))
+                bad_cols[i] = true
+            end
+        end
+        bis = strip_columns(bis, badcols)
+        int = strip_columns(int1, badcols)
+        wid = strip_columns(wid, badcols)
+
         # write input data to disk
         if !debug
-            GRASS.write_input_data(line_df, ax_string, mu_string, datetime, bis, int1, wid)
+            GRASS.write_input_data(line_df, ax_string, mu_string, datetime, bis, int, wid)
         end
     end
     return nothing
