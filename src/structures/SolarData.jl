@@ -61,6 +61,10 @@ function SolarData(fname::String; relative::Bool=true, extrapolate::Bool=true,
                 bis = read(f[k][t]["bisectors"])
                 int = read(f[k][t]["intensities"])
                 wid = read(f[k][t]["widths"])
+
+                # clean the input
+                bis, int, wid = clean_input(bis, int, wid)
+
             # stitch together all observations of given disk position
             else
                 # get total number of epochs
@@ -81,15 +85,14 @@ function SolarData(fname::String; relative::Bool=true, extrapolate::Bool=true,
                     wid[:, sum(ntimes[1:i-1])+1:sum(ntimes[1:i])] = read(f[k][t]["widths"])
                 end
 
+                # clean the input
+                bis, int, wid = clean_input(bis, int, wid)
+
                 # match the means of the various datasets
                 if adjust_mean
                     adjust_data_mean(bis, ntimes)
                 end
             end
-
-            # clean the input data
-            # TODO: revisit this
-            bis, int, wid = clean_input(bis, int, wid)
 
             # extrapolate over data where uncertainty explodes
             if extrapolate

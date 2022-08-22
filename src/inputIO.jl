@@ -74,9 +74,10 @@ function clean_input(bisall::AA{T,2}, intall::AA{T,2}, widall::AA{T,2}) where T<
         end
 
         # remove data that is significant outlier
-        idx = searchsortedfirst(intt, 0.9)
-        bis_cond = any(abs.(bis_avg[1:idx] .- bist[1:idx]) .> (5.0 .* bis_std[1:idx]))
-        wid_cond = any(abs.(wid_avg[1:idx] .- widt[1:idx]) .> (5.0 .* wid_std[1:idx]))
+        idx1 = 10
+        idx2 = searchsortedfirst(intt, 0.8)
+        bis_cond = any(abs.(bis_avg[idx1:idx2] .- bist[idx1:idx2]) .> (5.0 .* bis_std[idx1:idx2]))
+        wid_cond = any(abs.(wid_avg[idx1:idx2] .- widt[idx1:idx2]) .> (5.0 .* wid_std[idx1:idx2]))
         if bis_cond | wid_cond
             badcols[i] = true
         end
