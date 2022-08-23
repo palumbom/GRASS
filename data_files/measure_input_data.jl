@@ -19,7 +19,13 @@ if !isdir(plotdir * "spectra_fits")
     mkdir(plotdir * "spectra_fits")
 end
 
-function preprocess_line(line_name::String; verbose::Bool=true, debug::Bool=false)
+function preprocess_line(line_name::String; clobber::Bool=true, verbose::Bool=true, debug::Bool=false)
+    # delete old preprocessed data
+    if clobber
+        files = Glob.glob("*.h5", GRASS.soldir)
+        rm.(files)
+    end
+
     # find row with line info and write the line_params file
     line_df = subset(line_info, :name => x -> x .== line_name)
     GRASS.write_line_params(line_df)
