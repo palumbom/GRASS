@@ -153,6 +153,7 @@ function preprocess_line(line_name::String; verbose::Bool=true, debug::Bool=fals
                 ax2.set_ylabel("Width across line")
                 fig.suptitle("\${\\rm " * replace(line_df.name[1], "_" => "\\ ") * "}\$")
                 fig.savefig(plotdir * "spectra_fits/" * line_df.name[1] * ".pdf")
+                plt.show()
                 plt.clf(); plt.close()
             end
         end
@@ -179,11 +180,12 @@ end
 function main()
     for name in line_info.name
         # skip the "hard" lines for now
-        !(name in ["FeI_5434", "FeI_5576", "FeI_6173"]) && continue
+        # !(name in ["FeI_5434", "FeI_5576", "FeI_6173"]) && continue
+        name != "FeI_5434" && continue
 
         # print the line name and preprocess it
         println(">>> Processing " * name * "...")
-        preprocess_line(name, debug=false)
+        preprocess_line(name, debug=true)
     end
     return nothing
 end
