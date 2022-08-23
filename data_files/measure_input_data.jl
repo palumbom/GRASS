@@ -21,7 +21,7 @@ end
 
 function preprocess_line(line_name::String; clobber::Bool=true, verbose::Bool=true, debug::Bool=false)
     # delete old preprocessed data
-    if clobber
+    if !debug && clobber
         files = Glob.glob("*.h5", GRASS.soldir)
         rm.(files)
     end
