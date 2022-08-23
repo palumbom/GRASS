@@ -9,12 +9,12 @@ function line_loop_cpu(prof::AA{T,1}, mid::T, depth::T, z_rot::T,
     λΔD = mid * (one(T) + z_rot) * (one(T) + conv_blueshift)
 
     # find window around shifted line
-    lind = findfirst(x -> x > λΔD - 1.0, lambdas)
+    lind = findfirst(x -> x > λΔD - 1.25, lambdas)
     if isnothing(lind)
         lind = firstindex(lambdas)
     end
 
-    rind = findfirst(x -> x > λΔD + 1.0, lambdas)
+    rind = findfirst(x -> x > λΔD + 1.25, lambdas)
     if isnothing(rind)
         rind = lastindex(lambdas)
     end
@@ -142,7 +142,7 @@ function disk_sim(spec::SpecParams{T}, disk::DiskParams{T}, soldata::SolarData{T
     end
 
     # set instances of outspec where skip is true to 0 and return
-    # outspec ./= maximum(outspec, dims=1)
+    outspec ./= maximum(outspec, dims=1)
     outspec[:, skip_times] .= zero(T)
     return nothing
 end

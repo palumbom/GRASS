@@ -114,22 +114,24 @@ function SolarData(fname::String; relative::Bool=true, extrapolate::Bool=true,
                     # take a slice for one time snapshot
                     bist = view(bis, :, i)
                     intt = view(int, :, i)
+                    widt = view(wid, :, i)
 
-                    # fix the bottom
+                    # fit the bottom bisector area and replace with model fit
                     idx1 = searchsortedfirst(intt, minimum(intt) + 0.1)
                     idx2 = searchsortedfirst(intt, minimum(intt) + 0.2)
-                    bfit = pfit(intt[idx1:idx2], bist[idx1:idx2], 1)
-                    bist[1:idx1] .= evalpoly.(intt[1:idx1], tuple(coeffs(bfit)))
+                    bfit = pfit(view(intt, idx1:idx2), view(bist, idx1:idx2), 1)
+                    bist[1:idx1] .= bfit.(view(intt, 1:idx1))
 
-                    # find top indices, fit the bisector data
+                    # fit the top bisector area and replace with model fit
                     idx1 = searchsortedfirst(intt, 0.7)
                     idx2 = searchsortedfirst(intt, 0.8)
-                    bfit = pfit(intt[idx1:idx2], bist[idx1:idx2], 1)
-                    bist[idx2:end] .= evalpoly.(intt[idx2:end], tuple(coeffs(bfit)))
+                    bfit = pfit(view(intt, idx1:idx2), view(bist, idx1:idx2), 1)
+                    bist[idx2:end] .= bfit.(view(intt, idx2:length(intt)))
 
-                    # slightly "stretch" the intensities up to continuum
-                    # TODO extrapolate instead?
-                    intt .= range(minimum(intt), 1.0, length=length(intt))
+                    # fit the top width area and replace with model fit
+                    idx1 = length(widt) - 1
+                    wfit = pfit(view(intt, idx1-2:idx1), view(widt, idx1-2:idx1), 2)
+                    widt[idx1:end] .= wfit.(intt[idx1:end])
                 end
             end
 
