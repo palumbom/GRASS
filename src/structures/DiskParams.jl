@@ -1,9 +1,9 @@
-struct DiskParams{T1<:AF, T2<:Integer}
-    N::T2
-    Nt::T2
-    pole::Tuple{T1,T1,T1}
-    u1::T1
-    u2::T1
+struct DiskParams{T<:AF}
+    N::Int
+    Nt::Int
+    pole::Tuple{T,T,T}
+    u1::T
+    u2::T
 end
 
 """

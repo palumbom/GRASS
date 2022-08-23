@@ -8,7 +8,7 @@ struct SynthWorkspace{T<:AF, N}
     widt::AA{T,N}
 end
 
-function SynthWorkspace(spec::SpecParams{T}; ndepths::Integer=100) where T
+function SynthWorkspace(;ndepths::Integer=100) where T
     # allocate the needed memory
     lwavgrid = zeros(ndepths)
     rwavgrid = zeros(ndepths)

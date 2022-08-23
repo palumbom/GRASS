@@ -1,14 +1,12 @@
-# abstract type AbstractSpecParams end
-struct SpecParams{T<:AF} #<: AbstractSpecParams
+struct SpecParams{T<:AF}
     lines::AA{T,1}
     depths::AA{T,1}
     geffs::AA{T,1}
     conv_blueshifts::AA{T,1}
     variability::AA{Bool,1}
-    coverage::Tuple{T,T}
     resolution::T
     lambdas::AA{T,1}
-    kwargs::Base.Pairs
+    templates::AA{String,1}
 end
 
 
@@ -24,7 +22,7 @@ Construct a `SpecParams` composite type instance. If `variability` is not specif
 - `resolution::Float64=7e8`: Spectral resolution of spectrum
 """
 function SpecParams(;lines=[], depths=[], geffs=[], variability=[],
-                    indirs=[], resolution=7e5, buffer=1.0, kwargs...)
+                    templates=[], resolution=7e5, buffer=1.0)
     @assert length(lines) == length(depths)
     @assert !isempty(lines)
     @assert !isempty(depths)
@@ -37,7 +35,7 @@ function SpecParams(;lines=[], depths=[], geffs=[], variability=[],
     end
 
     # read in convective blueshifts
-    df = CSV.read(soldir * "/convective_blueshift.dat", DataFrame,
+    df = CSV.read(datdir * "convective_blueshift.dat", DataFrame,
                   header=1, delim=",", type=Float64)
 
     # assign convective blueshifts and convert blueshift to z=v/c
@@ -54,56 +52,84 @@ function SpecParams(;lines=[], depths=[], geffs=[], variability=[],
         @assert length(lines) == length(variability)
     end
 
-    # calculate coverage
-    coverage = (minimum(lines) - buffer, maximum(lines) + buffer)
-
     # generate Delta ln lambda
+    minλ = minimum(lines) - buffer
+    maxλ = maximum(lines) + buffer
     Δlnλ = (1.0 / resolution)
-    lnλs = range(log(coverage[1]), log(coverage[2]), step=Δlnλ)
+    lnλs = range(log(minλ), log(maxλ), step=Δlnλ)
     lambdas = exp.(lnλs)
 
-    # loop over lines and do 2D nearest neighbor
-    if isempty(indirs)
-        for i in eachindex(lines)
+    # assign each line to the input data to synth it from
+    # TODO move this to its own function and make it more thought out
+    if isempty(templates)
+        # get properties of input data lines
+        lp = LineProperties()
+        geff_input = get_geff(lp)
+        depth_input = get_depth(lp)
+        input_files = get_file(lp)
+
+        # allocate memory and loop, choosing best template line
+        templates = zeros(length(lines))
+        for i in eachindex(templates)
             param_dist = sqrt.((geff_input .- geffs[i]).^2 + (depth_input .- depths[i]).^2)
-            idx = argmin(param_dist)
-            data_inds[i] = idx
+            templates[i] = input_files[argmin(param_dist)]
         end
     else
-        @assert length(indirs) == length(lines)
-        for i in eachindex(indirs)
-            data_inds[i] = findfirst(indirs[i] .== indata.dirs)
+        @assert length(templates) == length(lines)
+        if all(map(x -> split(x, ".")[end] != "h5", templates))
+            templates .*= ".h5"
         end
     end
+
+    # make sure templates are absolute paths to files
+    if all(.!isabspath.(templates))
+        for i in eachindex(templates)
+            templates[i] = GRASS.soldir * templates[i]
+        end
+    end
+    @assert all(isfile.(templates))
 
     # now make sure everything is sorted
     if !issorted(lines)
         inds = sortperm(lines)
-        lines = lines[inds]
-        depths = depths[inds]
-        geffs = geffs[inds]
-        blueshifts = blueshifts[inds]
-        variability = variability[inds]
-        data_inds = data_inds[inds]
+        lines = view(lines, inds)
+        depths = view(depths, inds)
+        geffs = view(geffs, inds)
+        blueshifts = view(blueshifts, inds)
+        variability = view(variability, inds)
+        templates = view(templates, inds)
     end
     return SpecParams(lines, depths, geffs, blueshifts,
-                      variability, coverage, resolution,
-                      lambdas, indata, data_inds, kwargs)
+                      variability, resolution,
+                      lambdas, templates)
 end
 
-function SpecParams(spec::SpecParams, idx::Int64)
-    inds = spec.data_inds .== idx
-    # indata_temp = InputData(spec.indata.dirs[idx], spec.indata.lineprops[idx])
-    return SpecParams(spec.lines[inds], spec.depths[inds], spec.geffs[inds],
-                      spec.conv_blueshifts[inds], spec.variability[inds],
-                      spec.coverage, spec.resolution, spec.lambdas,
-                      indata_temp, spec.data_inds[inds], spec.kwargs)
+"""
+    SpecParams(spec, template_file)
+
+Return a copy of ```spec``` with only the synthetic line parameters corresponding to ```template_file```
+"""
+function SpecParams(spec::SpecParams, template_file::String)
+    # make sure it's a file name and not just a string
+    file = template_file
+    if split(file, ".")[end] != "h5"
+        file *= ".h5"
+    end
+
+    # make sure it's an absolute path
+    if !isabspath(file)
+        file = GRASS.soldir * file
+    end
+    @assert isfile(file)
+
+    # get indices
+    idx = findall(spec.templates .== file)
+    return SpecParams(view(spec.lines, idx),
+                      view(spec.depths, idx),
+                      view(spec.geffs, idx),
+                      view(spec.conv_blueshifts, idx),
+                      view(spec.variability, idx),
+                      spec.resolution,
+                      view(spec.lambdas, :),
+                      view(spec.templates, idx))
 end
-
-# function SpecParams(config::String)
-#     @assert isfile(config)
-
-
-
-#     return nothing
-# end
