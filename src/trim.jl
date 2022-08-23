@@ -15,9 +15,10 @@ function trim_bisector_chop!(depth::T, bist::AA{T,1}, intt::AA{T,1}, widt::AA{T,
 
     # get new grid of depths, interpolate the data, and return
     # TODO check if there is a memory clash with overwriting intt?
-    intt .= range((one(T) - depth), one(T), length=length(intt))
-    bist .= itp1.(intt)
-    widt .= itp2.(intt)
+    new_int = range((one(T) - depth), one(T), length=length(intt))
+    bist .= itp1.(new_int)
+    widt .= itp2.(new_int)
+    intt .= new_int
     return nothing
 end
 

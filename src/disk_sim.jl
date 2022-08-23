@@ -81,7 +81,7 @@ function generate_indices(Nt::Integer, len::Integer)
     return Iterators.flatten(inds)
 end
 
-function disk_sim(spec::SpecParams{T}, disk::DiskParams{T,Int64}, soldata::SolarData{T},
+function disk_sim(spec::SpecParams{T}, disk::DiskParams{T}, soldata::SolarData{T},
                   prof::AA{T,1}, outspec::AA{T,2}; seed_rng::Bool=false,
                   skip_times::BitVector=BitVector(zeros(disk.Nt)),
                   verbose::Bool=true) where T<:AF
@@ -90,7 +90,7 @@ function disk_sim(spec::SpecParams{T}, disk::DiskParams{T,Int64}, soldata::Solar
 
     # set pre-allocations and make generator that will be re-used
     outspec .= zero(T)
-    wsp = SynthWorkspace(spec)
+    wsp = SynthWorkspace()
     liter = 1:length(spec.lines); @assert length(liter) >= 1
 
     # get list of discrete mu's in input data
@@ -142,7 +142,7 @@ function disk_sim(spec::SpecParams{T}, disk::DiskParams{T,Int64}, soldata::Solar
     end
 
     # set instances of outspec where skip is true to 0 and return
-    outspec ./= maximum(outspec, dims=1)
+    # outspec ./= maximum(outspec, dims=1)
     outspec[:, skip_times] .= zero(T)
     return nothing
 end

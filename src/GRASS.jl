@@ -101,8 +101,8 @@ function synthesize_spectra(spec::SpecParams{T}, disk::DiskParams{T};
     outspec = ones(Nλ, disk.Nt)
 
     # get number of calls to disk_sim needed
-    indata_inds = unique(spec.data_inds)
-    ncalls = length(indata_inds)
+    templates = unique(spec.templates)
+    ncalls = length(templates)
 
     # call appropriate simulation function on cpu or gpu
     if use_gpu
@@ -118,7 +118,7 @@ function synthesize_spectra(spec::SpecParams{T}, disk::DiskParams{T};
             if verbose
                 println("\t>>> " * spec.indata.dirs[indata_inds[i]])
             end
-            soldata = SolarData(dir=spec.indata.dirs[indata_inds[i]]; spec.kwargs...)
+            soldata = SolarData(dir=spec.indata.dirs[indata_inds[i]])
 
             # run the simulation and multiply outspec by this spectrum
             disk_sim_gpu(spec_temp, disk, soldata, outspec, seed_rng=seed_rng, verbose=verbose)
@@ -130,20 +130,20 @@ function synthesize_spectra(spec::SpecParams{T}, disk::DiskParams{T};
         outspec_temp = zeros(Nλ, disk.Nt)
 
         # run the simulation (outspec modified in place)
-        for i in eachindex(indata_inds)
+        for file in templates
             outspec_temp .= 0.0
 
             # get temporary specparams with lines for this run
-            spec_temp = SpecParams(spec, indata_inds[i])
+            spec_temp = SpecParams(spec, file)
 
             # load in the appropriate input data
             if verbose
-                println("\t>>> " * spec.indata.dirs[indata_inds[i]])
+                println("\t>>> " * splitdir(file)[end])
             end
-            soldata = SolarData(dir=spec.indata.dirs[indata_inds[i]]; spec.kwargs...)
+            soldata = SolarData(fname=file)
 
             # run the simulation and multiply outspec by this spectrum
-            disk_sim(spec_temp, disk, soldata, prof, outspec_temp, seed_rng=seed_rng, verbose=verbose, top=top)
+            disk_sim(spec_temp, disk, soldata, prof, outspec_temp, seed_rng=seed_rng, verbose=verbose)
             outspec .*= outspec_temp
         end
         return spec.lambdas, outspec

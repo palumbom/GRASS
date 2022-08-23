@@ -1,4 +1,4 @@
-function sort_spectrum_data(;dir::String=soldir, write::Bool=false)
+function sort_spectrum_data(;dir::String="", write::Bool=false)
     # glob the files
     @assert isdir(dir);
 

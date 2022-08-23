@@ -1,5 +1,4 @@
-abstract type AbstractSolarData end
-struct SolarData{T1<:AF} <: AbstractSolarData
+struct SolarData{T1<:AF}
     bis::Dict{Tuple{Symbol,Symbol}, AbstractArray{T1,2}}
     int::Dict{Tuple{Symbol,Symbol}, AbstractArray{T1,2}}
     wid::Dict{Tuple{Symbol,Symbol}, AbstractArray{T1,2}}
@@ -109,8 +108,8 @@ function SolarData(fname::String; relative::Bool=true, extrapolate::Bool=true,
                 adjust_data_mean(bis, ntimes)
             end
 
-            # extrapolate over data where uncertainty explodes
             if extrapolate
+                # extrapolate over data where uncertainty explodes
                 for i in 1:size(bis,2)
                     # take a slice for one time snapshot
                     bist = view(bis, :, i)
@@ -119,14 +118,18 @@ function SolarData(fname::String; relative::Bool=true, extrapolate::Bool=true,
                     # fix the bottom
                     idx1 = searchsortedfirst(intt, minimum(intt) + 0.1)
                     idx2 = searchsortedfirst(intt, minimum(intt) + 0.2)
-                    fit = pfit(intt[idx1:idx2], bist[idx1:idx2], 1)
-                    bist[1:idx1] .= evalpoly.(intt[1:idx1], tuple(coeffs(fit)))
+                    bfit = pfit(intt[idx1:idx2], bist[idx1:idx2], 1)
+                    bist[1:idx1] .= evalpoly.(intt[1:idx1], tuple(coeffs(bfit)))
 
-                    # find indices, fit the data, and replace with fit
+                    # find top indices, fit the bisector data
                     idx1 = searchsortedfirst(intt, 0.7)
                     idx2 = searchsortedfirst(intt, 0.8)
-                    fit = pfit(intt[idx1:idx2], bist[idx1:idx2], 1)
-                    bist[idx2:end] .= evalpoly.(intt[idx2:end], tuple(coeffs(fit)))
+                    bfit = pfit(intt[idx1:idx2], bist[idx1:idx2], 1)
+                    bist[idx2:end] .= evalpoly.(intt[idx2:end], tuple(coeffs(bfit)))
+
+                    # slightly "stretch" the intensities up to continuum
+                    # TODO extrapolate instead?
+                    intt .= range(minimum(bist), 1.0, length=length(intt))
                 end
             end
 
