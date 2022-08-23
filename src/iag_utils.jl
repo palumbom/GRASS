@@ -12,7 +12,7 @@ function download_iag()
     return nothing
 end
 
-function read_iag(; isolate::Bool=false, airwav::Float64=5434.5)
+function read_iag(; isolate::Bool=true, airwav::Float64=5434.5232)
     # download the IAG atlas
     file = datdir * "spvis.dat.gz"
     if !isfile(file) || mtime(file) < 1.66e9
