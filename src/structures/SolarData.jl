@@ -129,7 +129,7 @@ function SolarData(fname::String; relative::Bool=true, extrapolate::Bool=true,
 
                     # slightly "stretch" the intensities up to continuum
                     # TODO extrapolate instead?
-                    intt .= range(minimum(bist), 1.0, length=length(intt))
+                    intt .= range(minimum(intt), 1.0, length=length(intt))
                 end
             end
 
