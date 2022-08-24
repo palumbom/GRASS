@@ -23,7 +23,7 @@ function trim_bisector_gpu(depth, bisall_out, intall_out, bisall_in, intall_in)
             new_intt = (1.0 - depth) + (j-1) * step
 
             # if depth is greater than input depth, stretch the bisector
-            if (1.0 - intth) < CUDA.first(intt_in)
+            if (1.0 - depth) < CUDA.first(intt_in)
                 @inbounds intt_out[j] = new_intt
             else
                 # interpolate to get the new wavelength value

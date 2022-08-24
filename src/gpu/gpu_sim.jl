@@ -50,7 +50,7 @@ function disk_sim_gpu(spec::SpecParams, disk::DiskParams, soldata::SolarData,
         disc_ax = CuArray{Int32}(disc_ax_cpu)
         lenall_gpu = CuArray{Int32}(lenall_cpu)
         bisall_gpu = CuArray{prec}(bisall_cpu)
-        intall_gpu = CuArray{prec}(depall_cpu)
+        intall_gpu = CuArray{prec}(intall_cpu)
         widall_gpu = CuArray{prec}(widall_cpu)
     end
 
