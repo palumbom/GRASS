@@ -23,7 +23,7 @@ function fill_workspace_arrays!(line, z_convs, grid, tloop, data_inds, rot_shift
             λΔD = line * (1.0 + rot_shifts[i,j]) * (1.0 + z_convs)
 
             # slice out the correct views of the input data for position
-            bist = CUDA.view(wavall, :, tloop[i,j], data_inds[i,j])
+            bist = CUDA.view(bisall, :, tloop[i,j], data_inds[i,j])
             widt = CUDA.view(widall, :, tloop[i,j], data_inds[i,j])
 
             for k in idz:sdz:CUDA.size(rwavgrid,3)
