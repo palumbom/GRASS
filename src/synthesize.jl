@@ -26,6 +26,5 @@ function line_profile_cpu!(mid::T, lambdas::AA{T,1}, prof::AA{T,1},
     # interpolate onto original lambda grid, extrapolate to continuum
     itp1 = linear_interp(allwavs, allints, bc=one(T))
     prof .*= itp1.(lambdas)
-    prof ./= maximum(prof)
     return nothing
 end
