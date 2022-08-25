@@ -106,8 +106,8 @@ function main()
     lines = [5434.5232]
     depths = [1.0 - minimum(flux_iag)]
     resolution = 700000.0
-    indirs = [GRASS.soldir * "FeI_5434/"]
-    spec = SpecParams(lines=lines, depths=depths, indirs=indirs, resolution=resolution)
+    templates = ["FeI_5434"]
+    spec = SpecParams(lines=lines, depths=depths, templates=templates, resolution=resolution)
     disk = DiskParams(N=132, Nt=15)
 
     # synthesize spectra, calculate ccf, and get CCF bisector
