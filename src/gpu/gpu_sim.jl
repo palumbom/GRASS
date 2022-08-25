@@ -40,25 +40,24 @@ function disk_sim_gpu(spec::SpecParams, disk::DiskParams, soldata::SolarData,
     disc_mu_cpu = sorted_data[1]
     disc_ax_cpu = sorted_data[2]
     lenall_cpu = sorted_data[3]
-    wavall_cpu = sorted_data[4]
-    bisall_cpu = sorted_data[5]
+    bisall_cpu = sorted_data[4]
+    intall_cpu = sorted_data[5]
     widall_cpu = sorted_data[6]
-    depall_cpu = sorted_data[7]
 
     # move input data to gpu
     @cusync begin
         disc_mu = CuArray{prec}(disc_mu_cpu)
         disc_ax = CuArray{Int32}(disc_ax_cpu)
         lenall_gpu = CuArray{Int32}(lenall_cpu)
-        wavall_gpu = CuArray{prec}(wavall_cpu)
+        bisall_gpu = CuArray{prec}(bisall_cpu)
+        intall_gpu = CuArray{prec}(intall_cpu)
         widall_gpu = CuArray{prec}(widall_cpu)
-        depall_gpu = CuArray{prec}(depall_cpu)
     end
 
     # allocate arrays for fresh copy of input data to copy to each loop
     @cusync begin
-        wavall_gpu_loop = CUDA.copy(wavall_gpu)
-        depall_gpu_loop = CUDA.copy(depall_gpu)
+        bisall_gpu_loop = CUDA.copy(bisall_gpu)
+        intall_gpu_loop = CUDA.copy(intall_gpu)
     end
 
     # allocate memory for synthesis on the GPU
@@ -122,30 +121,30 @@ function disk_sim_gpu(spec::SpecParams, disk::DiskParams, soldata::SolarData,
                 epoch_range = 1:lenall_cpu[n]
                 @cusync begin
                     # view of unaltered input data
-                    wavall_gpu_in = CUDA.view(wavall_gpu, :, epoch_range, n) .* spec.variability[l]
-                    depall_gpu_in = CUDA.view(depall_gpu, :, epoch_range, n)
+                    bisall_gpu_in = CUDA.view(bisall_gpu, :, epoch_range, n) .* spec.variability[l]
+                    intall_gpu_in = CUDA.view(intall_gpu, :, epoch_range, n)
 
                     # view of arrays to put modified bisectors in
-                    wavall_gpu_out = CUDA.view(wavall_gpu_loop, :, epoch_range, n)
-                    depall_gpu_out = CUDA.view(depall_gpu_loop, :, epoch_range, n)
+                    bisall_gpu_out = CUDA.view(bisall_gpu_loop, :, epoch_range, n)
+                    intall_gpu_out = CUDA.view(intall_gpu_loop, :, epoch_range, n)
                 end
 
                 # do the trim
                 @cusync @captured @cuda threads=threads1 blocks=blocks1[n] trim_bisector_gpu(depths[l],
-                                                                                             wavall_gpu_out,
-                                                                                             depall_gpu_out,
-                                                                                             wavall_gpu_in,
-                                                                                             depall_gpu_in)
+                                                                                             bisall_gpu_out,
+                                                                                             intall_gpu_out,
+                                                                                             bisall_gpu_in,
+                                                                                             intall_gpu_in)
             end
 
             # fill workspace arrays
             @cusync @captured @cuda threads=threads4 blocks=blocks4 fill_workspace_arrays!(lines[l], conv_blueshifts[l],
                                                                                            grid, tloop, data_inds, rot_shifts,
-                                                                                           wavall_gpu_loop, widall_gpu,
+                                                                                           bisall_gpu_loop, widall_gpu,
                                                                                            lwavgrid, rwavgrid)
 
             # concatenate workspace arrays before interpolating
-            @cusync @captured @cuda threads=threads4 blocks=blocks4 concatenate_workspace_arrays!(grid, tloop, data_inds, depall_gpu_loop,
+            @cusync @captured @cuda threads=threads4 blocks=blocks4 concatenate_workspace_arrays!(grid, tloop, data_inds, intall_gpu_loop,
                                                                                                   lwavgrid, rwavgrid, allwavs, allints)
 
             # do the line synthesis
@@ -155,7 +154,7 @@ function disk_sim_gpu(spec::SpecParams, disk::DiskParams, soldata::SolarData,
             @cusync @inbounds outspec[:,t] .*= Array(CUDA.view(CUDA.sum(starmap, dims=(1,2)), 1, 1, :))
 
             # iterate tloop
-            @cusync @cuda threads=threads2 blocks=blocks2 iterate_tloop_gpu(tloop, data_inds, lenall_gpu, grid)
+            @cusync @captured @cuda threads=threads2 blocks=blocks2 iterate_tloop_gpu(tloop, data_inds, lenall_gpu, grid)
         end
     end
     # CUDA.synchronize()

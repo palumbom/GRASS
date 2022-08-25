@@ -10,6 +10,8 @@ using SharedArrays
 # import external modules
 using CSV
 using HDF5
+using Dates
+using LsqFit
 using FITSIO
 using Random
 using StatsBase
@@ -17,9 +19,11 @@ using DataFrames
 using Statistics
 using SharedArrays
 using Interpolations
+
+# import specific methods
 import Glob.glob
 import Dates.DateTime
-import Polynomials: fit as pfit
+import Polynomials: fit as pfit, coeffs
 
 # abbreviations for commonly used types
 import Base: AbstractArray as AA
@@ -73,6 +77,10 @@ include("gpu/gpu_trim.jl")
 include("gpu/gpu_sim.jl")
 include("gpu/gpu_synthesis.jl")
 
+# functions for plotting figures
+include("fig_functions.jl")
+include("iag_utils.jl")
+
 """
     synthesize_spectra(spec, disk; seed_rng=false, verbose=true, top=NaN)
 
@@ -82,9 +90,9 @@ Synthesize spectra given parameters in `spec` and `disk` instances.
 - `spec::SpecParams`: SpecParams instance
 - `disk::DiskParams`: DiskParams instance
 """
-function synthesize_spectra(spec::SpecParams, disk::DiskParams;
-                            top::Float64=NaN, seed_rng::Bool=false,
-                            verbose::Bool=true, use_gpu::Bool=false)
+function synthesize_spectra(spec::SpecParams{T}, disk::DiskParams{T};
+                            seed_rng::Bool=false, verbose::Bool=true,
+                            use_gpu::Bool=false) where T<:AF
     # parse out dimensions for memory allocation
     N = disk.N
     Nλ = length(spec.lambdas)
@@ -93,8 +101,7 @@ function synthesize_spectra(spec::SpecParams, disk::DiskParams;
     outspec = ones(Nλ, disk.Nt)
 
     # get number of calls to disk_sim needed
-    indata_inds = unique(spec.data_inds)
-    ncalls = length(indata_inds)
+    templates = unique(spec.templates)
 
     # call appropriate simulation function on cpu or gpu
     if use_gpu
@@ -102,15 +109,15 @@ function synthesize_spectra(spec::SpecParams, disk::DiskParams;
         @assert CUDA.functional()
 
         # run the simulation and return
-        for i in 1:ncalls
+        for file in templates
             # get temporary specparams with lines for this run
-            spec_temp = SpecParams(spec, indata_inds[i])
+            spec_temp = SpecParams(spec, file)
 
             # load in the appropriate input data
             if verbose
-                println("\t>>> " * spec.indata.dirs[indata_inds[i]])
+                println("\t>>> " * splitdir(file)[end])
             end
-            soldata = SolarData(dir=spec.indata.dirs[indata_inds[i]]; spec.kwargs...)
+            soldata = SolarData(fname=file)
 
             # run the simulation and multiply outspec by this spectrum
             disk_sim_gpu(spec_temp, disk, soldata, outspec, seed_rng=seed_rng, verbose=verbose)
@@ -122,20 +129,20 @@ function synthesize_spectra(spec::SpecParams, disk::DiskParams;
         outspec_temp = zeros(Nλ, disk.Nt)
 
         # run the simulation (outspec modified in place)
-        for i in eachindex(indata_inds)
+        for file in templates
             outspec_temp .= 0.0
 
             # get temporary specparams with lines for this run
-            spec_temp = SpecParams(spec, indata_inds[i])
+            spec_temp = SpecParams(spec, file)
 
             # load in the appropriate input data
             if verbose
-                println("\t>>> " * spec.indata.dirs[indata_inds[i]])
+                println("\t>>> " * splitdir(file)[end])
             end
-            soldata = SolarData(dir=spec.indata.dirs[indata_inds[i]]; spec.kwargs...)
+            soldata = SolarData(fname=file)
 
             # run the simulation and multiply outspec by this spectrum
-            disk_sim(spec_temp, disk, soldata, prof, outspec_temp, seed_rng=seed_rng, verbose=verbose, top=top)
+            disk_sim(spec_temp, disk, soldata, prof, outspec_temp, seed_rng=seed_rng, verbose=verbose)
             outspec .*= outspec_temp
         end
         return spec.lambdas, outspec
@@ -143,9 +150,11 @@ function synthesize_spectra(spec::SpecParams, disk::DiskParams;
 end
 
 # precompile this function
-precompile(synthesize_spectra, (SpecParams, DiskParams, Float64, Bool, Bool, Bool))
+# precompile(synthesize_spectra, (SpecParams, DiskParams, Float64, Bool, Bool, Bool))
 
 # export some stuff
-export SpecParams, DiskParams, LineProperties, synthesize_spectra, calc_ccf, calc_rvs_from_ccf, calc_rms, use_gpu
+export SpecParams, DiskParams, LineProperties, SolarData, synthesize_spectra,
+       calc_ccf, calc_rvs_from_ccf, calc_rms, parse_args, check_plot_dirs,
+       read_iag
 
 end # module

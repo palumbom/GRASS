@@ -24,7 +24,6 @@ Interpolations = "a98d9a8b-a2ab-59e6-89dd-64a1c18fca59"
 JLD2 = "033835bb-8acc-5ee8-8aae-3f567f8a3819"
 LaTeXStrings = "b964fa9f-0449-5b57-a5c2-d3ea65f4040f"
 LsqFit = "2fda8390-95c7-5789-9bda-21331edee243"
-Peaks = "18e31ff7-3703-566c-8e60-38913d67486b"
 Polynomials = "f27b6e38-b328-58d1-80ce-0feddd5e7a45"
 PyCall = "438e738f-606a-5dbb-bf0a-cddfbfd45ab0"
 PyPlot = "d330b81b-6aea-500a-939a-2ce795aea3ee"
@@ -37,12 +36,8 @@ StatsBase = "2913bbd2-ae8a-5f71-8c99-4fb6c76f3a91"
 TOML = "fa267f1f-6049-4f14-aa54-33bafae1ed76"
 
 [compat]
-CSV = "0.8"
-EchelleCCFs = "0.2.5"
-FITSIO = "0.16"
-Glob = "1.3"
-StatsBase = "0.33"
-julia = "1.7"
+EchelleCCFs = "≥ 0.2.5"
+julia = "≥ 1.7"
 
 [extras]
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"

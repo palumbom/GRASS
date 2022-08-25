@@ -1,4 +1,4 @@
-function sort_spectrum_data(;dir::String=soldir, write::Bool=false)
+function sort_spectrum_data(;dir::String="", write::Bool=false)
     # glob the files
     @assert isdir(dir);
 
@@ -47,23 +47,23 @@ end
 
 function read_spectrum(filename::String)
     # Primary HDU has spectra + noise in frame 1/2
-    spec = []
-    nois = []
     head = []
+    flux = []
+    nois = []
     wavs = []
     FITS(filename) do f
         # read contents
-        spec = FITSIO.read(f[1])[:,:,1]
-        nois = FITSIO.read(f[1])[:,:,2]
         head = read_header(f[1])
-        wavs = FITSIO.read(f[2]) #.* 1.0e10  # convert to angstroms
+        flux = FITSIO.read(f[1])[:,:,1]
+        nois = FITSIO.read(f[1])[:,:,2]
+        wavs = FITSIO.read(f[2])
 
         # determine if conversion to angstroms is necessary
         if all(wavs .< 1e3)
             wavs .*= 1.0e10
         end
     end
-    return wavs, convert.(Float64, spec)
+    return wavs, convert.(Float64, flux)
 end
 
 function write_the_fits(fname::String, xdat::AbstractArray{T,2}, ydat::AbstractArray{T,2}) where T<:Real
@@ -73,9 +73,8 @@ function write_the_fits(fname::String, xdat::AbstractArray{T,2}, ydat::AbstractA
     return nothing
 end
 
-function bin_spectrum(wavs::AbstractArray{T,2}, spec::AbstractArray{T,2};
-                      binsize::Integer=10) where T<:Real
-    @assert size(wavs) == size(spec)
+function bin_spectrum(wavs::AbstractArray{T,2}, flux::AbstractArray{T,2}; binsize::Integer=10) where T<:Real
+    @assert size(wavs) == size(flux)
     @assert binsize >= 1
     @assert binsize < size(wavs,2)
 
@@ -84,19 +83,10 @@ function bin_spectrum(wavs::AbstractArray{T,2}, spec::AbstractArray{T,2};
     ntime = size(wavs,2)
     nbins = floor(Int, ntime/binsize)
 
-    # old code that allocates mem
-    wavsb = zeros(nwave, nbins)
-    specb = zeros(nwave, nbins)
-    for i in 0:(nbins-1)
-        wavsb[:,i+1] = mean(wavs[:, i*binsize+1:(i+1)*binsize], dims=2)
-        specb[:,i+1] = mean(spec[:, i*binsize+1:(i+1)*binsize], dims=2)
-    end
-
     # do the binning
-    # for i in 0:(nbins-1)
-    #     wavs[:,i+1] = mean(wavs[:, i*binsize+1:(i+1)*binsize], dims=2)
-    #     spec[:,i+1] = mean(spec[:, i*binsize+1:(i+1)*binsize], dims=2)
-    # end
-
-    return wavs[:,1:nbins], spec[:,1:nbins]
+    for i in 0:(nbins-1)
+        wavs[:,i+1] = mean(wavs[:, i*binsize+1:(i+1)*binsize], dims=2)
+        flux[:,i+1] = mean(flux[:, i*binsize+1:(i+1)*binsize], dims=2)
+    end
+    return view(wavs, :, 1:nbins), view(flux, :, 1:nbins)
 end

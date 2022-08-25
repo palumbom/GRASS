@@ -1,94 +1,3 @@
-function sort_input_data(;dir::String=soldir, write::Bool=false)
-    @assert isdir(dir)
-
-    # create data frame to store extracted paramaters
-    df = DataFrame(fpath=String[], fname=String[],
-                   datetime=DateTime[], wave=String[],
-                   mu=String[], axis=String[], ion=String[])
-
-    # get list of dirs containing data for each line
-    linedirs = glob("*/", dir)
-
-    # loop over directories
-    if !isempty(linedirs)
-        for d in linedirs
-            files = glob("*input.h5", d)
-            if isempty(files)
-                println(">>> No input data files found in " * d)
-                continue
-            end
-
-            for f in files
-                push!(df, extract_input_params(f))
-            end
-        end
-    else
-        files = glob("*input.h5", dir)
-        if isempty(files)
-            println(">>> No input data files found in " * dir)
-            return nothing
-        end
-        for f in files
-                push!(df, extract_input_params(f))
-        end
-    end
-
-    # sort dataframe in place
-    sort!(df, [:axis, :mu, :datetime], rev=[false, true, false])
-
-    # write to CSV
-    if write
-        CSV.write(df.wave[1] * "_bisectors.csv", df)
-    end
-    return df
-end
-
-function extract_input_params(s::String)
-    # parse the fielname string
-    paths = split(s, "/")
-    fpath = join(paths[1:end-1], "/") * "/"
-    fname = paths[end]
-    fcomp = split(fname, "_")
-
-    # parse out parameters
-    species = fcomp[1]
-    wavelength = fcomp[2]
-    datetimes = DateTime(fcomp[3])
-    muposition = fcomp[4]
-    axis = fcomp[5]
-    return [fpath fname datetimes wavelength muposition axis species]
-end
-
-function read_input_data(filename::String; masknans::Bool=false)
-    wav, bis, dep, wid = h5open(filename, "r") do f
-        g = f["input_data"]
-        wav = read(g["wavelengths"])
-        bis = read(g["bisectors"])
-        dep = read(g["depths"])
-        wid = read(g["widths"])
-        return wav, bis, dep, wid
-    end
-    return wav, bis, dep, wid
-end
-
-function get_extension_dims(filename::String)
-    dims = h5open(filename, "r") do f
-        g = f["input_data"]
-        return size(g["wavelengths"])
-    end
-    return dims
-end
-
-function get_number_waves(filename::String)
-    dims = get_extension_dims(filename)
-    return dims[1]
-end
-
-function get_number_times(filename::String)
-    dims = get_extension_dims(filename)
-    return dims[2]
-end
-
 function parse_mu_string(s::String)
     s = s[3:end]
     return tryparse(Float64, s[1] * "." * s[2:end])
@@ -110,52 +19,80 @@ function parse_ax_string(s::Symbol)
     return parse_ax_string(string(s))
 end
 
-# make one large time series for a given solar position
-function stitch_time_series(df::DataFrame; adjust_mean::Bool=false, contiguous_only::Bool=false)
-    # find out size of data
-    if contiguous_only
-        Nfil=1
-    else
-        Nfil = size(df, 1)
-    end
-    Ntim = map(get_number_times, df.fpath[i] * df.fname[i] for i in 1:Nfil)
-    Nwav = map(get_number_waves, df.fpath[i] * df.fname[i] for i in 1:Nfil)
+function adjust_data_mean(arr::AA{T,2}, ntimes::Vector{Int64}) where T<:Real
+    # get the mean of the first dataset
+    group1 = view(arr, :, 1:ntimes[1])
+    meangroup1 = dropdims(mean(group1, dims=2), dims=2)
 
-    # allocate array
-    wavall = zeros(maximum(Nwav), sum(Ntim))
-    bisall = zeros(maximum(Nwav), sum(Ntim))
-    depall = zeros(maximum(Nwav), sum(Ntim))
-    widall = zeros(maximum(Nwav), sum(Ntim))
-
-    # loop over the files, filling arrays
-    for i in 1:Nfil
-        wav, bis, dep, wid = read_input_data(df.fpath[i] * df.fname[i])
-        wavall[:, sum(Ntim[1:i-1])+1:sum(Ntim[1:i])] .= wav
-        bisall[:, sum(Ntim[1:i-1])+1:sum(Ntim[1:i])] .= bis
-        depall[:, sum(Ntim[1:i-1])+1:sum(Ntim[1:i])] .= dep
-        widall[:, sum(Ntim[1:i-1])+1:sum(Ntim[1:i])] .= wid
-    end
-
-    # adjust the mean if adjust_mean == true
-    if adjust_mean
-        wavall = adjust_data_mean(wavall, Ntim, Nfil)
-        # widall = adjust_data_mean(widall, Ntim, Nfil)
-    end
-    return wavall, bisall, depall, widall
-end
-
-function adjust_data_mean(array::AA{T,2}, Ntim::Vector{Int64}, Nfil::Int) where T<:Real
-    # find the mean for the first chunk of bisectors
-    group1 = array[:, 1:Ntim[1]]
-    meangroup1 = mean(group1, dims=2)[:,1]
-    for i in 2:Nfil
-        # find the mean for the nth group of bisectors
-        groupn = array[:, sum(Ntim[1:i-1])+1:sum(Ntim[1:i])]
-        meangroupn = mean(groupn, dims=2)[:,1]
+    # loop over the nth datasets
+    for i in 2:length(ntimes)
+        # get the mena
+        groupn = view(arr, :, sum(ntimes[1:i-1])+1:sum(ntimes[1:i]))
+        meangroupn = dropdims(mean(groupn, dims=2), dims=2)
 
         # find the distance between the means and correct by it
         meandist = meangroupn - meangroup1
-        array[:, sum(Ntim[1:i-1])+1:sum(Ntim[1:i])] .-= meandist
+        groupn .-= meandist
     end
-    return array
+    return nothing
+end
+
+function identify_bad_cols(bisall::AA{T,2}, intall::AA{T,2}, widall::AA{T,2}) where T<:AF
+    @assert size(bisall) == size(intall) == size(widall)
+
+    # make boolean array (column will be stripped if badcol[i] == true)
+    badcols = zeros(Bool, size(bisall,2))
+
+    # find standarad deviation of data
+    bis_std = dropdims(std(bisall, dims=2), dims=2)
+    wid_std = dropdims(std(widall, dims=2), dims=2)
+
+    # find mean and median of data
+    bis_avg = dropdims(mean(bisall, dims=2), dims=2)
+    wid_avg = dropdims(mean(widall, dims=2), dims=2)
+    bis_med = dropdims(median(bisall, dims=2), dims=2)
+    wid_med = dropdims(median(widall, dims=2), dims=2)
+
+    # loop through checking for bad columns
+    for i in 1:size(bisall,2)
+        bist = view(bisall, :, i)
+        intt = view(intall, :, i)
+        widt = view(widall, :, i)
+
+        # check for monotinicity in measurements
+        if !ismonotonic(widt)
+            badcols[i] = true
+        end
+
+        if !ismonotonic(intt)
+            badcols[i] = true
+        end
+
+        # check for skipped epochs in preprocessing
+        if all(iszero.(intt))
+            badcols[i] = true
+        end
+
+        # remove data that is significant outlier
+        idx1 = 10
+        idx2 = findfirst(x -> x .>= 0.8, intt)
+        if isnothing(idx2)
+            badcols[i] = true
+        else
+            bis_cond = any(abs.(bis_avg[idx1:idx2] .- bist[idx1:idx2]) .> (4.0 .* bis_std[idx1:idx2]))
+            wid_cond = any(abs.(wid_avg[idx1:idx2] .- widt[idx1:idx2]) .> (4.0 .* wid_std[idx1:idx2]))
+            if bis_cond | wid_cond
+                badcols[i] = true
+            end
+        end
+    end
+    return badcols
+end
+
+function relative_bisector_wavelengths(bis::AA{T,2}, λrest::T) where T<:AF
+    λgrav = (635.0/c_ms) * λrest
+    for i in 1:size(bis,2)
+        bis[:,i] .-= (λrest .+ λgrav)
+    end
+    return nothing
 end
