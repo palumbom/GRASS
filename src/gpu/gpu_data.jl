@@ -2,15 +2,13 @@ function sort_data_for_gpu(soldata::SolarData{T}) where T<:AbstractFloat
     # allocate memory for arrays to pass to gpu
     len = collect(values(soldata.len))
     npositions = length(len)
-    wav = zeros(100, maximum(len), npositions)
     bis = zeros(100, maximum(len), npositions)
+    int = zeros(100, maximum(len), npositions)
     wid = zeros(100, maximum(len), npositions)
-    dep = zeros(100, maximum(len), npositions)
     for (ind,(key,val)) in enumerate(soldata.len)
-        wav[:, 1:val, ind] .= soldata.wav[key]
         bis[:, 1:val, ind] .= soldata.bis[key]
+        int[:, 1:val, ind] .= soldata.int[key]
         wid[:, 1:val, ind] .= soldata.wid[key]
-        dep[:, 1:val, ind] .= soldata.dep[key]
     end
 
     # get the value of mu and ax codes
@@ -24,18 +22,16 @@ function sort_data_for_gpu(soldata::SolarData{T}) where T<:AbstractFloat
 
     # get the arrays in mu sorted order
     len .= len[inds_mu]
-    wav .= view(wav, :, :, inds_mu)
     bis .= view(bis, :, :, inds_mu)
+    int .= view(int, :, :, inds_mu)
     wid .= view(wid, :, :, inds_mu)
-    dep .= view(dep, :, :, inds_mu)
 
     # disc_mu_og = copy(disc_mu)
     # disc_ax_og = copy(disc_ax)
     # len_og = copy(len)
-    # wav_og = copy(wav)
     # bis_og = copy(bis)
     # wid_og = copy(wid)
-    # dep_og = copy(dep)
+    # int_og = copy(int)
 
     # get indices to sort by axis within mu sort
     for mu_val in unique(disc_mu)
@@ -45,18 +41,16 @@ function sort_data_for_gpu(soldata::SolarData{T}) where T<:AbstractFloat
         disc_ax[inds1] .= disc_ax[inds1][inds2]
 
         # len[inds1] .= len_og[inds1][inds2]
-        # wav[:, :, inds1] .= wav_og[:, :, inds1][:, :, inds2]
         # bis[:, :, inds1] .= bis_og[:, :, inds1][:, :, inds2]
+        # int[:, :, inds1] .= int_og[:, :, inds1][:, :, inds2]
         # wid[:, :, inds1] .= wid_og[:, :, inds1][:, :, inds2]
-        # dep[:, :, inds1] .= dep_og[:, :, inds1][:, :, inds2]
 
         len[inds1] .= len[inds1][inds2]
-        wav[:, :, inds1] .= wav[:, :, inds1][:, :, inds2]
         bis[:, :, inds1] .= bis[:, :, inds1][:, :, inds2]
+        int[:, :, inds1] .= int[:, :, inds1][:, :, inds2]
         wid[:, :, inds1] .= wid[:, :, inds1][:, :, inds2]
-        dep[:, :, inds1] .= dep[:, :, inds1][:, :, inds2]
     end
-    return disc_mu, disc_ax, len, wav, bis, wid, dep
+    return disc_mu, disc_ax, len, bis, int, wid
 end
 
 function find_nearest_ax_gpu(x::T, y::T) where T<:AbstractFloat

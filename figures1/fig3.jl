@@ -17,49 +17,12 @@ import PyPlot; plt = PyPlot; mpl = plt.matplotlib; plt.ioff()
 using PyCall; animation = pyimport("matplotlib.animation");
 mpl.style.use(GRASS.moddir * "figures1/fig.mplstyle")
 
-# define some functions
-include(GRASS.moddir * "figures1/fig_functions.jl")
-
 # get command line args and output directories
 run, plot = parse_args(ARGS)
 grassdir, plotdir, datadir = check_plot_dirs()
 
 # decide whether to use gpu
 use_gpu = CUDA.functional()
-
-function download_iag()
-    println(">>> Downloading IAG atlas...")
-    file = HTTP.download("https://cdsarc.unistra.fr/ftp/J/A+A/587/A65/spvis.dat.gz",
-                         GRASS.moddir * "input_data/", update_period=Inf)
-    println(">>> IAG atlas downloaded!")
-    return nothing
-end
-
-function read_iag()
-    # download the IAG atlas
-    file = GRASS.moddir * "input_data/spvis.dat.gz"
-    if !isfile(file)
-        download_iag()
-    end
-
-    # read in the IAG atlas
-    iag = GZip.open(file, "r") do io
-        CSV.read(io, DataFrame, ignorerepeated=true, delim=" ", header=["wavenum", "nflux", "flux"])
-    end
-
-    # convert wavenumber to wavelength in angstroms
-    wavs = (1 ./ iag.wavenum) * 1e8
-
-    # reverse to deal with conversion of units
-    reverse!(wavs)
-    reverse!(iag.nflux)
-
-    # isolate region around 5434.5 line
-    vacwav = λ_air_to_vac(5434.5232)
-    ind1 = findfirst(x -> x .> vacwav-0.53, wavs)
-    ind2 = findfirst(x -> x .> vacwav+0.53, wavs)
-    return view(wavs, ind1:ind2), view(iag.nflux, ind1:ind2)
-end
 
 function interpolate_spec(wavs, flux)
     wavs_itp = collect(range(wavs[1], wavs[end], step=mean(diff(wavs))))
@@ -143,8 +106,8 @@ function main()
     lines = [5434.5232]
     depths = [1.0 - minimum(flux_iag)]
     resolution = 700000.0
-    indirs = [GRASS.soldir * "FeI_5434/"]
-    spec = SpecParams(lines=lines, depths=depths, indirs=indirs, resolution=resolution)
+    templates = ["FeI_5434"]
+    spec = SpecParams(lines=lines, depths=depths, templates=templates, resolution=resolution)
     disk = DiskParams(N=132, Nt=15)
 
     # synthesize spectra, calculate ccf, and get CCF bisector
@@ -196,7 +159,7 @@ function main()
         gs = mpl.gridspec.GridSpec(nrows=2, ncols=1, height_ratios=[2, 1], figure=fig, hspace=0.05)
         ax1 = fig.add_subplot(gs[1])
         ax2 = fig.add_subplot(gs[2])
-        ax1.plot(lambdas1, outspec1, c="black", lw= 1.5, label=L"{\rm Synthetic}")
+        ax1.plot(lambdas1, outspec1, c="black", lw=1.5, label=L"{\rm Synthetic}")
         ax1.plot(wavs_iag, flux_iag./maximum(flux_iag), marker="s", c="tab:blue", ms=2.0, lw=1.0, markevery=10, label=L"{\rm IAG}")
         ax1.plot(wavs_iag, flux_iag_cor./maximum(flux_iag_cor), alpha=0.9, marker="o", c="tab:green", ms=2.0, lw=1.0, markevery=10, label=L"{\rm Cleaned\ IAG}")
         ax2.plot(lambdas1, flux_iag_itp./maximum(flux_iag_itp) .- outspec1, c="tab:blue", marker="s", ms=2.0, lw=0)
