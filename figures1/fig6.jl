@@ -29,7 +29,7 @@ function main()
     lines = [5434.5]
     depths = [0.8]
     resolution = 700000.0
-    indirs = [GRASS.soldir * "FeI_5434/"]
+    templates = ["FeI_5434"]
 
     # get angles
     n_inc = 20
@@ -55,7 +55,7 @@ function main()
         println("running pole " * string(i) * " of " * string(n_inc))
 
          # create spec and disk params instances
-        spec = SpecParams(lines=lines, depths=depths, resolution=resolution, indirs=indirs)
+        spec = SpecParams(lines=lines, depths=depths, resolution=resolution, templates=templates)
         disk = DiskParams(N=N, Nt=Nt, pole=poles[i])
 
         # synthesize spectra, get velocities and stats

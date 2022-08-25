@@ -30,9 +30,9 @@ function main()
     # set up parameters for lines
     lines = [5434.5]
     depths = [0.8]
-    indirs = [GRASS.soldir * "FeI_5434/"]
+    templates = ["FeI_5434"]
     res = 700000.0
-    spec = SpecParams(lines=lines, depths=depths, resolution=res, indirs=indirs, contiguous_only=true)
+    spec = SpecParams(lines=lines, depths=depths, resolution=res, templates=templates)
 
     # allocate shared arrays
     avg_avg_res = SharedArray{Float64}(length(N))
