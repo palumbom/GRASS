@@ -44,7 +44,7 @@ function main()
     @sync @distributed for i in 1:length(N)
     	println("running resolution N = " * string(N[i]))
         disk = DiskParams(N=N[i], Nt=Nt)
-    	avg_avg1, std_avg1, avg_rms1, std_rms1 = spec_loop(spec, disk, Nloop, use_gpu=use_gpu)
+    	avg_avg1, std_avg1, avg_rms1, std_rms1 = GRASS.spec_loop(spec, disk, Nloop, use_gpu=use_gpu)
         avg_avg_res[i] = avg_avg1
         std_avg_res[i] = std_avg1
     	avg_rms_res[i] = avg_rms1

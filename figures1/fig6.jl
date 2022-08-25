@@ -59,7 +59,7 @@ function main()
         disk = DiskParams(N=N, Nt=Nt, pole=poles[i])
 
         # synthesize spectra, get velocities and stats
-        avg_avg1, std_avg1, avg_rms1, std_rms1 = spec_loop(spec, disk, Nloop, use_gpu=use_gpu)
+        avg_avg1, std_avg1, avg_rms1, std_rms1 = GRASS.spec_loop(spec, disk, Nloop, use_gpu=use_gpu)
         avg_avg_inc[i] = avg_avg1
         std_avg_inc[i] = std_avg1
         avg_rms_inc[i] = avg_rms1

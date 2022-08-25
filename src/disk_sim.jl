@@ -9,12 +9,13 @@ function line_loop_cpu(prof::AA{T,1}, mid::T, depth::T, z_rot::T,
     λΔD = mid * (one(T) + z_rot) * (one(T) + conv_blueshift)
 
     # find window around shifted line
-    lind = findfirst(x -> x > λΔD - 1.0, lambdas)
+    buff = maximum(wsp.widt) / 2.0
+    lind = findfirst(x -> x > λΔD - buff, lambdas)
     if isnothing(lind)
         lind = firstindex(lambdas)
     end
 
-    rind = findfirst(x -> x > λΔD + 1.0, lambdas)
+    rind = findfirst(x -> x > λΔD + buff, lambdas)
     if isnothing(rind)
         rind = lastindex(lambdas)
     end
