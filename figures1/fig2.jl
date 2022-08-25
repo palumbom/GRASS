@@ -20,11 +20,10 @@ function main()
     ncurves = 25
 
     # get input data
-    bisinfo = GRASS.SolarData(dir=GRASS.soldir * "FeI_5434/")
+    bisinfo = GRASS.SolarData(fname = GRASS.soldir * "FeI_5434.h5")
     key = (:c, :mu10)
     bis = bisinfo.bis[key]
-    wav = bisinfo.wav[key]
-    dep = bisinfo.dep[key]
+    int = bisinfo.int[key]
     wid = bisinfo.wid[key]
 
     # create colormap and colorbar
@@ -39,7 +38,7 @@ function main()
     fig = plt.figure()
     ax1 = fig.add_subplot()
     for (i, t) in enumerate(iter)
-        ax1.plot(wav[:,t][2:end].*1000, bis[:,t][2:end], c=cols[i], alpha=0.75)
+        ax1.plot(bis[:,t][2:end].*1000, int[:,t][2:end], c=cols[i], alpha=0.75)
     end
 
     # shade upper region
@@ -66,7 +65,7 @@ function main()
     fig = plt.figure()
     ax1 = fig.add_subplot()
     for (i, t) in enumerate(iter)
-        ax1.plot(dep[:,t], wid[:,t], c=cols[i], alpha=0.75)
+        ax1.plot(int[:,t], wid[:,t], c=cols[i], alpha=0.75)
     end
 
     # set axis limits + labels

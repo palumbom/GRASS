@@ -1,11 +1,10 @@
 # parallelized for loop
-function spec_loop(spec::SpecParams, disk::DiskParams, Nloop::T;
-                               top::Float64=NaN, use_gpu::Bool=false) where T<:Integer
+function spec_loop(spec::SpecParams, disk::DiskParams, Nloop::T; use_gpu::Bool=false) where T<:Integer
     rms0 = zeros(Nloop)
     avg0 = zeros(Nloop)
     for j in 1:Nloop
         # synthesize spectra
-        lambdas, outspec = synthesize_spectra(spec, disk, seed_rng=false, top=top, use_gpu=use_gpu, verbose=false)
+        lambdas, outspec = synthesize_spectra(spec, disk, seed_rng=false, use_gpu=use_gpu, verbose=false)
 
         # extract velocities
         v_grid, ccf = calc_ccf(lambdas, outspec, spec, normalize=true)
