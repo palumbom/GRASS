@@ -60,7 +60,7 @@ end
     GRASS.trim_bisector!(dep, bist1, intt1)
 
     # allocate memory for line
-    λs = range(5433.0, 5436.0, step=5434.5/7e5)
+    λs = range(5432.0, 5437.0, step=5434.5/7e5)
     lwavgrid = zeros(100)
     rwavgrid = zeros(100)
     allwavs = zeros(200)
@@ -75,8 +75,8 @@ end
     @test !all(prof .== 1.0)
     @test prof[1] == 1.0
     @test prof[end] == 1.0
-    @test minimum(prof) == 1.0 - dep
-    @test maximum(prof) == 1.0
+    @test isapprox(minimum(prof), 1.0 - dep, atol=1e-3)
+    @test isapprox(maximum(prof), 1.0, atol=1e-3)
 end
 
 @testset "Testing bisector in/out" begin
@@ -89,7 +89,7 @@ end
     GRASS.trim_bisector!(dep, bist1, intt1)
 
     # allocate memory for line
-    λs = range(5433.0, 5436.0, step=5434.5/7e5)
+    λs = range(5432.0, 5437.0, step=5434.5/7e5)
     lwavgrid = zeros(100)
     rwavgrid = zeros(100)
     allwavs = zeros(200)
