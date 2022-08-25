@@ -12,9 +12,6 @@ using DataFrames
 using LaTeXStrings
 using LsqFit
 
-# define rms loop function
-include(GRASS.moddir * "figures1/fig_functions.jl")
-
 # some global stuff
 const N = 132
 const Nt = 200
@@ -32,7 +29,7 @@ function main()
     lines = [5434.5]
     depths = [0.8]
     resolution = 700000.0
-    indirs = [GRASS.soldir * "FeI_5434/"]
+    templates = ["FeI_5434"]
 
     # get angles
     n_inc = 20
@@ -58,11 +55,11 @@ function main()
         println("running pole " * string(i) * " of " * string(n_inc))
 
          # create spec and disk params instances
-        spec = SpecParams(lines=lines, depths=depths, resolution=resolution, indirs=indirs)
+        spec = SpecParams(lines=lines, depths=depths, resolution=resolution, templates=templates)
         disk = DiskParams(N=N, Nt=Nt, pole=poles[i])
 
         # synthesize spectra, get velocities and stats
-        avg_avg1, std_avg1, avg_rms1, std_rms1 = spec_loop(spec, disk, Nloop, use_gpu=use_gpu)
+        avg_avg1, std_avg1, avg_rms1, std_rms1 = GRASS.spec_loop(spec, disk, Nloop, use_gpu=use_gpu)
         avg_avg_inc[i] = avg_avg1
         std_avg_inc[i] = std_avg1
         avg_rms_inc[i] = avg_rms1

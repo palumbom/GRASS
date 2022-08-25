@@ -1,19 +1,17 @@
 # import stuff
-using Distributed
-@everywhere using Pkg
-@everywhere Pkg.activate(".")
-@everywhere using Statistics
-@everywhere using CUDA
-@everywhere using GRASS
-@everywhere using SharedArrays
-@everywhere using EchelleCCFs
 using CSV
+using LsqFit
 using DataFrames
 using LaTeXStrings
-using LsqFit
-
-# define some functions
-include(GRASS.moddir * "figures1/fig_functions.jl")
+using Distributed
+@everywhere begin
+    using Pkg; Pkg.activate(".")
+    using Statistics
+    using CUDA
+    using GRASS
+    using SharedArrays
+    using EchelleCCFs
+end
 
 # some global stuff
 const N = round.(Int, 2 .^ range(6, 10, step=0.5))
@@ -32,9 +30,9 @@ function main()
     # set up parameters for lines
     lines = [5434.5]
     depths = [0.8]
-    indirs = [GRASS.soldir * "FeI_5434/"]
+    templates = ["FeI_5434"]
     res = 700000.0
-    spec = SpecParams(lines=lines, depths=depths, resolution=res, indirs=indirs, contiguous_only=true)
+    spec = SpecParams(lines=lines, depths=depths, resolution=res, templates=templates)
 
     # allocate shared arrays
     avg_avg_res = SharedArray{Float64}(length(N))
@@ -46,7 +44,7 @@ function main()
     @sync @distributed for i in 1:length(N)
     	println("running resolution N = " * string(N[i]))
         disk = DiskParams(N=N[i], Nt=Nt)
-    	avg_avg1, std_avg1, avg_rms1, std_rms1 = spec_loop(spec, disk, Nloop, use_gpu=use_gpu)
+    	avg_avg1, std_avg1, avg_rms1, std_rms1 = GRASS.spec_loop(spec, disk, Nloop, use_gpu=use_gpu)
         avg_avg_res[i] = avg_avg1
         std_avg_res[i] = std_avg1
     	avg_rms_res[i] = avg_rms1

@@ -1,173 +1,161 @@
-using Peaks
-using LsqFit
-import PyPlot; plt = PyPlot; mpl = plt.matplotlib; plt.ioff()
+function write_line_params(line_df::DataFrame; clobber::Bool=false)
+    # get the filename
+    fname = GRASS.soldir * line_df.name[1] * ".h5"
 
-function fit_line_wings(wavs, spec; center=NaN, side="left")
-    @assert !isnan(center)
-
-    # find flux at percent depths
-    botind = argmin(spec)
-    flux_lo = 0.25 * (1.0 - minimum(spec)) + minimum(spec)
-    flux_hi = 0.80 * (1.0 - minimum(spec)) + minimum(spec)
-
-    plt.axhline(flux_lo, c="k")
-    plt.axhline(flux_hi, c="k")
-
-    if side == "left"
-        idx_lo = findfirst(x -> x .<= flux_lo, spec)
-        idx_hi = findfirst(x -> x .<= flux_hi, spec)
-        wavs_fit = wavs[idx_hi:idx_lo]
-        spec_fit = spec[idx_hi:idx_lo]
-
-        # plt.plot(wavs, spec);
-        # plt.axvline(wavs[botind], c="k")
-        # plt.axhline(spec[idx_lo], c="k")
-        # plt.axhline(spec[idx_hi], c="k")
-        # plt.show()
-    elseif side == "right"
-        idx_lo = findfirst(x -> x .>= flux_lo, view(spec, botind:length(spec))) + botind
-        idx_hi = findfirst(x -> x .>= flux_hi, view(spec, botind:length(spec))) + botind
-        wavs_fit = wavs[idx_lo:idx_hi]
-        spec_fit = spec[idx_lo:idx_hi]
-
-        # plt.clf();
-        # plt.plot(wavs, spec);
-        # plt.axvline(wavs[botind], c="k")
-        # plt.axhline(spec[idx_lo], c="k")
-        # plt.axhline(spec[idx_hi], c="k")
+    # create the file if it doesn't exist
+    if clobber | !isfile(fname)
+        h5open(fname, "w") do f; end
     end
 
-    plt.plot(wavs_fit, spec_fit, c="tab:green")
+    # write the line properties as attributes of the file
+    h5open(fname, "r+") do f
+        # get the attrributes
+        attr = HDF5.attributes(f)
 
-    # perform the fit
-    lb = [-1.0, center-0.05, 0.0, 0.0, 1.0]
-    ub = [0.0, center+0.05, 5.0, 5.0, 1.0]
-    p0 = [-0.125, center, 0.03, 0.03, 1.0]
-    fit = curve_fit(fit_voigt, wavs_fit, spec_fit, p0)# lower=lb, upper=ub)
-    # @show fit.param
-    return fit_voigt(wavs, fit.param)
-end
+        # check if the metadata already exists
+        if haskey(attr, "depth")
+            println("\t >>> " * splitdir(fname)[end] * " metadata already exists...")
+        else
+            # read in the IAG data and isolate the line
+            println("\t >>> Writing line properties to " * splitdir(fname)[end])
+            iag_wavs, iag_flux = read_iag(isolate=true, airwav=line_df.air_wavelength[1])
+            iag_depth = 1.0 - minimum(iag_flux)
 
-function clean_line(wavs::AA{T,1}, spec::AA{T,1}; center::T=NaN, plot=false,
-                    lwing_Δ_idx::Int=0, rwing_Δ_idx::Int=0) where T<:Float64
-    # check that the length of arrays match
-    @assert !isnan(center)
-    @assert length(wavs) == length(spec)
+            # write the attributes to file metadata
+            for n in names(line_df)
+                if ismissing(line_df[!, n][1])
+                    attr[n] = NaN
+                else
+                    attr[n] = line_df[!, n][1]
+                end
+            end
+            attr["depth"] = iag_depth
+        end
 
-    # compute a moving average
-    n_avg = 5
-    wavs_ma = moving_average(wavs, 5)
-    spec_ma = moving_average(spec, 5)
-
-    # strip plateaus
-    plat_inds = Array{Bool,1}(undef, length(spec_ma))
-    plat_inds .= false
-    for i in 2:length(spec_ma)
-        if isequal(spec_ma[i-1], spec_ma[i])
-            plat_inds[i] = true
+        # look for any pre-existing input data and delete it
+        if !isempty(keys(f))
+            println("\t >>> Purging old input data...")
+            for k in keys(f)
+                delete_object(f, k)
+            end
         end
     end
-
-    # find peaks in spectrum
-    m_inds = Peaks.argminima(spec_ma[.!plat_inds], 10, strict=false)
-
-    # get better center estimate
-    m_inds_idx = argmin(abs.(wavs[m_inds] .- center))
-    center_idx = m_inds[m_inds_idx]
-    center_wav = wavs[center_idx]
-
-    # find indices for continuum on either side of line
-    if iszero(lwing_Δ_idx) && iszero(rwing_Δ_idx)
-        println(">>> Plotting spectrum w/ line annotation...")
-        c_inds = Peaks.argmaxima(spec, 10, strict=false)
-        c_idx_r = findfirst(wavs[c_inds] .> center_wav)
-        c_idx_l = c_idx_r - 1
-
-        @show center_idx - c_inds[c_idx_l]
-        @show c_inds[c_idx_r] - center_idx
-
-        plt.axvline(wavs[c_inds][c_idx_l], c="k")
-        plt.axvline(wavs[c_inds][c_idx_r], c="k")
-        plt.axvline(center_wav, c="orange")
-        plt.plot(wavs, spec./maximum(spec))
-        plt.title(string(center))
-        plt.show()
-        return nothing
-    end
-
-    # calculate wing indices
-    lwing_idx = center_idx - lwing_Δ_idx
-    rwing_idx = center_idx + rwing_Δ_idx
-
-    if plot
-        plt.axvline(wavs[lwing_idx], c="k")
-        plt.axvline(wavs[rwing_idx], c="k")
-        plt.axvline(center_wav, ls="--", c="k")
-        plt.plot(wavs, spec./maximum(spec[lwing_idx:rwing_idx]))
-    end
-
-    # take view of spectrum isolated on line to fit
-    newwavs = view(wavs, lwing_idx:rwing_idx)
-    newspec = view(spec, lwing_idx:rwing_idx)
-
-    # do normalization
-    spec ./= maximum(newspec)
-    newspec ./= maximum(newspec)
-
-    # find fluxes above 90% to replace
-    topint = 0.9
-    botind = argmin(newspec);
-    ind1 = findfirst(x -> x .<= topint, newspec[1:botind]) + lwing_idx
-    ind2 = findfirst(x -> x .>= topint, newspec[botind:end]) + botind + lwing_idx
-
-    # set far wings to 1.0
-    # spec[1:lwing_idx-50] .= 1.0
-    # spec[rwing_idx+50:end] .= 1.0
-    spec[1:lwing_idx] .= 1.0
-    spec[rwing_idx:end] .= 1.0
-    # spec[lwing_idx-50:ind1] .= NaN
-    # spec[ind2:rwing_idx+50] .= NaN
-
-    # wavs_not_nan = wavs[findall(.!isnan, spec)]
-    # spec_not_nan = filter(.!isnan, spec)
-
-    # fit it
-    # lwing_flux = fit_line_wings(newwavs, newspec, center=center, side="left")
-    # rwing_flux = fit_line_wings(newwavs, newspec, center=center, side="right")
-
-    # replace data wings with model wings
-    # newspec[1:ind1] .= lwing_flux[1:ind1]
-    # newspec[ind2:end] .= rwing_flux[ind2:end]
-
-    # # fit it
-    # lwing_flux = fit_line_wings(newwavs, newspec, center=center, side="left")
-    # rwing_flux = fit_line_wings(newwavs, newspec, center=center, side="right")
-
-    # divide out slope of spectrum across line to ensure normalization
-    # slope = (newspec[end] - newspec[1]) / (newwavs[end] - newwavs[1])
-    # vals = slope .* (newwavs .- newwavs[1]) .+ newspec[1]
-    # newspec ./= vals
-
-    # normalize it one last time
-    # newspec ./= maximum(newspec)
-
-    # # abort if indices are weird
-    # if isnothing(ind1) || isnothing(ind2)
-    #     println("Indices are weird!!")
-    #     wavs .= NaN
-    #     spec .= NaN
-    #     return wavs, spec
-    # end
-
-    # now just set rest of spectrum to 1
-    # spec[1:lwing_idx] .= 1.0
-    # spec[rwing_idx:end] .= 1.0
-    if plot; plt.plot(wavs, spec); plt.show(); end;
-    return wavs, spec
+    return nothing
 end
 
-function clean_line(wavs::AA{T,2}, spec::AA{T,2}; kwargs...) where T<:Float64
-    f = (x,y) -> clean_line(x, y; kwargs...)
-    out = map(f, eachcol(wavs), eachcol(spec))
-    return cat([x[1] for x in out]..., dims=2), cat([x[2] for x in out]..., dims=2)
+function write_input_data(line_df::DataFrame, ax::String, mu::String, datetime::Dates.DateTime,
+                          bis::AA{T,2}, int::AA{T,2}, wid::AA{T,2}) where T<:AF#; clobber::Bool=False)
+    # get the filename
+    fname = GRASS.soldir * line_df.name[1] * ".h5"
+
+    # create the file if it doesn't exist
+    if !isfile(fname)
+        h5open(fname, "w") do f; end
+    end
+
+    # write the data
+    h5open(fname, "r+") do f
+        # create the group for this disk position if it doesn't exists
+        if !haskey(f, ax * "_" * mu)
+            create_group(f, ax * "_" * mu)
+            pos_group = f[ax * "_" * mu]
+
+            # set attributes for this group
+            attr = HDF5.attributes(pos_group)
+            attr["mu"] = mu
+            attr["axis"] = ax
+        end
+
+        # create the sub-group for this specific datetime
+        pos_group = f[ax * "_" * mu]
+        create_group(pos_group, string(datetime))
+        g = pos_group[string(datetime)]
+
+        # set attributes
+        attr = HDF5.attributes(g)
+        attr["datetime"] = string(datetime)
+        attr["length"] = size(bis,2)
+
+        # fill out the datasets
+        g["bisectors"] = bis
+        g["intensities"] = int
+        g["widths"] = wid
+    end
+    return nothing
+end
+
+function find_wing_index(val, arr; min=argmin(arr))
+    lidx = findfirst(x -> x .>= val, reverse(arr[1:min]))
+    ridx = findfirst(x -> x .>= val, arr[min:end])
+    if isnothing(lidx)
+        lidx = lastindex(reverse(arr[1:min])) - 1
+    elseif isnothing(ridx)
+        ridx = lastindex(arr[min:end]) - 1
+    end
+    return clamp(min - lidx, 1, min), clamp(ridx + min, min, length(arr))
+end
+
+
+function fit_line_wings(wavs_iso::AA{T,1}, flux_iso::AA{T,1}) where T<:AF
+    # get indices and values for minimum, depth, and bottom
+    min = argmin(flux_iso)
+    bot = flux_iso[min]
+    depth = 1.0 - bot
+
+    # get wing indices for various percentage depths into line
+    lidx50, ridx50 = find_wing_index(0.5 * depth + bot, flux_iso, min=min)
+    lidx60, ridx60 = find_wing_index(0.6 * depth + bot, flux_iso, min=min)
+    lidx70, ridx70 = find_wing_index(0.7 * depth + bot, flux_iso, min=min)
+    lidx80, ridx80 = find_wing_index(0.8 * depth + bot, flux_iso, min=min)
+    lidx90, ridx90 = find_wing_index(0.9 * depth + bot, flux_iso, min=min)
+
+    # isolate the line wings and mask area around line core for fitting
+    Δbot = 2
+    core = min-Δbot:min+Δbot
+    lwing = lidx90:lidx50
+    rwing = ridx50:ridx90
+    wavs_fit = vcat(wavs_iso[lwing], wavs_iso[core], wavs_iso[rwing])
+    flux_fit = vcat(flux_iso[lwing], flux_iso[core], flux_iso[rwing])
+
+    # set boundary conditions and initial guess
+    # GOOD FOR FeI 5434 + others
+    lb = [0.0, wavs_iso[min], 0.0, 0.0]
+    ub = [1.0, wavs_iso[min], 0.5, 0.5]
+    p0 = [1.0 - depth, wavs_iso[min], 0.02, 0.01]
+    # GOOD FOR FeI 5434 + others
+
+    # perform the fit
+    fit = curve_fit(GRASS.fit_voigt, wavs_fit, flux_fit, p0, lower=lb, upper=ub)
+    return fit
+end
+
+function replace_line_wings(fit, wavst::AA{T,1}, fluxt::AA{T,1}, min::Int, val::T; debug::Bool=false) where T<:AF
+    # get line model for all wavelengths in original spectrum
+    flux_new = GRASS.fit_voigt(wavst, fit.param)
+
+    # do a quick "normalization"
+    flux_new ./= maximum(flux_new)
+
+    # find indices
+    idxl, idxr = find_wing_index(val, fluxt, min=min)
+
+    # adjust any "kinks" between the wing model and and raw spec
+    flux_new_l = copy(flux_new)
+    Δfluxl = fluxt[idxl] - flux_new_l[idxl]
+    while Δfluxl > 0.0 && !isapprox(flux_new_l[idxl], fluxt[idxl], atol=1e-4)
+        flux_new_l = circshift(flux_new_l, 1)
+        Δfluxl = fluxt[idxl] - flux_new_l[idxl]
+    end
+
+    flux_new_r = copy(flux_new)
+    Δfluxr = flux_new_r[idxr] - fluxt[idxr]
+    while Δfluxr > 0.0 && !isapprox(flux_new_r[idxr], fluxt[idxr], atol=1e-4)
+        flux_new_r = circshift(flux_new_r, -1)
+        Δfluxr = fluxt[idxr] - flux_new_r[idxr]
+    end
+
+    # replace wings with model
+    fluxt[1:idxl] .= flux_new_l[1:idxl]
+    fluxt[idxr:end] .= flux_new_r[idxr:end]
+    return nothing
 end

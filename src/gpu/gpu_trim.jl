@@ -1,5 +1,5 @@
 # TODO fix this function for the case where template is shallower than synthetic
-function trim_bisector_gpu(depth, wavall_out, depall_out, wavall_in, depall_in)
+function trim_bisector_gpu(depth, bisall_out, intall_out, bisall_in, intall_in)
     # get indices from GPU blocks + threads
     idx = threadIdx().x + blockDim().x * (blockIdx().x-1)
     sdx = blockDim().x * gridDim().x
@@ -7,39 +7,39 @@ function trim_bisector_gpu(depth, wavall_out, depall_out, wavall_in, depall_in)
     sdy = blockDim().y * gridDim().y
 
     # loop over epochs of bisectors
-    for i in idx:sdx:CUDA.size(wavall_in, 2)
+    for i in idx:sdx:CUDA.size(bisall_in, 2)
         # get views of the correct time slice in input
-        wavt_in = CUDA.view(wavall_in, :, i)
-        dept_in = CUDA.view(depall_in, :, i)
+        bist_in = CUDA.view(bisall_in, :, i)
+        intt_in = CUDA.view(intall_in, :, i)
 
         # get views of the correct time slice in output
-        wavt_out = CUDA.view(wavall_out, :, i)
-        dept_out = CUDA.view(depall_out, :, i)
+        bist_out = CUDA.view(bisall_out, :, i)
+        intt_out = CUDA.view(intall_out, :, i)
 
         # loop over the length of the bisector
-        step = depth/(CUDA.length(dept_in) - 1)
-        for j in idy:sdy:CUDA.size(wavall_in, 1)
+        step = depth/(CUDA.length(intt_in) - 1)
+        for j in idy:sdy:CUDA.size(bisall_in, 1)
             # set the new depth value
-            new_dept = (1.0 - depth) + (j-1) * step
+            new_intt = (1.0 - depth) + (j-1) * step
 
             # if depth is greater than input depth, stretch the bisector
-            if (1.0 - depth) < CUDA.first(dept_in)
-                @inbounds dept_out[j] = new_dept
+            if (1.0 - depth) < CUDA.first(intt_in)
+                @inbounds intt_out[j] = new_intt
             else
                 # interpolate to get the new wavelength value
-                if new_dept <= CUDA.first(dept_in)
-                    @inbounds wavt_out[j] = CUDA.first(wavt_in)
-                elseif new_dept >= CUDA.last(dept_in)
-                    @inbounds wavt_out[j] = CUDA.last(wavt_in)
+                if new_intt <= CUDA.first(intt_in)
+                    @inbounds bist_out[j] = CUDA.first(bist_in)
+                elseif new_intt >= CUDA.last(intt_in)
+                    @inbounds bist_out[j] = CUDA.last(bist_in)
                 else
-                    k = CUDA.searchsortedfirst(dept_in, new_dept) - 1
-                    k0 = CUDA.clamp(k, CUDA.firstindex(wavt_in), CUDA.lastindex(wavt_in))
-                    k1 = CUDA.clamp(k+1, CUDA.firstindex(wavt_in), CUDA.lastindex(wavt_in))
-                    @inbounds wavt_out[j] = (wavt_in[k0] * (dept_in[k1] - new_dept) + wavt_in[k1] * (new_dept - dept_in[k0])) / (dept_in[k1] - dept_in[k0])
+                    k = CUDA.searchsortedfirst(intt_in, new_intt) - 1
+                    k0 = CUDA.clamp(k, CUDA.firstindex(bist_in), CUDA.lastindex(bist_in))
+                    k1 = CUDA.clamp(k+1, CUDA.firstindex(bist_in), CUDA.lastindex(bist_in))
+                    @inbounds bist_out[j] = (bist_in[k0] * (intt_in[k1] - new_intt) + bist_in[k1] * (new_intt - intt_in[k0])) / (intt_in[k1] - intt_in[k0])
                 end
 
                 # assign bisector fluxes from dept
-                @inbounds dept_out[j] = new_dept
+                @inbounds intt_out[j] = new_intt
             end
         end
     end
