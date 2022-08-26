@@ -11,6 +11,6 @@ include("test_input.jl")
 include("test_synthesis.jl")
 
 # run the GPU tests if there is a GPU
-if CUDA.functional()
-    include("test_gpu.jl")
-end
+# if CUDA.functional()
+#     include("test_gpu.jl")
+# end
