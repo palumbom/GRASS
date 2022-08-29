@@ -15,7 +15,7 @@ using LsqFit
 # some global stuff
 const N = 132
 const Nt = 200
-const Nloop = 100
+const Nloop = 200
 
 # get command line args and output directories
 run, plot = parse_args(ARGS)
