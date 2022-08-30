@@ -28,5 +28,5 @@ makedocs(;
 
 deploydocs(;
     repo="github.com/palumbom/GRASS",
-    devbranch = "main",
+    devbranch = "multiple",
 )
