@@ -5,8 +5,8 @@
 *.log
 *.pdf
 *.sublime-workspace
+*.gz
+*.json
+
 .ipynb_checkpoints
 /docs/build/
-*.gz
-Manifest.toml
-*.json
