@@ -8,7 +8,7 @@ function download_iag()
     println(">>> Downloading IAG atlas...")
     url = "http://cdsarc.u-strasbg.fr/viz-bin/nph-Cat/txt.gz?J/A+A/587/A65/spvis.dat.gz"
     file = HTTP.download(url, datdir * "spvis.dat.gz", update_period=Inf)
-    println(">>> IAG atlas downloaded!")
+    println(">>> IAG atlas downloaded to " * file)
     return nothing
 end
 
