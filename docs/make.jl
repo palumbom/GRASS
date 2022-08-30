@@ -16,7 +16,7 @@ pages = [Introduction, Getting_Started, License, Index]
 makedocs(;
     modules=[GRASS],
     authors="Michael Palumbo",
-    repo="https://github.com/palumbom/GRASS/blob/{commit}{path}#{line}",
+    # repo="https://github.com/palumbom/GRASS/blob/{commit}{path}#{line}",
     sitename="GRASS",
     format=Documenter.HTML(;
         prettyurls=get(ENV, "CI", "false") == "true",
@@ -28,5 +28,4 @@ makedocs(;
 
 deploydocs(;
     repo="github.com/palumbom/GRASS",
-    devbranch = nothing,
 )
