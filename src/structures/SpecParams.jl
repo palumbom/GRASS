@@ -38,7 +38,7 @@ function SpecParams(;lines=[], depths=[], variability=[], resolution=7e5,
 
     # read in convective blueshifts
     df = CSV.read(soldir * "../convective_blueshift.dat", DataFrame,
-                  header=1, delim=",", type=Float64)
+                  header=1, delim=",", types=Float64)
 
     # assign convective blueshifts
     blueshifts = similar(lines)
