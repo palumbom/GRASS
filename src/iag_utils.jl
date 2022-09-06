@@ -1,29 +1,36 @@
-using HTTP
-using GZip
 using CSV
+using HTTP
 using DataFrames
 using EchelleCCFs: λ_air_to_vac, λ_vac_to_air
 
 function download_iag()
+    # download the file
     println(">>> Downloading IAG atlas...")
     url = "http://cdsarc.u-strasbg.fr/viz-bin/nph-Cat/txt.gz?J/A+A/587/A65/spvis.dat.gz"
-    file = HTTP.download(url, datdir * "spvis.dat.gz", update_period=Inf)
+    file = HTTP.download(url, datadir * "spvis.dat.gz", update_period=Inf)
+
+    # decompress it
+    @assert isfile(file)
+    try
+        run(`gunzip -q $file`)
+    catch e
+        nothing
+    end
+
     println(">>> IAG atlas downloaded to " * file)
     return nothing
 end
 
 function read_iag(; isolate::Bool=true, airwav::Float64=5434.5232)
     # download the IAG atlas
-    file = datdir * "spvis.dat.gz"
+    file = datdir * "spvis.dat"
     if !isfile(file) || mtime(file) < 1.66e9
         download_iag()
     end
 
     # read in the IAG atlas
-    iag = GZip.open(file, "r") do io
-        CSV.read(io, DataFrame, ignorerepeated=true, delim="|", skipto=5,
-                 footerskip=1, header=["wavenum", "nflux", "flux"])
-    end
+    iag = CSV.read(file, DataFrame, ignorerepeated=true, delim="|", skipto=5,
+                   footerskip=1, header=["wavenum", "nflux", "flux"])
 
     # convert wavenumber to wavelength in angstroms
     wavs = (1.0 ./ iag.wavenum) * 1e8
