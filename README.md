@@ -6,7 +6,7 @@
 <a href="https://ascl.net/2110.011"><img src="https://img.shields.io/badge/ascl-2110.011-blue.svg?colorB=262255" alt="ascl:2110.011" /></a>
 [![arXiv](https://img.shields.io/badge/arXiv-2110.11839-b31b1b.svg)](https://arxiv.org/abs/2110.11839)
 
-GRASS is a package designed to produce realistic time series of stellar spectra with realistic line-shape changes from solar-like granulation. GRASS v1.0.x is described in detail in [Palumbo et al.](https://arxiv.org/abs/2110.11839). The results of this paper can be reproduced using the [showyourwork workflow](https://github.com/showyourwork/showyourwork) from [this repo](https://github.com/palumbom/palumbo22).
+GRASS is a package designed to produce realistic time series of stellar spectra with realistic line-shape changes from solar-like granulation. GRASS v1.0.x is described in detail in [Palumbo et al. (2022)](https://arxiv.org/abs/2110.11839). The results of this paper can be reproduced using the [showyourwork workflow](https://github.com/showyourwork/showyourwork) from [this repo](https://github.com/palumbom/palumbo22).
 
 ## Examples
 Generating synthetic spectra with GRASS only takes a few lines of Julia:
