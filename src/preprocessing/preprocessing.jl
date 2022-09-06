@@ -119,13 +119,18 @@ function fit_line_wings(wavs_iso::AA{T,1}, flux_iso::AA{T,1}; debug::Bool=false)
 
     # set boundary conditions and initial guess
     # GOOD FOR FeI 5434 + others
-    lb = [0.0, wavs_iso[min], 0.0, 0.0]
-    ub = [1.0, wavs_iso[min], 0.5, 0.5]
-    p0 = [1.0 - depth, wavs_iso[min], 0.02, 0.01]
-    # GOOD FOR FeI 5434 + others
+    if !isapprox(wavs_iso[argmin(flux_iso)], 5896, atol=1e0)
+        lb = [0.0, wavs_iso[min], 0.0, 0.0]
+        ub = [100.0, wavs_iso[min], 0.5, 0.5]
+        p0 = [1.0 - depth, wavs_iso[min], 0.02, 0.01]
+    else
+        lb = [0.0, wavs_iso[min], 0.0, 0.0]
+        ub = [100.0, wavs_iso[min], 5.0, 5.0]
+        p0 = [1.0 - depth, wavs_iso[min], 1.0, 1.0]
+    end
 
     # perform the fit
-    fit = curve_fit(GRASS.fit_voigt, wavs_fit, flux_fit, p0)#, lower=lb, upper=ub)
+    fit = curve_fit(GRASS.fit_voigt, wavs_fit, flux_fit, p0, lower=lb, upper=ub)
     if debug @show fit.param end
     return fit
 end
