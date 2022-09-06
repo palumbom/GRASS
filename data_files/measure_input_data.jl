@@ -41,8 +41,10 @@ function preprocess_line(line_name::String; clobber::Bool=true, verbose::Bool=tr
     for i in eachindex(fits_files)
         # debugging block + filename printing
         if debug && i > 1
-            # break
-            nothing
+        # if debug && !contains(fits_files[i], "mu07_n")
+            break
+            # nothing
+            # continue
         elseif verbose
             println("\t >>> " * splitdir(fits_files[i])[end])
         end
@@ -77,7 +79,6 @@ function preprocess_line(line_name::String; clobber::Bool=true, verbose::Bool=tr
             # debugging block
             if debug && t > 1
                 break
-                # nothing
             end
 
             # get view of this time slice
@@ -142,7 +143,7 @@ function preprocess_line(line_name::String; clobber::Bool=true, verbose::Bool=tr
 
             # replace the line wings above % continuum
             # val = 0.9 * depth + bot
-            val = 0.9
+            val = 0.8
             if debug
                 idxl, idxr = GRASS.find_wing_index(val, flux_meas, min=min)
                 ax1.axhline(flux_meas[idxl], c="k", ls="--", alpha=0.5)
