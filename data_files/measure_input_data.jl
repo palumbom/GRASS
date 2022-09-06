@@ -11,7 +11,9 @@ mpl.style.use(GRASS.moddir * "figures1/fig.mplstyle")
 
 # set LARS spectra absolute dir and read line info file
 const data_dir = "/storage/group/ebf11/default/mlp95/lars_spectra/"
-const line_info = CSV.read(GRASS.datdir * "line_info.csv", DataFrame)
+const line_info = CSV.read(GRASS.datdir * "line_info.csv", DataFrame,
+                           types=[String, String, Float64, Float64, Float64,
+                                  Float64, Float64, Float64, String])
 
 # output directories for misc stuff
 const grassdir, plotdir, datadir = GRASS.check_plot_dirs()
@@ -186,11 +188,11 @@ function main()
     for name in line_info.name
         # skip the "hard" lines for now
         # !(name in ["FeI_5434", "FeI_5576", "FeI_6173"]) && continue
-        # name != "FeI_5434" && continue
+        name != "FeI_5434" && continue
 
         # print the line name and preprocess it
         println(">>> Processing " * name * "...")
-        preprocess_line(name, debug=false)
+        preprocess_line(name, debug=true)
     end
     return nothing
 end
