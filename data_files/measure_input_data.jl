@@ -41,7 +41,8 @@ function preprocess_line(line_name::String; clobber::Bool=true, verbose::Bool=tr
     for i in eachindex(fits_files)
         # debugging block + filename printing
         if debug && i > 1
-            break
+            # break
+            nothing
         elseif verbose
             println("\t >>> " * splitdir(fits_files[i])[end])
         end
@@ -57,17 +58,26 @@ function preprocess_line(line_name::String; clobber::Bool=true, verbose::Bool=tr
         # normalize the spectra
         flux ./= maximum(flux, dims=1)
 
-        # allocate memory for input data
-        bis = zeros(100, size(wavs,2))
-        int1 = zeros(100, size(wavs,2))
-        int2 = zeros(100, size(wavs,2))
-        wid = zeros(100, size(wavs,2))
+        # allocate memory for measuring input data
+        nflux = 500
+        bis = zeros(nflux, size(wavs,2))
+        int1 = zeros(nflux, size(wavs,2))
+        int2 = zeros(nflux, size(wavs,2))
+        wid = zeros(nflux, size(wavs,2))
+
+        # allocate memory for writing it
+        nflux_w = 100
+        bis_w = zeros(nflux_w, size(wavs,2))
+        int_w = zeros(nflux_w, size(wavs,2))
+        wid_w = zeros(nflux_w, size(wavs,2))
+
 
         # loop over epochs in spectrum file
         for t in 1:size(wavs, 2)
             # debugging block
             if debug && t > 1
                 break
+                # nothing
             end
 
             # get view of this time slice
@@ -112,7 +122,7 @@ function preprocess_line(line_name::String; clobber::Bool=true, verbose::Bool=tr
             end
 
             # fit the line wings
-            fit = GRASS.fit_line_wings(wavs_iso, flux_iso)
+            fit = GRASS.fit_line_wings(wavs_iso, flux_iso, debug=debug)
 
             # pad the spectrum if line is close to edge of spectral region
             specbuff = 1.5
@@ -130,8 +140,9 @@ function preprocess_line(line_name::String; clobber::Bool=true, verbose::Bool=tr
                 flux_meas = fluxt
             end
 
-            # replace the line wings above val% continuum
-            val = 0.9 * depth + bot
+            # replace the line wings above % continuum
+            # val = 0.9 * depth + bot
+            val = 0.9
             if debug
                 idxl, idxr = GRASS.find_wing_index(val, flux_meas, min=min)
                 ax1.axhline(flux_meas[idxl], c="k", ls="--", alpha=0.5)
@@ -142,8 +153,8 @@ function preprocess_line(line_name::String; clobber::Bool=true, verbose::Bool=tr
 
             # TODO REVIEW BISECTOR CODE
             # measure the bisector and width function
-            bis[:,t], int1[:,t] = GRASS.calc_bisector(wavs_meas, flux_meas, nflux=100, top=0.999)
-            int2[:,t], wid[:,t] = GRASS.calc_width_function(wavs_meas, flux_meas, nflux=100, top=0.999)
+            bis[:,t], int1[:,t] = GRASS.calc_bisector(wavs_meas, flux_meas, nflux=nflux, top=0.999)
+            int2[:,t], wid[:,t] = GRASS.calc_width_function(wavs_meas, flux_meas, nflux=nflux, top=0.999)
 
             # make sure the intensities are the same
             @assert all(int1[:,t] .== int2[:,t])
@@ -161,6 +172,7 @@ function preprocess_line(line_name::String; clobber::Bool=true, verbose::Bool=tr
                 ax2.set_ylabel("Width across line")
                 fig.suptitle("\${\\rm " * replace(line_df.name[1], "_" => "\\ ") * "}\$")
                 fig.savefig(plotdir * "spectra_fits/" * line_df.name[1] * ".pdf")
+                plt.show()
                 plt.clf(); plt.close()
             end
         end
@@ -176,9 +188,23 @@ function preprocess_line(line_name::String; clobber::Bool=true, verbose::Bool=tr
         int = GRASS.strip_columns(int1, bad_cols)
         wid = GRASS.strip_columns(wid, bad_cols)
 
+        # interpolate onto shorter grid
+        for i in 1:size(int, 2)
+            # get interpolator
+            itp1 = GRASS.linear_interp(view(int, :, i), view(bis, :, i))
+            itp2 = GRASS.linear_interp(view(int, :, i), view(wid, :, i))
+
+            # get new depth grid
+            int_w[:,i] .= range(minimum(int[:,i]), maximum(int[:,i]), length=nflux_w)
+
+            # evaluate the interpolators
+            bis_w[:,i] .= itp1.(view(int_w, :, i))
+            wid_w[:,i] .= itp2.(view(int_w, :, i))
+        end
+
         # write input data to disk
         if !debug
-            GRASS.write_input_data(line_df, ax_string, mu_string, datetime, bis, int, wid)
+            GRASS.write_input_data(line_df, ax_string, mu_string, datetime, bis_w, int_w, wid_w)
         end
     end
     return nothing

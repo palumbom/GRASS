@@ -96,7 +96,7 @@ function find_wing_index(val, arr; min=argmin(arr))
 end
 
 
-function fit_line_wings(wavs_iso::AA{T,1}, flux_iso::AA{T,1}) where T<:AF
+function fit_line_wings(wavs_iso::AA{T,1}, flux_iso::AA{T,1}; debug::Bool=false) where T<:AF
     # get indices and values for minimum, depth, and bottom
     min = argmin(flux_iso)
     bot = flux_iso[min]
@@ -125,7 +125,8 @@ function fit_line_wings(wavs_iso::AA{T,1}, flux_iso::AA{T,1}) where T<:AF
     # GOOD FOR FeI 5434 + others
 
     # perform the fit
-    fit = curve_fit(GRASS.fit_voigt, wavs_fit, flux_fit, p0, lower=lb, upper=ub)
+    fit = curve_fit(GRASS.fit_voigt, wavs_fit, flux_fit, p0)#, lower=lb, upper=ub)
+    if debug @show fit.param end
     return fit
 end
 
