@@ -30,7 +30,9 @@ function preprocess_line(line_name::String; clobber::Bool=true, verbose::Bool=tr
 
     # find row with line info and write the line_params file
     line_df = subset(line_info, :name => x -> x .== line_name)
-    GRASS.write_line_params(line_df)
+    if ~debug
+        GRASS.write_line_params(line_df)
+    end
 
     # parse out parameters from file names
     spec_df = GRASS.sort_spectrum_data(dir=data_dir * line_df.spectra_dir[1] * "/")
@@ -142,14 +144,21 @@ function preprocess_line(line_name::String; clobber::Bool=true, verbose::Bool=tr
             end
 
             # replace the line wings above % continuum
-            # val = 0.9 * depth + bot
-            val = 0.8
+            if 1 - minimum(flux_iso) < 0.5
+                val = 0.9 * depth + bot
+            else
+                val = 0.8
+            end
+
+            # debugging code block
             if debug
                 idxl, idxr = GRASS.find_wing_index(val, flux_meas, min=min)
                 ax1.axhline(flux_meas[idxl], c="k", ls="--", alpha=0.5)
                 ax1.axhline(flux_meas[idxr], c="k", ls="--", alpha=0.5)
                 ax1.plot(wavs_meas, GRASS.fit_voigt(wavs_meas, fit.param), c="tab:purple", label="model")
             end
+
+            # replace the line wings above val% continuum
             GRASS.replace_line_wings(fit, wavs_meas, flux_meas, min, val, debug=debug)
 
             # TODO REVIEW BISECTOR CODE
@@ -213,7 +222,7 @@ end
 function main()
     for name in line_info.name
         # skip the "hard" lines for now
-        # !(name in ["FeI_5434", "FeI_5576", "FeI_6173"]) && continue
+        (name in ["CI_5380", "FeI_5382"]) && continue
         # name != "FeI_5434" && continue
 
         # print the line name and preprocess it
