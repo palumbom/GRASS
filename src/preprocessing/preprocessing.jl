@@ -129,8 +129,7 @@ function fit_line_wings(wavs_iso::AA{T,1}, flux_iso::AA{T,1}; debug::Bool=false)
     # perform the fit
     fit = curve_fit(GRASS.fit_voigt, wavs_fit, flux_fit, p0, lower=lb, upper=ub)
     if debug @show fit.param end
-    # @show fieldnames(typeof(fit))
-    @show fit.converged
+    if debug @show fit.converged end
     return fit
 end
 
