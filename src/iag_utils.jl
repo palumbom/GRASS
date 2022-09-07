@@ -7,7 +7,7 @@ function download_iag()
     # download the file
     println(">>> Downloading IAG atlas...")
     url = "http://cdsarc.u-strasbg.fr/viz-bin/nph-Cat/txt.gz?J/A+A/587/A65/spvis.dat.gz"
-    file = HTTP.download(url, datadir * "spvis.dat.gz", update_period=Inf)
+    file = HTTP.download(url, datdir * "spvis.dat.gz", update_period=Inf)
 
     # decompress it
     @assert isfile(file)
