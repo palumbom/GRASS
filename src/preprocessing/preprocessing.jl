@@ -104,9 +104,6 @@ function fit_line_wings(wavs_iso::AA{T,1}, flux_iso::AA{T,1}; debug::Bool=false)
 
     # get wing indices for various percentage depths into line
     lidx50, ridx50 = find_wing_index(0.5 * depth + bot, flux_iso, min=min)
-    lidx60, ridx60 = find_wing_index(0.6 * depth + bot, flux_iso, min=min)
-    lidx70, ridx70 = find_wing_index(0.7 * depth + bot, flux_iso, min=min)
-    lidx80, ridx80 = find_wing_index(0.8 * depth + bot, flux_iso, min=min)
     lidx90, ridx90 = find_wing_index(0.9 * depth + bot, flux_iso, min=min)
 
     # isolate the line wings and mask area around line core for fitting
@@ -121,12 +118,12 @@ function fit_line_wings(wavs_iso::AA{T,1}, flux_iso::AA{T,1}; debug::Bool=false)
     # GOOD FOR FeI 5434 + others
     if !isapprox(wavs_iso[argmin(flux_iso)], 5896, atol=1e0)
         lb = [0.0, wavs_iso[min], 0.0, 0.0]
-        ub = [100.0, wavs_iso[min], 0.5, 0.5]
+        ub = [2.5, wavs_iso[min], 0.5, 0.5]
         p0 = [1.0 - depth, wavs_iso[min], 0.02, 0.01]
     else
-        lb = [0.0, wavs_iso[min], 0.0, 0.0]
-        ub = [100.0, wavs_iso[min], 5.0, 5.0]
-        p0 = [1.0 - depth, wavs_iso[min], 1.0, 1.0]
+        lb = [0.5, wavs_iso[min], 0.01, 0.05]
+        ub = [2.5, wavs_iso[min], 0.75, 0.75]
+        p0 = [.97, wavs_iso[min], 0.05, 0.16]
     end
 
     # perform the fit
