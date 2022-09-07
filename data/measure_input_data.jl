@@ -228,7 +228,7 @@ end
 function main()
     for name in line_info.name
         # skip the "hard" lines for now
-        # (name in ["CI_5380", "FeI_5382", "NaI_5896"]) && continue
+        (name in ["CI_5380", "FeI_5382", "NaI_5896"]) && continue
         # name != "FeI_5436.6" && continue
 
         # print the line name and preprocess it
