@@ -43,6 +43,7 @@ function preprocess_line(line_name::String; clobber::Bool=true, verbose::Bool=tr
     for i in eachindex(fits_files)
         # debugging block + filename printing
         if debug && i > 1
+        # if splitdir(fits_files[i])[end] != "lars_l12_20171018-143055_clv5434_mu02_e.ns.chvtt.fits"
         # if debug && !contains(fits_files[i], "mu07_n")
             break
             # nothing
@@ -126,6 +127,10 @@ function preprocess_line(line_name::String; clobber::Bool=true, verbose::Bool=tr
 
             # fit the line wings
             fit = GRASS.fit_line_wings(wavs_iso, flux_iso, debug=debug)
+            if !fit.converged
+                println("\t\t >>> Fit did not converge for t = " * string(t) * ", moving on...")
+                continue
+            end
 
             # pad the spectrum if line is close to edge of spectral region
             specbuff = 1.5
@@ -182,6 +187,7 @@ function preprocess_line(line_name::String; clobber::Bool=true, verbose::Bool=tr
                 ax2.set_ylabel("Width across line")
                 fig.suptitle("\${\\rm " * replace(line_df.name[1], "_" => "\\ ") * "}\$")
                 fig.savefig(plotdir * "spectra_fits/" * line_df.name[1] * ".pdf")
+                plt.show()
                 plt.clf(); plt.close()
             end
         end
@@ -222,8 +228,8 @@ end
 function main()
     for name in line_info.name
         # skip the "hard" lines for now
-        (name in ["CI_5380", "FeI_5382", "NaI_5896"]) && continue
-        # name != "FeII_6149" && continue
+        # (name in ["CI_5380", "FeI_5382", "NaI_5896"]) && continue
+        # name != "FeI_5436.6" && continue
 
         # print the line name and preprocess it
         println(">>> Processing " * name * "...")
