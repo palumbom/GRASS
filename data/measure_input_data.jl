@@ -222,12 +222,12 @@ end
 function main()
     for name in line_info.name
         # skip the "hard" lines for now
-        (name in ["CI_5380", "FeI_5382"]) && continue
-        # name != "FeI_5434" && continue
+        (name in ["CI_5380", "FeI_5382", "NaI_5896"]) && continue
+        # name != "FeII_6149" && continue
 
         # print the line name and preprocess it
         println(">>> Processing " * name * "...")
-        preprocess_line(name, debug=true)
+        preprocess_line(name, debug=false)
     end
     return nothing
 end
