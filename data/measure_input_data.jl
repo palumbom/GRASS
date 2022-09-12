@@ -24,7 +24,7 @@ end
 function preprocess_line(line_name::String; clobber::Bool=true, verbose::Bool=true, debug::Bool=false)
     # delete old preprocessed data
     if !debug && clobber
-        files = Glob.glob("*.h5", GRASS.soldir)
+        files = Glob.glob(line_name * ".h5", GRASS.soldir)
         rm.(files)
     end
 
@@ -42,8 +42,8 @@ function preprocess_line(line_name::String; clobber::Bool=true, verbose::Bool=tr
     fits_files = spec_df.fpath .* spec_df.fname
     for i in eachindex(fits_files)
         # debugging block + filename printing
-        # if debug && i > 1
-        if debug && splitdir(fits_files[i])[end] != "lars_l12_20160820-120935_clv5434_mu05_n.ns.chvtt.fits"
+        if debug && i > 1
+        # if debug && splitdir(fits_files[i])[end] != "lars_l12_20160820-120935_clv5434_mu05_n.ns.chvtt.fits"
         # if debug && !contains(fits_files[i], "mu07_n")
             # break
             # nothing
@@ -82,8 +82,8 @@ function preprocess_line(line_name::String; clobber::Bool=true, verbose::Bool=tr
             # debugging block
             if debug && t > 1
             # if debug && t != 57
-                # break
-                nothing
+                break
+                # nothing
                 # continue
             end
 
@@ -157,7 +157,7 @@ function preprocess_line(line_name::String; clobber::Bool=true, verbose::Bool=tr
             if 1 - minimum(flux_iso) < 0.5
                 val = 0.9 * depth + bot
             else
-                val = 0.8
+                val = 0.85
             end
 
             # debugging code block
@@ -192,7 +192,7 @@ function preprocess_line(line_name::String; clobber::Bool=true, verbose::Bool=tr
                 ax2.set_ylabel("Width across line")
                 fig.suptitle("\${\\rm " * replace(line_df.name[1], "_" => "\\ ") * "}\$")
                 fig.savefig(plotdir * "spectra_fits/" * line_df.name[1] * ".pdf")
-                plt.show()
+                # plt.show()
                 plt.clf(); plt.close()
             end
         end
@@ -233,12 +233,12 @@ end
 function main()
     for name in line_info.name
         # skip the "hard" lines for now
-        # (name in ["CI_5380", "FeI_5382", "NaI_5896"]) && continue
-        name != "FeI_5434" && continue
+        (name in ["CI_5380", "FeI_5382", "NaI_5896"]) && continue
+        # name != "FeI_5434" && continue
 
         # print the line name and preprocess it
         println(">>> Processing " * name * "...")
-        preprocess_line(name, debug=true)
+        preprocess_line(name, debug=false)
     end
     return nothing
 end

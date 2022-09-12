@@ -123,8 +123,8 @@ function fit_line_wings(wavs_iso::AA{T,1}, flux_iso::AA{T,1}; debug::Bool=false)
         p0 = [.97, wavs_iso[min], 0.05, 0.16]
     else
         lb = [0.0, wavs_iso[min]-minimum(diff(wavs_iso))/2.0, 1e-4, 1e-4]
-        ub = [2.5, wavs_iso[min]+minimum(diff(wavs_iso))/2.0, 0.12, 0.12]
-        p0 = [0.3, wavs_iso[min], 0.007, 0.06]
+        ub = [2.5, wavs_iso[min]+minimum(diff(wavs_iso))/2.0, 0.15, 0.15]
+        p0 = [0.3, wavs_iso[min], 0.02, 0.05]
     end
 
     # perform the fit
@@ -148,14 +148,14 @@ function replace_line_wings(fit, wavst::AA{T,1}, fluxt::AA{T,1}, min::Int, val::
     # adjust any "kinks" between the wing model and and raw spec
     flux_new_l = copy(flux_new)
     Δfluxl = fluxt[idxl] - flux_new_l[idxl]
-    while Δfluxl > 0.0 && !isapprox(flux_new_l[idxl], fluxt[idxl], atol=1e-4)
+    while Δfluxl > 0.0 && !isapprox(flux_new_l[idxl], fluxt[idxl], atol=1e-5)
         flux_new_l = circshift(flux_new_l, 1)
         Δfluxl = fluxt[idxl] - flux_new_l[idxl]
     end
 
     flux_new_r = copy(flux_new)
     Δfluxr = flux_new_r[idxr] - fluxt[idxr]
-    while Δfluxr > 0.0 && !isapprox(flux_new_r[idxr], fluxt[idxr], atol=1e-4)
+    while Δfluxr > 0.0 && !isapprox(flux_new_r[idxr], fluxt[idxr], atol=1e-5)
         flux_new_r = circshift(flux_new_r, -1)
         Δfluxr = fluxt[idxr] - flux_new_r[idxr]
     end
