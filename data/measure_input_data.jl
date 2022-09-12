@@ -42,12 +42,12 @@ function preprocess_line(line_name::String; clobber::Bool=true, verbose::Bool=tr
     fits_files = spec_df.fpath .* spec_df.fname
     for i in eachindex(fits_files)
         # debugging block + filename printing
-        if debug && i > 1
-        # if splitdir(fits_files[i])[end] != "lars_l12_20171018-143055_clv5434_mu02_e.ns.chvtt.fits"
+        # if debug && i > 1
+        if debug && splitdir(fits_files[i])[end] != "lars_l12_20160820-120935_clv5434_mu05_n.ns.chvtt.fits"
         # if debug && !contains(fits_files[i], "mu07_n")
-            break
+            # break
             # nothing
-            # continue
+            continue
         elseif verbose
             println("\t >>> " * splitdir(fits_files[i])[end])
         end
@@ -81,7 +81,10 @@ function preprocess_line(line_name::String; clobber::Bool=true, verbose::Bool=tr
         for t in 1:size(wavs, 2)
             # debugging block
             if debug && t > 1
-                break
+            # if debug && t != 57
+                # break
+                nothing
+                # continue
             end
 
             # get view of this time slice
@@ -129,7 +132,9 @@ function preprocess_line(line_name::String; clobber::Bool=true, verbose::Bool=tr
             fit = GRASS.fit_line_wings(wavs_iso, flux_iso, debug=debug)
             if !fit.converged
                 println("\t\t >>> Fit did not converge for t = " * string(t) * ", moving on...")
-                continue
+                if !debug
+                    continue
+                end
             end
 
             # pad the spectrum if line is close to edge of spectral region
@@ -228,12 +233,12 @@ end
 function main()
     for name in line_info.name
         # skip the "hard" lines for now
-        (name in ["CI_5380", "FeI_5382", "NaI_5896"]) && continue
-        # name != "FeI_5436.6" && continue
+        # (name in ["CI_5380", "FeI_5382", "NaI_5896"]) && continue
+        name != "FeI_5434" && continue
 
         # print the line name and preprocess it
         println(">>> Processing " * name * "...")
-        preprocess_line(name, debug=false)
+        preprocess_line(name, debug=true)
     end
     return nothing
 end

@@ -103,11 +103,12 @@ function fit_line_wings(wavs_iso::AA{T,1}, flux_iso::AA{T,1}; debug::Bool=false)
     depth = 1.0 - bot
 
     # get wing indices for various percentage depths into line
+    lidx40, ridx40 = find_wing_index(0.4 * depth + bot, flux_iso, min=min)
     lidx50, ridx50 = find_wing_index(0.5 * depth + bot, flux_iso, min=min)
     lidx90, ridx90 = find_wing_index(0.9 * depth + bot, flux_iso, min=min)
 
     # isolate the line wings and mask area around line core for fitting
-    Δbot = 2
+    Δbot = 4
     core = min-Δbot:min+Δbot
     lwing = lidx90:lidx50
     rwing = ridx50:ridx90
@@ -116,18 +117,19 @@ function fit_line_wings(wavs_iso::AA{T,1}, flux_iso::AA{T,1}; debug::Bool=false)
 
     # set boundary conditions and initial guess
     # GOOD FOR FeI 5434 + others
-    if !isapprox(wavs_iso[argmin(flux_iso)], 5896, atol=1e0)
-        lb = [0.0, wavs_iso[min], 0.0, 0.0]
-        ub = [2.5, wavs_iso[min], 0.5, 0.5]
-        p0 = [1.0 - depth, wavs_iso[min], 0.02, 0.01]
-    else
+    if isapprox(wavs_iso[argmin(flux_iso)], 5896, atol=1e0)
         lb = [0.5, wavs_iso[min], 0.01, 0.05]
         ub = [2.5, wavs_iso[min], 0.75, 0.75]
         p0 = [.97, wavs_iso[min], 0.05, 0.16]
+    else
+        lb = [0.0, wavs_iso[min]-minimum(diff(wavs_iso))/2.0, 1e-4, 1e-4]
+        ub = [2.5, wavs_iso[min]+minimum(diff(wavs_iso))/2.0, 0.12, 0.12]
+        p0 = [0.3, wavs_iso[min], 0.007, 0.06]
     end
 
     # perform the fit
     fit = curve_fit(GRASS.fit_voigt, wavs_fit, flux_fit, p0, lower=lb, upper=ub)
+
     if debug @show fit.param end
     if debug @show fit.converged end
     return fit
