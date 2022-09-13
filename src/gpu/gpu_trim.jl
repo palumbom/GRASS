@@ -1,4 +1,3 @@
-# TODO fix this function for the case where template is shallower than synthetic
 function trim_bisector_gpu(depth, bisall_out, intall_out, bisall_in, intall_in)
     # get indices from GPU blocks + threads
     idx = threadIdx().x + blockDim().x * (blockIdx().x-1)

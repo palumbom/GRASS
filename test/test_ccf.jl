@@ -27,7 +27,7 @@ end
     wavs = exp.(range(log(mid-buff), log(mid+buff), step=Δlnλ))
     flux = zeros(length(wavs), length(λvs))
     for i in eachindex(λvs)
-        flux[:,i] = GRASS.fit_voigt(wavs, [0.5, λvs[i], 0.04, 0.045])
+        flux[:,i] = GRASS.fit_voigt(wavs, [0.3, λvs[i], 0.04, 0.045])
     end
 
     # calculate ccf and measure velocity
@@ -39,7 +39,7 @@ end
 
     # test that the residuals are within 10 cm/s
     delta = vel .- rvs
-    @test maximum(delta) < 0.01 # 0.0 m/s = 1 cm/s
+    @test maximum(delta) < 0.01 # 0.01 m/s = 1 cm/s
 end
 
 end
