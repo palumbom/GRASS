@@ -2,6 +2,12 @@ function ismonotonic(A::AA{T,1}) where T<:AF
     return (all(diff(A) .>= zero(T)) | all(diff(A) .<= zero(T)))
 end
 
+function strip_columns(A::AA{T,1}, cols::AA{Bool,1}) where T<:AF
+    @assert length(cols) == length(A)
+    return A[.!cols]
+end
+
+
 function strip_columns(A::AA{T,2}, cols::AA{Bool,1}) where T<:AF
     @assert length(cols) == size(A,2)
     return A[:, .!cols]
