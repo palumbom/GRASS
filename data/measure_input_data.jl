@@ -11,7 +11,9 @@ mpl.style.use(GRASS.moddir * "figures1/fig.mplstyle")
 
 # set LARS spectra absolute dir and read line info file
 const data_dir = "/storage/group/ebf11/default/mlp95/lars_spectra/"
-const line_info = CSV.read(GRASS.datdir * "line_info.csv", DataFrame)
+const line_info = CSV.read(GRASS.datdir * "line_info.csv", DataFrame,
+                           types=[String, String, Float64, Float64, Float64,
+                                  Float64, Float64, Float64, String])
 
 # output directories for misc stuff
 const grassdir, plotdir, datadir = GRASS.check_plot_dirs()
@@ -22,13 +24,15 @@ end
 function preprocess_line(line_name::String; clobber::Bool=true, verbose::Bool=true, debug::Bool=false)
     # delete old preprocessed data
     if !debug && clobber
-        files = Glob.glob("*.h5", GRASS.soldir)
+        files = Glob.glob(line_name * ".h5", GRASS.soldir)
         rm.(files)
     end
 
     # find row with line info and write the line_params file
     line_df = subset(line_info, :name => x -> x .== line_name)
-    GRASS.write_line_params(line_df)
+    if ~debug
+        GRASS.write_line_params(line_df)
+    end
 
     # parse out parameters from file names
     spec_df = GRASS.sort_spectrum_data(dir=data_dir * line_df.spectra_dir[1] * "/")
@@ -39,7 +43,11 @@ function preprocess_line(line_name::String; clobber::Bool=true, verbose::Bool=tr
     for i in eachindex(fits_files)
         # debugging block + filename printing
         if debug && i > 1
-            break
+        # if debug && splitdir(fits_files[i])[end] != "lars_l12_20160820-120935_clv5434_mu05_n.ns.chvtt.fits"
+        # if debug && !contains(fits_files[i], "mu07_n")
+            # break
+            # nothing
+            continue
         elseif verbose
             println("\t >>> " * splitdir(fits_files[i])[end])
         end
@@ -55,17 +63,32 @@ function preprocess_line(line_name::String; clobber::Bool=true, verbose::Bool=tr
         # normalize the spectra
         flux ./= maximum(flux, dims=1)
 
-        # allocate memory for input data
-        bis = zeros(100, size(wavs,2))
-        int1 = zeros(100, size(wavs,2))
-        int2 = zeros(100, size(wavs,2))
-        wid = zeros(100, size(wavs,2))
+        # allocate memory for measuring input data
+        nflux = 500
+        bis = zeros(nflux, size(wavs,2))
+        int1 = zeros(nflux, size(wavs,2))
+        int2 = zeros(nflux, size(wavs,2))
+        wid = zeros(nflux, size(wavs,2))
+        # unc = zeros(nflux, size(wavs,2))
+
+        # allocate memory for writing it
+        nflux_w = 100
+        bis_w = zeros(nflux_w, size(wavs,2))
+        int_w = zeros(nflux_w, size(wavs,2))
+        wid_w = zeros(nflux_w, size(wavs,2))
+        # unc_w = zeros(nflux_w, size(wavs,2))
+
+        # allocate memory for extrapolation height value
+        top = zeros(size(wavs,2))
 
         # loop over epochs in spectrum file
         for t in 1:size(wavs, 2)
             # debugging block
             if debug && t > 1
+            # if debug && t != 57
                 break
+                # nothing
+                # continue
             end
 
             # get view of this time slice
@@ -110,7 +133,13 @@ function preprocess_line(line_name::String; clobber::Bool=true, verbose::Bool=tr
             end
 
             # fit the line wings
-            fit = GRASS.fit_line_wings(wavs_iso, flux_iso)
+            fit = GRASS.fit_line_wings(wavs_iso, flux_iso, debug=debug)
+            if !fit.converged
+                println("\t\t >>> Fit did not converge for t = " * string(t) * ", moving on...")
+                if !debug
+                    continue
+                end
+            end
 
             # pad the spectrum if line is close to edge of spectral region
             specbuff = 1.5
@@ -128,20 +157,31 @@ function preprocess_line(line_name::String; clobber::Bool=true, verbose::Bool=tr
                 flux_meas = fluxt
             end
 
-            # replace the line wings above val% continuum
-            val = 0.9 * depth + bot
+            # replace the line wings above % continuum
+            top[t] = 0.75 * depth + bot
+
+            # debugging code block
             if debug
-                idxl, idxr = GRASS.find_wing_index(val, flux_meas, min=min)
+                idxl, idxr = GRASS.find_wing_index(top[t], flux_meas, min=min)
                 ax1.axhline(flux_meas[idxl], c="k", ls="--", alpha=0.5)
                 ax1.axhline(flux_meas[idxr], c="k", ls="--", alpha=0.5)
                 ax1.plot(wavs_meas, GRASS.fit_voigt(wavs_meas, fit.param), c="tab:purple", label="model")
             end
-            GRASS.replace_line_wings(fit, wavs_meas, flux_meas, min, val, debug=debug)
 
-            # TODO REVIEW BISECTOR CODE
+            # replace the line wings above top[t]% continuum
+            GRASS.replace_line_wings(fit, wavs_meas, flux_meas, min, top[t], debug=debug)
+
             # measure the bisector and width function
-            bis[:,t], int1[:,t] = GRASS.calc_bisector(wavs_meas, flux_meas, nflux=100, top=0.999)
-            int2[:,t], wid[:,t] = GRASS.calc_width_function(wavs_meas, flux_meas, nflux=100, top=0.999)
+            bis[:,t], int1[:,t] = GRASS.calc_bisector(wavs_meas, flux_meas, nflux=nflux, top=0.999)
+            int2[:,t], wid[:,t] = GRASS.calc_width_function(wavs_meas, flux_meas, nflux=nflux, top=0.999)
+
+            # calculate the uncertainty
+            # unc[1:end-1,t] .= GRASS.calc_bisector_uncertainty(view(bis, :, i), view(int1, :, i))
+
+            # replace uncertainty where line wings were replaced
+            # idx1 = findfirst(x -> x .>= top[t], view(int1, :, 1))
+            # unc[1,t] = NaN
+            # unc[idx1:end,t] .= NaN
 
             # make sure the intensities are the same
             @assert all(int1[:,t] .== int2[:,t])
@@ -159,6 +199,7 @@ function preprocess_line(line_name::String; clobber::Bool=true, verbose::Bool=tr
                 ax2.set_ylabel("Width across line")
                 fig.suptitle("\${\\rm " * replace(line_df.name[1], "_" => "\\ ") * "}\$")
                 fig.savefig(plotdir * "spectra_fits/" * line_df.name[1] * ".pdf")
+                plt.show()
                 plt.clf(); plt.close()
             end
         end
@@ -174,9 +215,25 @@ function preprocess_line(line_name::String; clobber::Bool=true, verbose::Bool=tr
         int = GRASS.strip_columns(int1, bad_cols)
         wid = GRASS.strip_columns(wid, bad_cols)
 
+        # interpolate onto shorter grid
+        for i in 1:size(int, 2)
+            # get interpolator
+            itp1 = GRASS.linear_interp(view(int, :, i), view(bis, :, i))
+            itp2 = GRASS.linear_interp(view(int, :, i), view(wid, :, i))
+            # itp3 = GRASS.linear_interp(view(int, :, i), view(unc, :, i))
+
+            # get new depth grid
+            int_w[:,i] .= range(minimum(int[:,i]), maximum(int[:,i]), length=nflux_w)
+
+            # evaluate the interpolators
+            bis_w[:,i] .= itp1.(view(int_w, :, i))
+            wid_w[:,i] .= itp2.(view(int_w, :, i))
+            # unc_w[:,i] .= itp3.(view(int_w, :, i))
+        end
+
         # write input data to disk
         if !debug
-            GRASS.write_input_data(line_df, ax_string, mu_string, datetime, bis, int, wid)
+            GRASS.write_input_data(line_df, ax_string, mu_string, datetime, top, bis_w, int_w, wid_w)
         end
     end
     return nothing
@@ -185,7 +242,7 @@ end
 function main()
     for name in line_info.name
         # skip the "hard" lines for now
-        # !(name in ["FeI_5434", "FeI_5576", "FeI_6173"]) && continue
+        (name in ["CI_5380", "FeI_5382", "NaI_5896"]) && continue
         # name != "FeI_5434" && continue
 
         # print the line name and preprocess it

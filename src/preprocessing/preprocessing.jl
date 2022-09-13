@@ -44,7 +44,7 @@ function write_line_params(line_df::DataFrame; clobber::Bool=false)
 end
 
 function write_input_data(line_df::DataFrame, ax::String, mu::String, datetime::Dates.DateTime,
-                          bis::AA{T,2}, int::AA{T,2}, wid::AA{T,2}) where T<:AF#; clobber::Bool=False)
+                          top_ints::AA{T,1}, bis::AA{T,2}, int::AA{T,2}, wid::AA{T,2}) where T<:AF
     # get the filename
     fname = GRASS.soldir * line_df.name[1] * ".h5"
 
@@ -77,6 +77,7 @@ function write_input_data(line_df::DataFrame, ax::String, mu::String, datetime::
         attr["length"] = size(bis,2)
 
         # fill out the datasets
+        g["top_ints"] = top_ints
         g["bisectors"] = bis
         g["intensities"] = int
         g["widths"] = wid
@@ -96,21 +97,19 @@ function find_wing_index(val, arr; min=argmin(arr))
 end
 
 
-function fit_line_wings(wavs_iso::AA{T,1}, flux_iso::AA{T,1}) where T<:AF
+function fit_line_wings(wavs_iso::AA{T,1}, flux_iso::AA{T,1}; debug::Bool=false) where T<:AF
     # get indices and values for minimum, depth, and bottom
     min = argmin(flux_iso)
     bot = flux_iso[min]
     depth = 1.0 - bot
 
     # get wing indices for various percentage depths into line
+    lidx40, ridx40 = find_wing_index(0.4 * depth + bot, flux_iso, min=min)
     lidx50, ridx50 = find_wing_index(0.5 * depth + bot, flux_iso, min=min)
-    lidx60, ridx60 = find_wing_index(0.6 * depth + bot, flux_iso, min=min)
-    lidx70, ridx70 = find_wing_index(0.7 * depth + bot, flux_iso, min=min)
-    lidx80, ridx80 = find_wing_index(0.8 * depth + bot, flux_iso, min=min)
     lidx90, ridx90 = find_wing_index(0.9 * depth + bot, flux_iso, min=min)
 
     # isolate the line wings and mask area around line core for fitting
-    Δbot = 2
+    Δbot = 4
     core = min-Δbot:min+Δbot
     lwing = lidx90:lidx50
     rwing = ridx50:ridx90
@@ -119,13 +118,21 @@ function fit_line_wings(wavs_iso::AA{T,1}, flux_iso::AA{T,1}) where T<:AF
 
     # set boundary conditions and initial guess
     # GOOD FOR FeI 5434 + others
-    lb = [0.0, wavs_iso[min], 0.0, 0.0]
-    ub = [1.0, wavs_iso[min], 0.5, 0.5]
-    p0 = [1.0 - depth, wavs_iso[min], 0.02, 0.01]
-    # GOOD FOR FeI 5434 + others
+    if isapprox(wavs_iso[argmin(flux_iso)], 5896, atol=1e0)
+        lb = [0.5, wavs_iso[min], 0.01, 0.05]
+        ub = [2.5, wavs_iso[min], 0.75, 0.75]
+        p0 = [.97, wavs_iso[min], 0.05, 0.16]
+    else
+        lb = [0.0, wavs_iso[min]-minimum(diff(wavs_iso))/2.0, 1e-4, 1e-4]
+        ub = [2.5, wavs_iso[min]+minimum(diff(wavs_iso))/2.0, 0.15, 0.15]
+        p0 = [0.3, wavs_iso[min], 0.02, 0.05]
+    end
 
     # perform the fit
     fit = curve_fit(GRASS.fit_voigt, wavs_fit, flux_fit, p0, lower=lb, upper=ub)
+
+    if debug @show fit.param end
+    if debug @show fit.converged end
     return fit
 end
 
@@ -142,14 +149,14 @@ function replace_line_wings(fit, wavst::AA{T,1}, fluxt::AA{T,1}, min::Int, val::
     # adjust any "kinks" between the wing model and and raw spec
     flux_new_l = copy(flux_new)
     Δfluxl = fluxt[idxl] - flux_new_l[idxl]
-    while Δfluxl > 0.0 && !isapprox(flux_new_l[idxl], fluxt[idxl], atol=1e-4)
+    while Δfluxl > 0.0 && !isapprox(flux_new_l[idxl], fluxt[idxl], atol=1e-5)
         flux_new_l = circshift(flux_new_l, 1)
         Δfluxl = fluxt[idxl] - flux_new_l[idxl]
     end
 
     flux_new_r = copy(flux_new)
     Δfluxr = flux_new_r[idxr] - fluxt[idxr]
-    while Δfluxr > 0.0 && !isapprox(flux_new_r[idxr], fluxt[idxr], atol=1e-4)
+    while Δfluxr > 0.0 && !isapprox(flux_new_r[idxr], fluxt[idxr], atol=1e-5)
         flux_new_r = circshift(flux_new_r, -1)
         Δfluxr = fluxt[idxr] - flux_new_r[idxr]
     end

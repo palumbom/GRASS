@@ -26,24 +26,12 @@ function sort_data_for_gpu(soldata::SolarData{T}) where T<:AbstractFloat
     int .= view(int, :, :, inds_mu)
     wid .= view(wid, :, :, inds_mu)
 
-    # disc_mu_og = copy(disc_mu)
-    # disc_ax_og = copy(disc_ax)
-    # len_og = copy(len)
-    # bis_og = copy(bis)
-    # wid_og = copy(wid)
-    # int_og = copy(int)
-
     # get indices to sort by axis within mu sort
     for mu_val in unique(disc_mu)
         inds1 = (disc_mu .== mu_val)
         inds2 = sortperm(disc_ax[inds1])
         disc_mu[inds1] .= disc_mu[inds1][inds2]
         disc_ax[inds1] .= disc_ax[inds1][inds2]
-
-        # len[inds1] .= len_og[inds1][inds2]
-        # bis[:, :, inds1] .= bis_og[:, :, inds1][:, :, inds2]
-        # int[:, :, inds1] .= int_og[:, :, inds1][:, :, inds2]
-        # wid[:, :, inds1] .= wid_og[:, :, inds1][:, :, inds2]
 
         len[inds1] .= len[inds1][inds2]
         bis[:, :, inds1] .= bis[:, :, inds1][:, :, inds2]

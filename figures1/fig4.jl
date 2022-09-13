@@ -23,8 +23,7 @@ run, plot = parse_args(ARGS)
 grassdir, plotdir, datadir = check_plot_dirs()
 
 # decide whether to use gpu
-# use_gpu = CUDA.functional()
-use_gpu = false
+use_gpu = CUDA.functional()
 
 function main()
     # set up parameters for lines
