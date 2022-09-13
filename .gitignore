@@ -10,6 +10,9 @@
 *.ipynb_checkpoints
 
 # specific files/directories
-sftp-config*.json
+docs/build/
 Manifest.toml
-/docs/build/
+data/spvis.dat
+data/spvis.dat.gz
+sftp-config*.json
+
