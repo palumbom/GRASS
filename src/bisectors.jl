@@ -51,7 +51,7 @@ end
 function calc_bisector_uncertainty(bis::AA{T,1}, int::AA{T,1}) where T<:AF
     dF = diff(int)
     dv = diff(bis)
-    return one(T)/sqrt(2.0) .* dF ./ abs.(dF ./ dv)
+    return one(T)/sqrt(2.0) .* 1.0 ./ abs.(dF ./ dv)
 end
 
 

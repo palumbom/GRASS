@@ -69,13 +69,17 @@ function preprocess_line(line_name::String; clobber::Bool=true, verbose::Bool=tr
         int1 = zeros(nflux, size(wavs,2))
         int2 = zeros(nflux, size(wavs,2))
         wid = zeros(nflux, size(wavs,2))
+        # unc = zeros(nflux, size(wavs,2))
 
         # allocate memory for writing it
         nflux_w = 100
         bis_w = zeros(nflux_w, size(wavs,2))
         int_w = zeros(nflux_w, size(wavs,2))
         wid_w = zeros(nflux_w, size(wavs,2))
+        # unc_w = zeros(nflux_w, size(wavs,2))
 
+        # allocate memory for extrapolation height value
+        top = zeros(size(wavs,2))
 
         # loop over epochs in spectrum file
         for t in 1:size(wavs, 2)
@@ -154,27 +158,30 @@ function preprocess_line(line_name::String; clobber::Bool=true, verbose::Bool=tr
             end
 
             # replace the line wings above % continuum
-            if 1 - minimum(flux_iso) < 0.5
-                val = 0.9 * depth + bot
-            else
-                val = 0.85
-            end
+            top[t] = 0.75 * depth + bot
 
             # debugging code block
             if debug
-                idxl, idxr = GRASS.find_wing_index(val, flux_meas, min=min)
+                idxl, idxr = GRASS.find_wing_index(top[t], flux_meas, min=min)
                 ax1.axhline(flux_meas[idxl], c="k", ls="--", alpha=0.5)
                 ax1.axhline(flux_meas[idxr], c="k", ls="--", alpha=0.5)
                 ax1.plot(wavs_meas, GRASS.fit_voigt(wavs_meas, fit.param), c="tab:purple", label="model")
             end
 
-            # replace the line wings above val% continuum
-            GRASS.replace_line_wings(fit, wavs_meas, flux_meas, min, val, debug=debug)
+            # replace the line wings above top[t]% continuum
+            GRASS.replace_line_wings(fit, wavs_meas, flux_meas, min, top[t], debug=debug)
 
-            # TODO REVIEW BISECTOR CODE
             # measure the bisector and width function
             bis[:,t], int1[:,t] = GRASS.calc_bisector(wavs_meas, flux_meas, nflux=nflux, top=0.999)
             int2[:,t], wid[:,t] = GRASS.calc_width_function(wavs_meas, flux_meas, nflux=nflux, top=0.999)
+
+            # calculate the uncertainty
+            # unc[1:end-1,t] .= GRASS.calc_bisector_uncertainty(view(bis, :, i), view(int1, :, i))
+
+            # replace uncertainty where line wings were replaced
+            # idx1 = findfirst(x -> x .>= top[t], view(int1, :, 1))
+            # unc[1,t] = NaN
+            # unc[idx1:end,t] .= NaN
 
             # make sure the intensities are the same
             @assert all(int1[:,t] .== int2[:,t])
@@ -192,7 +199,7 @@ function preprocess_line(line_name::String; clobber::Bool=true, verbose::Bool=tr
                 ax2.set_ylabel("Width across line")
                 fig.suptitle("\${\\rm " * replace(line_df.name[1], "_" => "\\ ") * "}\$")
                 fig.savefig(plotdir * "spectra_fits/" * line_df.name[1] * ".pdf")
-                # plt.show()
+                plt.show()
                 plt.clf(); plt.close()
             end
         end
@@ -213,6 +220,7 @@ function preprocess_line(line_name::String; clobber::Bool=true, verbose::Bool=tr
             # get interpolator
             itp1 = GRASS.linear_interp(view(int, :, i), view(bis, :, i))
             itp2 = GRASS.linear_interp(view(int, :, i), view(wid, :, i))
+            # itp3 = GRASS.linear_interp(view(int, :, i), view(unc, :, i))
 
             # get new depth grid
             int_w[:,i] .= range(minimum(int[:,i]), maximum(int[:,i]), length=nflux_w)
@@ -220,11 +228,12 @@ function preprocess_line(line_name::String; clobber::Bool=true, verbose::Bool=tr
             # evaluate the interpolators
             bis_w[:,i] .= itp1.(view(int_w, :, i))
             wid_w[:,i] .= itp2.(view(int_w, :, i))
+            # unc_w[:,i] .= itp3.(view(int_w, :, i))
         end
 
         # write input data to disk
         if !debug
-            GRASS.write_input_data(line_df, ax_string, mu_string, datetime, bis_w, int_w, wid_w)
+            GRASS.write_input_data(line_df, ax_string, mu_string, datetime, top, bis_w, int_w, wid_w)
         end
     end
     return nothing
