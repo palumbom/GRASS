@@ -44,7 +44,7 @@ function write_line_params(line_df::DataFrame; clobber::Bool=false)
 end
 
 function write_input_data(line_df::DataFrame, ax::String, mu::String, datetime::Dates.DateTime,
-                          bis::AA{T,2}, int::AA{T,2}, wid::AA{T,2}) where T<:AF#; clobber::Bool=False)
+                          top_ints::AA{T,1}, bis::AA{T,2}, int::AA{T,2}, wid::AA{T,2}) where T<:AF
     # get the filename
     fname = GRASS.soldir * line_df.name[1] * ".h5"
 
@@ -77,6 +77,7 @@ function write_input_data(line_df::DataFrame, ax::String, mu::String, datetime::
         attr["length"] = size(bis,2)
 
         # fill out the datasets
+        g["top_ints"] = top_ints
         g["bisectors"] = bis
         g["intensities"] = int
         g["widths"] = wid
