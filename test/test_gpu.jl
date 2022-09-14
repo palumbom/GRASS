@@ -5,26 +5,25 @@ using Test
 @testset "GPU" begin
 # values for SpecParams
 lines = [5434.5]
-depths = [0.75]
+depths = [0.25]
 resolution = 7e5
 spec = SpecParams(lines=lines, depths=depths, resolution=resolution)
 Nλ = length(spec.lambdas)
 
 lines = [5434.5]
 depths = [0.5]
-indir = [GRASS.soldir * "FeI_5434/"]
+fname = GRASS.soldir * "FeI_5434.h5"
 resolution = 7e5
 
 # sort the input data for use on GPU
-soldata = GRASS.SolarData(dir=indir[1])
+soldata = GRASS.SolarData(fname)
 sorted_data = GRASS.sort_data_for_gpu(soldata)
 disc_mu_cpu = sorted_data[1]
 disc_ax_cpu = sorted_data[2]
 lenall_cpu = sorted_data[3]
-wavall_cpu = sorted_data[4]
-bisall_cpu = sorted_data[5]
+bisall_cpu = sorted_data[4]
+intall_cpu = sorted_data[5]
 widall_cpu = sorted_data[6]
-depall_cpu = sorted_data[7]
 
 # values for DiskParams
 N = 132
@@ -36,7 +35,7 @@ poley = 1.0
 polez = 0.0
 pole = (polex, poley, polez)
 disk = DiskParams(N=N, Nt=Nt, pole=pole, u1=u1, u2=u2)
-spec = SpecParams(lines=lines, depths=depths, indirs=indirs, resolution=resolution)
+spec = SpecParams(lines=lines, depths=depths, templates=[fname], resolution=resolution)
 
 @testset "Testing array sorting" begin
     # function to test that the len dimensions are correct
@@ -171,24 +170,22 @@ end
 
 @testset "Testing trimming" begin
     # set some trimming parameters
-    top = NaN
-    depth = 0.75
+    depth = 0.25
 
     # move data to the GPU
     CUDA.@sync begin
-        lenall_gpu = CuArray(lenall_cpu)
-        wavall_gpu = CuArray(wavall_cpu)
-        bisall_gpu = CuArray(bisall_cpu)
-        widall_gpu = CuArray(widall_cpu)
-        depall_gpu = CuArray(depall_cpu)
+        disc_mu = CuArray{Float64}(disc_mu_cpu)
+        disc_ax = CuArray{Int32}(disc_ax_cpu)
+        lenall_gpu = CuArray{Int32}(lenall_cpu)
+        bisall_gpu = CuArray{Float64}(bisall_cpu)
+        intall_gpu = CuArray{Float64}(intall_cpu)
+        widall_gpu = CuArray{Float64}(widall_cpu)
     end
 
     # allocate memory for trim output on GPU
     CUDA.@sync begin
-        wavall_gpu_loop = CUDA.copy(wavall_gpu)
         bisall_gpu_loop = CUDA.copy(bisall_gpu)
-        widall_gpu_loop = CUDA.copy(widall_gpu)
-        depall_gpu_loop = CUDA.copy(depall_gpu)
+        intall_gpu_loop = CUDA.copy(intall_gpu)
     end
 
     # loop over data for dik positions
@@ -196,34 +193,37 @@ end
         # loop over time slices for cpu
         for t in 1:lenall_cpu[n]
             # take time slice for disk position
-            wavt = view(wavall_cpu, :, t, n)
             bist = view(bisall_cpu, :, t, n)
-            dept = view(depall_cpu, :, t, n)
+            intt = view(intall_cpu, :, t, n)
             widt = view(widall_cpu, :, t, n)
 
             # do the trim
-            GRASS.trim_bisector_chop!(depth, wavt, bist, dept, widt)
+            GRASS.trim_bisector!(depth, bist, intt)
         end
 
         # get slices on gpu
         CUDA.@sync begin
-            wavt_gpu_out = CUDA.view(wavall_gpu_loop, :, 1:lenall_cpu[n], n)
-            bist_gpu_out = CUDA.view(bisall_gpu_loop, :, 1:lenall_cpu[n], n)
-            widt_gpu_out = CUDA.view(widall_gpu_loop, :, 1:lenall_cpu[n], n)
-            dept_gpu_out = CUDA.view(depall_gpu_loop, :, 1:lenall_cpu[n], n)
+            bisall_gpu_in = CUDA.view(bisall_gpu, :, 1:lenall_cpu[n], n)
+            intall_gpu_in = CUDA.view(intall_gpu, :, 1:lenall_cpu[n], n)
 
-            wavt_gpu_in = CUDA.view(wavall_gpu, :, 1:lenall_cpu[n], n)
-            bist_gpu_in = CUDA.view(bisall_gpu, :, 1:lenall_cpu[n], n)
-            widt_gpu_in = CUDA.view(widall_gpu, :, 1:lenall_cpu[n], n)
-            dept_gpu_in = CUDA.view(depall_gpu, :, 1:lenall_cpu[n], n)
+            # view of arrays to put modified bisectors in
+            bisall_gpu_out = CUDA.view(bisall_gpu_loop, :, 1:lenall_cpu[n], n)
+            intall_gpu_out = CUDA.view(intall_gpu_loop, :, 1:lenall_cpu[n], n)
         end
 
         # do the trim on the gpu
         threads1 = (16,16)
         blocks1 = cld(lenall_cpu[n] * 100, prod(threads1))
-        CUDA.@sync @cuda threads=threads1 blocks=blocks1 GRASS.trim_bisector_gpu(depth, wavt_gpu_out,
-                                                                                 dept_gpu_in, wavt_gpu_in,
-                                                                                 dept_gpu_in)
+        CUDA.@sync @cuda threads=threads1 blocks=blocks1 GRASS.trim_bisector_gpu(depth, bisall_gpu_out,
+                                                                           intall_gpu_out,
+                                                                           bisall_gpu_in,
+                                                                           intall_gpu_in)
+    end
+
+    for n in eachindex(lenall_cpu)
+        plt.plot(Array(bisall_gpu)[:,:,n], Array(intall_gpu)[:,:,n], c="blue")
+        plt.plot(Array(bisall_gpu_loop)[:,:,n], Array(intall_gpu_loop)[:,:,n], c="orange")
+        plt.show()
     end
 
     # now test the trims match between cpu and gpu
