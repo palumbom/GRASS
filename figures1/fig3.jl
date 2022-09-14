@@ -115,7 +115,7 @@ function main()
     v_grid, ccf1 = calc_ccf(lambdas1, outspec1, spec, normalize=true)
     outspec1 = mean(outspec1, dims=2)[:,1]
     ccfm = mean(ccf1, dims=2)[:,1]
-    vel_sim, bis_sim = GRASS.measure_bisector(v_grid, ccfm, interpolate=false, top=btop, len=len)
+    vel_sim, bis_sim = GRASS.calc_bisector(v_grid, ccfm, top=btop, nflux=len)
 
     # model the line blends out of the IAG spectrum
     println(">>> Modeling out line blends in IAG spectrum...")
@@ -131,9 +131,8 @@ function main()
                                    [1.0 - minimum(flux_iag)], 1e6, normalize=true, Δv_max=3e4)
     ind1 = findfirst(x -> x .> -vlim, v_grid_iag)
     ind2 = findfirst(x -> x .> vlim, v_grid_iag)
-    vel_iag, bis_iag = GRASS.measure_bisector(v_grid_iag[ind1:ind2], ccf_iag[ind1:ind2],
-                                              interpolate=true, top=btop, len=len)
-    # vel_iag, bis_iag = GRASS.measure_bisector(v_grid_iag, ccf_iag, interpolate=true, top=btop, len=len)
+    vel_iag, bis_iag = GRASS.calc_bisector(v_grid_iag[ind1:ind2], ccf_iag[ind1:ind2], top=btop, nflux=len)
+    # vel_iag, bis_iag = GRASS.calc_bisector(v_grid_iag, ccf_iag, interpolate=true, top=btop, len=len)
 
     # calculate a CCF for the cleaned IAG spectrum and trim it
     wavs_iag, flux_iag_cor = interpolate_spec(wavs_iag, flux_iag_cor)
@@ -141,9 +140,8 @@ function main()
                                     [1.0 - minimum(flux_iag_cor)], 1e6, normalize=true, Δv_max=3e4)
     ind1 = findfirst(x -> x .> -vlim, v_grid_iag2)
     ind2 = findfirst(x -> x .> vlim, v_grid_iag2)
-    vel_iag2, bis_iag2 = GRASS.measure_bisector(v_grid_iag2[ind1:ind2], ccf_iag2[ind1:ind2],
-                                                interpolate=true, top=btop, len=len)
-    # vel_iag2, bis_iag2 = GRASS.measure_bisector(v_grid_iag2, ccf_iag2, interpolate=true, top=btop, len=len)
+    vel_iag2, bis_iag2 = GRASS.calc_bisector(v_grid_iag2[ind1:ind2], ccf_iag2[ind1:ind2], top=btop, nflux=len)
+    # vel_iag2, bis_iag2 = GRASS.calc_bisector(v_grid_iag2, ccf_iag2, interpolate=true, top=btop, len=len)
 
     # interpolate IAG onto same wavelength scale as synthetic spectrum
     itp = LinearInterpolation(wavs_iag, flux_iag, extrapolation_bc=1.0)
