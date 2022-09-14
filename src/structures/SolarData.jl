@@ -115,6 +115,10 @@ function SolarData(fname::String; relative::Bool=true, extrapolate::Bool=true,
             end
 
             if extrapolate
+                # set buffer sizes
+                small_buff = 0.025
+                large_buff = 0.125
+
                 # extrapolate over data where uncertainty explodes
                 for i in 1:size(bis,2)
                     # take a slice for one time snapshot
@@ -122,25 +126,24 @@ function SolarData(fname::String; relative::Bool=true, extrapolate::Bool=true,
                     intt = view(int, :, i)
                     widt = view(wid, :, i)
 
+
                     # fit the bottom bisector area and replace with model fit
-                    idx1 = searchsortedfirst(intt, minimum(intt) + 0.05)
-                    idx2 = searchsortedfirst(intt, minimum(intt) + 0.15)
+                    idx1 = searchsortedfirst(intt, minimum(intt) + small_buff)
+                    idx2 = searchsortedfirst(intt, minimum(intt) + large_buff)
                     bfit = pfit(view(intt, idx1:idx2), view(bist, idx1:idx2), 1)
                     bist[1:idx1] .= bfit.(view(intt, 1:idx1))
 
                     # fit the top bisector area and replace with model fit
-                    idx1 = searchsortedfirst(intt, top[i] - 0.1) - 2
-                    idx2 = searchsortedfirst(intt, top[i]) - 2
+                    idx1 = searchsortedfirst(intt, top[i] - large_buff)
+                    idx2 = searchsortedfirst(intt, top[i] - small_buff)
                     bfit = pfit(view(intt, idx1:idx2), view(bist, idx1:idx2), 1)
                     bist[idx2:end] .= bfit.(view(intt, idx2:length(intt)))
 
-                    # fit the top width area and replace with model fit
+                    # extrapolate the width up to the continuum
                     # TODO revisit this
-                    # idx1 = length(widt) - 1
-                    # wfit = pfit(view(intt, idx1-2:idx1), view(widt, idx1-2:idx1), 2)
-                    # widt[idx1:end] .= wfit.(intt[idx1:end])
-
-                    # adjust last intensity
+                    idx1 = length(widt) - 1
+                    wfit = pfit(view(intt, idx1:length(intt)), view(widt, idx1:length(intt)), 1)
+                    widt[idx1:end] .= wfit.([intt[idx1], 1.0])
                     intt[end] = 1.0
                 end
             end
