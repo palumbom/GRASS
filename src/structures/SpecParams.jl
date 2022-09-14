@@ -69,7 +69,7 @@ function SpecParams(;lines=[], depths=[], geffs=[], variability=[],
         input_files = get_file(lp)
 
         # allocate memory and loop, choosing best template line
-        templates = zeros(length(lines))
+        templates = Array{String, 1}(undef, length(lines))
         for i in eachindex(templates)
             param_dist = sqrt.((geff_input .- geffs[i]).^2 + (depth_input .- depths[i]).^2)
             templates[i] = input_files[argmin(param_dist)]
