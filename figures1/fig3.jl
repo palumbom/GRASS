@@ -1,8 +1,6 @@
 # environment + packages
 using Pkg; Pkg.activate(".")
 using CSV
-using HTTP
-using GZip
 using CUDA
 using GRASS
 using LsqFit
