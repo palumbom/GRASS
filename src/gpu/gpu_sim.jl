@@ -115,7 +115,7 @@ function disk_sim_gpu(spec::SpecParams, disk::DiskParams, soldata::SolarData,
         @cusync starmap .= norm_terms
 
         # loop over lines to synthesize
-        for l in eachindex(spec.lines)
+        for l in eachindex(lines)
             # pre-trim the data, loop over all disk positions
             for n in eachindex(lenall_cpu)
                 epoch_range = 1:lenall_cpu[n]
