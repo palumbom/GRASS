@@ -116,8 +116,9 @@ function SolarData(fname::String; relative::Bool=true, extrapolate::Bool=true,
 
             if extrapolate
                 # set buffer sizes
-                small_buff = 0.025
-                large_buff = 0.125
+                if contains("FeI_5434", fname)
+                    top_buff .-= 0.05
+                end
 
                 # extrapolate over data where uncertainty explodes
                 for i in 1:size(bis,2)
@@ -126,18 +127,17 @@ function SolarData(fname::String; relative::Bool=true, extrapolate::Bool=true,
                     intt = view(int, :, i)
                     widt = view(wid, :, i)
 
-
                     # fit the bottom bisector area and replace with model fit
-                    idx1 = searchsortedfirst(intt, minimum(intt) + small_buff)
-                    idx2 = searchsortedfirst(intt, minimum(intt) + large_buff)
+                    idx1 = searchsortedfirst(intt, minimum(intt) + 0.05)
+                    idx2 = searchsortedfirst(intt, minimum(intt) + 0.15)
                     bfit = pfit(view(intt, idx1:idx2), view(bist, idx1:idx2), 1)
-                    bist[1:idx1+1] .= bfit.(view(intt, 1:idx1+1))
+                    bist[1:idx1] .= bfit.(view(intt, 1:idx1))
 
                     # fit the top bisector area and replace with model fit
-                    idx1 = searchsortedfirst(intt, top[i] - large_buff)
-                    idx2 = searchsortedfirst(intt, top[i] - small_buff)
+                    idx1 = searchsortedfirst(intt, top[i] - 0.1)
+                    idx2 = searchsortedfirst(intt, top[i])
                     bfit = pfit(view(intt, idx1:idx2), view(bist, idx1:idx2), 1)
-                    bist[idx2-1:end] .= bfit.(view(intt, idx2-1:length(intt)))
+                    bist[idx2:end] .= bfit.(view(intt, idx2:length(intt)))
 
                     # extrapolate the width up to the continuum
                     # TODO revisit this
