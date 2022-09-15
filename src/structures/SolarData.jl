@@ -131,13 +131,13 @@ function SolarData(fname::String; relative::Bool=true, extrapolate::Bool=true,
                     idx1 = searchsortedfirst(intt, minimum(intt) + small_buff)
                     idx2 = searchsortedfirst(intt, minimum(intt) + large_buff)
                     bfit = pfit(view(intt, idx1:idx2), view(bist, idx1:idx2), 1)
-                    bist[1:idx1] .= bfit.(view(intt, 1:idx1))
+                    bist[1:idx1+1] .= bfit.(view(intt, 1:idx1+1))
 
                     # fit the top bisector area and replace with model fit
                     idx1 = searchsortedfirst(intt, top[i] - large_buff)
                     idx2 = searchsortedfirst(intt, top[i] - small_buff)
                     bfit = pfit(view(intt, idx1:idx2), view(bist, idx1:idx2), 1)
-                    bist[idx2:end] .= bfit.(view(intt, idx2:length(intt)))
+                    bist[idx2-1:end] .= bfit.(view(intt, idx2-1:length(intt)))
 
                     # extrapolate the width up to the continuum
                     # TODO revisit this
