@@ -116,8 +116,8 @@ function SolarData(fname::String; relative::Bool=true, extrapolate::Bool=true,
 
             if extrapolate
                 # set buffer sizes
-                if contains("FeI_5434", fname)
-                    top_buff .-= 0.05
+                if contains(fname, "FeI_5434")
+                    top .-= 0.05
                 end
 
                 # extrapolate over data where uncertainty explodes
