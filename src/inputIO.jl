@@ -74,16 +74,11 @@ function identify_bad_cols(bisall::AA{T,2}, intall::AA{T,2}, widall::AA{T,2}) wh
         end
 
         # remove data that is significant outlier
-        idx1 = 10
-        idx2 = findfirst(x -> x .>= 0.8, intt)
-        if isnothing(idx2)
+        nsigma = 3.0
+        bis_cond = any(abs.(bis_avg .- bist) .> (nsigma .* bis_std))
+        wid_cond = any(abs.(wid_avg .- widt) .> (nsigma .* wid_std))
+        if bis_cond | wid_cond
             badcols[i] = true
-        else
-            bis_cond = any(abs.(bis_avg[idx1:idx2] .- bist[idx1:idx2]) .> (4.0 .* bis_std[idx1:idx2]))
-            wid_cond = any(abs.(wid_avg[idx1:idx2] .- widt[idx1:idx2]) .> (4.0 .* wid_std[idx1:idx2]))
-            if bis_cond | wid_cond
-                badcols[i] = true
-            end
         end
     end
     return badcols
