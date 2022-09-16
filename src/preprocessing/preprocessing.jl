@@ -113,8 +113,12 @@ function fit_line_wings(wavs_iso::AA{T,1}, flux_iso::AA{T,1}; debug::Bool=false)
     core = min-Δbot:min+Δbot
     lwing = lidx90:lidx50
     rwing = ridx50:ridx90
-    wavs_fit = vcat(wavs_iso[lwing], wavs_iso[core], wavs_iso[rwing])
-    flux_fit = vcat(flux_iso[lwing], flux_iso[core], flux_iso[rwing])
+
+    # create arrays to fit on
+    wavs_lfit = vcat(wavs_iso[lwing], wavs_iso[core])
+    flux_lfit = vcat(flux_iso[lwing], flux_iso[core])
+    wavs_rfit = vcat(wavs_iso[core], wavs_iso[rwing])
+    flux_rfit = vcat(flux_iso[core], flux_iso[rwing])
 
     # set boundary conditions and initial guess
     # GOOD FOR FeI 5434 + others
@@ -129,40 +133,47 @@ function fit_line_wings(wavs_iso::AA{T,1}, flux_iso::AA{T,1}; debug::Bool=false)
     end
 
     # perform the fit
-    fit = curve_fit(GRASS.fit_voigt, wavs_fit, flux_fit, p0, lower=lb, upper=ub)
+    lfit = curve_fit(GRASS.fit_voigt, wavs_lfit, flux_lfit, p0, lower=lb, upper=ub)
+    rfit = curve_fit(GRASS.fit_voigt, wavs_rfit, flux_rfit, p0, lower=lb, upper=ub)
 
-    if debug @show fit.param end
-    if debug @show fit.converged end
-    return fit
+    if debug
+        @show lfit.param
+        @show rfit.param
+        @show lfit.converged
+        @show rfit.converged
+    end
+    return lfit, rfit
 end
 
-function replace_line_wings(fit, wavst::AA{T,1}, fluxt::AA{T,1}, min::Int, val::T; debug::Bool=false) where T<:AF
+function replace_line_wings(lfit, rfit, wavst::AA{T,1}, fluxt::AA{T,1}, min::Int, val::T; debug::Bool=false) where T<:AF
     # get line model for all wavelengths in original spectrum
-    flux_new = GRASS.fit_voigt(wavst, fit.param)
+    lflux_new = GRASS.fit_voigt(wavst, lfit.param)
+    rflux_new = GRASS.fit_voigt(wavst, rfit.param)
 
     # do a quick "normalization"
-    flux_new ./= maximum(flux_new)
+    lflux_new ./= maximum(lflux_new)
+    rflux_new ./= maximum(rflux_new)
 
     # find indices
     idxl, idxr = find_wing_index(val, fluxt, min=min)
 
-    # adjust any "kinks" between the wing model and and raw spec
-    flux_new_l = copy(flux_new)
-    Δfluxl = fluxt[idxl] - flux_new_l[idxl]
-    while Δfluxl > 0.0 && !isapprox(flux_new_l[idxl], fluxt[idxl], atol=1e-5)
-        flux_new_l = circshift(flux_new_l, 1)
-        Δfluxl = fluxt[idxl] - flux_new_l[idxl]
-    end
+    # # adjust any "kinks" between the wing model and and raw spec
+    # flux_new_l = copy(flux_new)
+    # Δfluxl = fluxt[idxl] - flux_new_l[idxl]
+    # while Δfluxl > 0.0 && !isapprox(flux_new_l[idxl], fluxt[idxl], atol=1e-5)
+    #     flux_new_l = circshift(flux_new_l, 1)
+    #     Δfluxl = fluxt[idxl] - flux_new_l[idxl]
+    # end
 
-    flux_new_r = copy(flux_new)
-    Δfluxr = flux_new_r[idxr] - fluxt[idxr]
-    while Δfluxr > 0.0 && !isapprox(flux_new_r[idxr], fluxt[idxr], atol=1e-5)
-        flux_new_r = circshift(flux_new_r, -1)
-        Δfluxr = fluxt[idxr] - flux_new_r[idxr]
-    end
+    # flux_new_r = copy(flux_new)
+    # Δfluxr = flux_new_r[idxr] - fluxt[idxr]
+    # while Δfluxr > 0.0 && !isapprox(flux_new_r[idxr], fluxt[idxr], atol=1e-5)
+    #     flux_new_r = circshift(flux_new_r, -1)
+    #     Δfluxr = fluxt[idxr] - flux_new_r[idxr]
+    # end
 
     # replace wings with model
-    fluxt[1:idxl] .= flux_new_l[1:idxl]
-    fluxt[idxr:end] .= flux_new_r[idxr:end]
+    fluxt[1:idxl] .= lflux_new[1:idxl]
+    fluxt[idxr:end] .= rflux_new[idxr:end]
     return nothing
 end
