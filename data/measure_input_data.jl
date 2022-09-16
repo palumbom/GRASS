@@ -133,8 +133,8 @@ function preprocess_line(line_name::String; clobber::Bool=true, verbose::Bool=tr
             end
 
             # fit the line wings
-            fit = GRASS.fit_line_wings(wavs_iso, flux_iso, debug=debug)
-            if !fit.converged
+            lfit, rfit = GRASS.fit_line_wings(wavs_iso, flux_iso, debug=debug)
+            if !(lfit.converged & rfit.converged)
                 println("\t\t >>> Fit did not converge for t = " * string(t) * ", moving on...")
                 if !debug
                     continue
@@ -165,11 +165,12 @@ function preprocess_line(line_name::String; clobber::Bool=true, verbose::Bool=tr
                 idxl, idxr = GRASS.find_wing_index(top[t], flux_meas, min=min)
                 ax1.axhline(flux_meas[idxl], c="k", ls="--", alpha=0.5)
                 ax1.axhline(flux_meas[idxr], c="k", ls="--", alpha=0.5)
-                ax1.plot(wavs_meas, GRASS.fit_voigt(wavs_meas, fit.param), c="tab:purple", label="model")
+                ax1.plot(wavs_meas[1:min], GRASS.fit_voigt(wavs_meas[1:min], lfit.param), c="tab:purple", label="left model")
+                ax1.plot(wavs_meas[min:end], GRASS.fit_voigt(wavs_meas[min:end], rfit.param), c="tab:purple", label="right model")
             end
 
             # replace the line wings above top[t]% continuum
-            GRASS.replace_line_wings(fit, wavs_meas, flux_meas, min, top[t], debug=debug)
+            GRASS.replace_line_wings(lfit, rfit, wavs_meas, flux_meas, min, top[t], debug=debug)
 
             # measure the bisector and width function
             bis[:,t], int1[:,t] = GRASS.calc_bisector(wavs_meas, flux_meas, nflux=nflux, top=0.999)
