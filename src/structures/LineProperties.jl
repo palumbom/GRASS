@@ -30,7 +30,7 @@ function LineProperties(;dir=GRASS.soldir, exclude::AA{String,1}=["CI_5380", "Fe
     # loop over files
     for file in files
         # skip iteration if we want to skip this input data
-        if splitdir(file)[end] in exclude
+        if split(splitdir(file)[end], ".h5")[1] in exclude
             println(">>> Excluding " * splitdir(file)[end])
             continue
         end
@@ -62,3 +62,4 @@ get_depth(lp::LineProperties) = lp.depth
 get_geff(lp::LineProperties) = lp.geff
 get_height(lp::LineProperties) = lp.height
 get_file(lp::LineProperties) = lp.file
+get_name(lp::LineProperties) = map(x -> split(splitdir(x)[end], ".h5")[1], lp.file)

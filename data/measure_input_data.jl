@@ -45,9 +45,9 @@ function preprocess_line(line_name::String; clobber::Bool=true, verbose::Bool=tr
         if debug && i > 1
         # if debug && splitdir(fits_files[i])[end] != "lars_l12_20160820-120935_clv5434_mu05_n.ns.chvtt.fits"
         # if debug && !contains(fits_files[i], "mu07_n")
-            # break
+            break
             # nothing
-            continue
+            # continue
         elseif verbose
             println("\t >>> " * splitdir(fits_files[i])[end])
         end
@@ -57,11 +57,12 @@ function preprocess_line(line_name::String; clobber::Bool=true, verbose::Bool=tr
         mu_string = spec_df.mu[i]
         ax_string = spec_df.axis[i]
 
-        # read in the spectrum
+        # read in the spectrum and normalize it
         wavs, flux = GRASS.bin_spectrum(GRASS.read_spectrum(fits_files[i])...)
-
-        # normalize the spectra
         flux ./= maximum(flux, dims=1)
+
+        # allocate memory for extrapolation height value
+        top = zeros(size(wavs,2))
 
         # allocate memory for measuring input data
         nflux = 500
@@ -69,17 +70,12 @@ function preprocess_line(line_name::String; clobber::Bool=true, verbose::Bool=tr
         int1 = zeros(nflux, size(wavs,2))
         int2 = zeros(nflux, size(wavs,2))
         wid = zeros(nflux, size(wavs,2))
-        # unc = zeros(nflux, size(wavs,2))
 
         # allocate memory for writing it
         nflux_w = 100
         bis_w = zeros(nflux_w, size(wavs,2))
         int_w = zeros(nflux_w, size(wavs,2))
         wid_w = zeros(nflux_w, size(wavs,2))
-        # unc_w = zeros(nflux_w, size(wavs,2))
-
-        # allocate memory for extrapolation height value
-        top = zeros(size(wavs,2))
 
         # loop over epochs in spectrum file
         for t in 1:size(wavs, 2)
@@ -133,8 +129,8 @@ function preprocess_line(line_name::String; clobber::Bool=true, verbose::Bool=tr
             end
 
             # fit the line wings
-            fit = GRASS.fit_line_wings(wavs_iso, flux_iso, debug=debug)
-            if !fit.converged
+            lfit, rfit = GRASS.fit_line_wings(wavs_iso, flux_iso, debug=debug)
+            if !(lfit.converged & rfit.converged)
                 println("\t\t >>> Fit did not converge for t = " * string(t) * ", moving on...")
                 if !debug
                     continue
@@ -158,30 +154,27 @@ function preprocess_line(line_name::String; clobber::Bool=true, verbose::Bool=tr
             end
 
             # replace the line wings above % continuum
-            top[t] = 0.75 * depth + bot
+            if line_name != "NaI_5896"
+                top[t] = 0.8 * depth + bot
+            else
+                top[t] = 0.65 * depth + bot
+            end
 
             # debugging code block
             if debug
                 idxl, idxr = GRASS.find_wing_index(top[t], flux_meas, min=min)
                 ax1.axhline(flux_meas[idxl], c="k", ls="--", alpha=0.5)
                 ax1.axhline(flux_meas[idxr], c="k", ls="--", alpha=0.5)
-                ax1.plot(wavs_meas, GRASS.fit_voigt(wavs_meas, fit.param), c="tab:purple", label="model")
+                ax1.plot(wavs_meas[1:min], GRASS.fit_voigt(wavs_meas[1:min], lfit.param), c="tab:purple", label="left model")
+                ax1.plot(wavs_meas[min:end], GRASS.fit_voigt(wavs_meas[min:end], rfit.param), c="tab:pink", label="right model")
             end
 
             # replace the line wings above top[t]% continuum
-            GRASS.replace_line_wings(fit, wavs_meas, flux_meas, min, top[t], debug=debug)
+            GRASS.replace_line_wings(lfit, rfit, wavs_meas, flux_meas, min, top[t], debug=debug)
 
             # measure the bisector and width function
             bis[:,t], int1[:,t] = GRASS.calc_bisector(wavs_meas, flux_meas, nflux=nflux, top=0.999)
             int2[:,t], wid[:,t] = GRASS.calc_width_function(wavs_meas, flux_meas, nflux=nflux, top=0.999)
-
-            # calculate the uncertainty
-            # unc[1:end-1,t] .= GRASS.calc_bisector_uncertainty(view(bis, :, i), view(int1, :, i))
-
-            # replace uncertainty where line wings were replaced
-            # idx1 = findfirst(x -> x .>= top[t], view(int1, :, 1))
-            # unc[1,t] = NaN
-            # unc[idx1:end,t] .= NaN
 
             # make sure the intensities are the same
             @assert all(int1[:,t] .== int2[:,t])
@@ -192,14 +185,16 @@ function preprocess_line(line_name::String; clobber::Bool=true, verbose::Bool=tr
                 ax1.plot(bis[:,t], int1[:,t], c="tab:blue", label="bisector")
                 ax1.set_xlabel("Wavelength")
                 ax1.set_ylabel("Normalized Intensity")
-                ax1.legend()
+                ax1.legend(fontsize=10)
 
-                ax2.plot(int2[:,t], wid[:,t])
+                ax2.plot(int2[:,t], wid[:,t], c="tab:blue")
+                ax2.axvline(flux_meas[idxl], c="k", ls="--", alpha=0.5)
+                ax2.axvline(flux_meas[idxr], c="k", ls="--", alpha=0.5)
                 ax2.set_xlabel("Normalized Intensity")
                 ax2.set_ylabel("Width across line")
                 fig.suptitle("\${\\rm " * replace(line_df.name[1], "_" => "\\ ") * "}\$")
                 fig.savefig(plotdir * "spectra_fits/" * line_df.name[1] * ".pdf")
-                plt.show()
+                # plt.show()
                 plt.clf(); plt.close()
             end
         end
@@ -228,7 +223,6 @@ function preprocess_line(line_name::String; clobber::Bool=true, verbose::Bool=tr
             # evaluate the interpolators
             bis_w[:,i] .= itp1.(view(int_w, :, i))
             wid_w[:,i] .= itp2.(view(int_w, :, i))
-            # unc_w[:,i] .= itp3.(view(int_w, :, i))
         end
 
         # write input data to disk
@@ -242,7 +236,7 @@ end
 function main()
     for name in line_info.name
         # skip the "hard" lines for now
-        (name in ["CI_5380", "FeI_5382", "NaI_5896"]) && continue
+        # (name in ["CI_5380", "FeI_5382", "NaI_5896"]) && continue
         # name != "FeI_5434" && continue
 
         # print the line name and preprocess it
