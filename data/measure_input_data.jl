@@ -166,7 +166,7 @@ function preprocess_line(line_name::String; clobber::Bool=true, verbose::Bool=tr
                 ax1.axhline(flux_meas[idxl], c="k", ls="--", alpha=0.5)
                 ax1.axhline(flux_meas[idxr], c="k", ls="--", alpha=0.5)
                 ax1.plot(wavs_meas[1:min], GRASS.fit_voigt(wavs_meas[1:min], lfit.param), c="tab:purple", label="left model")
-                ax1.plot(wavs_meas[min:end], GRASS.fit_voigt(wavs_meas[min:end], rfit.param), c="tab:purple", label="right model")
+                ax1.plot(wavs_meas[min:end], GRASS.fit_voigt(wavs_meas[min:end], rfit.param), c="tab:pink", label="right model")
             end
 
             # replace the line wings above top[t]% continuum
@@ -243,8 +243,8 @@ end
 function main()
     for name in line_info.name
         # skip the "hard" lines for now
-        (name in ["CI_5380", "FeI_5382", "NaI_5896"]) && continue
-        # name != "FeI_5434" && continue
+        # (name in ["CI_5380", "FeI_5382", "NaI_5896"]) && continue
+        name != "FeI_5434" && continue
 
         # print the line name and preprocess it
         println(">>> Processing " * name * "...")
