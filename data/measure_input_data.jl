@@ -45,9 +45,9 @@ function preprocess_line(line_name::String; clobber::Bool=true, verbose::Bool=tr
         if debug && i > 1
         # if debug && splitdir(fits_files[i])[end] != "lars_l12_20160820-120935_clv5434_mu05_n.ns.chvtt.fits"
         # if debug && !contains(fits_files[i], "mu07_n")
-            # break
+            break
             # nothing
-            continue
+            # continue
         elseif verbose
             println("\t >>> " * splitdir(fits_files[i])[end])
         end
@@ -158,7 +158,8 @@ function preprocess_line(line_name::String; clobber::Bool=true, verbose::Bool=tr
             end
 
             # replace the line wings above % continuum
-            top[t] = 0.75 * depth + bot
+            # top[t] = 0.75 * depth + bot
+            top[t] = 0.8 * depth + bot
 
             # debugging code block
             if debug
@@ -195,12 +196,14 @@ function preprocess_line(line_name::String; clobber::Bool=true, verbose::Bool=tr
                 ax1.set_ylabel("Normalized Intensity")
                 ax1.legend()
 
-                ax2.plot(int2[:,t], wid[:,t])
+                ax2.plot(int2[:,t], wid[:,t], c="tab:blue")
+                ax2.axvline(flux_meas[idxl], c="k", ls="--", alpha=0.5)
+                ax2.axvline(flux_meas[idxr], c="k", ls="--", alpha=0.5)
                 ax2.set_xlabel("Normalized Intensity")
                 ax2.set_ylabel("Width across line")
                 fig.suptitle("\${\\rm " * replace(line_df.name[1], "_" => "\\ ") * "}\$")
                 fig.savefig(plotdir * "spectra_fits/" * line_df.name[1] * ".pdf")
-                plt.show()
+                # plt.show()
                 plt.clf(); plt.close()
             end
         end
@@ -244,11 +247,11 @@ function main()
     for name in line_info.name
         # skip the "hard" lines for now
         # (name in ["CI_5380", "FeI_5382", "NaI_5896"]) && continue
-        name != "FeI_5434" && continue
+        # name != "FeI_5434" && continue
 
         # print the line name and preprocess it
         println(">>> Processing " * name * "...")
-        preprocess_line(name, debug=false)
+        preprocess_line(name, debug=true)
     end
     return nothing
 end
