@@ -104,14 +104,26 @@ function fit_line_wings(wavs_iso::AA{T,1}, flux_iso::AA{T,1}; debug::Bool=false)
     depth = 1.0 - bot
 
     # get wing indices for various percentage depths into line
-    lidx50, ridx50 = find_wing_index(0.5 * depth + bot, flux_iso, min=min)
-    lidx90, ridx90 = find_wing_index(0.9 * depth + bot, flux_iso, min=min)
+    lidx40, ridx40 = find_wing_index(0.40 * depth + bot, flux_iso, min=min)
+    lidx50, ridx50 = find_wing_index(0.50 * depth + bot, flux_iso, min=min)
+    lidx70, ridx70 = find_wing_index(0.70 * depth + bot, flux_iso, min=min)
+    lidx80, ridx80 = find_wing_index(0.80 * depth + bot, flux_iso, min=min)
+    lidx85, ridx85 = find_wing_index(0.85 * depth + bot, flux_iso, min=min)
+    lidx90, ridx90 = find_wing_index(0.90 * depth + bot, flux_iso, min=min)
 
     # isolate the line wings and mask area around line core for fitting
-    Δbot = 4
+    Δbot = 3
     core = min-Δbot:min+Δbot
-    lwing = lidx90:lidx50
-    rwing = ridx50:ridx90
+    if isapprox(wavs_iso[argmin(flux_iso)], 5434.5, atol=1e0)
+        lwing = lidx80:lidx50
+        rwing = ridx50:ridx80
+    elseif isapprox(wavs_iso[argmin(flux_iso)], 5896.0, atol=1e0)
+        lwing = lidx70:lidx40
+        rwing = ridx40:ridx70
+    else
+        lwing = lidx90:lidx50
+        rwing = ridx50:ridx90
+    end
 
     # create arrays to fit on
     wavs_lfit = vcat(wavs_iso[lwing], wavs_iso[core])
@@ -121,7 +133,7 @@ function fit_line_wings(wavs_iso::AA{T,1}, flux_iso::AA{T,1}; debug::Bool=false)
 
     # set boundary conditions and initial guess
     # GOOD FOR FeI 5434 + others
-    if isapprox(wavs_iso[argmin(flux_iso)], 5896, atol=1e0)
+    if isapprox(wavs_iso[argmin(flux_iso)], 5896.0, atol=1e0)
         lb = [0.5, wavs_iso[min], 0.01, 0.05]
         ub = [2.5, wavs_iso[min], 0.75, 0.75]
         p0 = [.97, wavs_iso[min], 0.05, 0.16]
