@@ -104,7 +104,6 @@ function fit_line_wings(wavs_iso::AA{T,1}, flux_iso::AA{T,1}; debug::Bool=false)
     depth = 1.0 - bot
 
     # get wing indices for various percentage depths into line
-    lidx40, ridx40 = find_wing_index(0.4 * depth + bot, flux_iso, min=min)
     lidx50, ridx50 = find_wing_index(0.5 * depth + bot, flux_iso, min=min)
     lidx90, ridx90 = find_wing_index(0.9 * depth + bot, flux_iso, min=min)
 
@@ -156,21 +155,6 @@ function replace_line_wings(lfit, rfit, wavst::AA{T,1}, fluxt::AA{T,1}, min::Int
 
     # find indices
     idxl, idxr = find_wing_index(val, fluxt, min=min)
-
-    # # adjust any "kinks" between the wing model and and raw spec
-    # flux_new_l = copy(flux_new)
-    # Δfluxl = fluxt[idxl] - flux_new_l[idxl]
-    # while Δfluxl > 0.0 && !isapprox(flux_new_l[idxl], fluxt[idxl], atol=1e-5)
-    #     flux_new_l = circshift(flux_new_l, 1)
-    #     Δfluxl = fluxt[idxl] - flux_new_l[idxl]
-    # end
-
-    # flux_new_r = copy(flux_new)
-    # Δfluxr = flux_new_r[idxr] - fluxt[idxr]
-    # while Δfluxr > 0.0 && !isapprox(flux_new_r[idxr], fluxt[idxr], atol=1e-5)
-    #     flux_new_r = circshift(flux_new_r, -1)
-    #     Δfluxr = fluxt[idxr] - flux_new_r[idxr]
-    # end
 
     # replace wings with model
     fluxt[1:idxl] .= lflux_new[1:idxl]

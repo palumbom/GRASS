@@ -120,7 +120,8 @@ function SolarData(fname::String; relative::Bool=true, extrapolate::Bool=true,
                                "FeI_5432", "FeI_5434", "NiI_5435",
                                "NiI_5578", "FeI_6301"]
                 if any(map(x -> contains(fname, x), blend_lines))
-                    top .-= 0.05
+                    # top .-= 0.05
+                    nothing
                 end
 
                 # extrapolate over data where uncertainty explodes
