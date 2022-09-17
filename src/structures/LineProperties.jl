@@ -62,3 +62,4 @@ get_depth(lp::LineProperties) = lp.depth
 get_geff(lp::LineProperties) = lp.geff
 get_height(lp::LineProperties) = lp.height
 get_file(lp::LineProperties) = lp.file
+get_name(lp::LineProperties) = map(x -> split(splitdir(x)[end], ".h5")[1], lp.file)

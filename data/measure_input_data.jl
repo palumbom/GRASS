@@ -241,7 +241,7 @@ function main()
 
         # print the line name and preprocess it
         println(">>> Processing " * name * "...")
-        preprocess_line(name, debug=true)
+        preprocess_line(name, debug=false)
     end
     return nothing
 end
