@@ -13,7 +13,6 @@ function line_profile_cpu!(mid::T, lambdas::AA{T,1}, prof::AA{T,1},
     # set wavgrids to line center to start
     lwavgrid .= (mid .- (0.5 .* widm .- bism))
     rwavgrid .= (mid .+ (0.5 .* widm .+ bism))
-    rwavgrid[1] = lwavgrid[1] + 1e-3            # TODO: fix to deal with nodes
 
     # concatenate into one big array
     len = length(rwavgrid)

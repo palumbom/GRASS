@@ -43,6 +43,18 @@ function SolarData(fname::String; relative::Bool=true, extrapolate::Bool=true,
     axs = []
     mus = []
 
+    # set top buffer
+    # blend_lines = ["CaI_6169.0", "FeI_5250.6", "FeI_5383",
+    #                "FeI_5432", "FeI_5434", "NiI_5435",
+    #                "NiI_5578", "FeI_6301"]
+    blend_lines = ["FeI_5434"]
+    if any(map(x -> contains(fname, x), blend_lines))
+        top_buff = 0.05
+    else
+        top_buff = 0.0
+    end
+
+
     # open the file
     h5open(fname, "r") do f
         # get rest wavelength for line
@@ -116,13 +128,7 @@ function SolarData(fname::String; relative::Bool=true, extrapolate::Bool=true,
 
             if extrapolate
                 # deal with blends in a couple lines
-                # blend_lines = ["CaI_6169.0", "FeI_5250.6", "FeI_5383",
-                #                "FeI_5432", "FeI_5434", "NiI_5435",
-                #                "NiI_5578", "FeI_6301"]
-                blend_lines = ["FeI_5434"]
-                if any(map(x -> contains(fname, x), blend_lines))
-                    top .-= 0.05
-                end
+                top .-= top_buff
 
                 # extrapolate over data where uncertainty explodes
                 for i in 1:size(bis,2)

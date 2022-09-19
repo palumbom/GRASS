@@ -24,6 +24,7 @@ using Interpolations
 import Glob.glob
 import Dates.DateTime
 import Polynomials: fit as pfit, coeffs
+import Base.Iterators: take, flatten, ProductIterator
 
 # abbreviations for commonly used types
 import Base: AbstractArray as AA
