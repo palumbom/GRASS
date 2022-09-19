@@ -128,7 +128,7 @@ function main()
 
     # wavelength of line to synthesize/compare to iag
     for (i, file) in enumerate(files)
-        if !contains(file, "FeI_6173")
+        if !contains(file, "FeI_5434")
             continue
         end
 
@@ -143,17 +143,15 @@ function main()
         # get depth from IAG spectrum
         idx1 = findfirst(x -> x .<= airwav - 0.25, wavs_iag)
         idx2 = findfirst(x -> x .>= airwav + 0.25, wavs_iag)
+        botind = argmin(view(flux_iag, idx1:idx2)) + idx1
         iag_depth = 1.0 - minimum(view(flux_iag, idx1:idx2))
-
-        # get the bisector
-        bis_iag, int_iag = GRASS.calc_bisector(wavs_iag, flux_iag)
 
         # set up for GRASS spectrum simulation
         # TODO fix depth issue!!
         lines = [airwav]
-        depths = [iag_depth + 0.045]
+        depths = [iag_depth + 0.0125]
         templates = [file]
-        resolution = 5e6
+        resolution = 1e6
         spec = SpecParams(lines=lines, depths=depths, templates=templates, resolution=resolution)
         disk = DiskParams(N=132, Nt=10)
 
@@ -161,8 +159,21 @@ function main()
         wavs_sim, flux_sim = synthesize_spectra(spec, disk, use_gpu=use_gpu)
         flux_sim = dropdims(mean(flux_sim, dims=2), dims=2)
 
-        # get the bisector
+        # get the synthetic bisector
         bis_sim, int_sim = GRASS.calc_bisector(wavs_sim, flux_sim)
+
+        # align the spectra
+        offset = wavs_sim[argmin(flux_sim)] - wavs_iag[botind]
+        wavs_iag .+= offset
+
+        # interpolate the IAG spectrum onto same grid as synthetic spectrum
+        itp = GRASS.linear_interp(wavs_iag, flux_iag)
+        wavs_iag_new = range(minimum(wavs_iag), maximum(wavs_iag), step=minimum(diff(wavs_sim)))
+        flux_iag = itp.(wavs_iag_new)
+        wavs_iag = wavs_iag_new
+
+        # get the bisector
+        bis_iag, int_iag = GRASS.calc_bisector(wavs_iag, flux_iag)
 
         println(minimum(flux_sim))
         println(minimum(flux_iag))
@@ -170,6 +181,10 @@ function main()
 
         plt.plot(wavs_iag, flux_iag)
         plt.plot(wavs_sim, flux_sim)
+        plt.show()
+
+        plt.plot(bis_iag, int_iag)
+        plt.plot(bis_sim, int_sim)
         plt.show()
 
     end
