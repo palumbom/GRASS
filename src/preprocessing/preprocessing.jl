@@ -17,6 +17,7 @@ function write_line_params(line_df::DataFrame; clobber::Bool=false)
             println("\t >>> " * splitdir(fname)[end] * " metadata already exists...")
         else
             # read in the IAG data and isolate the line
+            # TODO: line of interest may not be deepest line!!!
             println("\t >>> Writing line properties to " * splitdir(fname)[end])
             iag_wavs, iag_flux = read_iag(isolate=true, airwav=line_df.air_wavelength[1])
             iag_depth = 1.0 - minimum(iag_flux)

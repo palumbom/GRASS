@@ -16,7 +16,7 @@ function trim_bisector_chop!(depth::T, bist::AA{T,1}, intt::AA{T,1}) where T<:AF
 
     # get new grid of depths, interpolate the data, and return
     # TODO figure out memory with new_int
-    new_int = range((one(T) - depth), one(T), length=length(intt))
+    new_int = range((one(T) - depth), maximum(intt), length=length(intt))
     bist .= itp1.(new_int)
     intt .= new_int
     return nothing
