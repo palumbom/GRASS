@@ -21,7 +21,7 @@ function download_iag()
     return nothing
 end
 
-function read_iag(; isolate::Bool=true, airwav::Float64=5434.5232)
+function read_iag(;isolate::Bool=true, airwav::Float64=5434.5232, buffer::Float64=1.0)
     # download the IAG atlas
     file = datdir * "spvis.dat"
     if !isfile(file) || mtime(file) < 1.66e9
@@ -42,8 +42,8 @@ function read_iag(; isolate::Bool=true, airwav::Float64=5434.5232)
     # isolate region around line
     if isolate
         vacwav = λ_air_to_vac(airwav)
-        ind1 = findfirst(x -> x .> vacwav-1.0, wavs)
-        ind2 = findfirst(x -> x .> vacwav+1.0, wavs[ind1:end]) + ind1
+        ind1 = findfirst(x -> x .> vacwav-buffer, wavs)
+        ind2 = findfirst(x -> x .> vacwav+buffer, wavs[ind1:end]) + ind1
         return λ_vac_to_air.(view(wavs,ind1:ind2)), view(iag.nflux, ind1:ind2)
     else
         return λ_vac_to_air.(wavs), iag.nflux

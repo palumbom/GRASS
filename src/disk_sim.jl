@@ -104,14 +104,21 @@ function disk_sim(spec::SpecParams{T}, disk::DiskParams{T}, soldata::SolarData{T
         Random.seed!(42)
     end
 
+    # calculate normalization terms
+    # norm_terms = calc_norm_terms(disk)
+
     # loop over grid positions
-    for i in grid
-        for j in grid
+    for i in eachindex(grid)
+        for j in eachindex(grid)
+            # get positiosns
+            x = grid[i]
+            y = grid[j]
+
             # move to next iteration if off grid
-            (i^2 + j^2) > one(T) && continue
+            (x^2 + y^2) > one(T) && continue
 
             # get input data for place on disk
-            key = get_key_for_pos(i, j, disc_mu, mu_symb)
+            key = get_key_for_pos(x, y, disc_mu, mu_symb)
 
             # use data for same mu from different axis if axis is missing
             while !(key in keys(soldata.len))
@@ -124,8 +131,9 @@ function disk_sim(spec::SpecParams{T}, disk::DiskParams{T}, soldata::SolarData{T
             len = soldata.len[key]
 
             # get redshift z and norm term for location on disk
-            z_rot = patch_velocity_los(i, j, pole=disk.pole)
-            norm_term = calc_norm_term(i, j, disk)
+            z_rot = patch_velocity_los(x, y, pole=disk.pole)
+            # norm_term = norm_terms[i,j]
+            norm_term = calc_norm_term(x, y, disk)
 
             # loop over time, starting at random epoch
             inds = generate_indices(disk.Nt, len)
