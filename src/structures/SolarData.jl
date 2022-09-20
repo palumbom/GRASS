@@ -49,7 +49,7 @@ function SolarData(fname::String; relative::Bool=true, extrapolate::Bool=true,
     #                "NiI_5578", "FeI_6301"]
     blend_lines = ["FeI_5434"]
     if any(map(x -> contains(fname, x), blend_lines))
-        top_buff = 0.05
+        top_buff = 0.0 # 0.075
     else
         top_buff = 0.0
     end
