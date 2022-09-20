@@ -3,6 +3,7 @@ using Pkg; Pkg.activate(".")
 using CSV
 using CUDA
 using GRASS
+using Peaks
 using LsqFit
 using Statistics
 using DataFrames
@@ -21,24 +22,12 @@ grassdir, plotdir, datadir = check_plot_dirs()
 # decide whether to use gpu
 use_gpu = CUDA.functional()
 
-function interpolate_spec(wavs, flux)
-    wavs_itp = collect(range(wavs[1], wavs[end], step=mean(diff(wavs))))
-    itp = LinearInterpolation(wavs, flux)
-    flux_itp = itp.(wavs_itp)
-    return wavs_itp, flux_itp
-end
-
 # model the iag blends
-function model_iag_blends(wavs_sim, flux_sim, wavs_iag, flux_iag; plot=false)
-    # roughly align the spectra
-    off1 = wavs_iag[argmin(flux_iag)] - wavs_sim[argmin(flux_sim)]
-    wavs_iag .-= off1
-
-    # interpolate onto the same grid
-    flux_iag ./= maximum(flux_iag)
-    itp = LinearInterpolation(wavs_sim, flux_sim, extrapolation_bc=1.0)
-    wavs_sim = wavs_iag
-    flux_sim = itp.(wavs_sim)
+function model_iag_blends(wavs_sim::AbstractArray{T,1}, flux_sim::AbstractArray{T,1},
+                          wavs_iag::AbstractArray{T,1}, flux_iag::AbstractArray{T,1};
+                          plot=true) where T<:Float64
+    # calculate the residuals
+    resids = flux_iag .- flux_sim
 
     # models for fit
     @. gaussian(x, a, b, c) = a * exp(-(x - b)^2/(2 * c^2)) + 1
@@ -51,13 +40,12 @@ function model_iag_blends(wavs_sim, flux_sim, wavs_iag, flux_iag; plot=false)
         return out .* flux_sim
     end
 
-    # calculate some residuals
-    p0 = Array{Float64,1}[]
-    resids = flux_iag .- flux_sim
+    # identify peaks in the residuals
     max_resid = 0.01
-    minprom = 0.0025
+    minprom = 0.001
     iters = 0
-    while maximum(abs.(resids)) >= max_resid
+    # while maximum(abs.(resids)) >= max_resid
+    for i in 1:1
         # iterate counter
         iters += 1
 
@@ -72,6 +60,7 @@ function model_iag_blends(wavs_sim, flux_sim, wavs_iag, flux_iag; plot=false)
         # set initial guess parameters
         nfits = length(m_inds)
         pgrid = zeros(nfits, 3)
+        p0 = Array{Float64,1}[]
         for i in 1:nfits
             thresh = abs(wavs_sim[argmin(flux_sim)] - wavs_iag[m_inds[i]])
             if thresh <= 0.1
@@ -88,6 +77,7 @@ function model_iag_blends(wavs_sim, flux_sim, wavs_iag, flux_iag; plot=false)
         resids .= flux_iag./(tel_model(wavs_iag, fit.param)./flux_sim) .- flux_sim
 
         # plot diagnostics
+        plot = true
         if plot
             fig = plt.figure(figsize=(8,6))
             gs = mpl.gridspec.GridSpec(nrows=2, ncols=1, height_ratios=[2, 1], figure=fig, hspace=0.05)
@@ -113,11 +103,14 @@ function model_iag_blends(wavs_sim, flux_sim, wavs_iag, flux_iag; plot=false)
         end
 
         # return condition
-        if (iters > 5) || (maximum(abs.(resids)) < max_resid)
+        if (i >= 1)
+            plt.plot(wavs_iag, flux_iag./(tel_model(wavs_iag, fit.param)./flux_sim))
+            plt.plot(wavs_sim, flux_sim)
+            plt.show()
             return flux_iag./(tel_model(wavs_iag, fit.param)./flux_sim)
         end
     end
-    return flux_iag
+    return nothing
 end
 
 # figure 3 -- compare synthetic and IAG spectra + bisectors
@@ -137,7 +130,7 @@ function main()
         depth = lp.depth[i]
 
         # get IAG spectrum and normalize it
-        wavs_iag, flux_iag = read_iag(isolate=true, airwav=airwav, buffer=2.0)
+        wavs_iag, flux_iag = read_iag(isolate=true, airwav=airwav, buffer=1.25)
         flux_iag ./= maximum(flux_iag)
 
         # get depth from IAG spectrum
@@ -149,13 +142,27 @@ function main()
         # set up for GRASS spectrum simulation
         # TODO fix depth issue!!
         lines = [airwav]
-        depths = [iag_depth + 0.0125]
+        depths = [iag_depth]
         templates = [file]
-        resolution = 1e6
+        resolution = 7e5
         spec = SpecParams(lines=lines, depths=depths, templates=templates, resolution=resolution)
         disk = DiskParams(N=132, Nt=10)
 
         # simulate the spectrum
+        wavs_sim, flux_sim = synthesize_spectra(spec, disk, use_gpu=use_gpu)
+        flux_sim = dropdims(mean(flux_sim, dims=2), dims=2)
+
+        # find the difference in depth
+        dep_diff = iag_depth - (1.0 - minimum(flux_sim))
+
+        # resynthesize
+        lines = [airwav]
+        depths = [iag_depth + dep_diff]
+        templates = [file]
+        resolution = 7e5
+        spec = SpecParams(lines=lines, depths=depths, templates=templates, resolution=resolution)
+        disk = DiskParams(N=132, Nt=10)
+
         wavs_sim, flux_sim = synthesize_spectra(spec, disk, use_gpu=use_gpu)
         flux_sim = dropdims(mean(flux_sim, dims=2), dims=2)
 
@@ -167,25 +174,27 @@ function main()
         wavs_iag .+= offset
 
         # interpolate the IAG spectrum onto same grid as synthetic spectrum
-        itp = GRASS.linear_interp(wavs_iag, flux_iag)
-        wavs_iag_new = range(minimum(wavs_iag), maximum(wavs_iag), step=minimum(diff(wavs_sim)))
-        flux_iag = itp.(wavs_iag_new)
-        wavs_iag = wavs_iag_new
+        itp = GRASS.linear_interp(wavs_iag, flux_iag, bc=1.0)
+        flux_iag = itp.(wavs_sim)
+        wavs_iag = wavs_sim
 
         # get the bisector
         bis_iag, int_iag = GRASS.calc_bisector(wavs_iag, flux_iag)
+
+        # clean the IAG spectrum
+        flux_iag_cor = model_iag_blends(wavs_sim, flux_sim, wavs_iag, flux_iag)
 
         println(minimum(flux_sim))
         println(minimum(flux_iag))
 
 
-        plt.plot(wavs_iag, flux_iag)
-        plt.plot(wavs_sim, flux_sim)
-        plt.show()
+        # plt.plot(wavs_iag, flux_iag)
+        # plt.plot(wavs_sim, flux_sim)
+        # plt.show()
 
-        plt.plot(bis_iag, int_iag)
-        plt.plot(bis_sim, int_sim)
-        plt.show()
+        # plt.plot(bis_iag, int_iag)
+        # plt.plot(bis_sim, int_sim)
+        # plt.show()
 
     end
 
