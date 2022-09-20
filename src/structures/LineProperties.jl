@@ -10,7 +10,7 @@ struct LineProperties{T<:AF}
     file::AA{String,1}
 end
 
-function LineProperties(;dir=GRASS.soldir, exclude::AA{String,1}=["CI_5380", "FeI_5382", "NaI_5896"])
+function LineProperties(;dir=GRASS.soldir, exclude::AA{String,1}=["CI_5380", "FeI_5382", "NaI_5896"], verbose::Bool=false)
     @assert isdir(dir)
 
     # get list of files
@@ -31,7 +31,7 @@ function LineProperties(;dir=GRASS.soldir, exclude::AA{String,1}=["CI_5380", "Fe
     for file in files
         # skip iteration if we want to skip this input data
         if split(splitdir(file)[end], ".h5")[1] in exclude
-            println(">>> Excluding " * splitdir(file)[end])
+            if verbose; println(">>> Excluding " * splitdir(file)[end]); end
             continue
         end
 
