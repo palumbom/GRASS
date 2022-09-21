@@ -150,5 +150,8 @@ function disk_sim_gpu(spec::SpecParams, disk::DiskParams, soldata::SolarData,
         # iterate tloop
         @cusync @captured @cuda threads=threads2 blocks=blocks2 iterate_tloop_gpu!(tloop, data_inds, lenall_gpu, grid)
     end
-    return spec.lambdas, outspec
+
+    # ensure normalization
+    outspec ./= maximum(outspec, dims=1)
+    return nothing
 end
