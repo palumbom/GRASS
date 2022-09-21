@@ -14,12 +14,8 @@ jobs:
         python: [3.7]
         os:
           - ubuntu-latest
-          - macOS-latest
         arch:
           - x64
-        exclude:
-          - os: macOS-latest
-            arch: x86
     steps:
       - uses: actions/checkout@v2
 
