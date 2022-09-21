@@ -46,8 +46,8 @@ function disk_sim_gpu(spec::SpecParams, disk::DiskParams, soldata::SolarData,
 
     # move input data to gpu
     @cusync begin
-        disc_mu = CuArray{prec}(disc_mu_cpu)
-        disc_ax = CuArray{Int32}(disc_ax_cpu)
+        disc_mu_gpu = CuArray{prec}(disc_mu_cpu)
+        disc_ax_gpu = CuArray{Int32}(disc_ax_cpu)
         lenall_gpu = CuArray{Int32}(lenall_cpu)
         bisall_gpu = CuArray{prec}(bisall_cpu)
         intall_gpu = CuArray{prec}(intall_cpu)
@@ -98,7 +98,7 @@ function disk_sim_gpu(spec::SpecParams, disk::DiskParams, soldata::SolarData,
 
     # initialize values for data_inds, rot_shifts, and norm_terms
     @cusync @cuda threads=threads2 blocks=blocks2 initialize_arrays_for_gpu(data_inds, norm_terms, rot_shifts,
-                                                                            grid, disc_mu, disc_ax, u1,
+                                                                            grid, disc_mu_gpu, disc_ax_gpu, u1,
                                                                             u2, polex, poley, polez)
 
     # generate random indices for input data
