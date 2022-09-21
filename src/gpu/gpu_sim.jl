@@ -70,8 +70,6 @@ function disk_sim_gpu(spec::SpecParams, disk::DiskParams, soldata::SolarData,
 
         # pre-allocated memory for interpolations
         starmap = CUDA.ones(prec, N, N, Nλ)
-        lwavgrid = CUDA.zeros(prec, N, N, 100)
-        rwavgrid = CUDA.zeros(prec, N, N, 100)
         allwavs = CUDA.zeros(prec, N, N, 200)
         allints = CUDA.zeros(prec, N, N, 200)
     end
@@ -130,36 +128,27 @@ function disk_sim_gpu(spec::SpecParams, disk::DiskParams, soldata::SolarData,
                 end
 
                 # do the trim
-                @cusync @captured @cuda threads=threads1 blocks=blocks1[n] trim_bisector_gpu(depths[l],
-                                                                                             bisall_gpu_out,
-                                                                                             intall_gpu_out,
-                                                                                             bisall_gpu_in,
-                                                                                             intall_gpu_in)
+                @cusync @captured @cuda threads=threads1 blocks=blocks1[n] trim_bisector_gpu!(depths[l],
+                                                                                              bisall_gpu_out,
+                                                                                              intall_gpu_out,
+                                                                                              bisall_gpu_in,
+                                                                                              intall_gpu_in)
             end
 
-            # fill workspace arrays
-            @cusync @captured @cuda threads=threads4 blocks=blocks4 fill_workspace_arrays!(lines[l], conv_blueshifts[l],
-                                                                                           grid, tloop, data_inds, rot_shifts,
-                                                                                           bisall_gpu_loop, widall_gpu,
-                                                                                           lwavgrid, rwavgrid)
-
-            # concatenate workspace arrays before interpolating
-            @cusync @captured @cuda threads=threads4 blocks=blocks4 concatenate_workspace_arrays!(grid, tloop, data_inds, intall_gpu_loop,
-                                                                                                  lwavgrid, rwavgrid, allwavs, allints)
+            @cusync @captured @cuda threads=threads4 blocks=blocks4 fill_workspaces!(lines[l], conv_blueshifts[l], grid,
+                                                                                     tloop, data_inds, rot_shifts,
+                                                                                     bisall_gpu_loop, intall_gpu_loop,
+                                                                                     widall_gpu, allwavs, allints)
 
             # do the line synthesis
             @cusync @captured @cuda threads=threads3 blocks=blocks3 line_profile_gpu!(starmap, grid, lambdas, allwavs, allints)
-
-            # do array reduction and move data from GPU to CPU
-            @cusync @inbounds outspec[:,t] .*= Array(CUDA.view(CUDA.sum(starmap, dims=(1,2)), 1, 1, :))
-
-            # iterate tloop
-            @cusync @captured @cuda threads=threads2 blocks=blocks2 iterate_tloop_gpu(tloop, data_inds, lenall_gpu, grid)
         end
+
+        # do array reduction and move data from GPU to CPU
+        @cusync @inbounds outspec[:,t] .*= Array(CUDA.view(CUDA.sum(starmap, dims=(1,2)), 1, 1, :))
+
+        # iterate tloop
+        @cusync @captured @cuda threads=threads2 blocks=blocks2 iterate_tloop_gpu!(tloop, data_inds, lenall_gpu, grid)
     end
-    # CUDA.synchronize()
     return spec.lambdas, outspec
 end
-
-# TODO: compare kernel launch cost to compute cost
-# TODO: how many registers are needed?
