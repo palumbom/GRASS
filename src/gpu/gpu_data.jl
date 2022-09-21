@@ -92,31 +92,6 @@ function find_data_index_gpu(x, y, disc_mu, disc_ax)
     return nothing
 end
 
-function generate_tloop_gpu(tloop, grid, data_inds_gpu, lenall_gpu)
-    # get indices from GPU blocks + threads
-    idx = threadIdx().x + blockDim().x * (blockIdx().x-1)
-    sdx = blockDim().x * gridDim().x
-    idy = threadIdx().y + blockDim().y * (blockIdx().y-1)
-    sdy = blockDim().y * gridDim().y
-
-    # parallelized loop over grid
-    for i in idx:sdx:CUDA.length(grid)
-        for j in idy:sdy:CUDA.length(grid)
-            x = grid[i]
-            y = grid[j]
-            r2 = calc_r2(x, y)
-            if r2 > 1.0
-                continue
-            end
-
-            # generate random number in range of input data
-            idx = data_inds_gpu[i,j]
-            @inbounds tloop[i,j] = CUDA.floor(Int32, rand() * lenall_gpu[idx]) + 1
-        end
-    end
-    return nothing
-end
-
 function iterate_tloop_gpu!(tloop, data_inds, lenall, grid)
     # get indices from GPU blocks + threads
     idx = threadIdx().x + blockDim().x * (blockIdx().x-1)
@@ -147,8 +122,8 @@ function iterate_tloop_gpu!(tloop, data_inds, lenall, grid)
     return nothing
 end
 
-function initialize_arrays_for_gpu(data_inds, norm_terms, rot_shifts,
-                                   grid, disc_mu, disc_ax, u1, u2,
+function initialize_arrays_for_gpu(data_inds, tloop, norm_terms, rot_shifts,
+                                   grid, disc_mu, disc_ax, lenall, u1, u2,
                                    polex, poley, polez)
     # get indices from GPU blocks + threads
     idx = threadIdx().x + blockDim().x * (blockIdx().x-1)
@@ -171,8 +146,10 @@ function initialize_arrays_for_gpu(data_inds, norm_terms, rot_shifts,
                 continue
             end
 
-            # find the correct data index
-            @inbounds data_inds[i,j] = find_data_index_gpu(x, y, disc_mu, disc_ax)
+            # find the correct data index and initialize tloop value
+            idx = find_data_index_gpu(x, y, disc_mu, disc_ax)
+            @inbounds data_inds[i,j] = idx
+            @inbounds tloop[i,j] = CUDA.floor(Int32, rand() * lenall[idx]) + 1
 
             # calculate the normalization
             @inbounds norm_terms[i,j] = calc_norm_term(x, y, len, u1, u2)

@@ -96,13 +96,11 @@ function disk_sim_gpu(spec::SpecParams, disk::DiskParams, soldata::SolarData,
     threads4 = (6,6,6)
     blocks4 = cld(N^2 * 100, prod(threads4))
 
-    # initialize values for data_inds, rot_shifts, and norm_terms
-    @cusync @cuda threads=threads2 blocks=blocks2 initialize_arrays_for_gpu(data_inds, norm_terms, rot_shifts,
-                                                                            grid, disc_mu_gpu, disc_ax_gpu, u1,
+    # initialize values for data_inds, tloop,  rot_shifts, and norm_terms
+    @cusync @cuda threads=threads2 blocks=blocks2 initialize_arrays_for_gpu(data_inds, tloop, norm_terms,
+                                                                            rot_shifts, grid, disc_mu_gpu,
+                                                                            disc_ax_gpu, lenall_gpu, u1,
                                                                             u2, polex, poley, polez)
-
-    # generate random indices for input data
-    @cusync @cuda threads=threads2 blocks=blocks2 generate_tloop_gpu(tloop, grid, data_inds, lenall_gpu)
 
     # loop over time
     for t in 1:Nt
