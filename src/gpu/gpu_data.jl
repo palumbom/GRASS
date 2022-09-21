@@ -117,7 +117,7 @@ function generate_tloop_gpu(tloop, grid, data_inds_gpu, lenall_gpu)
     return nothing
 end
 
-function iterate_tloop_gpu(tloop, data_inds, lenall, grid)
+function iterate_tloop_gpu!(tloop, data_inds, lenall, grid)
     # get indices from GPU blocks + threads
     idx = threadIdx().x + blockDim().x * (blockIdx().x-1)
     sdx = blockDim().x * gridDim().x
