@@ -130,7 +130,7 @@ function main()
         depth = lp.depth[i]
 
         # get IAG spectrum and normalize it
-        wavs_iag, flux_iag = read_iag(isolate=true, airwav=airwav, buffer=1.25)
+        wavs_iag, flux_iag = read_iag_atlas(isolate=true, airwav=airwav, buffer=1.25)
         flux_iag ./= maximum(flux_iag)
 
         # get depth from IAG spectrum
@@ -202,7 +202,7 @@ function main()
     # geff = [0.0];
 
     # # get spectrum and interpolate onto even wavelength grid
-    # wavs_iag, flux_iag = read_iag(airwav=airwav)
+    # wavs_iag, flux_iag = read_iag_atlas(airwav=airwav)
     # wavs_iag, flux_iag = interpolate_spec(wavs_iag, flux_iag)
 
     # # set up for GRASS spectrum simulation
