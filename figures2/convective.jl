@@ -1,5 +1,4 @@
 using Pkg; Pkg.activate(".")
-using CSV
 using GRASS
 using Printf
 using DataFrames
@@ -10,13 +9,11 @@ using EchelleCCFs
 using LaTeXStrings
 import PyPlot; plt = PyPlot; mpl = plt.matplotlib; plt.ioff()
 using PyCall; animation = pyimport("matplotlib.animation");
-mpl.style.use("my.mplstyle")
+mpl.style.use("figures1/fig.mplstyle")
 
 # set Desktop directory
-outdir = "/Users/michael/Desktop/"
-if !isdir(outdir)
-    outdir = "/Users/mlp95/Desktop/"
-end
+run, plot = parse_args(ARGS)
+grassdir, plotdir, datadir = check_plot_dirs()
 
 # preprocess the data and get function definitions
 function blueshift_vs_depth(depths::AbstractArray{Float64,1})
@@ -33,7 +30,7 @@ function blueshift_vs_depth(depths::AbstractArray{Float64,1})
         spec = SpecParams(lines=lines, depths=[depth], templates=templates, resolution=resolution)
 
         # synthesize spectra
-        disk = DiskParams(N=132, Nt=5)
+        disk = DiskParams(N=132, Nt=2)
         lambdas1, outspec1 = synthesize_spectra(spec, disk, verbose=false)
 
         # calculate the RVs
@@ -52,7 +49,7 @@ rvs = blueshift_vs_depth(depths)
 df_iag = GRASS.read_iag_blueshifts()
 
 # get indices for bins
-bin_edges = range(0.0, 1.0, step=0.1)
+bin_edges = range(0.0, 1.0, step=0.05)
 bin_centers = bin_edges[1:end-1] .+ 0.5 * step(bin_edges)
 inds = zeros(Int, length(df_iag.depth))
 for i in eachindex(df_iag.depth)
@@ -82,6 +79,5 @@ ax1.set_ylim(-1100, 400)
 ax1.set_xlabel(L"{\rm Line\ Depth}")
 ax1.set_ylabel(L"{\rm Convective\ Blueshift\ (ms^{-1})}")
 ax1.legend()
-plt.show()
-# fig.savefig(outdir * "conv_blueshift.pdf")
+fig.savefig(plotdir * "conv_blueshift.pdf")
 plt.clf(); plt.close()
