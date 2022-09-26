@@ -43,16 +43,16 @@ function measure_convective_blueshifts(fname)
                     idx1 = 3 # the lowest-most measurements are usually janky
                     idx2 = findfirst(x -> x .>= bot + 0.1 * dep, intt)
 
-                    # take the mean Δλ
+                    # take the mean λ of bisectors
                     vlos[i] += mean(view(bist, idx1:idx2))
                 end
 
                 # take the mean over time
                 vlos[i] /= size(bis, 2)
 
-                # now turn that Δλ into a velocity
+                # now turn that λ into a velocity
                 # gravitational redshift from Stief et al. (2019)
-                vlos[i] = c_ms * vlos[i]/λrest - 633.5
+                vlos[i] = c_ms * (vlos[i] - λrest)/λrest - 633.5
             end
 
             # write it as an attribute for this disk position
@@ -73,7 +73,7 @@ function retrieve_vconvs(fname)
             attr = HDF5.attributes(f[k])
             ax = read(attr["axis"])
             push!(mus, parse_mu_string(read(attr["mu"])))
-            push!(vconv, read(attr["vconv"]))
+            push!(vconvs, read(attr["vconv"]))
         end
     end
     return mus, vconvs
