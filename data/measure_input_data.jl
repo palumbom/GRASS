@@ -243,16 +243,20 @@ function preprocess_line(line_name::String; clobber::Bool=true, verbose::Bool=tr
     # plot the convective blueshifts
     mus, vconvs = GRASS.retrieve_vconvs(fname)
     plt.scatter(mus, vconvs)
-    plt.show()
-
+    plt.invert_xaxis()
+    plt.xlabel("mu")
+    plt.ylabel("v_conv")
+    plt.title(line_df.name[1])
+    plt.savefig(plotdir * "vconvs/" * line_df.name[1] * ".pdf")
+    plt.clf(); plt.close();
     return nothing
 end
 
 function main()
     for name in line_info.name
         # skip the "hard" lines for now
-        # (name in ["CI_5380", "FeI_5382", "NaI_5896"]) && continue
-        name != "FeI_5434" && continue
+        (name in ["CI_5380", "FeI_5382", "NaI_5896"]) && continue
+        # name != "FeI_5434" && continue
 
         # print the line name and preprocess it
         println(">>> Processing " * name * "...")
