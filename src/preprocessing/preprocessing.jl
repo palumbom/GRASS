@@ -21,8 +21,8 @@ function write_line_params(line_df::DataFrame; clobber::Bool=false)
             println("\t >>> Writing line properties to " * splitdir(fname)[end])
             iag_wavs, iag_flux = read_iag_atlas(isolate=true, airwav=line_df.air_wavelength[1])
 
-            idx1 = findfirst(x -> x .<= line_df.air_wavelength - 0.25, iag_wavs)
-            idx2 = findfirst(x -> x .>= line_df.air_wavelength + 0.25, iag_wavs)
+            idx1 = findfirst(x -> x .<= line_df.air_wavelength[1] - 0.25, iag_wavs)
+            idx2 = findfirst(x -> x .>= line_df.air_wavelength[1] + 0.25, iag_wavs)
             iag_depth = 1.0 - minimum(view(iag_flux, idx1:idx2))
 
             # write the attributes to file metadata
