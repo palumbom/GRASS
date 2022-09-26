@@ -230,6 +230,11 @@ function preprocess_line(line_name::String; clobber::Bool=true, verbose::Bool=tr
             GRASS.write_input_data(line_df, ax_string, mu_string, datetime, top, bis_w, int_w, wid_w)
         end
     end
+
+    # now go back through and compute convective blueshift for each disk pos
+    println("\t >>> Measuring convective blueshifts")
+    fname = GRASS.soldir * line_df.name[1] * ".h5"
+
     return nothing
 end
 
