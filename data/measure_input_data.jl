@@ -34,6 +34,9 @@ function preprocess_line(line_name::String; clobber::Bool=true, verbose::Bool=tr
         GRASS.write_line_params(line_df)
     end
 
+    # get the file name for output h5 file
+    fname = GRASS.soldir * line_df.name[1] * ".h5"
+
     # parse out parameters from file names
     spec_df = GRASS.sort_spectrum_data(dir=data_dir * line_df.spectra_dir[1] * "/")
     sort!(spec_df, :mu, rev=true)
@@ -233,7 +236,7 @@ function preprocess_line(line_name::String; clobber::Bool=true, verbose::Bool=tr
 
     # now go back through and compute convective blueshift for each disk pos
     println("\t >>> Measuring convective blueshifts")
-    fname = GRASS.soldir * line_df.name[1] * ".h5"
+    GRASS.measure_convective_blueshifts(fname)
 
     return nothing
 end
@@ -242,11 +245,11 @@ function main()
     for name in line_info.name
         # skip the "hard" lines for now
         # (name in ["CI_5380", "FeI_5382", "NaI_5896"]) && continue
-        # name != "FeI_5434" && continue
+        name != "FeI_5434" && continue
 
         # print the line name and preprocess it
         println(">>> Processing " * name * "...")
-        preprocess_line(name, debug=false)
+        preprocess_line(name, debug=true)
     end
     return nothing
 end

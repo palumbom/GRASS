@@ -64,6 +64,7 @@ include("velocities.jl")
 include("preprocessing/voigt.jl")
 include("preprocessing/spectraIO.jl")
 include("preprocessing/preprocessing.jl")
+include("preprocessing/conv_blueshift.jl")
 
 # simulating observations
 include("observing/convolutions.jl")
