@@ -235,8 +235,15 @@ function preprocess_line(line_name::String; clobber::Bool=true, verbose::Bool=tr
     end
 
     # now go back through and compute convective blueshift for each disk pos
-    println("\t >>> Measuring convective blueshifts")
-    GRASS.measure_convective_blueshifts(fname)
+    println("\t >>> Measuring convective blueshifts...")
+    if !debug
+        GRASS.measure_convective_blueshifts(fname)
+    end
+
+    # plot the convective blueshifts
+    mus, vconvs = GRASS.retrieve_vconvs(fname)
+    plt.scatter(mus, vconvs)
+    plt.show()
 
     return nothing
 end
@@ -249,7 +256,7 @@ function main()
 
         # print the line name and preprocess it
         println(">>> Processing " * name * "...")
-        preprocess_line(name, debug=true)
+        preprocess_line(name, debug=false)
     end
     return nothing
 end
