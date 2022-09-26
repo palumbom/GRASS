@@ -11,7 +11,7 @@ function measure_convective_blueshifts(fname)
             mu = read(attr["mu"])
 
             # loop over times at disk position
-            vlos = zeros(len(keys(f[k])))
+            vlos = zeros(length(keys(f[k])))
             for (i, t) in enumerate(keys(f[k]))
                 # get bisectors
                 top = read(f[k][t]["top_ints"])
@@ -29,29 +29,26 @@ function measure_convective_blueshifts(fname)
                     top = strip_columns(top, badcols)
                 end
 
-                plt.plot(bis, int)
-                plt.show()
-
                 # loop over time
                 for j in 1:size(bis,2)
                     # get views for time slice
-                    bist = view(bis, : ,j)
-                    intt = view(int, : ,j)
+                    bist = view(bis, :, j)
+                    intt = view(int, :, j)
 
                     # find the depth
                     bot = minimum(intt)
                     dep = 1.0 - bot
 
                     # find the lower 5% of the bisector curve
-                    idx1 = 2 # the lowest measurement is usually janky
+                    idx1 = 3 # the lowest-most measurements are usually janky
                     idx2 = findfirst(x -> x .>= bot + 0.1 * dep, intt)
 
                     # take the mean Δλ
-                    vlos[i] += mean(view(idx1:idx2))
+                    vlos[i] += mean(view(bist, idx1:idx2))
                 end
 
-                # take the average
-                vlos[i] /= size(bis,2)
+                # take the mean over time
+                vlos[i] /= size(bis, 2)
 
                 # now turn that Δλ into a velocity
                 # gravitational redshift from Stief et al. (2019)
@@ -63,4 +60,21 @@ function measure_convective_blueshifts(fname)
         end
     end
     return nothing
+end
+
+function retrieve_vconvs(fname)
+    mus = []
+    vconvs = []
+
+
+    h5open(fname, "r+") do f
+        for k in keys(f)
+            # get the axis and mu values
+            attr = HDF5.attributes(f[k])
+            ax = read(attr["axis"])
+            push!(mus, parse_mu_string(read(attr["mu"])))
+            push!(vconv, read(attr["vconv"]))
+        end
+    end
+    return mus, vconvs
 end
