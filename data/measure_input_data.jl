@@ -243,10 +243,10 @@ function preprocess_line(line_name::String; clobber::Bool=true, verbose::Bool=tr
     # plot the convective blueshifts
     mus, vconvs = GRASS.retrieve_vconvs(fname)
     plt.scatter(mus, vconvs)
-    plt.invert_xaxis()
-    plt.xlabel("mu")
-    plt.ylabel("v_conv")
-    plt.title(line_df.name[1])
+    plt.gca().invert_xaxis()
+    plt.xlabel(L"\mu")
+    plt.ylabel(L"v_{\rm conv}")
+    # plt.title(line_df.name[1])
     plt.savefig(plotdir * "vconvs/" * line_df.name[1] * ".pdf")
     plt.clf(); plt.close();
     return nothing
