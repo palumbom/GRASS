@@ -34,14 +34,18 @@ function measure_convective_blueshifts(fname)
                     # get views for time slice
                     bist = view(bis, :, j)
                     intt = view(int, :, j)
+                    topt = view(top, j)
 
                     # find the depth
                     bot = minimum(intt)
                     dep = 1.0 - bot
 
                     # find the lower 5% of the bisector curve
-                    idx1 = 3 # the lowest-most measurements are usually janky
-                    idx2 = findfirst(x -> x .>= bot + 0.1 * dep, intt)
+                    idx1 = 5 # the lowest-most measurements are usually janky
+                    idx2 = findfirst(x -> x .>= bot + 0.8 * dep, intt)
+                    if topt < idx2
+                        idx2 = findfirst(x -> x .>= topt)
+                    end
 
                     # take the mean λ of bisectors
                     vlos[i] += mean(view(bist, idx1:idx2))

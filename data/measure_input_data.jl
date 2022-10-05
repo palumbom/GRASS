@@ -140,7 +140,7 @@ function preprocess_line(line_name::String; clobber::Bool=true, verbose::Bool=tr
                 end
             end
 
-            # pad the spectrum if line is close to edge of spectral region
+            # pad the spectrum with ones if line is close to edge of spectral region
             specbuff = 1.5
             if wavst[min] - first(wavst) < specbuff
                 wavs_pad = range(first(wavst) - specbuff, first(wavst), step=minimum(diff(wavst)))
@@ -255,12 +255,12 @@ end
 function main()
     for name in line_info.name
         # skip the "hard" lines for now
-        (name in ["CI_5380", "FeI_5382", "NaI_5896"]) && continue
-        # name != "FeI_5434" && continue
+        # (name in ["CI_5380", "FeI_5382", "NaI_5896"]) && continue
+        name != "FeI_5434" && continue
 
         # print the line name and preprocess it
         println(">>> Processing " * name * "...")
-        preprocess_line(name, debug=false)
+        preprocess_line(name, debug=true)
     end
     return nothing
 end
