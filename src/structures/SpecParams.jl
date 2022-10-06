@@ -44,6 +44,7 @@ function SpecParams(;lines=[], depths=[], geffs=[], variability=[],
         idx = searchsortednearest(df.depth, depths[i])
         blueshifts[i] = df.blueshift[idx] / c_ms
     end
+    blueshifts .= 0.0
 
     # assign fixed_width booleans
     if isempty(variability)
