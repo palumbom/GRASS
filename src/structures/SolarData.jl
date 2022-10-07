@@ -114,7 +114,7 @@ function SolarData(fname::String; relative::Bool=true, extrapolate::Bool=true,
                 wid = strip_columns(wid, badcols)
             end
 
-            # match the means of the various datasets
+            # match the means of noncontiguous datasets
             if adjust_mean && !contiguous_only
                 # fix ntimes to deal with removed columns
                 inds = findall(badcols)
