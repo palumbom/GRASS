@@ -1,12 +1,16 @@
 # line loop function, update prof in place
 function line_loop_cpu(prof::AA{T,1}, mid::T, depth::T, z_rot::T,
                        conv_blueshift::T, lambdas::AA{T,1},
-                       wsp::SynthWorkspace{T}) where T<:AF
+                       wsp::SynthWorkspace{T}, line_cbs::T) where T<:AF
     # first trim the bisectors to the correct depth
     trim_bisector!(depth, wsp.bist, wsp.intt)
 
     # calculate line center given rot. and conv. doppler shift -> λrest * (1 + z)
-    λΔD = mid * (one(T) + z_rot) * (one(T) + conv_blueshift)
+    ztot = (one(T) + z_rot) * (one(T) + conv_blueshift) * (one(T) + line_cbs) - one(T)
+    ztot -= ztot - conv_blueshift
+
+    # calculate shifted line center
+    λΔD = mid * (1.0 + ztot)
 
     # find window around shifted line
     buff = maximum(wsp.widt) / 2.0
@@ -37,18 +41,14 @@ function time_loop_cpu(t_loop::Int, prof::AA{T,1}, z_rot::T,
     wsp.bist .= view(soldata.bis[key], :, t_loop)
     wsp.intt .= view(soldata.int[key], :, t_loop)
     wsp.widt .= view(soldata.wid[key], :, t_loop)
-
-    # get cbs from input data
-    cbs = soldata.cbs[key]
+    line_cbs = soldata.cbs[key]
 
     # loop over specified synthetic lines
     prof .= one(T)
     for l in liter
         wsp.bist .*= spec.variability[l]
-        # line_loop_cpu(prof, spec.lines[l], spec.depths[l], z_rot,
-        #               spec.conv_blueshifts[l], spec.lambdas, wsp)
         line_loop_cpu(prof, spec.lines[l], spec.depths[l], z_rot,
-                      cbs, spec.lambdas, wsp)
+                      spec.conv_blueshifts[l], spec.lambdas, wsp, line_cbs)
     end
     return nothing
 end
@@ -109,7 +109,7 @@ function disk_sim(spec::SpecParams{T}, disk::DiskParams{T}, soldata::SolarData{T
         Random.seed!(42)
     end
 
-    # calculate normalization terms
+    ## calculate normalization terms
     # norm_terms = calc_norm_terms(disk)
 
     # loop over grid positions
