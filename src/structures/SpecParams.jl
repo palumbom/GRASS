@@ -43,7 +43,8 @@ function SpecParams(;lines=[], depths=[], geffs=[], variability=[],
         blueshifts = similar(lines)
         for i in eachindex(depths)
             idx = searchsortednearest(df.depth, depths[i])
-            blueshifts[i] = rand(Normal(df.blueshift[idx], df.sigma[idx]))
+            # blueshifts[i] = rand(Normal(df.blueshift[idx], df.sigma[idx]))
+            blueshifts[i] = rand(Normal(df.blueshift[idx], 0.0))
         end
     else
         @assert length(blueshifts) == length(lines)
