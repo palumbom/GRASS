@@ -38,12 +38,17 @@ function time_loop_cpu(t_loop::Int, prof::AA{T,1}, z_rot::T,
     wsp.intt .= view(soldata.int[key], :, t_loop)
     wsp.widt .= view(soldata.wid[key], :, t_loop)
 
+    # get cbs from input data
+    cbs = soldata.cbs[key]
+
     # loop over specified synthetic lines
     prof .= one(T)
     for l in liter
         wsp.bist .*= spec.variability[l]
+        # line_loop_cpu(prof, spec.lines[l], spec.depths[l], z_rot,
+        #               spec.conv_blueshifts[l], spec.lambdas, wsp)
         line_loop_cpu(prof, spec.lines[l], spec.depths[l], z_rot,
-                      spec.conv_blueshifts[l], spec.lambdas, wsp)
+                      cbs, spec.lambdas, wsp)
     end
     return nothing
 end
