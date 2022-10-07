@@ -57,7 +57,7 @@ function SolarData(fname::String; relative::Bool=true, extrapolate::Bool=true,
             attr = HDF5.attributes(f[k])
             ax = read(attr["axis"])
             mu = read(attr["mu"])
-            vconv = read(attr["vconv"])
+            vconv = read(attr["vconv"]) / c_ms # convert to z = v/c
 
             # only read in the first set of observations
             if contiguous_only

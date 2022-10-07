@@ -1,5 +1,5 @@
 using CSV
-using HTTP
+using Downloads
 using DataFrames
 using EchelleCCFs: λ_air_to_vac, λ_vac_to_air
 
@@ -7,7 +7,7 @@ function download_iag_atlas()
     # download the file
     println(">>> Downloading IAG atlas...")
     url = "http://cdsarc.u-strasbg.fr/viz-bin/nph-Cat/txt.gz?J/A+A/587/A65/spvis.dat.gz"
-    file = HTTP.download(url, datdir * "spvis.dat.gz", update_period=Inf)
+    file = Downloads.download(url, datdir * "spvis.dat.gz")
 
     # decompress it
     @assert isfile(file)
@@ -54,7 +54,7 @@ function download_iag_blueshifts()
     # download the file
     println(">>> Downloading IAG convective blueshift data...")
     url = "http://cdsarc.u-strasbg.fr/ftp/cats/A&A/587/A65/tablea1.dat"
-    file = HTTP.download(url, datdir * "iag_blueshifts.dat", update_period=Inf)
+    file = Downloads.download(url, datdir * "iag_blueshifts.dat")
 
     println(">>> IAG blueshifts downloaded to " * file)
     return nothing

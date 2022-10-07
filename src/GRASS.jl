@@ -14,10 +14,8 @@ using Dates
 using LsqFit
 using FITSIO
 using Random
-using StatsBase
 using DataFrames
 using Statistics
-using SharedArrays
 using Distributions
 using Interpolations
 

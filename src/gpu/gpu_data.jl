@@ -1,6 +1,7 @@
 function sort_data_for_gpu(soldata::SolarData{T}) where T<:AbstractFloat
     # allocate memory for arrays to pass to gpu
     len = collect(values(soldata.len))
+    cbs = collect(values(soldata.cbs))
     npositions = length(len)
     bis = zeros(100, maximum(len), npositions)
     int = zeros(100, maximum(len), npositions)
@@ -22,6 +23,7 @@ function sort_data_for_gpu(soldata::SolarData{T}) where T<:AbstractFloat
 
     # get the arrays in mu sorted order
     len .= len[inds_mu]
+    cbs .= cbs[inds_mu]
     bis .= view(bis, :, :, inds_mu)
     int .= view(int, :, :, inds_mu)
     wid .= view(wid, :, :, inds_mu)
@@ -34,11 +36,12 @@ function sort_data_for_gpu(soldata::SolarData{T}) where T<:AbstractFloat
         disc_ax[inds1] .= disc_ax[inds1][inds2]
 
         len[inds1] .= len[inds1][inds2]
+        cbs[inds1] .= cbs[inds1][inds2]
         bis[:, :, inds1] .= bis[:, :, inds1][:, :, inds2]
         int[:, :, inds1] .= int[:, :, inds1][:, :, inds2]
         wid[:, :, inds1] .= wid[:, :, inds1][:, :, inds2]
     end
-    return disc_mu, disc_ax, len, bis, int, wid
+    return disc_mu, disc_ax, len, cbs, bis, int, wid
 end
 
 function find_nearest_ax_gpu(x::T, y::T) where T<:AbstractFloat
@@ -123,8 +126,8 @@ function iterate_tloop_gpu!(tloop, data_inds, lenall, grid)
 end
 
 function initialize_arrays_for_gpu(data_inds, tloop, norm_terms, rot_shifts,
-                                   grid, disc_mu, disc_ax, lenall, u1, u2,
-                                   polex, poley, polez)
+                                   grid, disc_mu, disc_ax, lenall, cbsall,
+                                   u1, u2, polex, poley, polez)
     # get indices from GPU blocks + threads
     idx = threadIdx().x + blockDim().x * (blockIdx().x-1)
     sdx = blockDim().x * gridDim().x
@@ -155,7 +158,9 @@ function initialize_arrays_for_gpu(data_inds, tloop, norm_terms, rot_shifts,
             @inbounds norm_terms[i,j] = calc_norm_term(x, y, len, u1, u2)
 
             # calculate the rotational doppler shift
-            @inbounds rot_shifts[i,j] = patch_velocity_los_gpu(x, y, rstar, polex, poley, polez)
+            z_rot = patch_velocity_los_gpu(x, y, rstar, polex, poley, polez)
+            z_cbs = cbsall[idx]
+            @inbounds rot_shifts[i,j] = (1 + z_rot) * (1 + z_cbs)
         end
     end
     return nothing
