@@ -1,5 +1,5 @@
-function fill_workspaces!(line, z_convs, grid, tloop, data_inds, dop_shifts,
-                          bisall, intall, widall, allwavs, allints)
+function fill_workspaces!(line, extra_z, grid, tloop, data_inds, z_rot,
+                          z_cbs, bisall, intall, widall, allwavs, allints)
     # get indices from GPU blocks + threads
     idx = threadIdx().x + blockDim().x * (blockIdx().x-1)
     sdx = blockDim().x * gridDim().x
@@ -19,12 +19,8 @@ function fill_workspaces!(line, z_convs, grid, tloop, data_inds, dop_shifts,
                 continue
             end
 
-            # calculate the shifted center of the line
-            ztot = dop_shifts[i,j] * (1.0 + z_convs) - 1
-            ztot -= ztot - z_convs
-
             # calculate shifted line center
-            λΔD = line * (1.0 + ztot)
+            λΔD = line * (1.0 + z_rot[i,j]) * (1.0 + z_cbs[i,j]) * (1.0 + extra_z)
 
             # slice out the correct views of the input data for position
             bist = CUDA.view(bisall, :, tloop[i,j], data_inds[i,j])

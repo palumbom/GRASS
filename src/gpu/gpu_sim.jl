@@ -68,7 +68,8 @@ function disk_sim_gpu(spec::SpecParams, disk::DiskParams, soldata::SolarData,
         tloop = CUDA.zeros(Int32, N, N)
         data_inds = CUDA.zeros(Int32, N, N)
         norm_terms = CUDA.zeros(prec, N, N)
-        dop_shifts = CUDA.zeros(prec, N, N)
+        z_rot = CUDA.zeros(prec, N, N)
+        z_cbs = CUDA.zeros(prec, N, N)
 
         # pre-allocated memory for interpolations
         starmap = CUDA.ones(prec, N, N, Nλ)
@@ -100,10 +101,13 @@ function disk_sim_gpu(spec::SpecParams, disk::DiskParams, soldata::SolarData,
 
     # initialize values for data_inds, tloop, dop_shifts, and norm_terms
     @cusync @cuda threads=threads2 blocks=blocks2 initialize_arrays_for_gpu(data_inds, tloop, norm_terms,
-                                                                            dop_shifts, grid, disc_mu_gpu,
+                                                                            z_rot, z_cbs, grid, disc_mu_gpu,
                                                                             disc_ax_gpu, lenall_gpu,
                                                                             cbsall_gpu, u1, u2,
                                                                             polex, poley, polez)
+    # get weighted disk average cbs
+    @cusync z_cbs_avg = CUDA.sum(z_cbs .* norm_terms) / CUDA.sum(norm_terms)
+
     # loop over time
     for t in 1:Nt
         # don't do all this work if skip_times is true
@@ -135,9 +139,12 @@ function disk_sim_gpu(spec::SpecParams, disk::DiskParams, soldata::SolarData,
                                                                                               intall_gpu_in)
             end
 
+            # calculet how much extra shift is needed
+            extra_z = conv_blueshifts[l] - z_cbs_avg
+
             # assemble line shape on even int grid
-            @cusync @captured @cuda threads=threads4 blocks=blocks4 fill_workspaces!(lines[l], conv_blueshifts[l], grid,
-                                                                                     tloop, data_inds, dop_shifts,
+            @cusync @captured @cuda threads=threads4 blocks=blocks4 fill_workspaces!(lines[l], extra_z, grid,
+                                                                                     tloop, data_inds, z_rot, z_cbs,
                                                                                      bisall_gpu_loop, intall_gpu_loop,
                                                                                      widall_gpu, allwavs, allints)
 
