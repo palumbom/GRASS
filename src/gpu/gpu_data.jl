@@ -125,7 +125,7 @@ function iterate_tloop_gpu!(tloop, data_inds, lenall, grid)
     return nothing
 end
 
-function initialize_arrays_for_gpu(data_inds, tloop, norm_terms, dop_shifts,
+function initialize_arrays_for_gpu(data_inds, tloop, norm_terms, z_rot, z_cbs,
                                    grid, disc_mu, disc_ax, lenall, cbsall,
                                    u1, u2, polex, poley, polez)
     # get indices from GPU blocks + threads
@@ -158,9 +158,8 @@ function initialize_arrays_for_gpu(data_inds, tloop, norm_terms, dop_shifts,
             @inbounds norm_terms[i,j] = calc_norm_term(x, y, len, u1, u2)
 
             # calculate the rotational and convective doppler shift
-            rot = 1.0 + patch_velocity_los_gpu(x, y, rstar, polex, poley, polez)
-            cbs = 1.0 + cbsall[idx]
-            @inbounds dop_shifts[i,j] = rot * cbs
+            @inbounds z_rot[i,j] = patch_velocity_los_gpu(x, y, rstar, polex, poley, polez)
+            @inbounds z_cbs[i,j] = cbsall[idx]
         end
     end
     return nothing
