@@ -40,15 +40,17 @@ function disk_sim_gpu(spec::SpecParams, disk::DiskParams, soldata::SolarData,
     disc_mu_cpu = sorted_data[1]
     disc_ax_cpu = sorted_data[2]
     lenall_cpu = sorted_data[3]
-    bisall_cpu = sorted_data[4]
-    intall_cpu = sorted_data[5]
-    widall_cpu = sorted_data[6]
+    cbsall_cpu = sorted_data[4]
+    bisall_cpu = sorted_data[5]
+    intall_cpu = sorted_data[6]
+    widall_cpu = sorted_data[7]
 
     # move input data to gpu
     @cusync begin
         disc_mu_gpu = CuArray{prec}(disc_mu_cpu)
         disc_ax_gpu = CuArray{Int32}(disc_ax_cpu)
         lenall_gpu = CuArray{Int32}(lenall_cpu)
+        cbsall_gpu = CuArray{prec}(cbsall_cpu)
         bisall_gpu = CuArray{prec}(bisall_cpu)
         intall_gpu = CuArray{prec}(intall_cpu)
         widall_gpu = CuArray{prec}(widall_cpu)
@@ -99,8 +101,9 @@ function disk_sim_gpu(spec::SpecParams, disk::DiskParams, soldata::SolarData,
     # initialize values for data_inds, tloop,  rot_shifts, and norm_terms
     @cusync @cuda threads=threads2 blocks=blocks2 initialize_arrays_for_gpu(data_inds, tloop, norm_terms,
                                                                             rot_shifts, grid, disc_mu_gpu,
-                                                                            disc_ax_gpu, lenall_gpu, u1,
-                                                                            u2, polex, poley, polez)
+                                                                            disc_ax_gpu, lenall_gpu,
+                                                                            cbsall_gpu, u1, u2,
+                                                                            polex, poley, polez)
 
     # loop over time
     for t in 1:Nt
