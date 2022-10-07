@@ -18,6 +18,7 @@ using StatsBase
 using DataFrames
 using Statistics
 using SharedArrays
+using Distributions
 using Interpolations
 
 # import specific methods
