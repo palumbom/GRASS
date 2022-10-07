@@ -84,13 +84,25 @@ function identify_bad_cols(bisall::AA{T,2}, intall::AA{T,2}, widall::AA{T,2}) wh
     return badcols
 end
 
-function relative_bisector_wavelengths(bis::AA{T,2}, λrest::T) where T<:AF
-    # gravitational redshift from Stief et al. (2019)
-    # TODO: transverse motion relativistic redshift?
-    λgrav = (633.5/c_ms) * λrest
+# function relative_bisector_wavelengths(bis::AA{T,2}, λrest::T) where T<:AF
+#     # gravitational redshift from Stief et al. (2019)
+#     # TODO: transverse motion relativistic redshift?
+#     λgrav = (633.5/c_ms) * λrest
 
-    for i in 1:size(bis,2)
-        bis[:,i] .-= (λrest .+ λgrav)
-    end
+#     for i in 1:size(bis,2)
+#         bis[:,i] .-= (λrest .+ λgrav)
+#     end
+#     return nothing
+# end
+
+function relative_bisector_wavelengths(bis::AA{T,2}, λrest::T) where T<:AF
+    # # gravitational redshift from Stief et al. (2019)
+    # # TODO: transverse motion relativistic redshift?
+    # λgrav = (633.5/c_ms) * mean(bis)
+
+    # for i in 1:size(bis,2)
+    #     bis[:,i] .-= (mean(bis) .+ λgrav)
+    # end
+    bis .-= mean(bis, dims=2)
     return nothing
 end

@@ -22,7 +22,7 @@ Construct a `SpecParams` composite type instance. If `variability` is not specif
 - `resolution::Float64=7e8`: Spectral resolution of spectrum
 """
 function SpecParams(;lines=[], depths=[], geffs=[], variability=[],
-                    templates=[], resolution=7e5, buffer=2.0)
+                    templates=[], blueshifts=[], resolution=7e5, buffer=2.0)
     @assert length(lines) == length(depths)
     @assert !isempty(lines)
     @assert !isempty(depths)
@@ -38,13 +38,19 @@ function SpecParams(;lines=[], depths=[], geffs=[], variability=[],
     df = CSV.read(datdir * "convective_blueshift.dat", DataFrame,
                   header=1, delim=",", types=Float64)
 
-    # assign convective blueshifts and convert blueshift to z=v/c
-    blueshifts = similar(lines)
-    for i in eachindex(depths)
-        idx = searchsortednearest(df.depth, depths[i])
-        blueshifts[i] = df.blueshift[idx] / c_ms
-    end
-    blueshifts .= 0.0
+    # assign convective blueshifts and
+    if isempty(blueshifts)
+        blueshifts = similar(lines)
+        for i in eachindex(depths)
+            idx = searchsortednearest(df.depth, depths[i])
+            blueshifts[i] = df.blueshift[idx]
+        end
+    else
+        @assert length(blueshifts) == length(lines)
+   end
+
+   # convert blueshift to z=v/c
+   blueshifts ./=  c_ms
 
     # assign fixed_width booleans
     if isempty(variability)
