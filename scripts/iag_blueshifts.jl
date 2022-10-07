@@ -19,7 +19,7 @@ use_gpu = CUDA.functional()
 
 function blueshift_vs_depth(depths::AbstractArray{Float64,1};
                             use_gpu::Bool=use_gpu,
-                            blueshifts::AbstractArray{Any,1}=[])
+                            blueshifts=[])
     # set up stuff for lines
     lines = [5434.5]
     templates = ["FeI_6173"]
@@ -136,6 +136,7 @@ end
 # get blueshifts to simulation
 blueshifts = model(bin_centers, pfit.param)
 rvs_avg, rvs_std = blueshift_vs_depth(bin_centers, blueshifts=[])
+# rvs_avg, rvs_std = blueshift_vs_depth(bin_centers, blueshifts=zeros(length(bin_centers)))
 
 plt.scatter(bin_centers, rvs_avg, c="tab:blue")
 plot_iag_blueshift()
