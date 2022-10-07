@@ -17,28 +17,36 @@ mpl.style.use(GRASS.moddir * "figures1/fig.mplstyle")
 # determine whether to use GPU
 const use_gpu = CUDA.functional()
 
-function blueshift_vs_depth(depths::AbstractArray{Float64,1}, use_gpu::Bool=use_gpu)
+function blueshift_vs_depth(depths::AbstractArray{Float64,1};
+                            use_gpu::Bool=use_gpu,
+                            blueshifts::AbstractArray{Float64,1}=[])
     # set up stuff for lines
     lines = [5434.5]
     templates = ["FeI_5434"]
     resolution = 7e5
+    disk = DiskParams(N=132, Nt=5)
 
     # allocate memory and loop over depths
-    rvs = zeros(length(depths))
+    rvs_avg = zeros(length(depths))
+    std_avg = zeros(length(depths))
     for (idx, depth) in enumerate(depths)
         @printf(">>> Doing depth %.2f \r", depth)
-        spec = SpecParams(lines=lines, depths=[depth], templates=templates, resolution=resolution, extrapolate=true)
+        if isempty(blueshifts)
+            spec = SpecParams(lines=lines, depths=[depth], templates=templates, resolution=resolution)
+        else
+            spec = SpecParams(lines=lines, depths=[depth], blueshifts=[blueshifts[idx]], templates=templates, resolution=resolution)
+        end
 
         # synthesize spectra
-        disk = DiskParams(N=132, Nt=100)
-        lambdas1, outspec1 = synthesize_spectra(spec, disk, use_gpu=use_gpu)
+        lambdas1, outspec1 = synthesize_spectra(spec, disk, use_gpu=use_gpu, verbose=false)
 
         # calculate the RVs
         v_grid, ccf1 = calc_ccf(lambdas1, outspec1, spec, normalize=true)
         rvs1, sigs1 = calc_rvs_from_ccf(v_grid, ccf1)
-        rvs[idx] = mean(rvs1)
+        rvs_avg[idx] = mean(rvs1)
+        std_avg[idx] = std(rvs1)
     end
-    return rvs
+    return rvs_avg, std_avg
 end
 
 # read in the data table from IAG paper
@@ -84,26 +92,30 @@ end
 # fit a polynomial to the binned data
 @. model(x,p) = p[1] + p[2]*x + p[3]*x^2 + p[4]*x^3
 p0 = [-504.891, -43.7963, -145.560, 884.308] # from IAG paper Reiners et al.
-blueshift_wts = 1.0 ./  blueshift_std.^2
+# blueshift_wts = 1.0 ./  blueshift_std.^2
+blueshift_wts = ones(length(bin_centers))   # doesn't seem like Reiners et al. do WLS
 pfit = curve_fit(model, bin_centers, blueshift_med, blueshift_wts, p0)
 xs = range(bin_centers[1], bin_centers[end], length=1000)
 ys = model(xs, pfit.param)
 
 # estimate standard error on each param
-se = stderror(pfit)
+if !all(blueshift_wts .== one(eltype(blueshift_wts)))
+    se = stderror(pfit)
 
-# get uncertainty on fit to shade
-nsamps = 1000
-param_rand = zeros(nsamps, length(pfit.param))
-for i in eachindex(pfit.param)
-    param_rand[:,i] = rand(Normal(pfit.param[i], se[i]), nsamps)
-end
+    # get uncertainty on fit to shade
+    nsamps = 1000
+    param_rand = zeros(nsamps, length(pfit.param))
+    for i in eachindex(pfit.param)
+        param_rand[:,i] = rand(Normal(pfit.param[i], se[i]), nsamps)
+    end
 
-out = zeros(length(xs), nsamps)
-for i in 1:nsamps
-    out[:, i] = model(xs, param_rand[i,:])
+    out = zeros(length(xs), nsamps)
+    for i in 1:nsamps
+        out[:, i] = model(xs, param_rand[i,:])
+    end
+    std_ys = dropdims(std(out, dims=2), dims=2)
+    # plt.fill_between(xs, ys.-std_ys, y2=ys.+std_ys, color="k", alpha=0.25)
 end
-std_ys = dropdims(std(out, dims=2), dims=2)
 
 # now do the plot
 function plot_iag_blueshift()
@@ -111,7 +123,6 @@ function plot_iag_blueshift()
     plt.scatter(depths, blueshift, c="k", alpha=0.25, s=1.0)
     plt.errorbar(bin_centers, blueshift_med, yerr=blueshift_std, c="k", fmt=".", capsize=2.0)
     plt.plot(xs, ys, "k--", label="Fit")
-    # plt.fill_between(xs, ys.-std_ys, y2=ys.+std_ys, color="k", alpha=0.25)
     plt.xlim(0.0, 1.0)
     plt.ylim(-1000, 400)
     plt.xlabel(L"{\rm Line\ Depth}")
@@ -122,39 +133,24 @@ function plot_iag_blueshift()
     return nothing
 end
 
-# plot_iag_blueshift()
+# get blueshifts to simulation
+blueshifts = model(bin_centers, pfit.param)
+rvs_avg, rvs_std = blueshift_vs_depth(bin_centers, blueshifts=blueshifts)
 
-# get blueshifts inherent to simulation
-rvs = blueshift_vs_depth(bin_centers)
+plt.scatter(bin_centers, rvs_avg, c="tab:blue", )
+plot_iag_blueshift()
 
+# evaluate the blueshifts on a fine grid
+depths_out = range(0.01, 1.0, step=0.01)
+blueshifts_out = model(depths_out, pfit.param)
 
-# # write the IAG data to disk
-# df_iag = DataFrame("depth" => iag_depths, "blueshift" => iag_blueshifts, "sigma" => iag_sigmas)
-# CSV.write(desktop * "convective_blueshift_iag.dat", df_iag)
-# CSV.write(desktop * "feI5434_input/convective_blueshift.dat", df_iag)
+# do nearest neighbor interpolation on std
+sigmas_out = zeros(length(depths_out))
+for i in eachindex(depths_out)
+    idx = GRASS.searchsortednearest(bin_centers, depths_out[i])
+    sigmas_out[i] = blueshift_std[idx]
+end
 
-# # iterate until converged
-# conv_diff = zeros(1001)
-# for i in 1:3
-#     depths1 = range(0.05, 0.95, step=0.05)
-#     rvs1 = blueshift_vs_depth(depths1)
-
-#     # fit the relationship
-#     pfit1 = Polynomials.fit(depths1, mean(rvs1, dims=1)'[:,1], 3)
-#     sim_depths = range(0.0, 1.0, length=1001)
-#     sim_blueshifts = pfit1.(sim_depths)
-
-#     # get old blueshifts
-#     df_old = CSV.read(desktop * "convective_blueshift_iag.dat",
-#                       DataFrame, header=1, delim=",", type=Float64)
-
-#     # get the difference
-#     this_diff = df_old.blueshift .- sim_blueshifts
-#     conv_diff .+= this_diff
-
-#     # write the corrected blueshifts to disk
-#     df_new = DataFrame("depth" => sim_depths, "blueshift" => df_old.blueshift .+ conv_diff, "sigma" => df_old.sigma)
-#     CSV.write(desktop * "feI5434_input/convective_blueshift.dat", df_new)
-# end
-
-
+# write the IAG data to disk
+df_out = DataFrame("depth" => depths_out, "blueshift" => blueshifts_out, "sigma" => sigmas_out)
+CSV.write(GRASS.datdir * "convective_blueshift.dat", df_out)
