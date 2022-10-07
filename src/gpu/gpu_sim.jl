@@ -68,7 +68,7 @@ function disk_sim_gpu(spec::SpecParams, disk::DiskParams, soldata::SolarData,
         tloop = CUDA.zeros(Int32, N, N)
         data_inds = CUDA.zeros(Int32, N, N)
         norm_terms = CUDA.zeros(prec, N, N)
-        rot_shifts = CUDA.zeros(prec, N, N)
+        dop_shifts = CUDA.zeros(prec, N, N)
 
         # pre-allocated memory for interpolations
         starmap = CUDA.ones(prec, N, N, Nλ)
@@ -98,13 +98,12 @@ function disk_sim_gpu(spec::SpecParams, disk::DiskParams, soldata::SolarData,
     threads4 = (6,6,6)
     blocks4 = cld(N^2 * 100, prod(threads4))
 
-    # initialize values for data_inds, tloop,  rot_shifts, and norm_terms
+    # initialize values for data_inds, tloop, dop_shifts, and norm_terms
     @cusync @cuda threads=threads2 blocks=blocks2 initialize_arrays_for_gpu(data_inds, tloop, norm_terms,
-                                                                            rot_shifts, grid, disc_mu_gpu,
+                                                                            dop_shifts, grid, disc_mu_gpu,
                                                                             disc_ax_gpu, lenall_gpu,
                                                                             cbsall_gpu, u1, u2,
                                                                             polex, poley, polez)
-
     # loop over time
     for t in 1:Nt
         # don't do all this work if skip_times is true
@@ -136,12 +135,13 @@ function disk_sim_gpu(spec::SpecParams, disk::DiskParams, soldata::SolarData,
                                                                                               intall_gpu_in)
             end
 
+            # assemble line shape on even int grid
             @cusync @captured @cuda threads=threads4 blocks=blocks4 fill_workspaces!(lines[l], conv_blueshifts[l], grid,
-                                                                                     tloop, data_inds, rot_shifts,
+                                                                                     tloop, data_inds, dop_shifts,
                                                                                      bisall_gpu_loop, intall_gpu_loop,
                                                                                      widall_gpu, allwavs, allints)
 
-            # do the line synthesis
+            # do the line synthesis, interp back onto wavelength grid
             @cusync @captured @cuda threads=threads3 blocks=blocks3 line_profile_gpu!(starmap, grid, lambdas, allwavs, allints)
         end
 
