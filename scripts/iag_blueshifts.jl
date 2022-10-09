@@ -22,7 +22,7 @@ function blueshift_vs_depth(depths::AbstractArray{Float64,1};
                             blueshifts=[])
     # set up stuff for lines
     lines = [5434.5]
-    templates = ["FeI_6173"]
+    templates = ["FeI_5434"]
     resolution = 7e5
     disk = DiskParams(N=132, Nt=2)
 
