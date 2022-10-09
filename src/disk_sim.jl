@@ -105,7 +105,7 @@ function calc_disk_avg_cbs(grid::StepRangeLen, disc_mu::AA{T,1}, mu_symb::AA{Sym
             denom += norm_term
         end
     end
-    return numer/denom
+    return numer/denom, denom
 end
 
 function disk_sim(spec::SpecParams{T}, disk::DiskParams{T}, soldata::SolarData{T},
@@ -131,7 +131,7 @@ function disk_sim(spec::SpecParams{T}, disk::DiskParams{T}, soldata::SolarData{T
     end
 
     # get intensity-weighted disk-avereged convective blueshift
-    z_cbs_avg = calc_disk_avg_cbs(grid, disc_mu, mu_symb, disk, soldata)
+    z_cbs_avg, sum_norm_terms = calc_disk_avg_cbs(grid, disc_mu, mu_symb, disk, soldata)
 
     # loop over grid positions
     for i in eachindex(grid)
@@ -178,8 +178,10 @@ function disk_sim(spec::SpecParams{T}, disk::DiskParams{T}, soldata::SolarData{T
         end
     end
 
+    # divide by sum of weights
+    outspec ./= sum_norm_terms
+
     # set instances of outspec where skip is true to 0 and return
-    outspec ./= maximum(outspec, dims=1)
     outspec[:, skip_times] .= zero(T)
     return nothing
 end
