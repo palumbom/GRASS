@@ -160,6 +160,6 @@ function disk_sim_gpu(spec::SpecParams, disk::DiskParams, soldata::SolarData,
     end
 
     # ensure normalization
-    outspec ./= maximum(outspec, dims=1)
+    @cusync outspec ./= CUDA.sum(norm_terms)
     return nothing
 end
