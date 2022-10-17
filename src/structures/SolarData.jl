@@ -3,6 +3,7 @@ struct SolarData{T1<:AF}
     int::Dict{Tuple{Symbol,Symbol}, AbstractArray{T1,2}}
     wid::Dict{Tuple{Symbol,Symbol}, AbstractArray{T1,2}}
     top::Dict{Tuple{Symbol,Symbol}, AbstractArray{T1,1}}
+    cbs::Dict{Tuple{Symbol,Symbol}, T1}
     len::Dict{Tuple{Symbol,Symbol}, Int}
     ax::Array{Symbol,1}
     mu::Array{Symbol,1}
@@ -30,7 +31,7 @@ end
 
 function SolarData(fname::String; relative::Bool=true, extrapolate::Bool=true,
                     adjust_mean::Bool=true, contiguous_only::Bool=false,
-                    fixed_width::Bool=false, fixed_bisector::Bool=false,)
+                    fixed_width::Bool=false, fixed_bisector::Bool=false)
     # make sure the file exists
     @assert isfile(fname)
 
@@ -39,21 +40,10 @@ function SolarData(fname::String; relative::Bool=true, extrapolate::Bool=true,
     bisdict = Dict{Tuple{Symbol,Symbol}, AA{Float64,2}}()
     intdict = Dict{Tuple{Symbol,Symbol}, AA{Float64,2}}()
     widdict = Dict{Tuple{Symbol,Symbol}, AA{Float64,2}}()
-    lengths = Dict{Tuple{Symbol,Symbol}, Int}()
+    cbsdict = Dict{Tuple{Symbol,Symbol}, Float64}()
+    lendict = Dict{Tuple{Symbol,Symbol}, Int}()
     axs = []
     mus = []
-
-    # set top buffer
-    # blend_lines = ["CaI_6169.0", "FeI_5250.6", "FeI_5383",
-    #                "FeI_5432", "FeI_5434", "NiI_5435",
-    #                "NiI_5578", "FeI_6301"]
-    blend_lines = ["FeI_5434"]
-    if any(map(x -> contains(fname, x), blend_lines))
-        top_buff = 0.0 # 0.075
-    else
-        top_buff = 0.0
-    end
-
 
     # open the file
     h5open(fname, "r") do f
@@ -67,6 +57,7 @@ function SolarData(fname::String; relative::Bool=true, extrapolate::Bool=true,
             attr = HDF5.attributes(f[k])
             ax = read(attr["axis"])
             mu = read(attr["mu"])
+            vconv = read(attr["vconv"]) / c_ms # convert to z = v/c
 
             # only read in the first set of observations
             if contiguous_only
@@ -112,7 +103,7 @@ function SolarData(fname::String; relative::Bool=true, extrapolate::Bool=true,
                 wid = strip_columns(wid, badcols)
             end
 
-            # match the means of the various datasets
+            # match the means of noncontiguous datasets
             if adjust_mean && !contiguous_only
                 # fix ntimes to deal with removed columns
                 inds = findall(badcols)
@@ -127,9 +118,6 @@ function SolarData(fname::String; relative::Bool=true, extrapolate::Bool=true,
             end
 
             if extrapolate
-                # deal with blends in a couple lines
-                top .-= top_buff
-
                 # extrapolate over data where uncertainty explodes
                 for i in 1:size(bis,2)
                     # take a slice for one time snapshot
@@ -158,14 +146,16 @@ function SolarData(fname::String; relative::Bool=true, extrapolate::Bool=true,
                 end
             end
 
-            # express bisector wavelengths relative to λrest
+            # express bisector wavelengths relative to mean
+            # add in convective blueshift at synthesis stage (later)
             if relative
-                relative_bisector_wavelengths(bis, λrest)
+                relative_bisector_wavelengths(bis)
             end
 
             # assign input data to dictionary
-            lengths[Symbol(ax), Symbol(mu)] = size(bis, 2)
+            lendict[Symbol(ax), Symbol(mu)] = size(bis, 2)
             topdict[Symbol(ax), Symbol(mu)] = top
+            cbsdict[Symbol(ax), Symbol(mu)] = vconv
             bisdict[Symbol(ax), Symbol(mu)] = (bis .* !fixed_bisector) .+ (λrest .* fixed_bisector * !relative)
             intdict[Symbol(ax), Symbol(mu)] = int
             if !fixed_width
@@ -180,5 +170,5 @@ function SolarData(fname::String; relative::Bool=true, extrapolate::Bool=true,
     end
     axs = Symbol.(unique(axs))
     mus = Symbol.(sort!(unique(mus)))
-    return SolarData(bisdict, intdict, widdict, topdict, lengths, axs, mus)
+    return SolarData(bisdict, intdict, widdict, topdict, cbsdict, lendict, axs, mus)
 end

@@ -1,12 +1,8 @@
 # line loop function, update prof in place
-function line_loop_cpu(prof::AA{T,1}, mid::T, depth::T, z_rot::T,
-                       conv_blueshift::T, lambdas::AA{T,1},
+function line_loop_cpu(prof::AA{T,1}, λΔD::T, depth::T, lambdas::AA{T,1},
                        wsp::SynthWorkspace{T}) where T<:AF
     # first trim the bisectors to the correct depth
     trim_bisector!(depth, wsp.bist, wsp.intt)
-
-    # calculate line center given rot. and conv. doppler shift -> λrest * (1 + z)
-    λΔD = mid * (one(T) + z_rot) * (one(T) + conv_blueshift)
 
     # find window around shifted line
     buff = maximum(wsp.widt) / 2.0
@@ -29,10 +25,10 @@ function line_loop_cpu(prof::AA{T,1}, mid::T, depth::T, z_rot::T,
     return nothing
 end
 
-function time_loop_cpu(t_loop::Int, prof::AA{T,1}, z_rot::T,
-                       key::Tuple{Symbol, Symbol}, liter::UnitRange{Int},
-                       spec::SpecParams{T}, soldata::SolarData,
-                       wsp::SynthWorkspace{T}) where T<:AF
+function time_loop_cpu(t_loop::Int, prof::AA{T,1}, z_rot::T, z_cbs::T,
+                       z_cbs_avg::T, key::Tuple{Symbol, Symbol},
+                       liter::UnitRange{Int}, spec::SpecParams{T},
+                       soldata::SolarData, wsp::SynthWorkspace{T}) where T<:AF
     # get views needed for line synthesis
     wsp.bist .= view(soldata.bis[key], :, t_loop)
     wsp.intt .= view(soldata.int[key], :, t_loop)
@@ -41,9 +37,13 @@ function time_loop_cpu(t_loop::Int, prof::AA{T,1}, z_rot::T,
     # loop over specified synthetic lines
     prof .= one(T)
     for l in liter
+        # calculate the position of the line center
+        extra_z = spec.conv_blueshifts[l] - z_cbs_avg
+        λΔD = spec.lines[l] * (1.0 + z_rot) * (1.0 + z_cbs) * (1.0 + extra_z)
+
+        # synthesize the line
         wsp.bist .*= spec.variability[l]
-        line_loop_cpu(prof, spec.lines[l], spec.depths[l], z_rot,
-                      spec.conv_blueshifts[l], spec.lambdas, wsp)
+        line_loop_cpu(prof, λΔD, spec.depths[l], spec.lambdas, wsp)
     end
     return nothing
 end
@@ -82,6 +82,32 @@ function generate_indices(Nt::Integer, len::Integer)
     return Iterators.flatten(inds)
 end
 
+function calc_disk_avg_cbs(grid::StepRangeLen, disc_mu::AA{T,1}, mu_symb::AA{Symbol,1},
+                           disk::DiskParams{T}, soldata::SolarData{T}) where T<:AF
+    # calculate normalization terms and get convective blueshifts
+    numer = 0
+    denom = 0
+    for i in eachindex(grid)
+        for j in eachindex(grid)
+            # get positiosns
+            x = grid[i]
+            y = grid[j]
+
+            # move to next iteration if off grid
+            (x^2 + y^2) > one(T) && continue
+
+            # get input data for place on disk
+            key = get_key_for_pos(x, y, disc_mu, mu_symb)
+
+            # calc limb darkening and get convective blueshift
+            norm_term = calc_norm_term(x, y, disk)
+            numer += soldata.cbs[key] * norm_term
+            denom += norm_term
+        end
+    end
+    return numer/denom, denom
+end
+
 function disk_sim(spec::SpecParams{T}, disk::DiskParams{T}, soldata::SolarData{T},
                   prof::AA{T,1}, outspec::AA{T,2}; seed_rng::Bool=false,
                   skip_times::BitVector=BitVector(zeros(disk.Nt)),
@@ -104,8 +130,8 @@ function disk_sim(spec::SpecParams{T}, disk::DiskParams{T}, soldata::SolarData{T
         Random.seed!(42)
     end
 
-    # calculate normalization terms
-    # norm_terms = calc_norm_terms(disk)
+    # get intensity-weighted disk-avereged convective blueshift
+    z_cbs_avg, sum_norm_terms = calc_disk_avg_cbs(grid, disc_mu, mu_symb, disk, soldata)
 
     # loop over grid positions
     for i in eachindex(grid)
@@ -130,9 +156,11 @@ function disk_sim(spec::SpecParams{T}, disk::DiskParams{T}, soldata::SolarData{T
             end
             len = soldata.len[key]
 
-            # get redshift z and norm term for location on disk
+            # get total doppler shift for the line,
+            z_cbs = soldata.cbs[key]
             z_rot = patch_velocity_los(x, y, pole=disk.pole)
-            # norm_term = norm_terms[i,j]
+
+            # get norm_term for location on disk
             norm_term = calc_norm_term(x, y, disk)
 
             # loop over time, starting at random epoch
@@ -142,7 +170,7 @@ function disk_sim(spec::SpecParams{T}, disk::DiskParams{T}, soldata::SolarData{T
                 skip_times[t] && continue
 
                 # update profile in place
-                time_loop_cpu(t_loop, prof, z_rot, key, liter, spec, soldata, wsp)
+                time_loop_cpu(t_loop, prof, z_rot, z_cbs, z_cbs_avg, key, liter, spec, soldata, wsp)
 
                 # apply normalization term and add to outspec
                 outspec[:,t] .+= (prof .* norm_term)
@@ -150,8 +178,10 @@ function disk_sim(spec::SpecParams{T}, disk::DiskParams{T}, soldata::SolarData{T
         end
     end
 
+    # divide by sum of weights
+    outspec ./= sum_norm_terms
+
     # set instances of outspec where skip is true to 0 and return
-    outspec ./= maximum(outspec, dims=1)
     outspec[:, skip_times] .= zero(T)
     return nothing
 end

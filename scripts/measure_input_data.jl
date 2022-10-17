@@ -34,6 +34,9 @@ function preprocess_line(line_name::String; clobber::Bool=true, verbose::Bool=tr
         GRASS.write_line_params(line_df)
     end
 
+    # get the file name for output h5 file
+    fname = GRASS.soldir * line_df.name[1] * ".h5"
+
     # parse out parameters from file names
     spec_df = GRASS.sort_spectrum_data(dir=data_dir * line_df.spectra_dir[1] * "/")
     sort!(spec_df, :mu, rev=true)
@@ -137,7 +140,7 @@ function preprocess_line(line_name::String; clobber::Bool=true, verbose::Bool=tr
                 end
             end
 
-            # pad the spectrum if line is close to edge of spectral region
+            # pad the spectrum with ones if line is close to edge of spectral region
             specbuff = 1.5
             if wavst[min] - first(wavst) < specbuff
                 wavs_pad = range(first(wavst) - specbuff, first(wavst), step=minimum(diff(wavst)))
@@ -230,13 +233,29 @@ function preprocess_line(line_name::String; clobber::Bool=true, verbose::Bool=tr
             GRASS.write_input_data(line_df, ax_string, mu_string, datetime, top, bis_w, int_w, wid_w)
         end
     end
+
+    # now go back through and compute convective blueshift for each disk pos
+    println("\t >>> Measuring convective blueshifts...")
+    if !debug
+        GRASS.measure_convective_blueshifts(fname)
+    end
+
+    # plot the convective blueshifts
+    mus, vconvs = GRASS.retrieve_vconvs(fname)
+    plt.scatter(mus, vconvs)
+    plt.gca().invert_xaxis()
+    plt.xlabel(L"\mu")
+    plt.ylabel(L"v_{\rm conv}")
+    # plt.title(line_df.name[1])
+    plt.savefig(plotdir * "vconvs/" * line_df.name[1] * ".pdf")
+    plt.clf(); plt.close();
     return nothing
 end
 
 function main()
     for name in line_info.name
         # skip the "hard" lines for now
-        # (name in ["CI_5380", "FeI_5382", "NaI_5896"]) && continue
+        (name in ["CI_5380", "FeI_5382"]) && continue
         # name != "FeI_5434" && continue
 
         # print the line name and preprocess it
