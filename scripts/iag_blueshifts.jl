@@ -138,8 +138,11 @@ blueshifts = model(bin_centers, pfit.param)
 rvs_avg, rvs_std = blueshift_vs_depth(bin_centers, blueshifts=[])
 # rvs_avg, rvs_std = blueshift_vs_depth(bin_centers, blueshifts=zeros(length(bin_centers)))
 
-plt.scatter(bin_centers, rvs_avg, c="tab:blue")
-plot_iag_blueshift()
+plot = false
+if plot
+    plt.scatter(bin_centers, rvs_avg, c="tab:blue")
+    plot_iag_blueshift()
+end
 
 # write out blueshifts to file
 write = false
