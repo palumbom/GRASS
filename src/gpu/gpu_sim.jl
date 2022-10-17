@@ -40,15 +40,17 @@ function disk_sim_gpu(spec::SpecParams, disk::DiskParams, soldata::SolarData,
     disc_mu_cpu = sorted_data[1]
     disc_ax_cpu = sorted_data[2]
     lenall_cpu = sorted_data[3]
-    bisall_cpu = sorted_data[4]
-    intall_cpu = sorted_data[5]
-    widall_cpu = sorted_data[6]
+    cbsall_cpu = sorted_data[4]
+    bisall_cpu = sorted_data[5]
+    intall_cpu = sorted_data[6]
+    widall_cpu = sorted_data[7]
 
     # move input data to gpu
     @cusync begin
         disc_mu_gpu = CuArray{prec}(disc_mu_cpu)
         disc_ax_gpu = CuArray{Int32}(disc_ax_cpu)
         lenall_gpu = CuArray{Int32}(lenall_cpu)
+        cbsall_gpu = CuArray{prec}(cbsall_cpu)
         bisall_gpu = CuArray{prec}(bisall_cpu)
         intall_gpu = CuArray{prec}(intall_cpu)
         widall_gpu = CuArray{prec}(widall_cpu)
@@ -66,7 +68,8 @@ function disk_sim_gpu(spec::SpecParams, disk::DiskParams, soldata::SolarData,
         tloop = CUDA.zeros(Int32, N, N)
         data_inds = CUDA.zeros(Int32, N, N)
         norm_terms = CUDA.zeros(prec, N, N)
-        rot_shifts = CUDA.zeros(prec, N, N)
+        z_rot = CUDA.zeros(prec, N, N)
+        z_cbs = CUDA.zeros(prec, N, N)
 
         # pre-allocated memory for interpolations
         starmap = CUDA.ones(prec, N, N, Nλ)
@@ -96,11 +99,14 @@ function disk_sim_gpu(spec::SpecParams, disk::DiskParams, soldata::SolarData,
     threads4 = (6,6,6)
     blocks4 = cld(N^2 * 100, prod(threads4))
 
-    # initialize values for data_inds, tloop,  rot_shifts, and norm_terms
+    # initialize values for data_inds, tloop, dop_shifts, and norm_terms
     @cusync @cuda threads=threads2 blocks=blocks2 initialize_arrays_for_gpu(data_inds, tloop, norm_terms,
-                                                                            rot_shifts, grid, disc_mu_gpu,
-                                                                            disc_ax_gpu, lenall_gpu, u1,
-                                                                            u2, polex, poley, polez)
+                                                                            z_rot, z_cbs, grid, disc_mu_gpu,
+                                                                            disc_ax_gpu, lenall_gpu,
+                                                                            cbsall_gpu, u1, u2,
+                                                                            polex, poley, polez)
+    # get weighted disk average cbs
+    @cusync z_cbs_avg = CUDA.sum(z_cbs .* norm_terms) / CUDA.sum(norm_terms)
 
     # loop over time
     for t in 1:Nt
@@ -133,12 +139,16 @@ function disk_sim_gpu(spec::SpecParams, disk::DiskParams, soldata::SolarData,
                                                                                               intall_gpu_in)
             end
 
-            @cusync @captured @cuda threads=threads4 blocks=blocks4 fill_workspaces!(lines[l], conv_blueshifts[l], grid,
-                                                                                     tloop, data_inds, rot_shifts,
+            # calculet how much extra shift is needed
+            extra_z = conv_blueshifts[l] - z_cbs_avg
+
+            # assemble line shape on even int grid
+            @cusync @captured @cuda threads=threads4 blocks=blocks4 fill_workspaces!(lines[l], extra_z, grid,
+                                                                                     tloop, data_inds, z_rot, z_cbs,
                                                                                      bisall_gpu_loop, intall_gpu_loop,
                                                                                      widall_gpu, allwavs, allints)
 
-            # do the line synthesis
+            # do the line synthesis, interp back onto wavelength grid
             @cusync @captured @cuda threads=threads3 blocks=blocks3 line_profile_gpu!(starmap, grid, lambdas, allwavs, allints)
         end
 
@@ -150,6 +160,6 @@ function disk_sim_gpu(spec::SpecParams, disk::DiskParams, soldata::SolarData,
     end
 
     # ensure normalization
-    outspec ./= maximum(outspec, dims=1)
+    @cusync outspec ./= CUDA.sum(norm_terms)
     return nothing
 end
