@@ -14,10 +14,9 @@ using Dates
 using LsqFit
 using FITSIO
 using Random
-using StatsBase
 using DataFrames
 using Statistics
-using SharedArrays
+using Distributions
 using Interpolations
 
 # import specific methods
@@ -64,6 +63,7 @@ include("velocities.jl")
 include("preprocessing/voigt.jl")
 include("preprocessing/spectraIO.jl")
 include("preprocessing/preprocessing.jl")
+include("preprocessing/conv_blueshift.jl")
 
 # simulating observations
 include("observing/convolutions.jl")
