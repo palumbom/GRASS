@@ -92,17 +92,30 @@ Synthesize spectra given parameters in `spec` and `disk` instances.
 - `disk::DiskParams`: DiskParams instance
 """
 function synthesize_spectra(spec::SpecParams{T}, disk::DiskParams{T};
-                            seed_rng::Bool=false, verbose::Bool=true,
-                            use_gpu::Bool=false) where T<:AF
+                            seed_rng::Union{Nothing, Bool, Int}=nothing,
+                            verbose::Bool=true, use_gpu::Bool=false) where T<:AF
     # parse out dimensions for memory allocation
     N = disk.N
+    Nt = disk.Nt
     Nλ = length(spec.lambdas)
 
     # allocate memory needed by both cpu & gpu implementations
-    outspec = ones(Nλ, disk.Nt)
+    tloop = zeros(Int, N, N)
+    outspec = ones(Nλ, Nt)
 
     # get number of calls to disk_sim needed
     templates = unique(spec.templates)
+
+    # deal with seed_rng kwarg
+    if typeof(seed_rng) == Bool && seed_rng
+        Random.seed!(42)
+        seed_rng = true
+    elseif typeof(seed_rng) <: Int
+        Random.seed!(seed)
+        seed_rng = true
+    else
+        seed_rng = false
+    end
 
     # call appropriate simulation function on cpu or gpu
     if use_gpu
@@ -121,13 +134,13 @@ function synthesize_spectra(spec::SpecParams{T}, disk::DiskParams{T};
             soldata = SolarData(fname=file)
 
             # run the simulation and multiply outspec by this spectrum
-            disk_sim_gpu(spec_temp, disk, soldata, outspec, seed_rng=seed_rng, verbose=verbose)
+            disk_sim_gpu(spec_temp, disk, soldata, outspec, tloop, verbose=verbose)
         end
         return spec.lambdas, outspec
     else
         # allocate memory for synthesis
         prof = ones(Nλ)
-        outspec_temp = zeros(Nλ, disk.Nt)
+        outspec_temp = zeros(Nλ, Nt)
 
         # run the simulation (outspec modified in place)
         for file in templates
@@ -143,7 +156,7 @@ function synthesize_spectra(spec::SpecParams{T}, disk::DiskParams{T};
             soldata = SolarData(fname=file)
 
             # run the simulation and multiply outspec by this spectrum
-            disk_sim(spec_temp, disk, soldata, prof, outspec_temp, seed_rng=seed_rng, verbose=verbose)
+            disk_sim(spec_temp, disk, soldata, prof, outspec_temp, tloop, verbose=verbose)
             outspec .*= outspec_temp
         end
         return spec.lambdas, outspec
