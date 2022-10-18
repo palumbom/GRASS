@@ -64,6 +64,13 @@ function calc_disk_avg_cbs(grid::StepRangeLen, disc_mu::AA{T,1}, mu_symb::AA{Sym
 
             # get input data for place on disk
             key = get_key_for_pos(x, y, disc_mu, mu_symb)
+            while !(key in keys(soldata.len))
+                idx = findfirst(key[1] .== soldata.ax)
+                if isnothing(idx) || idx == length(soldata.ax)
+                    idx = 1
+                end
+                key = (soldata.ax[idx+1], key[2])
+            end
 
             # calc limb darkening and get convective blueshift
             norm_term = calc_norm_term(x, y, disk)
