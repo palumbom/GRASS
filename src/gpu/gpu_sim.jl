@@ -155,7 +155,7 @@ function disk_sim_gpu(spec::SpecParams{T}, disk::DiskParams{T}, soldata::SolarDa
         end
 
         # do array reduction and move data from GPU to CPU
-        @cusync @inbounds outspec[:,t] .*= Array(CUDA.view(CUDA.sum(starmap, dims=(1,2)), 1, 1, :))
+        @cusync @inbounds outspec[:,t] .*= dropdims(Array(CUDA.sum(starmap, dims=(1,2))), dims=(1,2))
 
         # iterate tloop
         @cusync @captured @cuda threads=threads2 blocks=blocks2 iterate_tloop_gpu!(tloop_gpu, data_inds, lenall_gpu, grid)
