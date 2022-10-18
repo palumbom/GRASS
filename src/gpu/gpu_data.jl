@@ -125,9 +125,9 @@ function iterate_tloop_gpu!(tloop, data_inds, lenall, grid)
     return nothing
 end
 
-function initialize_arrays_for_gpu(data_inds, tloop, norm_terms, z_rot, z_cbs,
-                                   grid, disc_mu, disc_ax, lenall, cbsall,
-                                   u1, u2, polex, poley, polez)
+function initialize_arrays_for_gpu(data_inds, tloop, norm_terms, z_rot,
+                                   z_cbs, grid, disc_mu, disc_ax, lenall,
+                                   cbsall, u1, u2, polex, poley, polez)
     # get indices from GPU blocks + threads
     idx = threadIdx().x + blockDim().x * (blockIdx().x-1)
     sdx = blockDim().x * gridDim().x
@@ -149,10 +149,14 @@ function initialize_arrays_for_gpu(data_inds, tloop, norm_terms, z_rot, z_cbs,
                 continue
             end
 
-            # find the correct data index and initialize tloop value
+            # find the correct data index and
             idx = find_data_index_gpu(x, y, disc_mu, disc_ax)
             @inbounds data_inds[i,j] = idx
-            @inbounds tloop[i,j] = CUDA.floor(Int32, rand() * lenall[idx]) + 1
+
+            # initialize tloop value if not already set by CPU
+            if CUDA.iszero(tloop[i,j])
+                @inbounds tloop[i,j] = CUDA.floor(Int32, rand() * lenall[idx]) + 1
+            end
 
             # calculate the normalization
             @inbounds norm_terms[i,j] = calc_norm_term(x, y, len, u1, u2)

@@ -1,7 +1,6 @@
-function disk_sim_gpu(spec::SpecParams, disk::DiskParams, soldata::SolarData,
-                      outspec::AA{T,2}; precision::String="double",
-                      seed_rng::Bool=false, verbose::Bool=false,
-                      skip_times::BitVector=BitVector(zeros(disk.Nt))) where T<:AbstractFloat
+function disk_sim_gpu(spec::SpecParams{T}, disk::DiskParams{T}, soldata::SolarData{T},
+                      outspec::AA{T,2}, tloop::AA{Int,2}; verbose::Bool=false, seed_rng::Bool=false,
+                      precision::String="double", skip_times::BitVector=BitVector(zeros(disk.Nt))) where T<:AF
     # set single or double precision
     if precision == "single"
         prec = Float32
@@ -13,15 +12,16 @@ function disk_sim_gpu(spec::SpecParams, disk::DiskParams, soldata::SolarData,
     end
     prec::DataType
 
-    # seeding
-    if seed_rng
-        println(" >>> Seeding currently not implemented on GPU!")
-    end
-
     # get dimensions for memory alloc
     N = convert(Int32, disk.N)
     Nt = convert(Int32, disk.Nt)
     Nλ = convert(Int32, length(spec.lambdas))
+
+    # generate tloop on CPU
+    grid = make_grid(N)
+    mu_symb = soldata.mu
+    disc_mu = parse_mu_string.(mu_symb)
+    generate_tloop!(tloop, grid, disc_mu, mu_symb, soldata)
 
     # get line parameters in correct precision
     lines = convert.(prec, spec.lines)
@@ -65,7 +65,7 @@ function disk_sim_gpu(spec::SpecParams, disk::DiskParams, soldata::SolarData,
     # allocate memory for synthesis on the GPU
     @cusync begin
         # indices, redshifts, and limb darkening
-        tloop = CUDA.zeros(Int32, N, N)
+        tloop_gpu = CuArray{Int32}(tloop)
         data_inds = CUDA.zeros(Int32, N, N)
         norm_terms = CUDA.zeros(prec, N, N)
         z_rot = CUDA.zeros(prec, N, N)
@@ -79,7 +79,7 @@ function disk_sim_gpu(spec::SpecParams, disk::DiskParams, soldata::SolarData,
 
     # move spatial and lambda grid to GPU
     @cusync begin
-        grid = CuArray{prec}(make_grid(N))
+        grid = CuArray{prec}(grid)
         lambdas = CuArray{prec}(spec.lambdas)
     end
 
@@ -100,18 +100,20 @@ function disk_sim_gpu(spec::SpecParams, disk::DiskParams, soldata::SolarData,
     blocks4 = cld(N^2 * 100, prod(threads4))
 
     # initialize values for data_inds, tloop, dop_shifts, and norm_terms
-    @cusync @cuda threads=threads2 blocks=blocks2 initialize_arrays_for_gpu(data_inds, tloop, norm_terms,
+    @cusync @cuda threads=threads2 blocks=blocks2 initialize_arrays_for_gpu(data_inds, tloop_gpu, norm_terms,
                                                                             z_rot, z_cbs, grid, disc_mu_gpu,
-                                                                            disc_ax_gpu, lenall_gpu,
-                                                                            cbsall_gpu, u1, u2,
-                                                                            polex, poley, polez)
+                                                                            disc_ax_gpu, lenall_gpu, cbsall_gpu,
+                                                                            u1, u2, polex, poley, polez)
     # get weighted disk average cbs
     @cusync z_cbs_avg = CUDA.sum(z_cbs .* norm_terms) / CUDA.sum(norm_terms)
 
     # loop over time
     for t in 1:Nt
-        # don't do all this work if skip_times is true
-        skip_times[t] && continue
+        # don't do all this work if skip_times is true, but iterate t indices
+        if skip_times[t]
+            @cusync @captured @cuda threads=threads2 blocks=blocks2 iterate_tloop_gpu!(tloop_gpu, data_inds, lenall_gpu, grid)
+            continue
+        end
 
         # initialize starmap with fresh copy of weights
         @cusync starmap .= norm_terms
@@ -144,7 +146,7 @@ function disk_sim_gpu(spec::SpecParams, disk::DiskParams, soldata::SolarData,
 
             # assemble line shape on even int grid
             @cusync @captured @cuda threads=threads4 blocks=blocks4 fill_workspaces!(lines[l], extra_z, grid,
-                                                                                     tloop, data_inds, z_rot, z_cbs,
+                                                                                     tloop_gpu, data_inds, z_rot, z_cbs,
                                                                                      bisall_gpu_loop, intall_gpu_loop,
                                                                                      widall_gpu, allwavs, allints)
 
@@ -153,10 +155,10 @@ function disk_sim_gpu(spec::SpecParams, disk::DiskParams, soldata::SolarData,
         end
 
         # do array reduction and move data from GPU to CPU
-        @cusync @inbounds outspec[:,t] .*= Array(CUDA.view(CUDA.sum(starmap, dims=(1,2)), 1, 1, :))
+        @cusync @inbounds outspec[:,t] .*= dropdims(Array(CUDA.sum(starmap, dims=(1,2))), dims=(1,2))
 
         # iterate tloop
-        @cusync @captured @cuda threads=threads2 blocks=blocks2 iterate_tloop_gpu!(tloop, data_inds, lenall_gpu, grid)
+        @cusync @captured @cuda threads=threads2 blocks=blocks2 iterate_tloop_gpu!(tloop_gpu, data_inds, lenall_gpu, grid)
     end
 
     # ensure normalization
