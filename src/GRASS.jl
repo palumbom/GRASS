@@ -111,11 +111,12 @@ function synthesize_spectra(spec::SpecParams{T}, disk::DiskParams{T};
         seed = 42
         seed_rng = true
     elseif typeof(seed_rng) <: Int
+        seed = seed_rng
         seed_rng = true
     else
         seed_rng = false
     end
-        seed_rng::Bool
+    seed_rng::Bool
 
     # call appropriate simulation function on cpu or gpu
     if use_gpu
