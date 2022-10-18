@@ -108,14 +108,14 @@ function synthesize_spectra(spec::SpecParams{T}, disk::DiskParams{T};
 
     # deal with seed_rng kwarg
     if typeof(seed_rng) == Bool && seed_rng
-        Random.seed!(42)
+        seed = 42
         seed_rng = true
     elseif typeof(seed_rng) <: Int
-        Random.seed!(seed)
         seed_rng = true
     else
         seed_rng = false
     end
+        seed_rng::Bool
 
     # call appropriate simulation function on cpu or gpu
     if use_gpu
@@ -124,6 +124,11 @@ function synthesize_spectra(spec::SpecParams{T}, disk::DiskParams{T};
 
         # run the simulation and return
         for file in templates
+            # re-seed the rng
+            if seed_rng
+                Random.seed!(seed)
+            end
+
             # get temporary specparams with lines for this run
             spec_temp = SpecParams(spec, file)
 
@@ -144,6 +149,12 @@ function synthesize_spectra(spec::SpecParams{T}, disk::DiskParams{T};
 
         # run the simulation (outspec modified in place)
         for file in templates
+            # re-seed the rng
+            if seed_rng
+                Random.seed!(seed)
+            end
+
+            # re-set array to 0s
             outspec_temp .= 0.0
 
             # get temporary specparams with lines for this run
