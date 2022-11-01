@@ -71,7 +71,7 @@ function line_profile_gpu!(star_map, grid, lambdas, allwavs, allints)
             allints_ij = CUDA.view(allints, i, j, :)
 
             # set up interpolator
-            itp = linear_interp(allwavs_ij, allints_ij, bc=1.0)
+            itp = linear_interp_gpu(allwavs_ij, allints_ij)
 
             # loop over wavelengths
             for k in idz:sdz:CUDA.length(lambdas)

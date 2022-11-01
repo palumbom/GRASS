@@ -1,3 +1,58 @@
+# get groups of lines in same osbserved spectral regions
+const line_groups = [["FeI_5250.2", "FeI_5250.6"],
+                     ["FeI_5379", "CI_5380", "TiII_5381", "FeI_5383"],
+                     ["FeI_5432", "FeI_5434", "NiI_5435", "FeI_5436.3", "FeI_5436.6"],
+                     ["FeI_5576", "NiI_5578"],
+                     ["NaI_5896"],
+                     ["FeII_6149", "FeI_6151"],
+                     ["CaI_6169.0", "FeI_6173"],
+                     ["FeI_6301", "FeI_6302"]]
+
+function get_name_from_filename(line1::String)
+    # get filename from full path
+    split1 = splitdir(line1)[end]
+
+    # get name if line is filenames
+    split1 = split(split1, ".h5")
+    return split1[1]
+end
+
+function in_same_group(line1::String, line2::String)
+    # get name if lines are filenames
+    split1 = get_name_from_filename(line1)
+    split2 = get_name_from_filename(line2)
+
+    # check if they are in the same group
+    for row in line_groups
+        if split1 in row
+            return split2 in row
+        else
+            continue
+        end
+    end
+    return nothing
+end
+
+function get_template_wavelength(line1::String)
+    # get filename
+    if split(line1, ".")[end] != "h5"
+        fname = line1 * ".h5"
+    else
+        fname = line1
+    end
+
+    # open the file and get the rest wavelength
+    λrest = h5open(fname, "r") do f
+        # get rest wavelength for line
+        attr = HDF5.attributes(f)
+        λrest = read(attr["air_wavelength"])
+    end
+    return λrest
+end
+
+"""
+    SpecParams(lines, depths, geffs, conv_blueshifts, variability, resolution, lambdas, templates)
+"""
 struct SpecParams{T<:AF}
     lines::AA{T,1}
     depths::AA{T,1}
@@ -97,19 +152,19 @@ function SpecParams(;lines=[], depths=[], geffs=[], variability=[],
     end
     @assert all(isfile.(templates))
 
-    # now make sure everything is sorted
-    if !issorted(lines)
-        inds = sortperm(lines)
-        lines = view(lines, inds)
-        depths = view(depths, inds)
-        geffs = view(geffs, inds)
-        blueshifts = view(blueshifts, inds)
-        variability = view(variability, inds)
-        templates = view(templates, inds)
-    end
-    return SpecParams(lines, depths, geffs, blueshifts,
-                      variability, resolution,
-                      lambdas, templates)
+    # get indices to sort on template line wavelength
+    template_wavelengths = get_template_wavelength.(templates)
+    inds = sortperm(template_wavelengths)
+
+    # now do the sorting
+    lines = view(lines, inds)
+    depths = view(depths, inds)
+    geffs = view(geffs, inds)
+    blueshifts = view(blueshifts, inds)
+    variability = view(variability, inds)
+    templates = view(templates, inds)
+    return SpecParams(lines, depths, geffs, blueshifts, variability,
+                      resolution, lambdas, templates)
 end
 
 """
