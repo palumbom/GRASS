@@ -151,6 +151,11 @@ function assemble_dict_key(mu_ind::Int, ax::Symbol, mu_symb::AA{Symbol,1})
 end
 
 function get_key_for_pos(x::T, y::T, disc_mu::AA{T,1}, mu_symb::AA{Symbol,1}) where T<:AF
+    # make sure we are not off the disk
+    if x^2 + y^2 > 1
+        return nothing
+    end
+
     # find nearest mu index
     mu_ind = find_nearest_mu(x, y, disc_mu)
 

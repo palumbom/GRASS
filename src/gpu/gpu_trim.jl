@@ -17,27 +17,16 @@ function trim_bisector_gpu!(depth, bisall_out, intall_out, bisall_in, intall_in)
 
         # loop over the length of the bisector
         step = depth/(CUDA.length(intt_in) - 1)
-        for j in idy:sdy:CUDA.size(bisall_in, 1)
-            # set the new depth value
-            new_intt = (1.0 - depth) + (j-1) * step
 
-            # if depth is greater than input depth, stretch the bisector
+        # set up interpolator
+        itp = linear_interp_gpu(intt_in, bist_in)
+
+        for j in idy:sdy:CUDA.size(bisall_in, 1)
+            new_intt = (1.0 - depth) + (j-1) * step
             if (1.0 - depth) < CUDA.first(intt_in)
                 @inbounds intt_out[j] = new_intt
             else
-                # interpolate to get the new wavelength value
-                if new_intt <= CUDA.first(intt_in)
-                    @inbounds bist_out[j] = CUDA.first(bist_in)
-                elseif new_intt >= CUDA.last(intt_in)
-                    @inbounds bist_out[j] = CUDA.last(bist_in)
-                else
-                    k = CUDA.searchsortedfirst(intt_in, new_intt) - 1
-                    k0 = CUDA.clamp(k, CUDA.firstindex(bist_in), CUDA.lastindex(bist_in))
-                    k1 = CUDA.clamp(k+1, CUDA.firstindex(bist_in), CUDA.lastindex(bist_in))
-                    @inbounds bist_out[j] = (bist_in[k0] * (intt_in[k1] - new_intt) + bist_in[k1] * (new_intt - intt_in[k0])) / (intt_in[k1] - intt_in[k0])
-                end
-
-                # assign bisector fluxes from dept
+                @inbounds bist_out[j] = itp(new_intt)
                 @inbounds intt_out[j] = new_intt
             end
         end

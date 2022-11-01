@@ -24,6 +24,13 @@ function calc_ccf(lambdas::AA{Float64,1}, intensities::AA{Float64,1},
                   lines::AA{Float64,1}, depths::AA{Float64,1},
                   resolution::Float64; normalize::Bool=true, Δv_max=15e3,
                   mask_type::Type{T}=TopHatMask) where {T<:MaskShape}
+    # make sure lines are sorted
+    if !issorted(lines)
+        idx = sortperm(lines)
+        lines = view(lines, idx)
+        depths = view(depths, idx)
+    end
+
     # make a line list
     line_list = EchelleCCFs.BasicLineList(lines, depths)
 

@@ -81,10 +81,13 @@ function calc_disk_avg_cbs(grid::StepRangeLen, disc_mu::AA{T,1}, mu_symb::AA{Sym
     return numer/denom, denom
 end
 
-function generate_tloop!(tloop::AA{Int,2}, grid::StepRangeLen, disc_mu::AA{T,1},
-                         mu_symb::AA{Symbol,1}, soldata::SolarData{T}) where T<:AF
+function generate_tloop!(tloop::AA{Int,2}, grid::StepRangeLen, soldata::SolarData{T}) where T<:AF
     # make sure dimensions are correct
     @assert size(tloop) == (length(grid), length(grid))
+
+    # get spatial sampling values
+    mu_symb = soldata.mu
+    disc_mu = parse_mu_string.(mu_symb)
 
     for i in eachindex(grid)
         for j in eachindex(grid)
@@ -129,11 +132,6 @@ function disk_sim(spec::SpecParams{T}, disk::DiskParams{T}, soldata::SolarData{T
 
     # get intensity-weighted disk-avereged convective blueshift
     z_cbs_avg, sum_norm_terms = calc_disk_avg_cbs(grid, disc_mu, mu_symb, disk, soldata)
-
-    # fill tloop
-    # if all(iszero.(tloop))
-    generate_tloop!(tloop, grid, disc_mu, mu_symb, soldata)
-    # end
 
     # loop over grid positions
     for i in eachindex(grid)

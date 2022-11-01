@@ -1,4 +1,4 @@
-function rotation_period_gpu(sin_lat::T, A::T, B::T, C::T) where T<:AF
+function rotation_period_gpu(sin_lat, A, B, C)
     return 360.0/(A + B * sin_lat^2 + C * sin_lat^4)
 end
 
