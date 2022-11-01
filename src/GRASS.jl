@@ -100,6 +100,7 @@ function synthesize_spectra(spec::SpecParams{T}, disk::DiskParams{T};
     Nλ = length(spec.lambdas)
 
     # allocate memory needed by both cpu & gpu implementations
+    tloop_init = zeros(Int, N, N)
     tloop = zeros(Int, N, N)
     outspec = ones(Nλ, Nt)
 
@@ -124,7 +125,7 @@ function synthesize_spectra(spec::SpecParams{T}, disk::DiskParams{T};
         @assert CUDA.functional()
 
         # run the simulation and return
-        for file in templates
+        for (idx, file) in enumerate(templates)
             # re-seed the rng
             if seed_rng
                 Random.seed!(seed)
@@ -138,6 +139,17 @@ function synthesize_spectra(spec::SpecParams{T}, disk::DiskParams{T};
                 println("\t>>> " * splitdir(file)[end])
             end
             soldata = SolarData(fname=file)
+
+            # generate or copy tloop
+            if idx == 1
+                generate_tloop!(tloop_init, make_grid(N=disk.N), soldata)
+                tloop .= tloop_init
+            elseif (idx > 1) && in_same_group(templates[idx - 1], templates[idx])
+                tloop .= tloop_init
+            else
+                generate_tloop!(tloop_init, make_grid(N=disk.N), soldata)
+                tloop .= tloop_init
+            end
 
             # run the simulation and multiply outspec by this spectrum
             disk_sim_gpu(spec_temp, disk, soldata, outspec, tloop, verbose=verbose)
@@ -149,14 +161,11 @@ function synthesize_spectra(spec::SpecParams{T}, disk::DiskParams{T};
         outspec_temp = zeros(Nλ, Nt)
 
         # run the simulation (outspec modified in place)
-        for file in templates
+        for (idx, file) in enumerate(templates)
             # re-seed the rng
             if seed_rng
                 Random.seed!(seed)
             end
-
-            # re-set array to 0s
-            outspec_temp .= 0.0
 
             # get temporary specparams with lines for this run
             spec_temp = SpecParams(spec, file)
@@ -166,6 +175,20 @@ function synthesize_spectra(spec::SpecParams{T}, disk::DiskParams{T};
                 println("\t>>> " * splitdir(file)[end])
             end
             soldata = SolarData(fname=file)
+
+            # generate or copy tloop
+            if idx == 1
+                generate_tloop!(tloop_init, make_grid(N=disk.N), soldata)
+                tloop .= tloop_init
+            elseif (idx > 1) && in_same_group(templates[idx - 1], templates[idx])
+                tloop .= tloop_init
+            else
+                generate_tloop!(tloop_init, make_grid(N=disk.N), soldata)
+                tloop .= tloop_init
+            end
+
+            # re-set array to 0s
+            outspec_temp .= 0.0
 
             # run the simulation and multiply outspec by this spectrum
             disk_sim(spec_temp, disk, soldata, prof, outspec_temp, tloop, verbose=verbose)

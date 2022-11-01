@@ -156,6 +156,8 @@ function initialize_arrays_for_gpu(data_inds, tloop, norm_terms, z_rot,
             # initialize tloop value if not already set by CPU
             if CUDA.iszero(tloop[i,j])
                 @inbounds tloop[i,j] = CUDA.floor(Int32, rand() * lenall[idx]) + 1
+            elseif tloop[i,j] > lenall[idx]
+                @inbounds tloop[i,j] = 1
             end
 
             # calculate the normalization

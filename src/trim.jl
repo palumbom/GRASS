@@ -1,9 +1,9 @@
 function trim_bisector!(depth::T, bist::AA{T,1}, intt::AA{T,1}) where T<:AF
     # choose method depending if synth line is deeper than input
-    if (one(T) - depth) > minimum(bist)
-        trim_bisector_chop!(depth, bist, intt)
-    else
+    if (one(T) - depth) < first(intt)
         trim_bisector_scale!(depth, bist, intt)
+    else
+        trim_bisector_chop!(depth, bist, intt)
     end
     return nothing
 end

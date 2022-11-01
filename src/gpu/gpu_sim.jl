@@ -19,9 +19,6 @@ function disk_sim_gpu(spec::SpecParams{T}, disk::DiskParams{T}, soldata::SolarDa
 
     # generate tloop on CPU
     grid = make_grid(N)
-    mu_symb = soldata.mu
-    disc_mu = parse_mu_string.(mu_symb)
-    generate_tloop!(tloop, grid, disc_mu, mu_symb, soldata)
 
     # get line parameters in correct precision
     lines = convert.(prec, spec.lines)
@@ -104,6 +101,7 @@ function disk_sim_gpu(spec::SpecParams{T}, disk::DiskParams{T}, soldata::SolarDa
                                                                             z_rot, z_cbs, grid, disc_mu_gpu,
                                                                             disc_ax_gpu, lenall_gpu, cbsall_gpu,
                                                                             u1, u2, polex, poley, polez)
+
     # get weighted disk average cbs
     @cusync z_cbs_avg = CUDA.sum(z_cbs .* norm_terms) / CUDA.sum(norm_terms)
 
