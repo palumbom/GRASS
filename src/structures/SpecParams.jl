@@ -157,12 +157,12 @@ function SpecParams(;lines=[], depths=[], geffs=[], variability=[],
     inds = sortperm(template_wavelengths)
 
     # now do the sorting
-    lines = view(lines, inds)
-    depths = view(depths, inds)
-    geffs = view(geffs, inds)
-    blueshifts = view(blueshifts, inds)
-    variability = view(variability, inds)
-    templates = view(templates, inds)
+    lines .= lines[inds]
+    depths .= depths[inds]
+    geffs .= geffs[inds]
+    blueshifts .= blueshifts[inds]
+    variability .= variability[inds]
+    templates .= templates[inds]
     return SpecParams(lines, depths, geffs, blueshifts, variability,
                       resolution, lambdas, templates)
 end
