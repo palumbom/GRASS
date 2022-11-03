@@ -156,6 +156,12 @@ function SpecParams(;lines=[], depths=[], geffs=[], variability=[],
     template_wavelengths = get_template_wavelength.(templates)
     inds = sortperm(template_wavelengths)
 
+    # collect ranges if necessary
+    lines = collect_range(lines)
+    depths = collect_range(depths)
+    geffs = collect_range(geffs)
+    blueshifts = collect_range(blueshifts)
+
     # now do the sorting
     lines .= lines[inds]
     depths .= depths[inds]
