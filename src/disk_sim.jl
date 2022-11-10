@@ -81,40 +81,6 @@ function calc_disk_avg_cbs(grid::StepRangeLen, disc_mu::AA{T,1}, mu_symb::AA{Sym
     return numer/denom, denom
 end
 
-function generate_tloop!(tloop::AA{Int,2}, grid::StepRangeLen, soldata::SolarData{T}) where T<:AF
-    # make sure dimensions are correct
-    @assert size(tloop) == (length(grid), length(grid))
-
-    # get spatial sampling values
-    mu_symb = soldata.mu
-    disc_mu = parse_mu_string.(mu_symb)
-
-    for i in eachindex(grid)
-        for j in eachindex(grid)
-            # get positiosns
-            x = grid[i]
-            y = grid[j]
-
-            # move to next iteration if off grid
-            (x^2 + y^2) > one(T) && continue
-
-            # get input data for place on disk
-            key = get_key_for_pos(x, y, disc_mu, mu_symb)
-            while !(key in keys(soldata.len))
-                idx = findfirst(key[1] .== soldata.ax)
-                if isnothing(idx) || idx == length(soldata.ax)
-                    idx = 1
-                end
-                key = (soldata.ax[idx+1], key[2])
-            end
-            len = soldata.len[key]
-
-            tloop[i,j] = floor(Int, rand() * len) + 1
-        end
-    end
-    return nothing
-end
-
 function disk_sim(spec::SpecParams{T}, disk::DiskParams{T}, soldata::SolarData{T},
                   prof::AA{T,1}, outspec::AA{T,2}, tloop::AA{Int,2}; verbose::Bool=true,
                   skip_times::BitVector=BitVector(zeros(disk.Nt))) where T<:AF
