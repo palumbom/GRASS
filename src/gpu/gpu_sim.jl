@@ -1,4 +1,4 @@
-function disk_sim_gpu(spec::SpecParams{T}, disk::DiskParams{T}, soldata::SolarData{T},
+function disk_sim_gpu(spec::SpecParams{T}, disk::DiskParams{T}, soldata::SolarData{T}, grid::StepRangeLen,
                       outspec::AA{T,2}, tloop::AA{Int,2}; verbose::Bool=false, seed_rng::Bool=false,
                       precision::String="double", skip_times::BitVector=BitVector(zeros(disk.Nt))) where T<:AF
     # set single or double precision
@@ -16,9 +16,6 @@ function disk_sim_gpu(spec::SpecParams{T}, disk::DiskParams{T}, soldata::SolarDa
     N = convert(Int32, disk.N)
     Nt = convert(Int32, disk.Nt)
     Nλ = convert(Int32, length(spec.lambdas))
-
-    # generate tloop on CPU
-    grid = make_grid(N)
 
     # get line parameters in correct precision
     lines = convert.(prec, spec.lines)
@@ -76,7 +73,7 @@ function disk_sim_gpu(spec::SpecParams{T}, disk::DiskParams{T}, soldata::SolarDa
 
     # move spatial and lambda grid to GPU
     @cusync begin
-        grid = CuArray{prec}(grid)
+        grid_gpu = CuArray{prec}(grid)
         lambdas = CuArray{prec}(spec.lambdas)
     end
 
@@ -98,7 +95,7 @@ function disk_sim_gpu(spec::SpecParams{T}, disk::DiskParams{T}, soldata::SolarDa
 
     # initialize values for data_inds, tloop, dop_shifts, and norm_terms
     @cusync @cuda threads=threads2 blocks=blocks2 initialize_arrays_for_gpu(data_inds, tloop_gpu, norm_terms,
-                                                                            z_rot, z_cbs, grid, disc_mu_gpu,
+                                                                            z_rot, z_cbs, grid_gpu, disc_mu_gpu,
                                                                             disc_ax_gpu, lenall_gpu, cbsall_gpu,
                                                                             u1, u2, polex, poley, polez)
 
@@ -109,7 +106,7 @@ function disk_sim_gpu(spec::SpecParams{T}, disk::DiskParams{T}, soldata::SolarDa
     for t in 1:Nt
         # don't do all this work if skip_times is true, but iterate t indices
         if skip_times[t]
-            @cusync @captured @cuda threads=threads2 blocks=blocks2 iterate_tloop_gpu!(tloop_gpu, data_inds, lenall_gpu, grid)
+            @cusync @captured @cuda threads=threads2 blocks=blocks2 iterate_tloop_gpu!(tloop_gpu, data_inds, lenall_gpu, grid_gpu)
             continue
         end
 
@@ -143,20 +140,20 @@ function disk_sim_gpu(spec::SpecParams{T}, disk::DiskParams{T}, soldata::SolarDa
             extra_z = conv_blueshifts[l] - z_cbs_avg
 
             # assemble line shape on even int grid
-            @cusync @captured @cuda threads=threads4 blocks=blocks4 fill_workspaces!(lines[l], extra_z, grid,
+            @cusync @captured @cuda threads=threads4 blocks=blocks4 fill_workspaces!(lines[l], extra_z, grid_gpu,
                                                                                      tloop_gpu, data_inds, z_rot, z_cbs,
                                                                                      bisall_gpu_loop, intall_gpu_loop,
                                                                                      widall_gpu, allwavs, allints)
 
             # do the line synthesis, interp back onto wavelength grid
-            @cusync @captured @cuda threads=threads3 blocks=blocks3 line_profile_gpu!(starmap, grid, lambdas, allwavs, allints)
+            @cusync @captured @cuda threads=threads3 blocks=blocks3 line_profile_gpu!(starmap, grid_gpu, lambdas, allwavs, allints)
         end
 
         # do array reduction and move data from GPU to CPU
         @cusync @inbounds outspec[:,t] .*= dropdims(Array(CUDA.sum(starmap, dims=(1,2))), dims=(1,2))
 
         # iterate tloop
-        @cusync @captured @cuda threads=threads2 blocks=blocks2 iterate_tloop_gpu!(tloop_gpu, data_inds, lenall_gpu, grid)
+        @cusync @captured @cuda threads=threads2 blocks=blocks2 iterate_tloop_gpu!(tloop_gpu, data_inds, lenall_gpu, grid_gpu)
     end
 
     # ensure normalization
