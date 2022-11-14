@@ -78,7 +78,7 @@ function disk_sim_gpu(spec::SpecParams{T}, disk::DiskParams{T}, soldata::SolarDa
     end
 
     # set number of threads and blocks for trimming functions
-    threads1 = (16,16)
+    threads1 = (22,22)
     blocks1 = cld.(lenall_cpu .* 100, prod(threads1))
 
     # set number of threads and blocks for N*N matrix gpu functions
@@ -86,11 +86,11 @@ function disk_sim_gpu(spec::SpecParams{T}, disk::DiskParams{T}, soldata::SolarDa
     blocks2 = cld(N^2, prod(threads2))
 
     # set number of threads and blocks for N*N*Nλ matrix gpu functions
-    threads3 = (7,7,7)
+    threads3 = (4,4,18)
     blocks3 = cld(N^2 * Nλ, prod(threads3))
 
     # set number of threads and blocks for N*N*100 matrix gpu functions
-    threads4 = (6,6,6)
+    threads4 = (4,4,16)
     blocks4 = cld(N^2 * 100, prod(threads4))
 
     # initialize values for data_inds, tloop, dop_shifts, and norm_terms
