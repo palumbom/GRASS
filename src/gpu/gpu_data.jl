@@ -125,7 +125,7 @@ function iterate_tloop_gpu!(tloop, data_inds, lenall, grid)
     return nothing
 end
 
-function initialize_arrays_for_gpu(data_inds, tloop, norm_terms, z_rot,
+function initialize_arrays_for_gpu(tloop, data_inds, norm_terms, z_rot,
                                    z_cbs, grid, disc_mu, disc_ax, lenall,
                                    cbsall, u1, u2, polex, poley, polez)
     # get indices from GPU blocks + threads

@@ -72,6 +72,7 @@ include("observing/ObservationPlan.jl")
 
 # gpu implementation
 include("gpu/gpu_utils.jl")
+include("gpu/gpu_allocs.jl")
 include("gpu/gpu_physics.jl")
 include("gpu/gpu_data.jl")
 include("gpu/gpu_trim.jl")
@@ -127,8 +128,8 @@ Synthesize spectra given parameters in `spec` and `disk` instances.
 - `disk::DiskParams`: DiskParams instance
 """
 function synthesize_spectra(spec::SpecParams{T}, disk::DiskParams{T};
-                            seed_rng::Union{Nothing, Bool, Int}=nothing,
-                            verbose::Bool=true, use_gpu::Bool=false) where T<:AF
+                            seed_rng::Bool=false ,verbose::Bool=true,
+                            use_gpu::Bool=false, precision::DataType=Float64) where T<:AF
     # parse out dimensions for memory allocation
     N = disk.N
     Nt = disk.Nt
@@ -136,23 +137,10 @@ function synthesize_spectra(spec::SpecParams{T}, disk::DiskParams{T};
 
     # allocate memory needed by both cpu & gpu implementations
     tloop_init = zeros(Int, N, N)
-    tloop = zeros(Int, N, N)
     outspec = ones(Nλ, Nt)
 
     # get number of calls to disk_sim needed
     templates = unique(spec.templates)
-
-    # deal with seed_rng kwarg
-    if typeof(seed_rng) == Bool && seed_rng
-        seed = 42
-        seed_rng = true
-    elseif typeof(seed_rng) <: Int
-        seed = seed_rng
-        seed_rng = true
-    else
-        seed_rng = false
-    end
-    seed_rng::Bool
 
     # get grid
     grid = make_grid(N=disk.N)
@@ -162,11 +150,48 @@ function synthesize_spectra(spec::SpecParams{T}, disk::DiskParams{T};
         # make sure there is actually a GPU to use
         @assert CUDA.functional()
 
+        # pre-allocate memory for gpu
+        gpu_allocs = GPUAllocs(spec, disk, grid, precision=precision)
+
         # run the simulation and return
         for (idx, file) in enumerate(templates)
             # re-seed the rng
             if seed_rng
-                Random.seed!(seed)
+                Random.seed!(42)
+            end
+
+            # get temporary specparams with lines for this run
+            spec_temp = SpecParams(spec, file)
+
+            # load in the appropriate input data
+            if verbose
+                println("\t>>> " * splitdir(file)[end])
+            end
+            soldata = SolarData(fname=file)
+
+            # generate or copy tloop
+            if (idx > 1) && in_same_group(templates[idx - 1], templates[idx])
+                @cusync CUDA.copyto!(gpu_allocs.tloop, tloop_init)
+            else
+                generate_tloop!(tloop_init, grid, soldata)
+                @cusync CUDA.copyto!(gpu_allocs.tloop, tloop_init)
+            end
+
+            # run the simulation and multiply outspec by this spectrum
+            disk_sim_gpu(spec_temp, disk, soldata, gpu_allocs, outspec, verbose=verbose)
+        end
+        return spec.lambdas, outspec
+    else
+        # allocate memory for CPU
+        prof = ones(Nλ)
+        outspec_temp = zeros(Nλ, Nt)
+        tloop = zeros(Int, N, N)
+
+        # run the simulation (outspec modified in place)
+        for (idx, file) in enumerate(templates)
+            # re-seed the rng
+            if seed_rng
+                Random.seed!(42)
             end
 
             # get temporary specparams with lines for this run
@@ -183,39 +208,6 @@ function synthesize_spectra(spec::SpecParams{T}, disk::DiskParams{T};
                 tloop .= tloop_init
             else
                 generate_tloop!(tloop_init, grid, soldata)
-                tloop .= tloop_init
-            end
-
-            # run the simulation and multiply outspec by this spectrum
-            disk_sim_gpu(spec_temp, disk, soldata, grid, outspec, tloop, verbose=verbose)
-        end
-        return spec.lambdas, outspec
-    else
-        # allocate memory for synthesis
-        prof = ones(Nλ)
-        outspec_temp = zeros(Nλ, Nt)
-
-        # run the simulation (outspec modified in place)
-        for (idx, file) in enumerate(templates)
-            # re-seed the rng
-            if seed_rng
-                Random.seed!(seed)
-            end
-
-            # get temporary specparams with lines for this run
-            spec_temp = SpecParams(spec, file)
-
-            # load in the appropriate input data
-            if verbose
-                println("\t>>> " * splitdir(file)[end])
-            end
-            soldata = SolarData(fname=file)
-
-            # generate or copy tloop
-            if (idx > 1) && in_same_group(templates[idx - 1], templates[idx])
-                tloop .= tloop_init
-            else
-                generate_tloop!(tloop_init, make_grid(N=disk.N), soldata)
                 tloop .= tloop_init
             end
 

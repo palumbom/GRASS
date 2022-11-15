@@ -25,7 +25,7 @@ function trim_bisector_gpu!(depth, bisall_out, intall_out, bisall_in, intall_in)
         for j in idy:sdy:CUDA.size(bisall_in, 1)
             new_intt = (1.0 - depth) + (j-1) * step
             if (1.0 - depth) >= CUDA.first(intt_in)
-                @inbounds bist_out[j] = itp.(new_intt)
+                @inbounds bist_out[j] = itp(new_intt)
             end
             @inbounds intt_out[j] = new_intt
         end
