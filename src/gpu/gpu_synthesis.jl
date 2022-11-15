@@ -75,7 +75,11 @@ function line_profile_gpu!(star_map, grid, lambdas, allwavs, allints)
 
             # loop over wavelengths
             for k in idz:sdz:CUDA.length(lambdas)
-                @inbounds star_map[i,j,k] *= itp(lambdas[k])
+                if ((lambdas[k] < CUDA.first(allwavs_ij)) || (lambdas[k] > CUDA.last(allwavs_ij)))
+                    continue
+                else
+                    @inbounds star_map[i,j,k] *= itp(lambdas[k])
+                end
             end
         end
     end

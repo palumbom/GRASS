@@ -1,26 +1,14 @@
-function disk_sim_gpu(spec::SpecParams{T}, disk::DiskParams{T}, soldata::SolarData{T}, grid::StepRangeLen,
-                      outspec::AA{T,2}, tloop::AA{Int,2}; verbose::Bool=false, seed_rng::Bool=false,
-                      precision::String="double", skip_times::BitVector=BitVector(zeros(disk.Nt))) where T<:AF
+function disk_sim_gpu(spec::SpecParams{T}, disk::DiskParams{T}, soldata::SolarData{T},
+                      gpu_allocs::GPUAllocs, outspec::AA{T,2}; verbose::Bool=false,
+                      seed_rng::Bool=false, precision::DataType=Float64,
+                      skip_times::BitVector=BitVector(zeros(disk.Nt))) where T<:AF
     # set single or double precision
-    if precision == "single"
-        prec = Float32
-        println(">>> Single precision is untested!")
-    elseif precision  == "double"
-        prec = Float64
-    else
-        prec = Float64
-    end
-    prec::DataType
+    prec = precision
 
     # get dimensions for memory alloc
-    N = convert(Int32, disk.N)
-    Nt = convert(Int32, disk.Nt)
-    Nλ = convert(Int32, length(spec.lambdas))
-
-    # get line parameters in correct precision
-    lines = convert.(prec, spec.lines)
-    depths = convert.(prec, spec.depths)
-    conv_blueshifts = convert.(prec, spec.conv_blueshifts)
+    N = disk.N # convert(Int32, disk.N)
+    Nt = disk.Nt # convert(Int32, disk.Nt)
+    Nλ = length(spec.lambdas) # convert(Int32, length(spec.lambdas))
 
     # get pole component vectors and limb darkening parameters
     polex = convert(prec, disk.pole[1])
@@ -56,25 +44,22 @@ function disk_sim_gpu(spec::SpecParams{T}, disk::DiskParams{T}, soldata::SolarDa
         intall_gpu_loop = CUDA.copy(intall_gpu)
     end
 
-    # allocate memory for synthesis on the GPU
-    @cusync begin
-        # indices, redshifts, and limb darkening
-        tloop_gpu = CuArray{Int32}(tloop)
-        data_inds = CUDA.zeros(Int32, N, N)
-        norm_terms = CUDA.zeros(prec, N, N)
-        z_rot = CUDA.zeros(prec, N, N)
-        z_cbs = CUDA.zeros(prec, N, N)
+    # parse out composite type
+    grid = gpu_allocs.grid
+    lambdas = gpu_allocs.lambdas
+    tloop = gpu_allocs.tloop
+    data_inds = gpu_allocs.data_inds
+    norm_terms = gpu_allocs.norm_terms
+    z_rot = gpu_allocs.z_rot
+    z_cbs = gpu_allocs.z_cbs
+    starmap = gpu_allocs.starmap
+    allwavs = gpu_allocs.allwavs
+    allints = gpu_allocs.allints
 
-        # pre-allocated memory for interpolations
-        starmap = CUDA.ones(prec, N, N, Nλ)
-        allwavs = CUDA.zeros(prec, N, N, 200)
-        allints = CUDA.zeros(prec, N, N, 200)
-    end
-
-    # move spatial and lambda grid to GPU
+    # reset init values for synthesis allocs
     @cusync begin
-        grid_gpu = CuArray{prec}(grid)
-        lambdas = CuArray{prec}(spec.lambdas)
+        allwavs .= 0.0
+        allints .= 0.0
     end
 
     # set number of threads and blocks for trimming functions
@@ -82,7 +67,7 @@ function disk_sim_gpu(spec::SpecParams{T}, disk::DiskParams{T}, soldata::SolarDa
     blocks1 = cld.(lenall_cpu .* 100, prod(threads1))
 
     # set number of threads and blocks for N*N matrix gpu functions
-    threads2 = (16, 16)
+    threads2 = (16,16)
     blocks2 = cld(N^2, prod(threads2))
 
     # set number of threads and blocks for N*N*Nλ matrix gpu functions
@@ -94,8 +79,8 @@ function disk_sim_gpu(spec::SpecParams{T}, disk::DiskParams{T}, soldata::SolarDa
     blocks4 = cld(N^2 * 100, prod(threads4))
 
     # initialize values for data_inds, tloop, dop_shifts, and norm_terms
-    @cusync @cuda threads=threads2 blocks=blocks2 initialize_arrays_for_gpu(data_inds, tloop_gpu, norm_terms,
-                                                                            z_rot, z_cbs, grid_gpu, disc_mu_gpu,
+    @cusync @cuda threads=threads2 blocks=blocks2 initialize_arrays_for_gpu(tloop, data_inds, norm_terms,
+                                                                            z_rot, z_cbs, grid, disc_mu_gpu,
                                                                             disc_ax_gpu, lenall_gpu, cbsall_gpu,
                                                                             u1, u2, polex, poley, polez)
 
@@ -106,7 +91,7 @@ function disk_sim_gpu(spec::SpecParams{T}, disk::DiskParams{T}, soldata::SolarDa
     for t in 1:Nt
         # don't do all this work if skip_times is true, but iterate t indices
         if skip_times[t]
-            @cusync @captured @cuda threads=threads2 blocks=blocks2 iterate_tloop_gpu!(tloop_gpu, data_inds, lenall_gpu, grid_gpu)
+            @cusync @captured @cuda threads=threads2 blocks=blocks2 iterate_tloop_gpu!(tloop, data_inds, lenall_gpu, grid)
             continue
         end
 
@@ -114,7 +99,7 @@ function disk_sim_gpu(spec::SpecParams{T}, disk::DiskParams{T}, soldata::SolarDa
         @cusync starmap .= norm_terms
 
         # loop over lines to synthesize
-        for l in eachindex(lines)
+        for l in eachindex(spec.lines)
             # pre-trim the data, loop over all disk positions
             for n in eachindex(lenall_cpu)
                 epoch_range = 1:lenall_cpu[n]
@@ -129,7 +114,7 @@ function disk_sim_gpu(spec::SpecParams{T}, disk::DiskParams{T}, soldata::SolarDa
                 end
 
                 # do the trim
-                @cusync @captured @cuda threads=threads1 blocks=blocks1[n] trim_bisector_gpu!(depths[l],
+                @cusync @captured @cuda threads=threads1 blocks=blocks1[n] trim_bisector_gpu!(spec.depths[l],
                                                                                               bisall_gpu_out,
                                                                                               intall_gpu_out,
                                                                                               bisall_gpu_in,
@@ -137,23 +122,23 @@ function disk_sim_gpu(spec::SpecParams{T}, disk::DiskParams{T}, soldata::SolarDa
             end
 
             # calculet how much extra shift is needed
-            extra_z = conv_blueshifts[l] - z_cbs_avg
+            extra_z = spec.conv_blueshifts[l] - z_cbs_avg
 
             # assemble line shape on even int grid
-            @cusync @captured @cuda threads=threads4 blocks=blocks4 fill_workspaces!(lines[l], extra_z, grid_gpu,
-                                                                                     tloop_gpu, data_inds, z_rot, z_cbs,
+            @cusync @captured @cuda threads=threads4 blocks=blocks4 fill_workspaces!(spec.lines[l], extra_z, grid,
+                                                                                     tloop, data_inds, z_rot, z_cbs,
                                                                                      bisall_gpu_loop, intall_gpu_loop,
                                                                                      widall_gpu, allwavs, allints)
 
             # do the line synthesis, interp back onto wavelength grid
-            @cusync @captured @cuda threads=threads3 blocks=blocks3 line_profile_gpu!(starmap, grid_gpu, lambdas, allwavs, allints)
+            @cusync @captured @cuda threads=threads3 blocks=blocks3 line_profile_gpu!(starmap, grid, lambdas, allwavs, allints)
         end
 
         # do array reduction and move data from GPU to CPU
         @cusync @inbounds outspec[:,t] .*= dropdims(Array(CUDA.sum(starmap, dims=(1,2))), dims=(1,2))
 
         # iterate tloop
-        @cusync @captured @cuda threads=threads2 blocks=blocks2 iterate_tloop_gpu!(tloop_gpu, data_inds, lenall_gpu, grid_gpu)
+        @cusync @captured @cuda threads=threads2 blocks=blocks2 iterate_tloop_gpu!(tloop, data_inds, lenall_gpu, grid)
     end
 
     # ensure normalization
