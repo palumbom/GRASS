@@ -67,7 +67,7 @@ function disk_sim_gpu(spec::SpecParams{T}, disk::DiskParams{T}, soldata::SolarDa
     blocks3 = cld(N^2 * 100, prod(threads3))
 
     # set number of threads and blocks for N*N*Nλ matrix gpu functions
-    threads4 = (4,4,18)
+    threads4 = (3,3,42)
     blocks4 = cld(N^2 * Nλ, prod(threads4))
 
     # initialize values for data_inds, tloop, dop_shifts, and norm_terms
