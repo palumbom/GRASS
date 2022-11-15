@@ -23,9 +23,9 @@ function fill_workspaces!(line, extra_z, grid, tloop, data_inds, z_rot,
             λΔD = line * (1.0 + z_rot[i,j]) * (1.0 + z_cbs[i,j]) * (1.0 + extra_z)
 
             # slice out the correct views of the input data for position
-            bist = CUDA.view(bisall, :, tloop[i,j], data_inds[i,j])
-            widt = CUDA.view(widall, :, tloop[i,j], data_inds[i,j])
-            intt = CUDA.view(intall, :, tloop[i,j], data_inds[i,j])
+            @inbounds bist = CUDA.view(bisall, :, tloop[i,j], data_inds[i,j])
+            @inbounds widt = CUDA.view(widall, :, tloop[i,j], data_inds[i,j])
+            @inbounds intt = CUDA.view(intall, :, tloop[i,j], data_inds[i,j])
 
             # get length of input data arrays
             lent = CUDA.length(intt)
