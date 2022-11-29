@@ -22,23 +22,29 @@ function fill_workspaces!(line, extra_z, grid, tloop, data_inds, z_rot,
             # calculate shifted line center
             λΔD = line * (1.0 + z_rot[i,j]) * (1.0 + z_cbs[i,j]) * (1.0 + extra_z)
 
-            # slice out the correct views of the input data for position
-            @inbounds bist = CUDA.view(bisall, :, tloop[i,j], data_inds[i,j])
-            @inbounds widt = CUDA.view(widall, :, tloop[i,j], data_inds[i,j])
-            @inbounds intt = CUDA.view(intall, :, tloop[i,j], data_inds[i,j])
-
-            # get length of input data arrays
-            lent = CUDA.length(intt)
-
-            # slice out the correct views of the input data for position
+            # get length of input data arrays to loop over
+            lent = 100
             for k in idz:sdz:lent
+                # get forward and reverse indices
+                idx1 = k
+                idx2 = lent - (k - 1)
+
+                # slice out the correct views of the input data for position
+                @inbounds bis1 = bisall[idx1, tloop[i,j], data_inds[i,j]]
+                @inbounds wid1 = widall[idx1, tloop[i,j], data_inds[i,j]]
+                @inbounds int1 = intall[idx1, tloop[i,j], data_inds[i,j]]
+
+                @inbounds bis2 = bisall[idx2, tloop[i,j], data_inds[i,j]]
+                @inbounds wid2 = widall[idx2, tloop[i,j], data_inds[i,j]]
+                @inbounds int2 = intall[idx2, tloop[i,j], data_inds[i,j]]
+
                 # right side of line, indexing from middle left to right
-                @inbounds allwavs[i,j,k+lent] = (λΔD + (0.5 * widt[k] + bist[k]))
-                @inbounds allints[i,j,k+lent] = intt[k]
+                @inbounds allwavs[i,j,k+lent] = (λΔD + (0.5 * wid1 + bis1))
+                @inbounds allints[i,j,k+lent] = int1
 
                 # left sight of line, indexing from middle right to left
-                @inbounds allwavs[i,j,k] = (λΔD - (0.5 * widt[lent - (k - 1)] - bist[lent - (k - 1)]))
-                @inbounds allints[i,j,k] = intt[lent - (k - 1)]
+                @inbounds allwavs[i,j,k] = (λΔD - (0.5 * wid2 - bis2))
+                @inbounds allints[i,j,k] = int2
             end
         end
     end
