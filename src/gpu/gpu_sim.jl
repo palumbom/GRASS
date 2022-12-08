@@ -70,6 +70,23 @@ function disk_sim_gpu(spec::SpecParams{T}, disk::DiskParams{T}, soldata::SolarDa
     threads4 = (3,3,42)
     blocks4 = cld(N^2 * Nλ, prod(threads4))
 
+    # # get launch parameters
+    # kernel = @cuda launch=false initialize_arrays_for_gpu(tloop, data_inds, norm_terms, z_rot, z_cbs,
+    #                                                       grid, disc_mu_gpu, disc_ax_gpu, lenall_gpu,
+    #                                                       cbsall_gpu, u1, u2, polex, poley, polez)
+
+    # config = launch_configuration(kernel.fun)
+    # threads1 = min(N^2, config.threads)
+    # blocks1 = cld(N^2, threads1)
+
+    # @show threads1
+    # @show blocks1
+
+    # kernel(tloop, data_inds, norm_terms, z_rot, z_cbs, grid,
+    #        disc_mu_gpu, disc_ax_gpu, lenall_gpu, cbsall_gpu,
+    #        u1, u2, polex, poley, polez; threads=threads1, blocks=blocks1)
+
+
     # initialize values for data_inds, tloop, dop_shifts, and norm_terms
     @cusync @cuda threads=threads1 blocks=blocks1 initialize_arrays_for_gpu(tloop, data_inds, norm_terms,
                                                                             z_rot, z_cbs, grid, disc_mu_gpu,
