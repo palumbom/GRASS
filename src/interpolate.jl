@@ -1,3 +1,5 @@
+using Dierckx
+
 function linear_interp(xs::AA{T,1}, ys::AA{T,1}; bc::T=NaN) where T<:Float64
     function f(x)
         if (((x < first(xs)) | (x > last(xs))) & !isnan(bc))
@@ -32,4 +34,8 @@ function linear_interp_gpu(xs, ys)
         end
     end
     return f
+end
+
+function cubic_interp(xs::AA{T,1}, ys::AA{T,1}) where T<:Float64
+    return Spline1D(xs, ys; w=ones(length(xs)), k=3, bc="nearest", s=0.0)
 end
