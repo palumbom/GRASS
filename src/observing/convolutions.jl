@@ -9,6 +9,8 @@ function get_bin_edges(arr::AA{T,1}) where T<:AF
 end
 
 # follows from implementation at https://github.com/ACCarnall/SpectRes/blob/master/spectres/spectral_resampling.py
+# TODO algorithm might cause shift based on input wavelength grid?
+# might cause issue if wavelengths shift across
 function rebin_spectrum(xs_old, ys_old, xs_new)
     # get edges of bins
     old_edges, old_widths = get_bin_edges(xs_old)
@@ -58,20 +60,25 @@ function rebin_spectrum(xs_old, ys_old, xs_new)
     return ys_new
 end
 
+# TODO better name
 function convolve_gauss(xs::AA{T,1}, ys::AA{T,1}; new_res::T=1.17e5,
                         oversampling::T=1.0) where T<:AbstractFloat
     # TODO: input spectrum is not infinitely sharp
     # new res is actually convolution res
-    σ = (5.0/7.0) * 5434.5232 / new_res / 2.354
+    # TODO 5/7 ??
+    # TODO width in velocity, not wavelength
+    σ = 5434.5232 / new_res / 2.354
     g(x, n) = (one(T)/(σ * sqrt(2.0 * π))) * exp(-0.5 * ((x - n)/σ)^2)
 
     # pad x array to deal with edges
     # TODO: make padding smarter
     xstep = minimum(diff(xs))
-    newxs = range(first(xs)-100*xstep, last(xs)+100*xstep, step=xstep)
+    # newxs = range(first(xs)-100*xstep, last(xs)+100*xstep, step=xstep)
     newxs = vcat(range(first(xs)-100*xstep, first(xs)-xstep, step=xstep),
                  xs,
                  range(last(xs)+xstep, last(xs)+100*xstep, step=xstep))
+
+    # TODO test that difference at left and right edges is small
 
     # find matching indices
     ind1 = searchsortedfirst(newxs, xs[1])
@@ -84,6 +91,7 @@ function convolve_gauss(xs::AA{T,1}, ys::AA{T,1}; new_res::T=1.17e5,
     newys[ind2+1:end] .= last(ys)
 
     # perform convolution
+    # TODO make this block a function for type stability
     conv = similar(newxs)
     eval_g = zeros(size(newys))
     for i in eachindex(conv)
@@ -92,8 +100,9 @@ function convolve_gauss(xs::AA{T,1}, ys::AA{T,1}; new_res::T=1.17e5,
     end
 
     # get wavelength grid at lower resolution
-    Δlnλ = 1.0 / (new_res * oversampling)
-    lnλs = range(log(first(xs)), log(last(xs)), step=Δlnλ)
+    # TODO: do the math for oversampling??
+    Δlnλ = 1.0 / new_res
+    lnλs = range(log(first(xs)), log(last(xs)), step=Δlnλ/oversampling)
     xs_out = exp.(lnλs)
 
     # re-sample convolved data onto lower res grid (preserving flux)
