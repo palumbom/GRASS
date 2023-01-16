@@ -21,23 +21,41 @@ if !isdir(plotdir * "spectra_fits")
     mkdir(plotdir * "spectra_fits")
 end
 
-function normalize_spectrum(line_name::String)
-    # get filename
-    line_df = subset(line_info, :name => x -> x .== line_name)
-    fname = GRASS.soldir * line_df.name[1] * ".h5"
+#=function normalize_spectrum(line_dir::String)
+    # get the files
+    fits_files = Glob.glob("*.h5", line_dir)
 
-    # get directory with fits files
-    spec_df = GRASS.sort_spectrum_data(dir=data_dir * line_df.spectra_dir[1] * "/")
-    fits_files = spec_df.fpath .* spec_df.fname
+    # make necessary directories
+    if !isdir(line_dir * "tmp/")
+        mkdir(line_dir * "tmp/")
+    end
+
+    if !isdir(line_dir * "normalized/")
+        mkdir(line_dir * "normalized/")
+    end
 
     # loop over fits files
     for file in fits_files
         # read in and bin the spectra
-        wavs, flux = GRASS.bin_spectrum(GRASS.read_spectrum(fits_files[i])...)
+        wavs, flux = GRASS.bin_spectrum(GRASS.read_spectrum(file)...)
+
+        # allocate memory for normalized spectra
+        wavs_norm = zeros(size(wavs))
+        flux_norm = zeros(size(flux))
+
+        # loop over epochs
+        for j in 1:size(flux, 2)
+            # write to temp csv
+            df = DataFrame(wave=wavs[:,j], flux=flux[:,j])
+            CSV.write(line_dir * "tmp/tmp.csv", df)
+
+            # run Rassine on tmp.csv
+
+        end
     end
 
     return nothing
-end
+end=#
 
 function preprocess_line(line_name::String; clobber::Bool=true, verbose::Bool=true, debug::Bool=false)
     # delete old preprocessed data
