@@ -21,6 +21,24 @@ if !isdir(plotdir * "spectra_fits")
     mkdir(plotdir * "spectra_fits")
 end
 
+function normalize_spectrum(line_name::String)
+    # get filename
+    line_df = subset(line_info, :name => x -> x .== line_name)
+    fname = GRASS.soldir * line_df.name[1] * ".h5"
+
+    # get directory with fits files
+    spec_df = GRASS.sort_spectrum_data(dir=data_dir * line_df.spectra_dir[1] * "/")
+    fits_files = spec_df.fpath .* spec_df.fname
+
+    # loop over fits files
+    for file in fits_files
+        # read in and bin the spectra
+        wavs, flux = GRASS.bin_spectrum(GRASS.read_spectrum(fits_files[i])...)
+    end
+
+    return nothing
+end
+
 function preprocess_line(line_name::String; clobber::Bool=true, verbose::Bool=true, debug::Bool=false)
     # delete old preprocessed data
     if !debug && clobber
