@@ -7,7 +7,7 @@ using Peaks
 using LsqFit
 using Statistics
 using DataFrames
-using EchelleCCFs: λ_air_to_vac
+using EchelleCCFs: λ_air_to_vac, calc_doppler_factor, MeasureRvFromCCFQuadratic as QuadraticFit
 
 # plotting
 using LaTeXStrings
@@ -130,7 +130,7 @@ function main()
         depth = lp.depth[i]
 
         # get IAG spectrum and normalize it
-        wavs_iag, flux_iag = read_iag_atlas(isolate=true, airwav=airwav, buffer=1.25)
+        wavs_iag, flux_iag = GRASS.read_iag_atlas(isolate=true, airwav=airwav, buffer=1.25)
         flux_iag ./= maximum(flux_iag)
 
         # get depth from IAG spectrum
@@ -139,6 +139,13 @@ function main()
         botind = argmin(view(flux_iag, idx1:idx2)) + idx1
         iag_depth = 1.0 - minimum(view(flux_iag, idx1:idx2))
 
+        # get velocity of IAG spectrum
+        vels_iag, ccf_iag = calc_ccf(wavs_iag, flux_iag, [airwav], [iag_depth], mean((wavs_iag[2:end])./diff(wavs_iag)))
+        rvs_iag, sigs_iag = calc_rvs_from_ccf(vels_iag, ccf_iag, fit_type=QuadraticFit)
+
+        # shift the IAG spectrum to rest frame
+        wavs_iag ./= calc_doppler_factor(rvs_iag)
+
         # set up for GRASS spectrum simulation
         # TODO fix depth issue!!
         lines = [airwav]
@@ -146,11 +153,24 @@ function main()
         templates = [file]
         resolution = 7e5
         spec = SpecParams(lines=lines, depths=depths, templates=templates, resolution=resolution)
-        disk = DiskParams(N=132, Nt=10)
+        disk = DiskParams(N=132, Nt=5)
 
         # simulate the spectrum
         wavs_sim, flux_sim = synthesize_spectra(spec, disk, use_gpu=use_gpu)
         flux_sim = dropdims(mean(flux_sim, dims=2), dims=2)
+
+        # get velocity of simulated spectrum
+        vels_sim, ccf_sim = calc_ccf(wavs_sim, flux_sim, spec)
+        rvs_sim, sigs_sim = calc_rvs_from_ccf(vels_sim, ccf_sim, fit_type=QuadraticFit)
+
+        # shift the simulated spectrum to rest frame
+        wavs_sim ./= calc_doppler_factor(rvs_sim)
+
+        plt.plot(wavs_sim, flux_sim)
+        plt.plot(wavs_iag, flux_iag)
+        plt.show()
+
+        return nothing
 
         # find the difference in depth
         dep_diff = iag_depth - (1.0 - minimum(flux_sim))
@@ -323,7 +343,7 @@ function main()
     # end
 
     # comparison_plots()
-    return nothing
+    # return nothing
 
     return nothing
 end

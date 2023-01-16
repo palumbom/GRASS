@@ -110,14 +110,14 @@ function disk_sim_gpu(spec::SpecParams{T}, disk::DiskParams{T}, soldata::SolarDa
 
         # loop over lines to synthesize
         for l in eachindex(spec.lines)
+            # calculate how much extra shift is needed
+            extra_z = spec.conv_blueshifts[l] - z_cbs_avg
+
             # trim all the bisector data
             @cusync @captured @cuda threads=threads2 blocks=blocks2 trim_bisector_gpu!(spec.depths[l], spec.variability[l],
                                                                                        lenall_gpu, bisall_gpu_loop,
                                                                                        intall_gpu_loop, bisall_gpu,
                                                                                        intall_gpu)
-
-            # calculet how much extra shift is needed
-            extra_z = spec.conv_blueshifts[l] - z_cbs_avg
 
             # assemble line shape on even int grid
             @cusync @captured @cuda threads=threads3 blocks=blocks3 fill_workspaces!(spec.lines[l], extra_z, grid,
@@ -137,6 +137,6 @@ function disk_sim_gpu(spec::SpecParams{T}, disk::DiskParams{T}, soldata::SolarDa
     end
 
     # ensure normalization
-    @cusync outspec ./= sum_norm_terms
+    outspec ./= sum_norm_terms
     return nothing
 end
