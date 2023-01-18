@@ -8,14 +8,14 @@ struct SynthWorkspace{T<:AF, N}
     widt::AA{T,N}
 end
 
-function SynthWorkspace(;ndepths::Integer=100) where T<:AF
+function SynthWorkspace(;ndepths::Integer=100)
     # allocate the needed memory
-    lwavgrid = zeros(T, ndepths)
-    rwavgrid = zeros(T, ndepths)
-    allwavs  = zeros(T, 2 * ndepths)
-    allints  = zeros(T, 2 * ndepths)
-    bist     = zeros(T, ndepths)
-    intt     = zeros(T, ndepths)
-    widt     = zeros(T, ndepths)
+    lwavgrid = zeros(ndepths)
+    rwavgrid = zeros(ndepths)
+    allwavs  = zeros(2 * ndepths)
+    allints  = zeros(2 * ndepths)
+    bist     = zeros(ndepths)
+    intt     = zeros(ndepths)
+    widt     = zeros(ndepths)
     return SynthWorkspace(lwavgrid, rwavgrid, allwavs, allints, bist, intt, widt)
 end
