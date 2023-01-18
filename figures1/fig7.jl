@@ -87,7 +87,7 @@ function main()
     rms_largedead = convert(Array{Float64}, rms_largedead)
 
     # save the output
-    outfile = datadir * "observe_" * string(N) * "_loop_" * string(Nloop) * ".jld2"
+    outfile = datadir * "scaling_benchmark.jld2"
     save(outfile,
          "avg_shortdead", avg_shortdead,
          "rms_shortdead", rms_shortdead,
@@ -113,7 +113,7 @@ if plot
     mpl.style.use(GRASS.moddir * "figures1/fig.mplstyle")
 
     # read in the data
-    file = datadir * "observe_" * string(N) * "_loop_" * string(Nloop) * ".jld2"
+    file = datadir * "scaling_benchmark.jld2"
     d = load(file)
     avg_shortdead = d["avg_shortdead"]
     rms_shortdead = d["rms_shortdead"]
