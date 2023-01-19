@@ -15,6 +15,18 @@ function disk_sim_gpu(spec::SpecParams{T}, disk::DiskParams{T}, soldata::SolarDa
     u1 = disk.u1
     u2 = disk.u2
 
+    # parse out composite type
+    grid = gpu_allocs.grid
+    lambdas = gpu_allocs.lambdas
+    tloop = gpu_allocs.tloop
+    data_inds = gpu_allocs.data_inds
+    norm_terms = gpu_allocs.norm_terms
+    z_rot = gpu_allocs.z_rot
+    z_cbs = gpu_allocs.z_cbs
+    starmap = gpu_allocs.starmap
+    allwavs = gpu_allocs.allwavs
+    allints = gpu_allocs.allints
+
     # sort the input data for use on GPU
     sorted_data = sort_data_for_gpu(soldata)
     disc_mu_cpu = sorted_data[1]
@@ -24,6 +36,22 @@ function disk_sim_gpu(spec::SpecParams{T}, disk::DiskParams{T}, soldata::SolarDa
     bisall_cpu = sorted_data[5]
     intall_cpu = sorted_data[6]
     widall_cpu = sorted_data[7]
+
+    # set number of threads and blocks for N*N matrix gpu functions
+    threads1 = (16,16)
+    blocks1 = cld(N^2, prod(threads1))
+
+    # set number of threads and blocks for trimming functions
+    threads2 = (4,4,16)
+    blocks2 = cld(length(lenall_cpu) * maximum(lenall_cpu) * 100, prod(threads2))
+
+    # set number of threads and blocks for N*N*100 matrix gpu functions
+    threads3 = (4,4,16)
+    blocks3 = cld(N^2 * 100, prod(threads3))
+
+    # set number of threads and blocks for N*N*Nλ matrix gpu functions
+    threads4 = (3,3,42)
+    blocks4 = cld(N^2 * Nλ, prod(threads4))
 
     # move input data to gpu
     @cusync begin
@@ -41,34 +69,6 @@ function disk_sim_gpu(spec::SpecParams{T}, disk::DiskParams{T}, soldata::SolarDa
         bisall_gpu_loop = CUDA.copy(bisall_gpu)
         intall_gpu_loop = CUDA.copy(intall_gpu)
     end
-
-    # parse out composite type
-    grid = gpu_allocs.grid
-    lambdas = gpu_allocs.lambdas
-    tloop = gpu_allocs.tloop
-    data_inds = gpu_allocs.data_inds
-    norm_terms = gpu_allocs.norm_terms
-    z_rot = gpu_allocs.z_rot
-    z_cbs = gpu_allocs.z_cbs
-    starmap = gpu_allocs.starmap
-    allwavs = gpu_allocs.allwavs
-    allints = gpu_allocs.allints
-
-    # set number of threads and blocks for N*N matrix gpu functions
-    threads1 = (16,16)
-    blocks1 = cld(N^2, prod(threads1))
-
-    # set number of threads and blocks for trimming functions
-    threads2 = (4,4,16)
-    blocks2 = cld(length(lenall_cpu) * maximum(lenall_cpu) * 100, prod(threads2))
-
-    # set number of threads and blocks for N*N*100 matrix gpu functions
-    threads3 = (4,4,16)
-    blocks3 = cld(N^2 * 100, prod(threads3))
-
-    # set number of threads and blocks for N*N*Nλ matrix gpu functions
-    threads4 = (3,3,42)
-    blocks4 = cld(N^2 * Nλ, prod(threads4))
 
     # # get launch parameters
     # kernel = @cuda launch=false initialize_arrays_for_gpu(tloop, data_inds, norm_terms, z_rot, z_cbs,
@@ -97,6 +97,9 @@ function disk_sim_gpu(spec::SpecParams{T}, disk::DiskParams{T}, soldata::SolarDa
     @cusync sum_norm_terms = CUDA.sum(norm_terms)
     @cusync z_cbs_avg = CUDA.sum(z_cbs .* norm_terms) / sum_norm_terms
 
+    # calculate how much extra shift is needed
+    extra_z = spec.conv_blueshifts .- z_cbs_avg
+
     # loop over time
     for t in 1:Nt
         # don't synthesize spectrum if skip_times is true, but iterate t index
@@ -110,9 +113,6 @@ function disk_sim_gpu(spec::SpecParams{T}, disk::DiskParams{T}, soldata::SolarDa
 
         # loop over lines to synthesize
         for l in eachindex(spec.lines)
-            # calculate how much extra shift is needed
-            extra_z = spec.conv_blueshifts[l] - z_cbs_avg
-
             # trim all the bisector data
             @cusync @captured @cuda threads=threads2 blocks=blocks2 trim_bisector_gpu!(spec.depths[l], spec.variability[l],
                                                                                        lenall_gpu, bisall_gpu_loop,
@@ -120,7 +120,7 @@ function disk_sim_gpu(spec::SpecParams{T}, disk::DiskParams{T}, soldata::SolarDa
                                                                                        intall_gpu)
 
             # assemble line shape on even int grid
-            @cusync @captured @cuda threads=threads3 blocks=blocks3 fill_workspaces!(spec.lines[l], extra_z, grid,
+            @cusync @captured @cuda threads=threads3 blocks=blocks3 fill_workspaces!(spec.lines[l], extra_z[l], grid,
                                                                                      tloop, data_inds, z_rot, z_cbs,
                                                                                      bisall_gpu_loop, intall_gpu_loop,
                                                                                      widall_gpu, allwavs, allints)
@@ -138,5 +138,6 @@ function disk_sim_gpu(spec::SpecParams{T}, disk::DiskParams{T}, soldata::SolarDa
 
     # ensure normalization
     outspec ./= sum_norm_terms
+    CUDA.synchronize()
     return nothing
 end

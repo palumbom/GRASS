@@ -29,17 +29,18 @@ function precompile_with_spectra_test()
     spec = SpecParams(lines=lines, depths=depths, variability=variability,
                        geffs=geffs, templates=templates, resolution=resolution)
 
-    lambdas1, outspec = synthesize_spectra(spec, disk, seed_rng=true, use_gpu=true)
+    lambdas1, outspec1 = synthesize_spectra(spec, disk, seed_rng=true, use_gpu=false)
+    lambdas2, outspec2 = synthesize_spectra(spec, disk, seed_rng=true, use_gpu=true)
     return nothing
 end
 
 function benchmark_cpu(spec::SpecParams, disk::DiskParams)
-    lambdas1, outspec1 = synthesize_spectra(spec, disk, verbose=false)
+    lambdas1, outspec1 = synthesize_spectra(spec, disk, verbose=false, seed_rng=true)
     return nothing
 end
 
 function benchmark_gpu(spec::SpecParams, disk::DiskParams)
-    lambdas1, outspec1 = synthesize_spectra(spec, disk, verbose=false, use_gpu=true)
+    lambdas1, outspec1 = synthesize_spectra(spec, disk, verbose=false, seed_rng=true, use_gpu=true)
     return nothing
 end
 
@@ -49,7 +50,7 @@ function bmark_everything(b_cpu, b_gpu, lines, depths; max_cpu=8)
         @printf(">>> Benchmarking %s of %s\n", i, length(lines))
 
         # number of loops for GPU
-        n_gpu_loops = 12
+        n_gpu_loops = 16
 
         # get lines and depths
         lines_i = lines[1:i]
@@ -66,7 +67,6 @@ function bmark_everything(b_cpu, b_gpu, lines, depths; max_cpu=8)
             @printf("\t>>> Performing CPU bench (N=132, Nt=50): ")
             Profile.clear_malloc_data()
             b_cpu[i] = @belapsed benchmark_cpu($spec, $disk)
-            # b_cpu[i] = 0.0
             println()
         end
 
@@ -74,7 +74,9 @@ function bmark_everything(b_cpu, b_gpu, lines, depths; max_cpu=8)
         @printf("\t>>> Performing GPU bench (N=132, Nt=50): ")
         for j in 1:n_gpu_loops
             Profile.clear_malloc_data()
+            CUDA.synchronize()
             b_gpu[i] += @belapsed benchmark_gpu($spec, $disk)
+            CUDA.synchronize()
         end
         b_gpu[i] /= n_gpu_loops
         println()
@@ -109,7 +111,7 @@ function main()
     end
 
     # allocate memory for benchmark results and run it
-    max_cpu = minimum([10, length(lines)])
+    max_cpu = minimum([12, length(lines)])
     b_cpu = similar(lines)
     b_gpu = similar(lines)
     bmark_everything(b_cpu, b_gpu, lines, depths, max_cpu=max_cpu)
@@ -147,27 +149,21 @@ if plot
     ax2 = ax1.twiny()
 
     # log scale it
-    # ax1.set_xscale("log")
     ax1.set_yscale("symlog")
-    # ax2.set_xscale("log")
     ax2.set_yscale("symlog")
 
     # plot on ax1
-    ax1.plot(n_res[1:max_cpu], b_cpu[1:max_cpu], c="k", label=L"{\rm CPU}")
-    ax1.scatter(n_res[1:max_cpu], b_cpu[1:max_cpu], c="k")
-    ax1.plot(n_res, b_gpu, c="tab:blue", label=L"{\rm GPU}")
-    ax1.scatter(n_res, b_gpu, c="tab:blue")
+    ms = 5.0
+    ax1.plot(n_res[1:max_cpu], b_cpu[1:max_cpu], marker="o", ms=ms, c="k", label=L"{\rm CPU}")
+    ax1.plot(n_res, b_gpu, marker="s", ms=ms, c="tab:blue", label=L"{\rm GPU}")
 
     # plot on twin axis
-    ax2.plot(n_lam[1:max_cpu], b_cpu[1:max_cpu], c="k")
-    ax2.scatter(n_lam[1:max_cpu], b_cpu[1:max_cpu], c="k")
-    ax2.plot(n_lam, b_gpu, c="tab:blue")
-    ax2.scatter(n_lam, b_gpu, c="tab:blue")
+    ax2.plot(n_lam[1:max_cpu], b_cpu[1:max_cpu], marker="o", ms=ms, c="k")
+    ax2.plot(n_lam, b_gpu, marker="s", ms=ms, c="tab:blue")
     ax2.grid(false)
 
-
     ax1.set_xlabel(L"{\rm \#\ of\ res.\ elements}")
-    ax1.set_ylabel(L"{\rm Simulation\ time\ (s)}")
+    ax1.set_ylabel(L"{\rm Synthesis\ time\ (s)}")
     ax2.set_xlabel(L"{\rm Width\ of\ spectrum\ (\AA)}")
     ax1.legend()
     fig.savefig(plotdir * "scaling_bench.pdf")
