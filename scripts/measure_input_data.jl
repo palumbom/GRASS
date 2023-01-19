@@ -143,7 +143,11 @@ function preprocess_line(line_name::String; clobber::Bool=true, verbose::Bool=tr
             depth = 1.0 - bot
 
             # find indices to isolate the line
-            idx1, idx2 = GRASS.find_wing_index(0.95 * depth + bot, fluxt, min=min)
+            if line_name in ["FeI_5434", "FeI_5383"]
+                idx1, idx2 = GRASS.find_wing_index(0.9 * depth + bot, fluxt, min=min)
+            else
+                idx1, idx2 = GRASS.find_wing_index(0.95 * depth + bot, fluxt, min=min)
+            end
 
             # check that the indices dont take us into another line
             wavbuff = 0.2
@@ -297,7 +301,7 @@ function main()
     for name in line_info.name
         # skip the "hard" lines for now
         # (name in ["CI_5380", "FeI_5382"]) && continue
-        # name != "NaI_5896" && continue
+        # name != "FeI_5434" && continue
 
         # print the line name and preprocess it
         println(">>> Processing " * name * "...")

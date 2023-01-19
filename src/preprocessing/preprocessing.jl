@@ -119,22 +119,23 @@ function fit_line_wings(wavs_iso::AA{T,1}, flux_iso::AA{T,1}; debug::Bool=false)
     lidx80, ridx80 = find_wing_index(0.80 * depth + bot, flux_iso, min=min)
     lidx85, ridx85 = find_wing_index(0.85 * depth + bot, flux_iso, min=min)
     lidx90, ridx90 = find_wing_index(0.90 * depth + bot, flux_iso, min=min)
-    lidx95, ridx95 = find_wing_index(0.95 * depth + bot, flux_iso, min=min)
 
     # isolate the line wings and mask area around line core for fitting
     Δbot = 3
     core = min-Δbot:min+Δbot
     atol = 0.5
     if isapprox(wavs_iso[argmin(flux_iso)], 5379.6, atol=0.5)
+        lidx95, ridx95 = find_wing_index(0.95 * depth + bot, flux_iso, min=min)
         lwing = lidx90:lidx20
         rwing = ridx20:ridx95
     elseif isapprox(wavs_iso[argmin(flux_iso)], 5432.8, atol=0.5)
+        lidx95, ridx95 = find_wing_index(0.95 * depth + bot, flux_iso, min=min)
         lwing = lidx95:lidx20
         rwing = ridx20:ridx80
     elseif isapprox(wavs_iso[argmin(flux_iso)], 5434.5, atol=0.5)
         lwing = lidx50:lidx20
         rwing = ridx20:ridx60
-    elseif isapprox(wavs_iso[argmin(flux_iso)], 5436.3, atol=1e0)
+    elseif isapprox(wavs_iso[argmin(flux_iso)], 5436.3, atol=0.5)
         lwing = lidx90:lidx20
         rwing = ridx20:ridx90
     elseif isapprox(wavs_iso[argmin(flux_iso)], 5578.7, atol=0.5)
@@ -147,15 +148,19 @@ function fit_line_wings(wavs_iso::AA{T,1}, flux_iso::AA{T,1}; debug::Bool=false)
         lwing = lidx90:lidx20
         rwing = ridx20:length(wavs_iso)
     elseif isapprox(wavs_iso[argmin(flux_iso)], 6151.62, atol=0.5)
+        lidx95, ridx95 = find_wing_index(0.95 * depth + bot, flux_iso, min=min)
         lwing = lidx95:lidx20
         rwing = ridx20:ridx95
     elseif isapprox(wavs_iso[argmin(flux_iso)], 6173.3, atol=0.5)
+        lidx95, ridx95 = find_wing_index(0.95 * depth + bot, flux_iso, min=min)
         lwing = lidx95:lidx10
         rwing = ridx10:ridx95
     elseif isapprox(wavs_iso[argmin(flux_iso)], 6301.5, atol=0.5)
+        lidx95, ridx95 = find_wing_index(0.95 * depth + bot, flux_iso, min=min)
         lwing = lidx95:lidx20
         rwing = ridx20:ridx90
     elseif isapprox(wavs_iso[argmin(flux_iso)], 6302.5, atol=0.5)
+        lidx95, ridx95 = find_wing_index(0.95 * depth + bot, flux_iso, min=min)
         lwing = lidx95:lidx20
         rwing = ridx20:ridx80
     else
