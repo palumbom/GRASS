@@ -121,7 +121,7 @@ function main()
 
     # wavelength of line to synthesize/compare to iag
     for (i, file) in enumerate(files)
-        if !contains(file, "FeI_5434")
+        if !contains(file, "NiI_5435")
             continue
         end
 
@@ -131,7 +131,10 @@ function main()
 
         # get IAG spectrum and normalize it
         wavs_iag, flux_iag = GRASS.read_iag_atlas(isolate=true, airwav=airwav, buffer=1.25)
-        flux_iag ./= maximum(flux_iag)
+        # flux_iag ./= maximum(flux_iag)
+
+        # convolve IAG spectrum to LARS resolution
+        wavs_iag, flux_iag = GRASS.convolve_gauss(wavs_iag, flux_iag, new_res=7e5, oversampling=5.0)
 
         # get depth from IAG spectrum
         idx1 = findfirst(x -> x .<= airwav - 0.25, wavs_iag)
@@ -149,7 +152,7 @@ function main()
         # set up for GRASS spectrum simulation
         # TODO fix depth issue!!
         lines = [airwav]
-        depths = [iag_depth]
+        depths = [iag_depth + 0.025]
         templates = [file]
         resolution = 7e5
         spec = SpecParams(lines=lines, depths=depths, templates=templates, resolution=resolution)
@@ -166,25 +169,42 @@ function main()
         # shift the simulated spectrum to rest frame
         wavs_sim ./= calc_doppler_factor(rvs_sim)
 
-        plt.plot(wavs_sim, flux_sim)
-        plt.plot(wavs_iag, flux_iag)
+        # # find the difference in depth
+        # dep_diff = iag_depth - (1.0 - minimum(flux_sim))
+
+        # # resynthesize
+        # lines = [airwav]
+        # depths = [iag_depth + dep_diff]
+        # templates = [file]
+        # resolution = 7e5
+        # spec = SpecParams(lines=lines, depths=depths, templates=templates, resolution=resolution)
+        # disk = DiskParams(N=132, Nt=10)
+
+        # wavs_sim, flux_sim = synthesize_spectra(spec, disk, use_gpu=use_gpu)
+        # flux_sim = dropdims(mean(flux_sim, dims=2), dims=2)
+
+        # get velocity of simulated spectrum
+        vels_sim, ccf_sim = calc_ccf(wavs_sim, flux_sim, spec)
+        rvs_sim, sigs_sim = calc_rvs_from_ccf(vels_sim, ccf_sim, fit_type=QuadraticFit)
+
+        # shift the simulated spectrum to rest frame
+        wavs_sim ./= calc_doppler_factor(rvs_sim)
+
+        # interpolate IAG onto synthetic wavelength grid
+        itp = GRASS.linear_interp(wavs_iag, flux_iag, bc=NaN)
+        flux_iag = itp.(wavs_sim)
+        wavs_iag = wavs_sim
+
+        fig, (ax1, ax2) = plt.subplots(2, 1)
+        ax1.plot(wavs_sim, flux_sim)
+        ax1.plot(wavs_iag, flux_iag)
+        ax2.plot(wavs_sim, flux_iag .- flux_sim)
         plt.show()
+
+
 
         return nothing
 
-        # find the difference in depth
-        dep_diff = iag_depth - (1.0 - minimum(flux_sim))
-
-        # resynthesize
-        lines = [airwav]
-        depths = [iag_depth + dep_diff]
-        templates = [file]
-        resolution = 7e5
-        spec = SpecParams(lines=lines, depths=depths, templates=templates, resolution=resolution)
-        disk = DiskParams(N=132, Nt=10)
-
-        wavs_sim, flux_sim = synthesize_spectra(spec, disk, use_gpu=use_gpu)
-        flux_sim = dropdims(mean(flux_sim, dims=2), dims=2)
 
         # get the synthetic bisector
         bis_sim, int_sim = GRASS.calc_bisector(wavs_sim, flux_sim)
