@@ -108,25 +108,59 @@ function fit_line_wings(wavs_iso::AA{T,1}, flux_iso::AA{T,1}; debug::Bool=false)
     depth = 1.0 - bot
 
     # get wing indices for various percentage depths into line
+    lidx10, ridx10 = find_wing_index(0.10 * depth + bot, flux_iso, min=min)
+    lidx20, ridx20 = find_wing_index(0.20 * depth + bot, flux_iso, min=min)
+    lidx30, ridx30 = find_wing_index(0.30 * depth + bot, flux_iso, min=min)
     lidx40, ridx40 = find_wing_index(0.40 * depth + bot, flux_iso, min=min)
     lidx50, ridx50 = find_wing_index(0.50 * depth + bot, flux_iso, min=min)
+    lidx60, ridx60 = find_wing_index(0.60 * depth + bot, flux_iso, min=min)
+    lidx65, ridx65 = find_wing_index(0.65 * depth + bot, flux_iso, min=min)
     lidx70, ridx70 = find_wing_index(0.70 * depth + bot, flux_iso, min=min)
     lidx80, ridx80 = find_wing_index(0.80 * depth + bot, flux_iso, min=min)
     lidx85, ridx85 = find_wing_index(0.85 * depth + bot, flux_iso, min=min)
     lidx90, ridx90 = find_wing_index(0.90 * depth + bot, flux_iso, min=min)
+    lidx95, ridx95 = find_wing_index(0.95 * depth + bot, flux_iso, min=min)
 
     # isolate the line wings and mask area around line core for fitting
     Δbot = 3
     core = min-Δbot:min+Δbot
-    if isapprox(wavs_iso[argmin(flux_iso)], 5434.5, atol=1e0)
-        lwing = lidx80:lidx50
-        rwing = ridx50:ridx80
-    elseif isapprox(wavs_iso[argmin(flux_iso)], 5896.0, atol=1e0)
+    atol = 0.5
+    if isapprox(wavs_iso[argmin(flux_iso)], 5379.6, atol=0.5)
+        lwing = lidx90:lidx20
+        rwing = ridx20:ridx95
+    elseif isapprox(wavs_iso[argmin(flux_iso)], 5432.8, atol=0.5)
+        lwing = lidx95:lidx20
+        rwing = ridx20:ridx80
+    elseif isapprox(wavs_iso[argmin(flux_iso)], 5434.5, atol=0.5)
+        lwing = lidx50:lidx20
+        rwing = ridx20:ridx60
+    elseif isapprox(wavs_iso[argmin(flux_iso)], 5436.3, atol=1e0)
+        lwing = lidx90:lidx20
+        rwing = ridx20:ridx90
+    elseif isapprox(wavs_iso[argmin(flux_iso)], 5578.7, atol=0.5)
+        lwing = lidx90:lidx20
+        rwing = ridx20:ridx90
+    elseif isapprox(wavs_iso[argmin(flux_iso)], 5896.0, atol=0.5)
         lwing = lidx70:lidx40
         rwing = ridx40:ridx70
+    elseif isapprox(wavs_iso[argmin(flux_iso)], 6149.25, atol=0.5)
+        lwing = lidx90:lidx20
+        rwing = ridx20:length(wavs_iso)
+    elseif isapprox(wavs_iso[argmin(flux_iso)], 6151.62, atol=0.5)
+        lwing = lidx95:lidx20
+        rwing = ridx20:ridx95
+    elseif isapprox(wavs_iso[argmin(flux_iso)], 6173.3, atol=0.5)
+        lwing = lidx95:lidx10
+        rwing = ridx10:ridx95
+    elseif isapprox(wavs_iso[argmin(flux_iso)], 6301.5, atol=0.5)
+        lwing = lidx95:lidx20
+        rwing = ridx20:ridx90
+    elseif isapprox(wavs_iso[argmin(flux_iso)], 6302.5, atol=0.5)
+        lwing = lidx95:lidx20
+        rwing = ridx20:ridx80
     else
-        lwing = lidx90:lidx50
-        rwing = ridx50:ridx90
+        lwing = lidx80:lidx10
+        rwing = ridx10:ridx80
     end
 
     # create arrays to fit on
@@ -142,9 +176,9 @@ function fit_line_wings(wavs_iso::AA{T,1}, flux_iso::AA{T,1}; debug::Bool=false)
         ub = [2.5, wavs_iso[min], 0.75, 0.75]
         p0 = [.97, wavs_iso[min], 0.05, 0.16]
     else
-        lb = [0.0, wavs_iso[min]-minimum(diff(wavs_iso))/2.0, 1e-4, 1e-4]
-        ub = [2.5, wavs_iso[min]+minimum(diff(wavs_iso))/2.0, 0.15, 0.15]
-        p0 = [0.3, wavs_iso[min], 0.02, 0.05]
+        lb = [0.0, wavs_iso[min]-minimum(diff(wavs_iso)), 1e-5, 1e-5]
+        ub = [2.5, wavs_iso[min]+minimum(diff(wavs_iso)), 0.15, 0.15]
+        p0 = [0.2, wavs_iso[min], 0.02, 0.001]
     end
 
     # perform the fit
