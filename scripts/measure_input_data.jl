@@ -99,6 +99,7 @@ function preprocess_line(line_name::String; clobber::Bool=true, verbose::Bool=tr
         # read in the spectrum and normalize it
         wavs, flux = GRASS.bin_spectrum(GRASS.read_spectrum(fits_files[i])...)
         flux ./= maximum(flux, dims=1)
+        # flux .+= 0.005
 
         # allocate memory for extrapolation height value
         top = zeros(size(wavs,2))
@@ -142,7 +143,7 @@ function preprocess_line(line_name::String; clobber::Bool=true, verbose::Bool=tr
             depth = 1.0 - bot
 
             # find indices to isolate the line
-            idx1, idx2 = GRASS.find_wing_index(0.9 * depth + bot, fluxt, min=min)
+            idx1, idx2 = GRASS.find_wing_index(0.95 * depth + bot, fluxt, min=min)
 
             # check that the indices dont take us into another line
             wavbuff = 0.2
@@ -193,10 +194,14 @@ function preprocess_line(line_name::String; clobber::Bool=true, verbose::Bool=tr
             end
 
             # replace the line wings above % continuum
-            if line_name != "NaI_5896"
-                top[t] = 0.8 * depth + bot
-            else
+            if line_name == "NaI_5896"
                 top[t] = 0.65 * depth + bot
+            elseif line_name == "FeI_5434"
+                top[t] = 0.7 * depth + bot
+            elseif line_name == "FeI_5379"
+                top[t] = 0.9 * depth + bot
+            else
+                top[t] = 0.75 * depth + bot
             end
 
             # debugging code block
@@ -233,7 +238,7 @@ function preprocess_line(line_name::String; clobber::Bool=true, verbose::Bool=tr
                 ax2.set_ylabel("Width across line")
                 fig.suptitle("\${\\rm " * replace(line_df.name[1], "_" => "\\ ") * "}\$")
                 fig.savefig(plotdir * "spectra_fits/" * line_df.name[1] * ".pdf")
-                # plt.show()
+                plt.show()
                 plt.clf(); plt.close()
             end
         end
@@ -277,22 +282,22 @@ function preprocess_line(line_name::String; clobber::Bool=true, verbose::Bool=tr
     end
 
     # plot the convective blueshifts
-    mus, vconvs = GRASS.retrieve_vconvs(fname)
-    plt.scatter(mus, vconvs)
-    plt.gca().invert_xaxis()
-    plt.xlabel(L"\mu")
-    plt.ylabel(L"v_{\rm conv}")
-    # plt.title(line_df.name[1])
-    plt.savefig(plotdir * "vconvs/" * line_df.name[1] * ".pdf")
-    plt.clf(); plt.close();
+    # mus, vconvs = GRASS.retrieve_vconvs(fname)
+    # plt.scatter(mus, vconvs)
+    # plt.gca().invert_xaxis()
+    # plt.xlabel(L"\mu")
+    # plt.ylabel(L"v_{\rm conv}")
+    # # plt.title(line_df.name[1])
+    # plt.savefig(plotdir * "vconvs/" * line_df.name[1] * ".pdf")
+    # plt.clf(); plt.close();
     return nothing
 end
 
 function main()
     for name in line_info.name
         # skip the "hard" lines for now
-        (name in ["CI_5380", "FeI_5382"]) && continue
-        # name != "FeI_5434" && continue
+        # (name in ["CI_5380", "FeI_5382"]) && continue
+        # name != "NaI_5896" && continue
 
         # print the line name and preprocess it
         println(">>> Processing " * name * "...")
