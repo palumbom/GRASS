@@ -40,7 +40,7 @@ function measure_convective_blueshifts(fname)
                     bot = minimum(intt)
                     dep = 1.0 - bot
 
-                    # find the lower 5% of the bisector curve
+                    # average of bisector velocity above bottom and below top
                     idx1 = 5 # the lowest-most measurements are usually janky
                     idx2 = findfirst(x -> x .>= bot + 0.8 * dep, intt)
                     if isnothing(idx2) || topt < idx2
