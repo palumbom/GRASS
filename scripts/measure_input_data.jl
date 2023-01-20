@@ -66,7 +66,7 @@ function preprocess_line(line_name::String; clobber::Bool=true, verbose::Bool=tr
 
     # find row with line info and write the line_params file
     line_df = subset(line_info, :name => x -> x .== line_name)
-    if ~debug
+    if !debug
         GRASS.write_line_params(line_df)
     end
 
@@ -99,23 +99,16 @@ function preprocess_line(line_name::String; clobber::Bool=true, verbose::Bool=tr
         # read in the spectrum and normalize it
         wavs, flux = GRASS.bin_spectrum(GRASS.read_spectrum(fits_files[i])...)
         flux ./= maximum(flux, dims=1)
-        # flux .+= 0.005
 
         # allocate memory for extrapolation height value
         top = zeros(size(wavs,2))
 
         # allocate memory for measuring input data
-        nflux = 500
+        nflux = 100
         bis = zeros(nflux, size(wavs,2))
         int1 = zeros(nflux, size(wavs,2))
         int2 = zeros(nflux, size(wavs,2))
         wid = zeros(nflux, size(wavs,2))
-
-        # allocate memory for writing it
-        nflux_w = 100
-        bis_w = zeros(nflux_w, size(wavs,2))
-        int_w = zeros(nflux_w, size(wavs,2))
-        wid_w = zeros(nflux_w, size(wavs,2))
 
         # loop over epochs in spectrum file
         for t in 1:size(wavs, 2)
@@ -258,24 +251,9 @@ function preprocess_line(line_name::String; clobber::Bool=true, verbose::Bool=tr
         int = GRASS.strip_columns(int1, bad_cols)
         wid = GRASS.strip_columns(wid, bad_cols)
 
-        # interpolate onto shorter grid
-        for i in 1:size(int, 2)
-            # get interpolator
-            itp1 = GRASS.linear_interp(view(int, :, i), view(bis, :, i))
-            itp2 = GRASS.linear_interp(view(int, :, i), view(wid, :, i))
-            # itp3 = GRASS.linear_interp(view(int, :, i), view(unc, :, i))
-
-            # get new depth grid
-            int_w[:,i] .= range(minimum(int[:,i]), maximum(int[:,i]), length=nflux_w)
-
-            # evaluate the interpolators
-            bis_w[:,i] .= itp1.(view(int_w, :, i))
-            wid_w[:,i] .= itp2.(view(int_w, :, i))
-        end
-
         # write input data to disk
         if !debug
-            GRASS.write_input_data(line_df, ax_string, mu_string, datetime, top, bis_w, int_w, wid_w)
+            GRASS.write_input_data(line_df, ax_string, mu_string, datetime, top, bis, int, wid)
         end
     end
 
@@ -284,16 +262,6 @@ function preprocess_line(line_name::String; clobber::Bool=true, verbose::Bool=tr
     if !debug
         GRASS.measure_convective_blueshifts(fname)
     end
-
-    # plot the convective blueshifts
-    # mus, vconvs = GRASS.retrieve_vconvs(fname)
-    # plt.scatter(mus, vconvs)
-    # plt.gca().invert_xaxis()
-    # plt.xlabel(L"\mu")
-    # plt.ylabel(L"v_{\rm conv}")
-    # # plt.title(line_df.name[1])
-    # plt.savefig(plotdir * "vconvs/" * line_df.name[1] * ".pdf")
-    # plt.clf(); plt.close();
     return nothing
 end
 
@@ -301,7 +269,7 @@ function main()
     for name in line_info.name
         # skip the "hard" lines for now
         # (name in ["CI_5380", "FeI_5382"]) && continue
-        # name != "FeI_5382" && continue
+        name != "FeI_5434" && continue
 
         # print the line name and preprocess it
         println(">>> Processing " * name * "...")

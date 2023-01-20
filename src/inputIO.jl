@@ -85,6 +85,6 @@ function identify_bad_cols(bisall::AA{T,2}, intall::AA{T,2}, widall::AA{T,2}) wh
 end
 
 function relative_bisector_wavelengths(bis::AA{T,2}) where T<:AF
-    bis .-= mean(bis, dims=2)
+    bis .-= mean(bis, dims=1)
     return nothing
 end

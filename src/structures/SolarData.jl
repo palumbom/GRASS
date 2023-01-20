@@ -126,14 +126,16 @@ function SolarData(fname::String; relative::Bool=true, extrapolate::Bool=true,
                     widt = view(wid, :, i)
 
                     # fit the bottom bisector area and replace with model fit
-                    idx1 = searchsortedfirst(intt, minimum(intt) + 0.05)
-                    idx2 = searchsortedfirst(intt, minimum(intt) + 0.15)
+                    bot = minimum(intt)
+                    dep = 1.0 - bot
+                    idx1 = searchsortedfirst(intt, bot + 0.05 * dep)
+                    idx2 = searchsortedfirst(intt, bot + 0.15 * dep)
                     bfit = pfit(view(intt, idx1:idx2), view(bist, idx1:idx2), 1)
                     bist[1:idx1] .= bfit.(view(intt, 1:idx1))
 
                     # fit the top bisector area and replace with model fit
                     idx1 = searchsortedfirst(intt, top[i] - 0.1)
-                    idx2 = searchsortedfirst(intt, top[i])
+                    idx2 = searchsortedfirst(intt, top[i]) - 1
                     bfit = pfit(view(intt, idx1:idx2), view(bist, idx1:idx2), 1)
                     bist[idx2:end] .= bfit.(view(intt, idx2:length(intt)))
 
