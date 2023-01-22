@@ -192,13 +192,14 @@ function SpecParams(spec::SpecParams, template_file::String)
     @assert isfile(file)
 
     # get indices
-    idx = findall(spec.templates .== file)
+    # idx = findall(spec.templates .== file)
+    idx = spec.templates .== file
     return SpecParams(view(spec.lines, idx),
                       view(spec.depths, idx),
                       view(spec.geffs, idx),
                       view(spec.conv_blueshifts, idx),
                       view(spec.variability, idx),
                       spec.resolution,
-                      view(spec.lambdas, :),
+                      spec.lambdas,
                       view(spec.templates, idx))
 end
