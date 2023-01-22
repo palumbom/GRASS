@@ -20,19 +20,21 @@ function parse_ax_string(s::Symbol)
 end
 
 function adjust_data_mean(arr::AA{T,2}, ntimes::Vector{Int64}) where T<:Real
-    # get the mean of the first dataset
-    group1 = view(arr, :, 1:ntimes[1])
-    meangroup1 = dropdims(mean(group1, dims=2), dims=2)
+    # get the mean of all the data
+    mean_all = mean(arr)
 
     # loop over the nth datasets
-    for i in 2:length(ntimes)
-        # get the mena
-        groupn = view(arr, :, sum(ntimes[1:i-1])+1:sum(ntimes[1:i]))
-        meangroupn = dropdims(mean(groupn, dims=2), dims=2)
+    arr_idx = vcat([0], cumsum(ntimes))
+    for i in 1:length(ntimes)
+        # get the group of measurements
+        group = view(arr, :, arr_idx[i]+1:arr_idx[i+1])
+
+        # get the mean of the group
+        mean_group = mean(group)
 
         # find the distance between the means and correct by it
-        meandist = meangroupn - meangroup1
-        groupn .-= meandist
+        mean_dist = mean_all - mean_group
+        group .-= mean_dist
     end
     return nothing
 end
