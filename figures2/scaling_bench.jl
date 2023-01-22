@@ -6,10 +6,7 @@ using CUDA
 using GRASS
 using JLD2
 using FileIO
-
-using LaTeXStrings
-import PyPlot; plt = PyPlot; mpl = plt.matplotlib; plt.ioff()
-mpl.style.use(GRASS.moddir * "figures1/fig.mplstyle")
+using Statistics
 
 # parse args + get directories
 run, plot = parse_args(ARGS)
@@ -49,8 +46,8 @@ function bmark_everything(b_cpu, b_gpu, lines, depths; max_cpu=8)
     for i in eachindex(lines)
         @printf(">>> Benchmarking %s of %s\n", i, length(lines))
 
-        # number of loops for GPU
-        n_gpu_loops = 16
+        # get number of gpu samplings to do
+        n_gpu_loops = size(b_gpu, 2)
 
         # get lines and depths
         lines_i = lines[1:i]
@@ -75,10 +72,9 @@ function bmark_everything(b_cpu, b_gpu, lines, depths; max_cpu=8)
         for j in 1:n_gpu_loops
             Profile.clear_malloc_data()
             CUDA.synchronize()
-            b_gpu[i] += @belapsed benchmark_gpu($spec, $disk)
+            b_gpu[i,j] = @belapsed benchmark_gpu($spec, $disk)
             CUDA.synchronize()
         end
-        b_gpu[i] /= n_gpu_loops
         println()
     end
     return nothing
@@ -111,9 +107,10 @@ function main()
     end
 
     # allocate memory for benchmark results and run it
-    max_cpu = minimum([12, length(lines)])
+    n_gpu_loops = 16
+    max_cpu = minimum([8, length(lines)])
     b_cpu = similar(lines)
-    b_gpu = similar(lines)
+    b_gpu = zeros(length(lines), n_gpu_loops)
     bmark_everything(b_cpu, b_gpu, lines, depths, max_cpu=max_cpu)
 
     # write info to disk
@@ -132,8 +129,12 @@ if run
     main()
 end
 
-    # function for plotting since it dies in global??
 if plot
+    # plotting imports
+    using LaTeXStrings
+    import PyPlot; plt = PyPlot; mpl = plt.matplotlib; plt.ioff()
+    mpl.style.use(GRASS.moddir * "figures1/fig.mplstyle")
+
     # read in the data
     file = datadir * "scaling_benchmark.jld2"
     d = load(file)
@@ -144,23 +145,37 @@ if plot
     b_cpu = d["b_cpu"]
     b_gpu = d["b_gpu"]
 
+    # get mean gpu benchmark
+    b_gpu_avg = mean(b_gpu, dims=2)
+    b_gpu_std = std(b_gpu, dims=2)
+
     # create plotting objects
     fig, ax1 = plt.subplots()
     ax2 = ax1.twiny()
+    # ax3 = ax1.twinx()
 
     # log scale it
-    ax1.set_yscale("symlog")
-    ax2.set_yscale("symlog")
+    # ax1.set_yscale("symlog")
+    # ax2.set_yscale("symlog")
+    # ax2.set_yscale("symlog")
+
 
     # plot on ax1
     ms = 5.0
     ax1.plot(n_res[1:max_cpu], b_cpu[1:max_cpu], marker="o", ms=ms, c="k", label=L"{\rm CPU}")
-    ax1.plot(n_res, b_gpu, marker="s", ms=ms, c="tab:blue", label=L"{\rm GPU}")
+    ax1.plot(n_res, b_gpu_avg, marker="s", ms=ms, c="tab:blue", label=L"{\rm GPU}")
 
     # plot on twin axis
     ax2.plot(n_lam[1:max_cpu], b_cpu[1:max_cpu], marker="o", ms=ms, c="k")
-    ax2.plot(n_lam, b_gpu, marker="s", ms=ms, c="tab:blue")
+    ax2.plot(n_lam, b_gpu_avg, marker="s", ms=ms, c="tab:blue")
     ax2.grid(false)
+
+    # plot on twin axis
+    # ax3.plot(n_lam[1:max_cpu], b_cpu[1:max_cpu], marker="o", ms=ms, c="k")
+    # ax3.plot(n_lam, b_gpu_avg, marker="s", ms=ms, c="tab:blue")
+    # ax3.get_yaxis().set_major_formatter(mpl.ticker.ScalarFormatter())
+    # ax3.get_yaxis().set_minor_formatter(mpl.ticker.NullFormatter())
+    # ax3.grid(false)
 
     ax1.set_xlabel(L"{\rm \#\ of\ res.\ elements}")
     ax1.set_ylabel(L"{\rm Synthesis\ time\ (s)}")
