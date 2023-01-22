@@ -165,3 +165,25 @@ function calc_bisector(wavs::AA{T,1}, flux::AA{T,2}; kwargs...) where T<:Real
     out = map(f, eachcol(flux))
     return cat([x[1] for x in out]..., dims=2), cat([x[2] for x in out]..., dims=2)
 end
+
+function calc_bisector_cubic(wavs::AA{T,1}, flux::AA{T,1}) where T<:Real
+    # find index of minimum
+    idx_min = argmin(flux)
+
+    # take difference quotient
+    dfdλ = diff(flux)./diff(wavs)
+
+    # starting from middle, find last element where deriv. is pos/neg.
+    idx1 = idx_min - findlast(view(dfdλ, idx_min:-1:1) .< 0.0) + 1
+    idx2 = findlast(view(dfdλ, idx_min:length(dfdλ)) .> 0.0) + idx_min - 1
+
+    # construct the interpolants
+    itp1 = cubic_interp(view(flux, idx_min:-1:idx1), view(wavs, idx_min:-1:idx1))
+    itp2 = cubic_interp(view(flux, idx_min:idx2), view(wavs, idx_min:idx2))
+
+    # get the bisector
+    flux_out = range(minimum(flux), maximum(flux) - 0.01, length=50)
+    bis_out = (itp2.(flux_out) .+ itp1.(flux_out))./2
+
+    return bis_out, flux_out
+end
