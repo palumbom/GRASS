@@ -97,7 +97,7 @@ function main()
     btop = 0.9
 
     # get spectrum and interpolate onto even wavelength grid
-    wavs_iag, flux_iag = read_iag_atlas()
+    wavs_iag, flux_iag = GRASS.read_iag_atlas()
     wavs_iag, flux_iag = interpolate_spec(wavs_iag, flux_iag)
 
     # set up for GRASS spectrum simulation
