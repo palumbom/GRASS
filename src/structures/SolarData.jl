@@ -118,34 +118,7 @@ function SolarData(fname::String; relative::Bool=true, extrapolate::Bool=true,
             end
 
             if extrapolate
-                # extrapolate over data where uncertainty explodes
-                for i in 1:size(bis,2)
-                    # take a slice for one time snapshot
-                    bist = view(bis, :, i)
-                    intt = view(int, :, i)
-                    widt = view(wid, :, i)
-
-                    # fit the bottom bisector area and replace with model fit
-                    bot = minimum(intt)
-                    dep = 1.0 - bot
-                    idx1 = searchsortedfirst(intt, bot + 0.05 * dep)
-                    idx2 = searchsortedfirst(intt, bot + 0.15 * dep)
-                    bfit = pfit(view(intt, idx1:idx2), view(bist, idx1:idx2), 1)
-                    bist[1:idx1] .= bfit.(view(intt, 1:idx1))
-
-                    # fit the top bisector area and replace with model fit
-                    idx1 = searchsortedfirst(intt, top[i] - 0.1)
-                    idx2 = searchsortedfirst(intt, top[i]) - 1
-                    bfit = pfit(view(intt, idx1:idx2), view(bist, idx1:idx2), 1)
-                    bist[idx2:end] .= bfit.(view(intt, idx2:length(intt)))
-
-                    # extrapolate the width up to the continuum
-                    # TODO revisit this
-                    idx1 = length(widt) - 1
-                    wfit = pfit(view(intt, idx1:length(intt)), view(widt, idx1:length(intt)), 1)
-                    widt[idx1:end] .= wfit.([intt[idx1], 1.0])
-                    intt[end] = 1.0
-                end
+                extrapolate_input_data(bis, int, wid, top)
             end
 
             # express bisector wavelengths relative to mean

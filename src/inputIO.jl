@@ -88,3 +88,39 @@ function relative_bisector_wavelengths(bis::AA{T,2}) where T<:AF
     bis .-= mean(bis, dims=1)
     return nothing
 end
+
+function extrapolate_input_data(bist::AA{T,1}, intt::AA{T,1}, widt::AA{T,1}, top::T) where T<:AF
+    # fit the bottom bisector area and replace with model fit
+    bot = minimum(intt)
+    dep = 1.0 - bot
+    idx1 = searchsortedfirst(intt, bot + 0.05 * dep)
+    idx2 = searchsortedfirst(intt, bot + 0.15 * dep)
+    bfit = pfit(view(intt, idx1:idx2), view(bist, idx1:idx2), 1)
+    bist[1:idx1] .= bfit.(view(intt, 1:idx1))
+
+    # fit the top bisector area and replace with model fit
+    idx1 = searchsortedfirst(intt, top - 0.1)
+    idx2 = searchsortedfirst(intt, top) - 1
+    bfit = pfit(view(intt, idx1:idx2), view(bist, idx1:idx2), 1)
+    bist[idx2:end] .= bfit.(view(intt, idx2:length(intt)))
+
+    # extrapolate the width up to the continuum
+    # TODO revisit this
+    idx1 = length(widt) - 1
+    wfit = pfit(view(intt, idx1:length(intt)), view(widt, idx1:length(intt)), 1)
+    widt[idx1:end] .= wfit.([intt[idx1], 1.0])
+    intt[end] = 1.0
+    return nothing
+end
+
+function extrapolate_input_data(bis::AA{T,2}, int::AA{T,2}, wid::AA{T,2}, top::AA{T,1}) where T<:AF
+    for i in 1:size(bis,2)
+        # take a slice for one time snapshot
+        bist = view(bis, :, i)
+        intt = view(int, :, i)
+        widt = view(wid, :, i)
+
+        extrapolate_input_data(bist, intt, widt, top[i])
+    end
+    return nothing
+end
