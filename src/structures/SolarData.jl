@@ -104,7 +104,7 @@ function SolarData(fname::String; relative::Bool=true, extrapolate::Bool=true,
             end
 
             # match the means of noncontiguous datasets
-            if adjust_mean && !contiguous_only
+            if length(ntimes) > 1 && adjust_mean && !contiguous_only
                 # fix ntimes to deal with removed columns
                 inds = findall(badcols)
                 ntimes_cum = cumsum(ntimes)
