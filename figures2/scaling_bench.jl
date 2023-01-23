@@ -8,6 +8,11 @@ using JLD2
 using FileIO
 using Statistics
 
+# plotting imports
+using LaTeXStrings
+import PyPlot; plt = PyPlot; mpl = plt.matplotlib; plt.ioff()
+mpl.style.use(GRASS.moddir * "figures1/fig.mplstyle")
+
 # parse args + get directories
 run, plot = parse_args(ARGS)
 grassdir, plotdir, datadir = check_plot_dirs()
@@ -107,8 +112,8 @@ function main()
     end
 
     # allocate memory for benchmark results and run it
-    n_gpu_loops = 16
-    max_cpu = minimum([8, length(lines)])
+    n_gpu_loops = 12
+    max_cpu = minimum([12, length(lines)])
     b_cpu = similar(lines)
     b_gpu = zeros(length(lines), n_gpu_loops)
     bmark_everything(b_cpu, b_gpu, lines, depths, max_cpu=max_cpu)
@@ -130,11 +135,6 @@ if run
 end
 
 if plot
-    # plotting imports
-    using LaTeXStrings
-    import PyPlot; plt = PyPlot; mpl = plt.matplotlib; plt.ioff()
-    mpl.style.use(GRASS.moddir * "figures1/fig.mplstyle")
-
     # read in the data
     file = datadir * "scaling_benchmark.jld2"
     d = load(file)
@@ -152,13 +152,10 @@ if plot
     # create plotting objects
     fig, ax1 = plt.subplots()
     ax2 = ax1.twiny()
-    # ax3 = ax1.twinx()
 
     # log scale it
-    # ax1.set_yscale("symlog")
-    # ax2.set_yscale("symlog")
-    # ax2.set_yscale("symlog")
-
+    ax1.set_yscale("symlog")
+    ax2.set_yscale("symlog")
 
     # plot on ax1
     ms = 5.0
@@ -170,13 +167,7 @@ if plot
     ax2.plot(n_lam, b_gpu_avg, marker="s", ms=ms, c="tab:blue")
     ax2.grid(false)
 
-    # plot on twin axis
-    # ax3.plot(n_lam[1:max_cpu], b_cpu[1:max_cpu], marker="o", ms=ms, c="k")
-    # ax3.plot(n_lam, b_gpu_avg, marker="s", ms=ms, c="tab:blue")
-    # ax3.get_yaxis().set_major_formatter(mpl.ticker.ScalarFormatter())
-    # ax3.get_yaxis().set_minor_formatter(mpl.ticker.NullFormatter())
-    # ax3.grid(false)
-
+    # axis label stuff
     ax1.set_xlabel(L"{\rm \#\ of\ res.\ elements}")
     ax1.set_ylabel(L"{\rm Synthesis\ time\ (s)}")
     ax2.set_xlabel(L"{\rm Width\ of\ spectrum\ (\AA)}")
