@@ -20,42 +20,25 @@ function parse_ax_string(s::Symbol)
 end
 
 function adjust_data_mean(arr::AA{T,2}, ntimes::Vector{Int64}) where T<:Real
-    # get the mean of all the data
-    mean_all = mean(arr)
-    # mean_all = dropdims(mean(view(arr, :, 1:ntimes[1]), dims=2), dims=2)
-
-    # loop over the nth datasets
+    # get indices for number of contiguous obs
     arr_idx = vcat([0], cumsum(ntimes))
+
+    # find the mean of the longest data set, use bottom n% of bisector only
+    idx = argmax(ntimes)
+    arr_sub = view(arr, 5:60, arr_idx[idx]+1:arr_idx[idx+1])
+    mean_ref = mean(arr_sub)
+
+    # loop over the datasets and adjust mean
     for i in 1:length(ntimes)
         # get the group of measurements
         group = view(arr, :, arr_idx[i]+1:arr_idx[i+1])
 
-        # get the mean of the group
-        mean_group = mean(group)
-        # mean_group = dropdims(mean(group, dims=2), dims=2)
+        # get the mean of bottom n% of bisctor
+        mean_group = mean(view(group, 5:60, :))
 
         # find the distance between the means and correct by it
-        mean_dist = mean_all - mean_group
-        group .-= mean_dist
-    end
-    return nothing
-end
-
-function adjust_data_mean_old(arr::AA{T,2}, ntimes::Vector{Int64}) where T<:Real
-    # get the mean of the first dataset
-    group1 = view(arr, :, 1:ntimes[1])
-    meangroup1 = dropdims(mean(group1, dims=2), dims=2)
-
-    # loop over the nth datasets
-    arr_idx = vcat([0], cumsum(ntimes))
-    for i in 2:length(ntimes)
-        # get the mena
-        groupn = view(arr, :, arr_idx[i]+1:arr_idx[i+1])
-        meangroupn = dropdims(mean(groupn, dims=2), dims=2)
-
-        # find the distance between the means and correct by it
-        meandist = meangroupn - meangroup1
-        groupn .-= meandist
+        mean_dist = mean_ref - mean_group
+        group .+= mean_dist
     end
     return nothing
 end
