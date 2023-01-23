@@ -9,7 +9,7 @@ function trim_bisector!(depth::T, bist::AA{T,1}, intt::AA{T,1}) where T<:AF
 end
 
 function trim_bisector_chop!(depth::T, bist::AA{T,1}, intt::AA{T,1}) where T<:AF
-    @assert minimum(bist) <= (one(T) - depth)
+    @assert first(intt) <= (one(T) - depth)
 
     # create interpolators
     itp1 = linear_interp(intt, bist)
