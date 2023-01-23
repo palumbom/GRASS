@@ -1,85 +1,78 @@
 # import stuff
-using Distributed
-@everywhere using Pkg
-@everywhere Pkg.activate(".")
-@everywhere using Statistics
-@everywhere using CUDA
-@everywhere using GRASS
-@everywhere using SharedArrays
-@everywhere using EchelleCCFs
-using CSV
-using Glob
+using Pkg; Pkg.activate(".")
+using CUDA
+using JLD2
+using GRASS
+using FileIO
 using DataFrames
 using LaTeXStrings
-using LsqFit
 
 # some global stuff
 const N = 132
-const Nt = 200
-const Nloop = 100
+const Nt = 300
 
 # get command line args and output directories
 run, plot = parse_args(ARGS)
 grassdir, plotdir, datadir = check_plot_dirs()
 
+# make data subdir
+outdir = datadir * "depths/"
+if !isdir(outdir)
+    mkdir(outdir)
+end
+
 # decide whether to use gpu
-use_gpu = CUDA.functional()
+@assert CUDA.functional()
 
-# lines to run
-# airwavs = [5250.2084, 5432.9470, 5434.5232, 5576.0881, 6173.3344]
-airwavs = [5432.9470, 5434.5232, 6173.3344]
-# indirs = ["FeI_5250.2/", "FeI_5432/", "FeI_5434/", "FeI_5576/", "FeI_6173/"]
-indirs = ["FeI_5432/", "FeI_5434/", "FeI_6173/"]
-
-function single_line_variability(airwav, indir)
+function single_line_variability(wavelength::Float64, template::String; Nloop::Int=25)
     # set up parameters for lines
-    lines = [airwav]
-    indirs = [GRASS.soldir * indir]
+    lines = [wavelength]
     depths = range(0.05, stop=0.95, step=0.05)
-    resolution=700000.0
-    top = NaN
+    resolution=7e5
+    use_gpu = true
 
     # allocate shared arrays
-    avg_avg_depth = SharedArray{Float64}(length(depths))
-    std_avg_depth = SharedArray{Float64}(length(depths))
-    avg_rms_depth = SharedArray{Float64}(length(depths))
-    std_rms_depth = SharedArray{Float64}(length(depths))
+    avg_avg_depth = zeros(length(depths))
+    std_avg_depth = zeros(length(depths))
+    avg_rms_depth = zeros(length(depths))
+    std_rms_depth = zeros(length(depths))
 
     # loop over depths
     disk = DiskParams(N=N, Nt=Nt)
-    @sync @distributed for i in eachindex(depths)
+    for i in eachindex(depths)
         println("running depth = " * string(depths[i]))
 
         # create spec instance
-        spec = SpecParams(lines=lines, depths=[depths[i]], indirs=indirs, resolution=resolution)
+        spec = SpecParams(lines=lines, depths=[depths[i]], templates=[template], resolution=resolution)
 
         # synthesize spectra, get velocities and stats
-        out = spec_loop(spec, disk, Nloop, use_gpu=use_gpu)
+        out = GRASS.spec_loop(spec, disk, Nloop, use_gpu=use_gpu)
         avg_avg_depth[i] = out[1]
         std_avg_depth[i] = out[2]
         avg_rms_depth[i] = out[3]
         std_rms_depth[i] = out[4]
     end
 
-    # make data frame
-    df = DataFrame()
-    df[!,:airwav] = repeat([airwav], length(depths))
-    df[!,:depths] = depths
-    df[!,:avg_avg_depth] = avg_avg_depth
-    df[!,:std_avg_depth] = std_avg_depth
-    df[!,:avg_rms_depth] = avg_rms_depth
-    df[!,:std_rms_depth] = std_rms_depth
-
-    # write to CSV
-    fname = datadir * "rms_vs_depth_" * indir[1:end-1] * ".csv"
-    CSV.write(fname, df)
+    # write the results to file
+    outfile = outdir * template * ".jld2"
+    save(outfile,
+         "Nloop", Nloop,
+         "wavelength", wavelength,
+         "template", template,
+         "depths", depths,
+         "avg_avg_depth", avg_avg_depth,
+         "std_avg_depth", std_avg_depth,
+         "avg_rms_depth", avg_rms_depth,
+         "std_rms_depth", std_rms_depth)
     return nothing
 end
 
 # run the simulation
 if run
-    for l in eachindex(airwavs)
-        single_line_variability(airwavs[l], indirs[l])
+    lp = GRASS.LineProperties()
+    templates = GRASS.get_name(lp)
+    for i in eachindex(templates)
+        single_line_variability(lp.λrest[i], templates[i])
     end
 end
 
@@ -89,76 +82,52 @@ if plot
     using PyCall; animation = pyimport("matplotlib.animation")
     mpl.style.use(GRASS.moddir * "figures1/fig.mplstyle")
 
-    # create data frame
-    df = DataFrame(airwav=[], depths=[], avg_avg_depth=[], std_avg_depth=[], avg_rms_depth=[], std_rms_depth=[])
-
-    # read in the data
-    files = Glob.glob("rms_vs_depth_*.csv", datadir)
-    for f in files
-        if splitpath(f)[end] ==  "rms_vs_depth_132.csv"
-            continue
-        else
-            append!(df, CSV.read(f, DataFrame))
-        end
-
+    # make the plot subdir
+    plotdir = plotdir * "depths/"
+    if !isdir(plotdir)
+        mkdir(plotdir)
     end
 
-    # make sure its sorted on airwavs
-    sort!(df, :airwav)
-
-    # set color, label lists, etc.
-    goodwavs = [5434.5232, 5432.9470, 6173.3344]
-    geffs = [L"g_{\rm eff} = 0.00", L"g_{\rm eff} = 0.50", L"g_{\rm eff} = 2.50"]
-    colors = ["tab:blue", "tab:green", "tab:orange"]
-
-    # create figure objects
-    fig, ax1 = plt.subplots()
-
-    # loop over unique airwavs
-    airwavs = unique(df.airwav)
-    for i in eachindex(airwavs)
-        if !(airwavs[i] in goodwavs)
-            continue
-        end
-
-        # get index of goodwav
-        j = findfirst(airwavs[i] .== goodwavs)
-
-        # assign to variable names
-        inds = df.airwav .== airwavs[i]
-        depths = df.depths[inds]
-        avg_avg_depth = df.avg_avg_depth[inds]
-        std_avg_depth = df.std_avg_depth[inds]
-        avg_rms_depth = df.avg_rms_depth[inds]
-        std_rms_depth = df.std_rms_depth[inds]
+    # loop over line templates
+    lp = GRASS.LineProperties()
+    templates = GRASS.get_name(lp)
+    for i in eachindex(templates)
+        # get the filename and read in
+        filename = outdir * templates[i] * ".jld2"
+        d = load(filename)
+        Nloop = d["Nloop"]
+        wavelength = d["wavelength"]
+        template = d["template"]
+        depths = d["depths"]
+        avg_avg_depth = d["avg_avg_depth"]
+        std_avg_depth = d["std_avg_depth"]
+        avg_rms_depth = d["avg_rms_depth"]
+        std_rms_depth = d["std_rms_depth"]
 
         # get the errors
         err_avg_depth = std_avg_depth ./ sqrt(Nloop)
         err_rms_depth = std_rms_depth ./ sqrt(Nloop)
 
+        # create figure objects
+        fig, ax1 = plt.subplots()
+
         # plot the results
-        ax1.errorbar(depths, avg_rms_depth, yerr=err_rms_depth, capsize=3.0, color=colors[j], fmt=".", label=geffs[j])
-        ax1.fill_between(depths, avg_rms_depth .- std_rms_depth, avg_rms_depth .+ std_rms_depth, color=colors[j], alpha=0.3)
+        fig, ax1 = plt.subplots()
+        ax1.errorbar(depths, avg_rms_depth, yerr=err_rms_depth, capsize=3.0, color="black", fmt=".")
+        ax1.fill_between(depths, avg_rms_depth .- std_rms_depth, avg_rms_depth .+ std_rms_depth, color="tab:blue", alpha=0.3)
+        ax1.fill_betweenx(range(0.0, 1.0, length=5), zeros(5), zeros(5) .+ 0.25, hatch="/", fc="black", ec="white", alpha=0.15, zorder=0)
+
+        # set labels, etc.
+        ax1.set_title(template)
+        ax1.set_xlabel(L"{\rm Line\ Depth}")
+        ax1.set_ylabel(L"{\rm RMS}_{\rm RV}\ {\rm (m s}^{-1})")
+        ax1.set_xlim(0.0, 1.0)
+
+        # save and close the fig
+        fig.savefig(plotdir * template * "_depth.pdf")
+        plt.clf(); plt.close()
+        println(">>> Figure written to: " * plotdir * template * "_depth.pdf")
     end
-
-    # shade the low depth area
-    ax1.fill_betweenx(range(0.0, 1.0, length=5), zeros(5), zeros(5) .+ 0.2, hatch="/", fc="black", ec="white", alpha=0.15, zorder=0)
-
-    # set labels, etc.
-    ax1.set_xlabel(L"{\rm Line\ Depth}")
-    ax1.set_ylabel(L"{\rm RMS}_{\rm RV}\ {\rm (m s}^{-1})")
-    ax1.set_xlim(0.0, 1.0)
-    ax1.set_ylim(0.32, 0.9)
-
-    # annotate the axes and save the figure
-    arrowprops = Dict("facecolor"=>"black", "shrink"=>0.05, "width"=>2.0,"headwidth"=>8.0)
-    ax1.annotate(" ", xy=(0.85,0.39), xytext=(0.2,0.39), arrowprops=arrowprops)
-    ax1.annotate(L"{\rm Shallow}", xy=(0.05, 0.385))
-    ax1.annotate(L"{\rm Deep}", xy=(0.86, 0.385))
-    ax1.legend(loc="upper center", ncol=3, fontsize=12)
-    fig.savefig(plotdir * "depths.pdf")
-    plt.clf(); plt.close()
-    println(">>> Figure written to: " * plotdir * "depths.pdf")
 end
 
 
