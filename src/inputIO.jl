@@ -1,3 +1,6 @@
+const lo_ind = 10
+const hi_ind = 60
+
 function parse_mu_string(s::String)
     s = s[3:end]
     return tryparse(Float64, s[1] * "." * s[2:end])
@@ -25,7 +28,7 @@ function adjust_data_mean(arr::AA{T,2}, ntimes::Vector{Int64}) where T<:Real
 
     # find the mean of the longest data set, use bottom n% of bisector only
     idx = argmax(ntimes)
-    arr_sub = view(arr, 5:60, arr_idx[idx]+1:arr_idx[idx+1])
+    arr_sub = view(arr, lo_ind:hi_ind, arr_idx[idx]+1:arr_idx[idx+1])
     mean_ref = mean(arr_sub)
 
     # loop over the datasets and adjust mean
@@ -34,7 +37,7 @@ function adjust_data_mean(arr::AA{T,2}, ntimes::Vector{Int64}) where T<:Real
         group = view(arr, :, arr_idx[i]+1:arr_idx[i+1])
 
         # get the mean of bottom n% of bisctor
-        mean_group = mean(view(group, 5:60, :))
+        mean_group = mean(view(group, lo_ind:hi_ind, :))
 
         # find the distance between the means and correct by it
         mean_dist = mean_ref - mean_group
@@ -49,28 +52,28 @@ function identify_bad_cols(bisall::AA{T,2}, intall::AA{T,2}, widall::AA{T,2}) wh
     # make boolean array (column will be stripped if badcol[i] == true)
     badcols = zeros(Bool, size(bisall,2))
 
+    # get views of data0
+    bis_view = view(bisall, lo_ind:hi_ind, :)
+    wid_view = view(widall, lo_ind:hi_ind, :)
+
     # find standarad deviation of data
-    bis_std = dropdims(std(bisall, dims=2), dims=2)
-    wid_std = dropdims(std(widall, dims=2), dims=2)
+    bis_std = dropdims(std(bis_view, dims=2), dims=2)
+    wid_std = dropdims(std(wid_view, dims=2), dims=2)
 
     # find mean and median of data
-    bis_avg = dropdims(mean(bisall, dims=2), dims=2)
-    wid_avg = dropdims(mean(widall, dims=2), dims=2)
-    bis_med = dropdims(median(bisall, dims=2), dims=2)
-    wid_med = dropdims(median(widall, dims=2), dims=2)
+    bis_avg = dropdims(mean(bis_view, dims=2), dims=2)
+    wid_avg = dropdims(mean(wid_view, dims=2), dims=2)
+    bis_med = dropdims(median(bis_view, dims=2), dims=2)
+    wid_med = dropdims(median(wid_view, dims=2), dims=2)
 
     # loop through checking for bad columns
     for i in 1:size(bisall,2)
-        bist = view(bisall, :, i)
-        intt = view(intall, :, i)
-        widt = view(widall, :, i)
+        bist = view(bisall, lo_ind:hi_ind, i)
+        intt = view(intall, lo_ind:hi_ind, i)
+        widt = view(widall, lo_ind:hi_ind, i)
 
         # check for monotinicity in measurements
-        if !ismonotonic(widt)
-            badcols[i] = true
-        end
-
-        if !ismonotonic(intt)
+        if !ismonotonic(widt) | !ismonotonic(intt)
             badcols[i] = true
         end
 
@@ -79,7 +82,12 @@ function identify_bad_cols(bisall::AA{T,2}, intall::AA{T,2}, widall::AA{T,2}) wh
             badcols[i] = true
         end
 
-        # remove data that is significant outlier
+        # check for NaNs
+        if any(isnan.(intt))
+            badcols[i] = true
+        end
+
+        # remove measurements that are significant outliers
         nsigma = 3.0
         bis_cond = any(abs.(bis_avg .- bist) .> (nsigma .* bis_std))
         wid_cond = any(abs.(wid_avg .- widt) .> (nsigma .* wid_std))
