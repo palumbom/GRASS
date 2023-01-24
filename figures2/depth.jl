@@ -21,9 +21,6 @@ if !isdir(outdir)
     mkdir(outdir)
 end
 
-# decide whether to use gpu
-@assert CUDA.functional()
-
 function single_line_variability(wavelength::Float64, template::String; Nloop::Int=25)
     # set up parameters for lines
     lines = [wavelength]
@@ -69,6 +66,10 @@ end
 
 # run the simulation
 if run
+    # decide whether to use gpu
+    @assert CUDA.functional()
+
+    # loop over templates
     lp = GRASS.LineProperties()
     templates = GRASS.get_name(lp)
     for i in eachindex(templates)
@@ -108,6 +109,10 @@ if plot
         err_avg_depth = std_avg_depth ./ sqrt(Nloop)
         err_rms_depth = std_rms_depth ./ sqrt(Nloop)
 
+        # figure out ylims
+        ylims = (round(minimum(avg_rms_depth .- std_rms_depth) - 0.1, sigdigits=2),
+                 round(maximum(avg_rms_depth .+ std_rms_depth) + 0.1, sigdigits=2))
+
         # create figure objects
         fig, ax1 = plt.subplots()
 
@@ -115,13 +120,16 @@ if plot
         fig, ax1 = plt.subplots()
         ax1.errorbar(depths, avg_rms_depth, yerr=err_rms_depth, capsize=3.0, color="black", fmt=".")
         ax1.fill_between(depths, avg_rms_depth .- std_rms_depth, avg_rms_depth .+ std_rms_depth, color="tab:blue", alpha=0.3)
-        ax1.fill_betweenx(range(0.0, 1.0, length=5), zeros(5), zeros(5) .+ 0.25, hatch="/", fc="black", ec="white", alpha=0.15, zorder=0)
+        ax1.fill_betweenx(range(0.0, ylims[2], length=5), zeros(5), zeros(5) .+ 0.25, hatch="/", fc="black", ec="white", alpha=0.15, zorder=0)
 
         # set labels, etc.
-        ax1.set_title(template)
+        txt = ("\${\\rm " * replace(template, "_" => "\\ ") * "}\$")
+        ax1.set_title(txt)
         ax1.set_xlabel(L"{\rm Line\ Depth}")
         ax1.set_ylabel(L"{\rm RMS}_{\rm RV}\ {\rm (m s}^{-1})")
         ax1.set_xlim(0.0, 1.0)
+        ax1.set_ylim(ylims...)
+
 
         # save and close the fig
         fig.savefig(plotdir * template * "_depth.pdf")
