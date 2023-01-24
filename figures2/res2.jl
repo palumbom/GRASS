@@ -48,18 +48,6 @@ function resolution_curve(template; Nloop=16)
     	std_rms_res[i] = std_rms1
     end
 
-    # make data frame
-    df = DataFrame()
-    df[!,:res] = N
-    df[!,:avg_avg_res] = avg_avg_res
-    df[!,:std_avg_res] = std_avg_res
-    df[!,:avg_rms_res] = avg_rms_res
-    df[!,:std_rms_res] = std_rms_res
-
-    # write to CSV
-    fname = datadir * "rms_vs_res.csv"
-    CSV.write(fname, df)
-
     # write the results to file
     outfile = outdir * template * ".jld2"
     save(outfile,
