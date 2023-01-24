@@ -112,7 +112,7 @@ function main()
     end
 
     # allocate memory for benchmark results and run it
-    n_gpu_loops = 12
+    n_gpu_loops = 16
     max_cpu = minimum([12, length(lines)])
     b_cpu = similar(lines)
     b_gpu = zeros(length(lines), n_gpu_loops)
