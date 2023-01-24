@@ -13,17 +13,17 @@ using LaTeXStrings
 const N = round.(Int, 2 .^ range(6, 9, step=0.5))
 const Nt = 100
 
+# get command line args and output directories
+run, plot = parse_args(ARGS)
+grassdir, plotdir, datadir = check_plot_dirs()
+
 # make data subdir
 outdir = datadir * "resolutions/"
 if !isdir(outdir)
     mkdir(outdir)
 end
 
-# get command line args and output directories
-run, plot = parse_args(ARGS)
-grassdir, plotdir, datadir = check_plot_dirs()
-
-function resolution_curve(template; Nloop=16)
+function resolution_curve(template::String; Nloop::Int=16)
     # set up parameters for lines
     lines = [5434.5]
     depths = [0.8]
@@ -38,7 +38,7 @@ function resolution_curve(template; Nloop=16)
     std_rms_res = zeros(length(N))
 
     # calculate
-    @sync @distributed for i in 1:length(N)
+    for i in 1:length(N)
     	println("running resolution N = " * string(N[i]))
         disk = DiskParams(N=N[i], Nt=Nt)
     	avg_avg1, std_avg1, avg_rms1, std_rms1 = GRASS.spec_loop(spec, disk, Nloop, use_gpu=true)
