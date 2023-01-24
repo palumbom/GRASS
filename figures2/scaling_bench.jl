@@ -174,4 +174,6 @@ if plot
     ax1.legend()
     fig.savefig(plotdir * "scaling_bench.pdf")
     plt.clf(); plt.close()
+
+    println(">>> Max GPU benchmark = " * string(max(b_gpu_avg)))
 end
