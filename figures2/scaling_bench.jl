@@ -149,31 +149,44 @@ if plot
     b_gpu_avg = mean(b_gpu, dims=2)
     b_gpu_std = std(b_gpu, dims=2)
 
-    # create plotting objects
-    fig, ax1 = plt.subplots()
-    ax2 = ax1.twiny()
+    println(">>> Max GPU benchmark = " * string(maximum(b_gpu_avg)))
 
-    # log scale it
-    ax1.set_yscale("symlog")
-    ax2.set_yscale("symlog")
+    # plotting function (use globals who cares i don't)
+    function plot_scaling(;logscale=true)
+        # create plotting objects
+        fig, ax1 = plt.subplots()
+        ax2 = ax1.twiny()
 
-    # plot on ax1
-    ms = 5.0
-    ax1.plot(n_res[1:max_cpu], b_cpu[1:max_cpu], marker="o", ms=ms, c="k", label=L"{\rm CPU}")
-    ax1.plot(n_res, b_gpu_avg, marker="s", ms=ms, c="tab:blue", label=L"{\rm GPU}")
+        # log scale it
+        if logscale
+            ax1.set_yscale("symlog")
+            ax2.set_yscale("symlog")
+            scale = "logscale"
+        else
+            scale = "linscale"
+        end
 
-    # plot on twin axis
-    ax2.plot(n_lam[1:max_cpu], b_cpu[1:max_cpu], marker="o", ms=ms, c="k")
-    ax2.plot(n_lam, b_gpu_avg, marker="s", ms=ms, c="tab:blue")
-    ax2.grid(false)
+        # plot on ax1
+        ms = 7.5
+        ax1.plot(n_res[1:max_cpu], b_cpu[1:max_cpu], marker="o", ms=ms, c="k", label=L"{\rm CPU}")
+        ax1.plot(n_res, b_gpu_avg, marker="s", ms=ms, c="tab:blue", label=L"{\rm GPU}")
 
-    # axis label stuff
-    ax1.set_xlabel(L"{\rm \#\ of\ res.\ elements}")
-    ax1.set_ylabel(L"{\rm Synthesis\ time\ (s)}")
-    ax2.set_xlabel(L"{\rm Width\ of\ spectrum\ (\AA)}")
-    ax1.legend()
-    fig.savefig(plotdir * "scaling_bench.pdf")
-    plt.clf(); plt.close()
+        # plot on twin axis
+        ax2.plot(n_lam[1:max_cpu], b_cpu[1:max_cpu], marker="o", ms=ms, c="k")
+        ax2.plot(n_lam, b_gpu_avg, marker="s", ms=ms, c="tab:blue")
+        ax2.grid(false)
 
-    println(">>> Max GPU benchmark = " * string(max(b_gpu_avg)))
+        # axis label stuff
+        ax1.set_xlabel(L"{\rm \#\ of\ res.\ elements}")
+        ax1.set_ylabel(L"{\rm Synthesis\ time\ (s)}")
+        ax2.set_xlabel(L"{\rm Width\ of\ spectrum\ (\AA)}")
+        ax1.legend()
+        fig.savefig(plotdir * "scaling_bench_" * scale * ".pdf")
+        plt.clf(); plt.close()
+        return nothing
+    end
+
+    # plot it
+    plot_scaling(logscale=true)
+    plot_scaling(logscale=false)
 end
