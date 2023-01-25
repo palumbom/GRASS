@@ -1,6 +1,3 @@
-const lo_ind = 10
-const hi_ind = 60
-
 function parse_mu_string(s::String)
     s = s[3:end]
     return tryparse(Float64, s[1] * "." * s[2:end])
@@ -22,7 +19,8 @@ function parse_ax_string(s::Symbol)
     return parse_ax_string(string(s))
 end
 
-function adjust_data_mean(arr::AA{T,2}, ntimes::Vector{Int64}) where T<:Real
+function adjust_data_mean(arr::AA{T,2}, ntimes::Vector{Int64};
+                          lo_ind::Int=15, hi_ind::Int=75) where T<:Real
     # get indices for number of contiguous obs
     arr_idx = vcat([0], cumsum(ntimes))
 
@@ -46,28 +44,48 @@ function adjust_data_mean(arr::AA{T,2}, ntimes::Vector{Int64}) where T<:Real
     return nothing
 end
 
-function identify_bad_cols(bisall::AA{T,2}, intall::AA{T,2}, widall::AA{T,2}) where T<:AF
+function identify_bad_cols(bisall::AA{T,2}, intall::AA{T,2}, widall::AA{T,2};
+                           lo_ind::Int=15, hi_ind::Int=75) where T<:AF
     @assert size(bisall) == size(intall) == size(widall)
 
-    # make boolean array (column will be stripped if badcol[i] == true)
+    # how many sigma away to consider outlier
+    nsigma = 2.0
+
+    # allocate boolean array (column will be stripped if ool[i] == true)
     badcols = zeros(Bool, size(bisall,2))
 
-    # get views of data0
-    bis_view = view(bisall, lo_ind:hi_ind, :)
-    wid_view = view(widall, lo_ind:hi_ind, :)
+    # make sure the max/min width is reasonable
+    max_wid_view = view(widall, size(widall, 1), :)
+    max_wid_avg = mean(max_wid_view)
+    max_wid_std = std(max_wid_view)
 
-    # find standarad deviation of data
+    min_wid_view = view(widall, 1, :)
+    min_wid_avg = mean(min_wid_view)
+    min_wid_std = std(min_wid_view)
+
+    # remove significant max width outliers
+    idx1 = abs.(max_wid_avg .- max_wid_view) .> (nsigma .* max_wid_std)
+    idx2 = abs.(min_wid_avg .- min_wid_view) .> (nsigma .* min_wid_std)
+    badcols[idx1] .= true
+
+    # get views
+    bis_view = view(bisall, lo_ind:hi_ind, .!badcols)
+    wid_view = view(widall, lo_ind:hi_ind, .!badcols)
+
+    # take averages
+    bis_avg = dropdims(mean(bis_view, dims=2), dims=2)
+    wid_avg = dropdims(mean(wid_view, dims=2), dims=2)
     bis_std = dropdims(std(bis_view, dims=2), dims=2)
     wid_std = dropdims(std(wid_view, dims=2), dims=2)
 
-    # find mean and median of data
-    bis_avg = dropdims(mean(bis_view, dims=2), dims=2)
-    wid_avg = dropdims(mean(wid_view, dims=2), dims=2)
-    bis_med = dropdims(median(bis_view, dims=2), dims=2)
-    wid_med = dropdims(median(wid_view, dims=2), dims=2)
-
     # loop through checking for bad columns
     for i in 1:size(bisall,2)
+        # if column is already marked bad, move on
+        if badcols[i]
+            continue
+        end
+
+        # get views of data
         bist = view(bisall, lo_ind:hi_ind, i)
         intt = view(intall, lo_ind:hi_ind, i)
         widt = view(widall, lo_ind:hi_ind, i)
@@ -88,7 +106,6 @@ function identify_bad_cols(bisall::AA{T,2}, intall::AA{T,2}, widall::AA{T,2}) wh
         end
 
         # remove measurements that are significant outliers
-        nsigma = 3.0
         bis_cond = any(abs.(bis_avg .- bist) .> (nsigma .* bis_std))
         wid_cond = any(abs.(wid_avg .- widt) .> (nsigma .* wid_std))
         if bis_cond | wid_cond
