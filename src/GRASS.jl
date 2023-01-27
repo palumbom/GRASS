@@ -191,7 +191,7 @@ function synthesize_spectra(spec::SpecParams{T}, disk::DiskParams{T};
         for (idx, file) in enumerate(templates)
             # re-seed the rng
             if seed_rng
-                Random.seed!(432)
+                Random.seed!(42)
             end
 
             # get temporary specparams with lines for this run

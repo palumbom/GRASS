@@ -9,7 +9,7 @@ using LaTeXStrings
 
 # some global stuff
 const N = 132
-const Nt = 300
+const Nt = 80
 
 # get command line args and output directories
 run, plot = parse_args(ARGS)
@@ -21,7 +21,7 @@ if !isdir(outdir)
     mkdir(outdir)
 end
 
-function single_line_variability(wavelength::Float64, template::String; Nloop::Int=25)
+function single_line_variability(wavelength::Float64, template::String; Nloop::Int=250)
     # set up parameters for lines
     lines = [wavelength]
     depths = range(0.05, stop=0.95, step=0.05)
