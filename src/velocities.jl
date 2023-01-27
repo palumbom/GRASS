@@ -22,7 +22,8 @@ Compute the cross correlation function from a spectrum (lambdas and intensities)
 """
 function calc_ccf(lambdas::AA{Float64,1}, intensities::AA{Float64,1},
                   lines::AA{Float64,1}, depths::AA{Float64,1},
-                  resolution::Float64; normalize::Bool=true, Δv_max=15e3,
+                  resolution::Float64; normalize::Bool=true,
+                  Δv_max::Float64=15e3, Δv_step::Float64=100.0,
                   mask_type::Type{T}=TopHatMask) where {T<:MaskShape}
     # make sure lines are sorted
     if !issorted(lines)
@@ -38,8 +39,6 @@ function calc_ccf(lambdas::AA{Float64,1}, intensities::AA{Float64,1},
     speed_of_light = c_ms
     mask_width = speed_of_light/resolution
     mask_shape = T(mask_width)
-
-    Δv_step = 100.0
 
     # make ccf_plan
     ccf_plan = BasicCCFPlan(line_list=line_list, mask_shape=mask_shape, step=Δv_step, max=Δv_max)
