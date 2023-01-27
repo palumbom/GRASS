@@ -39,7 +39,7 @@ function calc_ccf(lambdas::AA{Float64,1}, intensities::AA{Float64,1},
     mask_width = speed_of_light/resolution
     mask_shape = T(mask_width)
 
-    Δv_step = 200.0
+    Δv_step = 100.0
 
     # make ccf_plan
     ccf_plan = BasicCCFPlan(line_list=line_list, mask_shape=mask_shape, step=Δv_step, max=Δv_max)
