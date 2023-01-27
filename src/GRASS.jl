@@ -128,7 +128,7 @@ Synthesize spectra given parameters in `spec` and `disk` instances.
 - `disk::DiskParams`: DiskParams instance
 """
 function synthesize_spectra(spec::SpecParams{T}, disk::DiskParams{T};
-                            seed_rng::Bool=false ,verbose::Bool=true,
+                            seed_rng::Bool=false, verbose::Bool=true,
                             use_gpu::Bool=false, precision::DataType=Float64) where T<:AF
     # parse out dimensions for memory allocation
     N = disk.N
@@ -191,7 +191,7 @@ function synthesize_spectra(spec::SpecParams{T}, disk::DiskParams{T};
         for (idx, file) in enumerate(templates)
             # re-seed the rng
             if seed_rng
-                Random.seed!(42)
+                Random.seed!(432)
             end
 
             # get temporary specparams with lines for this run
