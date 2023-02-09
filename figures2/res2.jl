@@ -51,7 +51,7 @@ function resolution_curve(template::String; Nloop::Int=50)
     # write the results to file
     outfile = outdir * template * ".jld2"
     save(outfile,
-         "res", res,
+         "N", N,
          "Nloop", Nloop,
          "template", template,
          "avg_avg_res", avg_avg_res,
