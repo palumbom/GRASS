@@ -83,6 +83,7 @@ function preprocess_line(line_name::String; clobber::Bool=true, verbose::Bool=tr
         # debugging block + filename printing
         if debug && i > 1
         # if debug && splitdir(fits_files[i])[end] != "lars_l12_20160820-120935_clv5434_mu05_n.ns.chvtt.fits"
+        # if splitdir(fits_files[i])[end] != "lars_l12_20161013-161738_clv6302_mu05_n.ns.chvtt.fits"
         # if debug && !contains(fits_files[i], "mu07_n")
             break
             # nothing
@@ -136,7 +137,7 @@ function preprocess_line(line_name::String; clobber::Bool=true, verbose::Bool=tr
             depth = 1.0 - bot
 
             # find indices to isolate the line
-            if line_name in ["CI_5380", "FeI_5434", "FeI_5382", "FeI_5383", "CaI_6169.0", "FeI_6301"]
+            if line_name in ["CI_5380", "FeI_5434", "FeI_5382", "FeI_5383", "CaI_6169.0", "FeI_6301", "FeI_6302"]
                 idx1, idx2 = GRASS.find_wing_index(0.9 * depth + bot, fluxt, min=min)
             else
                 idx1, idx2 = GRASS.find_wing_index(0.95 * depth + bot, fluxt, min=min)
@@ -147,7 +148,8 @@ function preprocess_line(line_name::String; clobber::Bool=true, verbose::Bool=tr
             if line_name != "NaI_5896" && wavst[min] - wavst[idx1] > wavbuff
                 idx1 = findfirst(x -> x .> wavst[min] - wavbuff, wavst)
                 idx1 = argmax(fluxt[idx1:min]) + idx1
-            elseif line_name != "NaI_5896" && wavst[idx2] - wavst[min] > wavbuff
+            end
+            if line_name != "NaI_5896" && wavst[idx2] - wavst[min] > wavbuff
                 idx2 = findfirst(x -> x .> wavst[min] + wavbuff, wavst)
                 idx2 = argmax(fluxt[min:idx2]) + min
             end
@@ -197,6 +199,8 @@ function preprocess_line(line_name::String; clobber::Bool=true, verbose::Bool=tr
                 top[t] = 0.7 * depth + bot
             elseif line_name == "FeI_5379"
                 top[t] = 0.9 * depth + bot
+            elseif line_name == "FeI_6302"
+                top[t] = 0.7 * depth + bot
             else
                 top[t] = 0.75 * depth + bot
             end
@@ -269,7 +273,7 @@ function main()
     for name in line_info.name
         # skip the "hard" lines for now
         # (name in ["CI_5380", "FeI_5382"]) && continue
-        # name != "FeI_5434" && continue
+        name != "FeI_6302" && continue
 
         # print the line name and preprocess it
         println(">>> Processing " * name * "...")
