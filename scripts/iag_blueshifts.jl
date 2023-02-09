@@ -41,7 +41,7 @@ function blueshift_vs_depth(depths::AbstractArray{Float64,1};
         lambdas1, outspec1 = synthesize_spectra(spec, disk, use_gpu=use_gpu, verbose=false)
 
         # calculate the RVs
-        v_grid, ccf1 = calc_ccf(lambdas1, outspec1, spec, normalize=true)
+        v_grid, ccf1 = calc_ccf(lambdas1, outspec1, spec, Δv_step=100.0)
         rvs1, sigs1 = calc_rvs_from_ccf(v_grid, ccf1)
         rvs_avg[idx] = mean(rvs1)
         std_avg[idx] = std(rvs1)
@@ -135,17 +135,18 @@ end
 
 # get blueshifts to simulation
 blueshifts = model(bin_centers, pfit.param)
-rvs_avg, rvs_std = blueshift_vs_depth(bin_centers, blueshifts=[])
-# rvs_avg, rvs_std = blueshift_vs_depth(bin_centers, blueshifts=zeros(length(bin_centers)))
+# rvs_avg, rvs_std = blueshift_vs_depth(bin_centers, blueshifts=[])
+# rvs_avg, rvs_std = blueshift_vs_depth(bin_centers, blueshifts=blueshifts)
+rvs_avg, rvs_std = blueshift_vs_depth(bin_centers, blueshifts=zeros(length(bin_centers)))
 
-plot = false
+plot = true
 if plot
     plt.scatter(bin_centers, rvs_avg, c="tab:blue")
     plot_iag_blueshift()
 end
 
 # write out blueshifts to file
-write = false
+write = true
 if write
     # evaluate the blueshifts on a fine grid
     depths_out = range(0.01, 1.0, step=0.01)
