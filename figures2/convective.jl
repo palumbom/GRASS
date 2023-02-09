@@ -28,7 +28,7 @@ function blueshift_vs_depth(depths::AbstractArray{Float64,1};
     lines = [5434.5]
     templates = ["FeI_5434"]
     resolution = 7e5
-    disk = DiskParams(N=132, Nt=2)
+    disk = DiskParams(N=132, Nt=50)
 
     # allocate memory and loop over depths
     rvs_avg = zeros(length(depths))
@@ -45,11 +45,12 @@ function blueshift_vs_depth(depths::AbstractArray{Float64,1};
         lambdas1, outspec1 = synthesize_spectra(spec, disk, use_gpu=use_gpu, verbose=false)
 
         # calculate the RVs
-        v_grid, ccf1 = calc_ccf(lambdas1, outspec1, spec, normalize=true)
+        v_grid, ccf1 = calc_ccf(lambdas1, outspec1, spec)
         rvs1, sigs1 = calc_rvs_from_ccf(v_grid, ccf1)
         rvs_avg[idx] = mean(rvs1)
         std_avg[idx] = std(rvs1)
     end
+    println()
     return rvs_avg, std_avg
 end
 
