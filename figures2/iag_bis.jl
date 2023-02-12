@@ -42,72 +42,61 @@ function model_iag_blends(wavs_sim::AbstractArray{T,1}, flux_sim::AbstractArray{
 
     # identify peaks in the residuals
     max_resid = 0.01
-    minprom = 0.005
-    iters = 0
-    # while maximum(abs.(resids)) >= max_resid
-    for i in 1:1
-        # iterate counter
-        iters += 1
+    minprom = 0.0025
 
-        # guess the number of fits needed from minima
-        m_inds = Peaks.argmaxima(.-resids, 10, strict=false)
-        m_inds, m_proms = Peaks.peakproms(m_inds, .-resids, minprom=minprom, strict=false)
-        m_inds, m_widths, m_left, m_right = Peaks.peakwidths(m_inds, .-resids, m_proms, strict=false)
+    # guess the number of fits needed from minima
+    m_inds = Peaks.argmaxima(.-resids, 10, strict=false)
+    m_inds, m_proms = Peaks.peakproms(m_inds, .-resids, minprom=minprom, strict=false)
+    m_inds, m_widths, m_left, m_right = Peaks.peakwidths(m_inds, .-resids, m_proms, strict=false)
 
-        # convert width from pixels to wavelength
-        m_widths .*= (wavs_iag[2] - wavs_iag[1])
+    # convert width from pixels to wavelength
+    m_widths .*= (wavs_iag[2] - wavs_iag[1])
 
-        # set initial guess parameters
-        nfits = length(m_inds)
-        pgrid = zeros(nfits, 3)
-        p0 = Array{Float64,1}[]
-        for i in 1:nfits
-            thresh = abs(wavs_sim[argmin(flux_sim)] - wavs_iag[m_inds[i]])
+    # set initial guess parameters
+    nfits = length(m_inds)
+    pgrid = zeros(nfits, 3)
+    p0 = Array{Float64,1}[]
+    for i in 1:nfits
+        thresh = abs(wavs_sim[argmin(flux_sim)] - wavs_iag[m_inds[i]])
+        if thresh <= 0.1
+            continue
+        end
+        pgrid[i,1] = -m_proms[i]
+        pgrid[i,2] = wavs_iag[m_inds[i]]
+        pgrid[i,3] = m_widths[i]
+    end
+    p0 = Array{Float64,1}(vcat(p0, pgrid'...))
+
+    # do the fit
+    fit = curve_fit(tel_model, wavs_iag, flux_iag, p0)
+    resids .= flux_iag./(tel_model(wavs_iag, fit.param)./flux_sim) .- flux_sim
+
+    # plot diagnostics
+    if plot
+        fig = plt.figure(figsize=(8,6))
+        gs = mpl.gridspec.GridSpec(nrows=2, ncols=1, height_ratios=[2, 1], figure=fig, hspace=0.05)
+        ax1 = fig.add_subplot(gs[1])
+        ax2 = fig.add_subplot(gs[2])
+        ax1.plot(wavs_iag, flux_iag, label="Observed IAG", color="tab:blue")
+        ax1.plot(wavs_iag, tel_model(wavs_iag, fit.param), label="Modeled IAG ", ls=":", color="tab:green")
+        for i in m_inds
+            thresh = abs(wavs_sim[argmin(flux_sim)] - wavs_iag[i])
             if thresh <= 0.1
                 continue
             end
-            pgrid[i,1] = -m_proms[i]
-            pgrid[i,2] = wavs_iag[m_inds[i]]
-            pgrid[i,3] = m_widths[i]
+            ax1.axvline(wavs_sim[i])
         end
-        p0 = Array{Float64,1}(vcat(p0, pgrid'...))
-
-        # do the fit
-        fit = curve_fit(tel_model, wavs_iag, flux_iag, p0)
-        resids .= flux_iag./(tel_model(wavs_iag, fit.param)./flux_sim) .- flux_sim
-
-        # plot diagnostics
-        plot = false
-        if plot
-            fig = plt.figure(figsize=(8,6))
-            gs = mpl.gridspec.GridSpec(nrows=2, ncols=1, height_ratios=[2, 1], figure=fig, hspace=0.05)
-            ax1 = fig.add_subplot(gs[1])
-            ax2 = fig.add_subplot(gs[2])
-            ax1.plot(wavs_iag, flux_iag, label="Observed IAG", color="tab:blue")
-            ax1.plot(wavs_iag, tel_model(wavs_iag, fit.param), label="Modeled IAG ", ls=":", color="tab:green")
-            for i in m_inds
-                thresh = abs(wavs_sim[argmin(flux_sim)] - wavs_iag[i])
-                if thresh <= 0.1
-                    continue
-                end
-                ax1.axvline(wavs_sim[i])
-            end
-            ax2.scatter(wavs_sim, flux_iag./tel_model(wavs_iag, fit.param), c="k", s=0.5)
-            ax1.legend()
-            ax1.set_xticklabels([])
-            ax1.set_ylabel(L"{\rm Normalized\ Intensity}")
-            ax2.set_xlabel(L"{\rm Wavelength\ (\AA)}")
-            ax2.set_ylabel(L"{\rm IAG/Model}")
-            plt.show()
-            plt.clf(); plt.close()
-        end
-
-        # return condition
-        if (i >= 1)
-            return flux_iag./(tel_model(wavs_iag, fit.param)./flux_sim)
-        end
+        ax2.scatter(wavs_sim, flux_iag./tel_model(wavs_iag, fit.param), c="k", s=0.5)
+        ax1.legend()
+        ax1.set_xticklabels([])
+        ax1.set_ylabel(L"{\rm Normalized\ Intensity}")
+        ax2.set_xlabel(L"{\rm Wavelength\ (\AA)}")
+        ax2.set_ylabel(L"{\rm IAG/Model}")
+        plt.show()
+        plt.clf(); plt.close()
     end
-    return nothing
+
+    return flux_iag./(tel_model(wavs_iag, fit.param)./flux_sim)
 end
 
 # figure 3 -- compare synthetic and IAG spectra + bisectors
