@@ -25,7 +25,7 @@ use_gpu = CUDA.functional()
 # model the iag blends
 function model_iag_blends(wavs_sim::AbstractArray{T,1}, flux_sim::AbstractArray{T,1},
                           wavs_iag::AbstractArray{T,1}, flux_iag::AbstractArray{T,1};
-                          plot=true) where T<:Float64
+                          plot=false) where T<:Float64
     # calculate the residuals
     resids = flux_iag .- flux_sim
 
@@ -42,7 +42,7 @@ function model_iag_blends(wavs_sim::AbstractArray{T,1}, flux_sim::AbstractArray{
 
     # identify peaks in the residuals
     max_resid = 0.01
-    minprom = 0.001
+    minprom = 0.005
     iters = 0
     # while maximum(abs.(resids)) >= max_resid
     for i in 1:1
@@ -50,7 +50,7 @@ function model_iag_blends(wavs_sim::AbstractArray{T,1}, flux_sim::AbstractArray{
         iters += 1
 
         # guess the number of fits needed from minima
-        m_inds = Peaks.argmaxima(.-resids, 12, strict=false)
+        m_inds = Peaks.argmaxima(.-resids, 10, strict=false)
         m_inds, m_proms = Peaks.peakproms(m_inds, .-resids, minprom=minprom, strict=false)
         m_inds, m_widths, m_left, m_right = Peaks.peakwidths(m_inds, .-resids, m_proms, strict=false)
 
@@ -77,7 +77,7 @@ function model_iag_blends(wavs_sim::AbstractArray{T,1}, flux_sim::AbstractArray{
         resids .= flux_iag./(tel_model(wavs_iag, fit.param)./flux_sim) .- flux_sim
 
         # plot diagnostics
-        plot = true
+        plot = false
         if plot
             fig = plt.figure(figsize=(8,6))
             gs = mpl.gridspec.GridSpec(nrows=2, ncols=1, height_ratios=[2, 1], figure=fig, hspace=0.05)
@@ -104,9 +104,6 @@ function model_iag_blends(wavs_sim::AbstractArray{T,1}, flux_sim::AbstractArray{
 
         # return condition
         if (i >= 1)
-            plt.plot(wavs_iag, flux_iag./(tel_model(wavs_iag, fit.param)./flux_sim))
-            plt.plot(wavs_sim, flux_sim)
-            plt.show()
             return flux_iag./(tel_model(wavs_iag, fit.param)./flux_sim)
         end
     end
@@ -121,7 +118,7 @@ function main()
 
     # wavelength of line to synthesize/compare to iag
     for (i, file) in enumerate(files)
-        if !contains(file, "NiI_5435")
+        if !contains(file, "FeI_5434")
             continue
         end
 
@@ -130,8 +127,8 @@ function main()
         depth = lp.depth[i]
 
         # get IAG spectrum and normalize it
-        wavs_iag, flux_iag = GRASS.read_iag_atlas(isolate=true, airwav=airwav, buffer=1.25)
-        # flux_iag ./= maximum(flux_iag)
+        wavs_iag, flux_iag = GRASS.read_iag_atlas(isolate=true, airwav=airwav, buffer=1.0)
+        flux_iag ./= maximum(flux_iag)
 
         # convolve IAG spectrum to LARS resolution
         wavs_iag, flux_iag = GRASS.convolve_gauss(wavs_iag, flux_iag, new_res=7e5, oversampling=5.0)
@@ -169,19 +166,19 @@ function main()
         # shift the simulated spectrum to rest frame
         wavs_sim ./= calc_doppler_factor(rvs_sim)
 
-        # # find the difference in depth
-        # dep_diff = iag_depth - (1.0 - minimum(flux_sim))
+        # find the difference in depth
+        dep_diff = iag_depth - (1.0 - minimum(flux_sim))
 
-        # # resynthesize
-        # lines = [airwav]
-        # depths = [iag_depth + dep_diff]
-        # templates = [file]
-        # resolution = 7e5
-        # spec = SpecParams(lines=lines, depths=depths, templates=templates, resolution=resolution)
-        # disk = DiskParams(N=132, Nt=10)
+        # resynthesize
+        lines = [airwav]
+        depths = [iag_depth - dep_diff]
+        templates = [file]
+        resolution = 1e6
+        spec = SpecParams(lines=lines, depths=depths, templates=templates, resolution=resolution)
+        disk = DiskParams(N=132, Nt=10)
 
-        # wavs_sim, flux_sim = synthesize_spectra(spec, disk, use_gpu=use_gpu)
-        # flux_sim = dropdims(mean(flux_sim, dims=2), dims=2)
+        wavs_sim, flux_sim = synthesize_spectra(spec, disk, use_gpu=use_gpu)
+        flux_sim = dropdims(mean(flux_sim, dims=2), dims=2)
 
         # get velocity of simulated spectrum
         vels_sim, ccf_sim = calc_ccf(wavs_sim, flux_sim, spec)
@@ -195,47 +192,93 @@ function main()
         flux_iag = itp.(wavs_sim)
         wavs_iag = wavs_sim
 
-        fig, (ax1, ax2) = plt.subplots(2, 1)
-        ax1.plot(wavs_sim, flux_sim)
-        ax1.plot(wavs_iag, flux_iag)
-        ax2.plot(wavs_sim, flux_iag .- flux_sim)
-        plt.show()
+        # fig, (ax1, ax2) = plt.subplots(2, 1)
+        # ax1.plot(wavs_sim, flux_sim)
+        # ax1.plot(wavs_iag, flux_iag)
+        # ax2.plot(wavs_sim, flux_iag .- flux_sim)
+        # plt.show()
 
-
-
-        return nothing
-
-
-        # get the synthetic bisector
+        # get the synthetic + iag bisectors
         bis_sim, int_sim = GRASS.calc_bisector(wavs_sim, flux_sim)
-
-        # align the spectra
-        offset = wavs_sim[argmin(flux_sim)] - wavs_iag[botind]
-        wavs_iag .+= offset
-
-        # interpolate the IAG spectrum onto same grid as synthetic spectrum
-        itp = GRASS.linear_interp(wavs_iag, flux_iag, bc=1.0)
-        flux_iag = itp.(wavs_sim)
-        wavs_iag = wavs_sim
-
-        # get the bisector
         bis_iag, int_iag = GRASS.calc_bisector(wavs_iag, flux_iag)
+
+        # get the resids
+        resids = flux_iag .- flux_sim
 
         # clean the IAG spectrum
         flux_iag_cor = model_iag_blends(wavs_sim, flux_sim, wavs_iag, flux_iag)
 
-        println(minimum(flux_sim))
-        println(minimum(flux_iag))
+        # get the corrected bisector
+        bis_iag_clean, int_iag_clean = GRASS.calc_bisector(wavs_iag, flux_iag_cor)
 
+        # big function for plotting
+        function comparison_plots()
+            # overplot the spectra
+            fig = plt.figure()
+            gs = mpl.gridspec.GridSpec(nrows=2, ncols=1, height_ratios=[2, 1], figure=fig, hspace=0.05)
+            ax1 = fig.add_subplot(gs[1])
+            ax2 = fig.add_subplot(gs[2])
+            ax1.plot(wavs_sim, flux_sim, c="black", lw= 1.5, label=L"{\rm Synthetic}")
+            ax1.plot(wavs_iag, flux_iag./maximum(flux_iag), marker="s", c="tab:blue", ms=2.0, lw=1.0, markevery=2, label=L"{\rm IAG}")
+            ax1.plot(wavs_iag, flux_iag_cor./maximum(flux_iag_cor), alpha=0.9, marker="o", c="tab:green", ms=2.0, lw=1.0, markevery=2, label=L"{\rm Cleaned\ IAG}")
+            ax2.plot(wavs_sim, flux_iag./maximum(flux_iag) .- flux_sim, c="tab:blue", marker="s", ms=2.0, lw=0)
+            ax2.plot(wavs_sim, flux_iag_cor./maximum(flux_iag_cor) .- flux_sim, c="tab:green", marker="o", ms=2.0, lw=0)
 
-        # plt.plot(wavs_iag, flux_iag)
-        # plt.plot(wavs_sim, flux_sim)
-        # plt.show()
+            # set limits
+            min_idx = argmin(flux_iag)
+            ax1.set_xlim(wavs_iag[min_idx] - 0.5, wavs_iag[min_idx] + 0.5)
+            ax2.set_xlim(wavs_iag[min_idx] - 0.5, wavs_iag[min_idx] + 0.5)
 
-        # plt.plot(bis_iag, int_iag)
-        # plt.plot(bis_sim, int_sim)
-        # plt.show()
+            # set tick labels, axis labels, etc.
+            ax1.set_xticklabels([])
+            ax1.set_ylabel(L"{\rm Normalized\ Intensity}")
+            ax2.set_xlabel(L"{\rm Wavelength\ (\AA)}")
+            ax2.set_ylabel(L"{\rm IAG\ -\ Synthetic}")
+            ax1.legend()
+            fig.tight_layout()
 
+            # save the plot
+            fig.savefig(plotdir * "fig3a.pdf")
+            plt.clf(); plt.close()
+            println(">>> Figure written to: " * plotdir * "fig3a.pdf")
+
+            # # align bisectors to arbitrary point
+            # vel_sim .-= mean(vel_sim) #.- 42.0
+            # vel_iag .-= mean(vel_iag) #.- 42.0
+            # vel_iag2 .-=  mean(vel_iag2) #.- 42.0
+
+            # # plot the bisectors
+            # fig = plt.figure()
+            # gs = mpl.gridspec.GridSpec(nrows=1, ncols=2, width_ratios=[2, 1.1], figure=fig, wspace=0.05)
+            # ax1 = fig.add_subplot(gs[1])
+            # ax2 = fig.add_subplot(gs[2])
+            # ax1.plot(vel_sim[2:end-2], bis_sim[2:end-2], color="black", lw=2.0, label=L"{\rm Synthetic}")
+            # ax1.plot(vel_iag[2:end-2], bis_iag[2:end-2], marker="s", c="tab:blue", ms=2.0, lw=1.0, label=L"{\rm IAG}")
+            # ax1.plot(vel_iag2[2:end-2], bis_iag2[2:end-2], marker="o", c="tab:green", ms=2.0, lw=1.0, label=L"{\rm Cleaned\ IAG}")
+            # ax2.plot(vel_iag[2:end-2] .- vel_sim[2:end-2], bis_iag[2:end-2], c="tab:blue", marker="s", ms=2.0, lw=0.0)
+            # ax2.plot(vel_iag2[2:end-2] .- vel_sim[2:end-2], bis_iag[2:end-2], c="tab:green", marker="o", ms=2.0, lw=0.0)
+
+            # # set tick labels, axis labels, etc.
+            # ax2.set_yticklabels([])
+            # ax2.yaxis.tick_right()
+            # ax1.set_ylim(0.1, 1.1)
+            # ax2.set_xlim(-20, 20)
+            # ax2.set_ylim(0.1, 1.1)
+            # ax1.set_xlabel(L"{\rm Relative\ Velocity\ (ms^{-1})}")
+            # ax1.set_ylabel(L"{\rm Normalized\ Intensity}")
+            # ax2.set_xlabel(L"{\rm IAG\ -\ Synthetic\ (ms^{-1})}")
+            # ax1.legend(loc="upper right", prop=Dict("size"=>10), labelspacing=0.25)
+
+            # # save the plot
+            # fig.savefig(plotdir * "fig3b.pdf")
+            # plt.clf(); plt.close()
+            # println(">>> Figure written to: " * plotdir * "fig3b.pdf")
+            return nothing
+        end
+
+        comparison_plots()
+
+        return nothing
     end
 
     # airwav = 5434.5232;
