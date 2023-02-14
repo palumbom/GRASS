@@ -112,7 +112,7 @@ function main()
 
     # wavelength of line to synthesize/compare to iag
     for (i, file) in enumerate(files)
-        # if !contains(file, "CaI_6169.0")
+        # if !contains(file, "FeI_5434")
         #     continue
         # end
 
@@ -185,10 +185,6 @@ function main()
         wavs_sim, flux_sim = synthesize_spectra(spec, disk, use_gpu=use_gpu)
         flux_sim = dropdims(mean(flux_sim, dims=2), dims=2)
 
-        plt.plot(wavs_sim, flux_sim)
-        plt.plot(wavs_iag, flux_iag)
-        plt.show()
-
         # get velocity of simulated spectrum
         vels_sim, ccf_sim = calc_ccf(wavs_sim, flux_sim, spec)
         rvs_sim, sigs_sim = calc_rvs_from_ccf(vels_sim, ccf_sim, fit_type=QuadraticFit)
@@ -201,24 +197,30 @@ function main()
         flux_iag = itp.(wavs_sim)
         wavs_iag = wavs_sim
 
-        # fig, (ax1, ax2) = plt.subplots(2, 1)
-        # ax1.plot(wavs_sim, flux_sim)
-        # ax1.plot(wavs_iag, flux_iag)
-        # ax2.plot(wavs_sim, flux_iag .- flux_sim)
-        # plt.show()
+        # clean the IAG spectrum
+        flux_iag_cor = model_iag_blends(wavs_sim, flux_sim, wavs_iag, flux_iag)
 
         # get the synthetic + iag bisectors
         bis_sim, int_sim = GRASS.calc_bisector(wavs_sim, flux_sim)
         bis_iag, int_iag = GRASS.calc_bisector(wavs_iag, flux_iag)
-
-        # get the resids
-        resids = flux_iag .- flux_sim
-
-        # clean the IAG spectrum
-        flux_iag_cor = flux_iag#model_iag_blends(wavs_sim, flux_sim, wavs_iag, flux_iag)
-
-        # get the corrected bisector
         bis_iag_clean, int_iag_clean = GRASS.calc_bisector(wavs_iag, flux_iag_cor)
+
+        # get ccfs
+        v_grid_sim, ccf_sim = calc_ccf(wavs_sim, flux_sim, spec, normalize=true)
+        v_grid_iag, ccf_iag = calc_ccf(wavs_iag, flux_iag, [wavs_iag[argmin(flux_iag)]],
+                                       [1.0 - minimum(flux_iag)], 7e5, normalize=true)
+        v_grid_iag_clean, ccf_iag_clean = calc_ccf(wavs_iag, flux_iag_cor, [wavs_iag[argmin(flux_iag_cor)]],
+                                                   [1.0 - minimum(flux_iag_cor)], 7e5, normalize=true)
+
+        # get ccf bisectors
+        vel_sim, ccf_int_sim = GRASS.calc_bisector(v_grid_sim, ccf_sim)
+        vel_iag, ccf_int_iag = GRASS.calc_bisector(v_grid_iag, ccf_iag)
+        vel_iag_clean, ccf_int_iag_clean = GRASS.calc_bisector(v_grid_iag_clean, ccf_iag_clean)
+
+        # align to arbitrary velocity
+        vel_sim .-= (vel_sim[2])
+        vel_iag .-= (vel_iag[2])
+        vel_iag_clean .-= (vel_iag_clean[2])
 
         # big function for plotting
         function comparison_plots()
@@ -256,37 +258,36 @@ function main()
             fig.savefig(outdir * line_name * "_line.pdf")
             plt.clf(); plt.close()
 
-            # # align bisectors to arbitrary point
-            # vel_sim .-= mean(vel_sim) #.- 42.0
-            # vel_iag .-= mean(vel_iag) #.- 42.0
-            # vel_iag2 .-=  mean(vel_iag2) #.- 42.0
+            # plot the bisectors
+            fig = plt.figure()
+            gs = mpl.gridspec.GridSpec(nrows=1, ncols=2, width_ratios=[2, 1.1], figure=fig, wspace=0.05)
+            ax1 = fig.add_subplot(gs[1])
+            ax2 = fig.add_subplot(gs[2])
 
-            # # plot the bisectors
-            # fig = plt.figure()
-            # gs = mpl.gridspec.GridSpec(nrows=1, ncols=2, width_ratios=[2, 1.1], figure=fig, wspace=0.05)
-            # ax1 = fig.add_subplot(gs[1])
-            # ax2 = fig.add_subplot(gs[2])
-            # ax1.plot(vel_sim[2:end-2], bis_sim[2:end-2], color="black", lw=2.0, label=L"{\rm Synthetic}")
-            # ax1.plot(vel_iag[2:end-2], bis_iag[2:end-2], marker="s", c="tab:blue", ms=2.0, lw=1.0, label=L"{\rm IAG}")
-            # ax1.plot(vel_iag2[2:end-2], bis_iag2[2:end-2], marker="o", c="tab:green", ms=2.0, lw=1.0, label=L"{\rm Cleaned\ IAG}")
-            # ax2.plot(vel_iag[2:end-2] .- vel_sim[2:end-2], bis_iag[2:end-2], c="tab:blue", marker="s", ms=2.0, lw=0.0)
-            # ax2.plot(vel_iag2[2:end-2] .- vel_sim[2:end-2], bis_iag[2:end-2], c="tab:green", marker="o", ms=2.0, lw=0.0)
+            ax1.plot(vel_sim[2:end-2], ccf_int_sim[2:end-2], color="black", lw=2.0, label=L"{\rm Synthetic}")
+            ax1.plot(vel_iag[2:end-2], ccf_int_iag[2:end-2], marker="s", c="tab:blue", ms=2.0, lw=1.0, label=L"{\rm IAG}")
+            ax1.plot(vel_iag_clean[2:end-2], ccf_int_iag_clean[2:end-2], marker="o", c="tab:green", ms=2.0, lw=1.0, label=L"{\rm Cleaned\ IAG}")
+            ax2.plot(vel_iag[2:end-2] .- vel_sim[2:end-2], ccf_int_iag[2:end-2], c="tab:blue", marker="s", ms=2.0, lw=0.0)
+            ax2.plot(vel_iag_clean[2:end-2] .- vel_sim[2:end-2], ccf_int_iag[2:end-2], c="tab:green", marker="o", ms=2.0, lw=0.0)
 
-            # # set tick labels, axis labels, etc.
-            # ax2.set_yticklabels([])
-            # ax2.yaxis.tick_right()
-            # ax1.set_ylim(0.1, 1.1)
-            # ax2.set_xlim(-20, 20)
-            # ax2.set_ylim(0.1, 1.1)
-            # ax1.set_xlabel(L"{\rm Relative\ Velocity\ (ms^{-1})}")
-            # ax1.set_ylabel(L"{\rm Normalized\ Intensity}")
-            # ax2.set_xlabel(L"{\rm IAG\ -\ Synthetic\ (ms^{-1})}")
-            # ax1.legend(loc="upper right", prop=Dict("size"=>10), labelspacing=0.25)
+            # set tick labels, axis labels, etc.
+            ax2.set_yticklabels([])
+            ax2.yaxis.tick_right()
+            # ax1.set_xlim(5434.4, 5434.6)
+            ax1.set_ylim(0.1, 1.1)
+            ax2.set_xlim(-20, 20)
+            ax2.set_ylim(0.1, 1.1)
+            ax1.set_xlabel(L"{\rm Relative\ Velocity\ (ms^{-1})}")
+            ax1.set_ylabel(L"{\rm Normalized\ Intensity}")
+            ax2.set_xlabel(L"{\rm IAG\ -\ Synthetic\ (ms^{-1})}")
+            ax1.legend(loc="upper right", prop=Dict("size"=>10), labelspacing=0.25)
 
-            # # save the plot
-            # fig.savefig(plotdir * "fig3b.pdf")
-            # plt.clf(); plt.close()
-            # println(">>> Figure written to: " * plotdir * "fig3b.pdf")
+            # set the title
+            ax1.set_title(("\${\\rm " * replace(line_name, "_" => "\\ ") * "}\$"))
+
+            # save the plot
+            fig.savefig(outdir * line_name * "_bisector.pdf")
+            plt.clf(); plt.close()
             return nothing
         end
         comparison_plots()
