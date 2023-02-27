@@ -110,13 +110,18 @@ function convolve_gauss(xs::AA{T,1}, ys::AA{T,1}; new_res::T=1.17e5,
     return xs_out, ys_out
 end
 
-function convolve_gauss(xs::AA{T,1}, ys::AA{T,2}; new_res::T=1.17e5) where T<:AbstractFloat
-    conv = zeros(length(xs), size(ys,2))
-    for i in 1:size(ys,2)
-        conv[:, i] = convolve_gauss(xs, ys[:,i], new_res=new_res)
-    end
-    return conv
-end
+# TODO this is HIGHLY broken
+# function convolve_gauss(xs::AA{T,1}, ys::AA{T,2}; new_res::T=1.17e5, oversampling::T=1.0) where T<:AbstractFloat
+#     flux_out = zeros(length(xs), size(ys,2))
+#     for i in 1:size(ys,2)
+#         out = convolve_gauss(xs, ys[:,i], new_res=new_res, oversampling=oversampling)
+#         @show length(wavs_out)
+#         @show length(out[1])
+#         flux_out[:, i] .= out[2]
+#     end
+#     out = convolve_gauss(xs, ys[:,1], new_res=new_res, oversampling=oversampling)
+#     return out[1], flux_out
+# end
 
 function degrade_resolution(wave::AA{T,1}, spec::AA{T,1}; R_new::T=700000.0, snr::T=Inf) where T<:AF
     # get new resolution element and wavelength grid
