@@ -66,7 +66,7 @@ function SolarData(fname::String; relative::Bool=true, extrapolate::Bool=true,
                 ntimes = [read(HDF5.attributes(f[k][t])["length"])]
 
                 # read in
-                top = read(f[k[t]]["top_ints"])
+                top = read(f[k][t]["top_ints"])
                 bis = read(f[k][t]["bisectors"])
                 int = read(f[k][t]["intensities"])
                 wid = read(f[k][t]["widths"])
