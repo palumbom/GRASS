@@ -229,7 +229,7 @@ function synthesize_spectra(spec::SpecParams{T}, disk::DiskParams{T},
             if !rm
                 disk_sim(spec_temp, disk, soldata, prof, outspec_temp, tloop, verbose=verbose)
             else
-                disk_sim_rm(spec_temp, disk, soldata, prof, outspec_temp, tloop, planet..., verbose=verbose)
+                disk_sim_rm(spec_temp, disk, planet..., soldata, prof, outspec_temp, tloop, verbose=verbose)
             end
             outspec .*= outspec_temp
         end

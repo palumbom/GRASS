@@ -1,7 +1,6 @@
 function disk_sim_gpu(spec::SpecParams{T}, disk::DiskParams{T}, soldata::SolarData{T},
                       gpu_allocs::GPUAllocs, outspec::AA{T,2}; verbose::Bool=false,
-                      seed_rng::Bool=false, precision::DataType=Float64,
-                      skip_times::BitVector=BitVector(zeros(disk.Nt))) where T<:AF
+                      precision::DataType=Float64, skip_times::BitVector=BitVector(zeros(disk.Nt))) where T<:AF
     # set single or double precision
     prec = precision
 
