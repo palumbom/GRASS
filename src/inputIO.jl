@@ -1,94 +1,3 @@
-function sort_input_data(;dir::String=soldir, write::Bool=false)
-    @assert isdir(dir)
-
-    # create data frame to store extracted paramaters
-    df = DataFrame(fpath=String[], fname=String[],
-                   datetime=DateTime[], wave=String[],
-                   mu=String[], axis=String[], ion=String[])
-
-    # get list of dirs containing data for each line
-    linedirs = glob("*/", dir)
-
-    # loop over directories
-    if !isempty(linedirs)
-        for d in linedirs
-            files = glob("*input.h5", d)
-            if isempty(files)
-                println(">>> No input data files found in " * d)
-                continue
-            end
-
-            for f in files
-                push!(df, extract_input_params(f))
-            end
-        end
-    else
-        files = glob("*input.h5", dir)
-        if isempty(files)
-            println(">>> No input data files found in " * dir)
-            return nothing
-        end
-        for f in files
-                push!(df, extract_input_params(f))
-        end
-    end
-
-    # sort dataframe in place
-    sort!(df, [:axis, :mu, :datetime], rev=[false, true, false])
-
-    # write to CSV
-    if write
-        CSV.write(df.wave[1] * "_bisectors.csv", df)
-    end
-    return df
-end
-
-function extract_input_params(s::String)
-    # parse the fielname string
-    paths = split(s, "/")
-    fpath = join(paths[1:end-1], "/") * "/"
-    fname = paths[end]
-    fcomp = split(fname, "_")
-
-    # parse out parameters
-    species = fcomp[1]
-    wavelength = fcomp[2]
-    datetimes = DateTime(fcomp[3])
-    muposition = fcomp[4]
-    axis = fcomp[5]
-    return [fpath fname datetimes wavelength muposition axis species]
-end
-
-function read_input_data(filename::String; masknans::Bool=false)
-    wav, bis, dep, wid = h5open(filename, "r") do f
-        g = f["input_data"]
-        wav = read(g["wavelengths"])
-        bis = read(g["bisectors"])
-        dep = read(g["depths"])
-        wid = read(g["widths"])
-        return wav, bis, dep, wid
-    end
-    return wav, bis, dep, wid
-end
-
-function get_extension_dims(filename::String)
-    dims = h5open(filename, "r") do f
-        g = f["input_data"]
-        return size(g["wavelengths"])
-    end
-    return dims
-end
-
-function get_number_waves(filename::String)
-    dims = get_extension_dims(filename)
-    return dims[1]
-end
-
-function get_number_times(filename::String)
-    dims = get_extension_dims(filename)
-    return dims[2]
-end
-
 function parse_mu_string(s::String)
     s = s[3:end]
     return tryparse(Float64, s[1] * "." * s[2:end])
@@ -110,52 +19,140 @@ function parse_ax_string(s::Symbol)
     return parse_ax_string(string(s))
 end
 
-# make one large time series for a given solar position
-function stitch_time_series(df::DataFrame; adjust_mean::Bool=false, contiguous_only::Bool=false)
-    # find out size of data
-    if contiguous_only
-        Nfil=1
-    else
-        Nfil = size(df, 1)
-    end
-    Ntim = map(get_number_times, df.fpath[i] * df.fname[i] for i in 1:Nfil)
-    Nwav = map(get_number_waves, df.fpath[i] * df.fname[i] for i in 1:Nfil)
+function adjust_data_mean(arr::AA{T,2}, ntimes::Vector{Int64};
+                          lo_ind::Int=15, hi_ind::Int=75) where T<:Real
+    # get indices for number of contiguous obs
+    arr_idx = vcat([0], cumsum(ntimes))
 
-    # allocate array
-    wavall = zeros(maximum(Nwav), sum(Ntim))
-    bisall = zeros(maximum(Nwav), sum(Ntim))
-    depall = zeros(maximum(Nwav), sum(Ntim))
-    widall = zeros(maximum(Nwav), sum(Ntim))
+    # find the mean of the longest data set, use bottom n% of bisector only
+    idx = argmax(ntimes)
+    arr_sub = view(arr, lo_ind:hi_ind, arr_idx[idx]+1:arr_idx[idx+1])
+    mean_ref = mean(arr_sub)
 
-    # loop over the files, filling arrays
-    for i in 1:Nfil
-        wav, bis, dep, wid = read_input_data(df.fpath[i] * df.fname[i])
-        wavall[:, sum(Ntim[1:i-1])+1:sum(Ntim[1:i])] .= wav
-        bisall[:, sum(Ntim[1:i-1])+1:sum(Ntim[1:i])] .= bis
-        depall[:, sum(Ntim[1:i-1])+1:sum(Ntim[1:i])] .= dep
-        widall[:, sum(Ntim[1:i-1])+1:sum(Ntim[1:i])] .= wid
-    end
+    # loop over the datasets and adjust mean
+    for i in 1:length(ntimes)
+        # get the group of measurements
+        group = view(arr, :, arr_idx[i]+1:arr_idx[i+1])
 
-    # adjust the mean if adjust_mean == true
-    if adjust_mean
-        wavall = adjust_data_mean(wavall, Ntim, Nfil)
-        # widall = adjust_data_mean(widall, Ntim, Nfil)
-    end
-    return wavall, bisall, depall, widall
-end
-
-function adjust_data_mean(array::AA{T,2}, Ntim::Vector{Int64}, Nfil::Int) where T<:Real
-    # find the mean for the first chunk of bisectors
-    group1 = array[:, 1:Ntim[1]]
-    meangroup1 = mean(group1, dims=2)[:,1]
-    for i in 2:Nfil
-        # find the mean for the nth group of bisectors
-        groupn = array[:, sum(Ntim[1:i-1])+1:sum(Ntim[1:i])]
-        meangroupn = mean(groupn, dims=2)[:,1]
+        # get the mean of bottom n% of bisctor
+        mean_group = mean(view(group, lo_ind:hi_ind, :))
 
         # find the distance between the means and correct by it
-        meandist = meangroupn - meangroup1
-        array[:, sum(Ntim[1:i-1])+1:sum(Ntim[1:i])] .-= meandist
+        mean_dist = mean_ref - mean_group
+        group .+= mean_dist
     end
-    return array
+    return nothing
+end
+
+function identify_bad_cols(bisall::AA{T,2}, intall::AA{T,2}, widall::AA{T,2};
+                           lo_ind::Int=15, hi_ind::Int=75) where T<:AF
+    @assert size(bisall) == size(intall) == size(widall)
+
+    # how many sigma away to consider outlier
+    nsigma = 2.0
+
+    # allocate boolean array (column will be stripped if ool[i] == true)
+    badcols = zeros(Bool, size(bisall,2))
+
+    # make sure the max/min width is reasonable
+    max_wid_view = view(widall, size(widall, 1), :)
+    max_wid_avg = mean(max_wid_view)
+    max_wid_std = std(max_wid_view)
+
+    min_wid_view = view(widall, 1, :)
+    min_wid_avg = mean(min_wid_view)
+    min_wid_std = std(min_wid_view)
+
+    # remove significant max width outliers
+    idx1 = abs.(max_wid_avg .- max_wid_view) .> (nsigma .* max_wid_std)
+    idx2 = abs.(min_wid_avg .- min_wid_view) .> (nsigma .* min_wid_std)
+    badcols[idx1] .= true
+
+    # get views
+    bis_view = view(bisall, lo_ind:hi_ind, .!badcols)
+    wid_view = view(widall, lo_ind:hi_ind, .!badcols)
+
+    # take averages
+    bis_avg = dropdims(mean(bis_view, dims=2), dims=2)
+    wid_avg = dropdims(mean(wid_view, dims=2), dims=2)
+    bis_std = dropdims(std(bis_view, dims=2), dims=2)
+    wid_std = dropdims(std(wid_view, dims=2), dims=2)
+
+    # loop through checking for bad columns
+    for i in 1:size(bisall,2)
+        # if column is already marked bad, move on
+        if badcols[i]
+            continue
+        end
+
+        # get views of data
+        bist = view(bisall, lo_ind:hi_ind, i)
+        intt = view(intall, lo_ind:hi_ind, i)
+        widt = view(widall, lo_ind:hi_ind, i)
+
+        # check for monotinicity in measurements
+        if !ismonotonic(widt) | !ismonotonic(intt)
+            badcols[i] = true
+        end
+
+        # check for skipped epochs in preprocessing
+        if all(iszero.(intt))
+            badcols[i] = true
+        end
+
+        # check for NaNs
+        if any(isnan.(intt))
+            badcols[i] = true
+        end
+
+        # remove measurements that are significant outliers
+        bis_cond = any(abs.(bis_avg .- bist) .> (nsigma .* bis_std))
+        wid_cond = any(abs.(wid_avg .- widt) .> (nsigma .* wid_std))
+        if bis_cond | wid_cond
+            badcols[i] = true
+        end
+    end
+    return badcols
+end
+
+function relative_bisector_wavelengths(bis::AA{T,2}) where T<:AF
+    # TODO: find better way; how does this jive w/ convective blueshift?
+    bis .-= mean(bis)
+    return nothing
+end
+
+function extrapolate_input_data(bist::AA{T,1}, intt::AA{T,1}, widt::AA{T,1}, top::T) where T<:AF
+    # fit the bottom bisector area and replace with model fit
+    bot = minimum(intt)
+    dep = 1.0 - bot
+    idx1 = searchsortedfirst(intt, bot + 0.05 * dep)
+    idx2 = searchsortedfirst(intt, bot + 0.15 * dep)
+    bfit = pfit(view(intt, idx1:idx2), view(bist, idx1:idx2), 1)
+    bist[1:idx1] .= bfit.(view(intt, 1:idx1))
+
+    # fit the top bisector area and replace with model fit
+    idx1 = searchsortedfirst(intt, top - 0.1 * dep )
+    idx2 = searchsortedfirst(intt, top) - 1
+    bfit = pfit(view(intt, idx1:idx2), view(bist, idx1:idx2), 1)
+    bist[idx2:end] .= bfit.(view(intt, idx2:length(intt)))
+
+    # extrapolate the width up to the continuum
+    # TODO revisit this
+    idx1 = length(widt) - 1
+    wfit = pfit(view(intt, idx1:length(intt)), view(widt, idx1:length(intt)), 1)
+    widt[idx1:end] .= wfit.([intt[idx1], 1.0])
+    intt[end] = 1.0
+    return nothing
+end
+
+function extrapolate_input_data(bis::AA{T,2}, int::AA{T,2}, wid::AA{T,2}, top::AA{T,1}) where T<:AF
+    for i in 1:size(bis,2)
+        # take a slice for one time snapshot
+        bist = view(bis, :, i)
+        intt = view(int, :, i)
+        widt = view(wid, :, i)
+
+        extrapolate_input_data(bist, intt, widt, top[i])
+    end
+    return nothing
 end

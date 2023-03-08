@@ -12,9 +12,6 @@ using DataFrames
 using LaTeXStrings
 using LsqFit
 
-# define rms loop function
-include(GRASS.moddir * "figures/fig_functions.jl")
-
 # some global stuff
 const N = 132
 const Nt = 200
@@ -32,8 +29,7 @@ function main()
     lines = [5434.5]
     depths = range(0.05, stop=0.95, step=0.05)
     resolution=700000.0
-    top = NaN
-    contiguous_only=false
+    templates = ["FeI_5434"]
 
     # allocate shared arrays
     avg_avg_depth = SharedArray{Float64}(length(depths))
@@ -47,11 +43,10 @@ function main()
         println("running depth = " * string(depths[i]))
 
         # create spec instance
-        spec = SpecParams(lines=lines, depths=[depths[i]], resolution=resolution,
-                          extrapolate=true, contiguous_only=contiguous_only)
+        spec = SpecParams(lines=lines, depths=[depths[i]], templates=templates, resolution=resolution)
 
         # synthesize spectra, get velocities and stats
-        avg_avg1, std_avg1, avg_rms1, std_rms1 = spec_loop(spec, disk, Nloop, top=top, use_gpu=use_gpu)
+        avg_avg1, std_avg1, avg_rms1, std_rms1 = GRASS.spec_loop(spec, disk, Nloop, use_gpu=use_gpu)
         avg_avg_depth[i] = avg_avg1
         std_avg_depth[i] = std_avg1
         avg_rms_depth[i] = avg_rms1
@@ -81,7 +76,7 @@ if plot
     # plotting imports
     import PyPlot; plt = PyPlot; mpl = plt.matplotlib; plt.ioff()
     using PyCall; animation = pyimport("matplotlib.animation")
-    mpl.style.use(GRASS.moddir * "figures/fig.mplstyle")
+    mpl.style.use(GRASS.moddir * "figures1/fig.mplstyle")
 
     # read in the data
     fname = datadir * "rms_vs_depth_" * string(N) * ".csv"

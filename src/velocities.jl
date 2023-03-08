@@ -23,7 +23,15 @@ Compute the cross correlation function from a spectrum (lambdas and intensities)
 function calc_ccf(lambdas::AA{Float64,1}, intensities::AA{Float64,1},
                   lines::AA{Float64,1}, depths::AA{Float64,1},
                   resolution::Float64; normalize::Bool=true,
+                  Δv_max::Float64=15e3, Δv_step::Float64=100.0,
                   mask_type::Type{T}=TopHatMask) where {T<:MaskShape}
+    # make sure lines are sorted
+    if !issorted(lines)
+        idx = sortperm(lines)
+        lines = view(lines, idx)
+        depths = view(depths, idx)
+    end
+
     # make a line list
     line_list = EchelleCCFs.BasicLineList(lines, depths)
 
@@ -31,9 +39,6 @@ function calc_ccf(lambdas::AA{Float64,1}, intensities::AA{Float64,1},
     speed_of_light = c_ms
     mask_width = speed_of_light/resolution
     mask_shape = T(mask_width)
-
-    Δv_step = 200.0
-    Δv_max = 15e3
 
     # make ccf_plan
     ccf_plan = BasicCCFPlan(line_list=line_list, mask_shape=mask_shape, step=Δv_step, max=Δv_max)
@@ -80,7 +85,7 @@ Calculate apparent radial velocity from a CCF and velocity grid.
 - `ccf::AbstractArray{Float64,1}`: CCF values returned by calc_ccf.
 """
 function calc_rvs_from_ccf(v_grid::AA{Float64,1}, ccf::AA{Float64,1};
-                           frac_of_width_to_fit::Float64=0.5,
+                           frac_of_width_to_fit::Float64=0.75,
                            fit_type::Type{T}=GaussianFit) where {T<:FitType}
     mrv = T(frac_of_width_to_fit=frac_of_width_to_fit)
     return mrv(v_grid, ccf)

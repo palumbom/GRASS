@@ -1,16 +1,67 @@
-# abstract type AbstractSpecParams end
-struct SpecParams{T<:AF} #<: AbstractSpecParams
+# get groups of lines in same osbserved spectral regions
+const line_groups = [["FeI_5250.2", "FeI_5250.6"],
+                     ["FeI_5379", "CI_5380", "TiII_5381", "FeI_5383"],
+                     ["FeI_5432", "FeI_5434", "NiI_5435", "FeI_5436.3", "FeI_5436.6"],
+                     ["FeI_5576", "NiI_5578"],
+                     ["NaI_5896"],
+                     ["FeII_6149", "FeI_6151"],
+                     ["CaI_6169.0", "FeI_6173"],
+                     ["FeI_6301", "FeI_6302"]]
+
+function get_name_from_filename(line1::String)
+    # get filename from full path
+    split1 = splitdir(line1)[end]
+
+    # get name if line is filenames
+    split1 = split(split1, ".h5")
+    return split1[1]
+end
+
+function in_same_group(line1::String, line2::String)
+    # get name if lines are filenames
+    split1 = get_name_from_filename(line1)
+    split2 = get_name_from_filename(line2)
+
+    # check if they are in the same group
+    for row in line_groups
+        if split1 in row
+            return split2 in row
+        else
+            continue
+        end
+    end
+    return nothing
+end
+
+function get_template_wavelength(line1::String)
+    # get filename
+    if split(line1, ".")[end] != "h5"
+        fname = line1 * ".h5"
+    else
+        fname = line1
+    end
+
+    # open the file and get the rest wavelength
+    λrest = h5open(fname, "r") do f
+        # get rest wavelength for line
+        attr = HDF5.attributes(f)
+        λrest = read(attr["air_wavelength"])
+    end
+    return λrest
+end
+
+"""
+    SpecParams(lines, depths, geffs, conv_blueshifts, variability, resolution, lambdas, templates)
+"""
+struct SpecParams{T<:AF}
     lines::AA{T,1}
     depths::AA{T,1}
     geffs::AA{T,1}
     conv_blueshifts::AA{T,1}
     variability::AA{Bool,1}
-    coverage::Tuple{T,T}
     resolution::T
     lambdas::AA{T,1}
-    indata::InputData
-    data_inds::AA{Int64,1}
-    kwargs::Base.Pairs
+    templates::AA{String,1}
 end
 
 
@@ -26,13 +77,12 @@ Construct a `SpecParams` composite type instance. If `variability` is not specif
 - `resolution::Float64=7e8`: Spectral resolution of spectrum
 """
 function SpecParams(;lines=[], depths=[], geffs=[], variability=[],
-                    resolution=7e5, buffer=1.0, kwargs...)
+                    templates=[], blueshifts=[], resolution=7e5, buffer=2.0)
     @assert length(lines) == length(depths)
     @assert !isempty(lines)
     @assert !isempty(depths)
-    @assert all(depths .< 1.0)
-    @assert all(depths .> 0.0)
-    @assert buffer >= 0.75
+    @assert all(depths .< 1.0) && all(depths .> 0.0)
+    @assert buffer >= 1.0
 
     # assign lande g factors if they haven't been
     if isempty(geffs)
@@ -40,15 +90,23 @@ function SpecParams(;lines=[], depths=[], geffs=[], variability=[],
     end
 
     # read in convective blueshifts
-    df = CSV.read(soldir * "/convective_blueshift.dat", DataFrame,
-                  header=1, delim=",", type=Float64)
+    df = CSV.read(datdir * "convective_blueshift.dat", DataFrame,
+                  header=1, delim=",", types=Float64)
 
-    # assign convective blueshifts and convert blueshift to z=v/c
-    blueshifts = similar(lines)
-    for i in eachindex(depths)
-        idx = searchsortednearest(df.depth, depths[i])
-        blueshifts[i] = df.blueshift[idx] / c_ms
-    end
+    # assign convective blueshifts and
+    if isempty(blueshifts)
+        blueshifts = similar(lines)
+        for i in eachindex(depths)
+            idx = searchsortednearest(df.depth, depths[i])
+            # blueshifts[i] = rand(Normal(df.blueshift[idx], df.sigma[idx]))
+            blueshifts[i] = rand(Normal(df.blueshift[idx], 0.0))
+        end
+    else
+        @assert length(blueshifts) == length(lines)
+   end
+
+   # convert blueshift to z=v/c
+   blueshifts ./=  c_ms
 
     # assign fixed_width booleans
     if isempty(variability)
@@ -57,57 +115,91 @@ function SpecParams(;lines=[], depths=[], geffs=[], variability=[],
         @assert length(lines) == length(variability)
     end
 
-    # calculate coverage
-    coverage = (minimum(lines) - buffer, maximum(lines) + buffer)
-
     # generate Delta ln lambda
+    minλ = minimum(lines) - buffer
+    maxλ = maximum(lines) + buffer
     Δlnλ = (1.0 / resolution)
-    lnλs = range(log(coverage[1]), log(coverage[2]), step=Δlnλ)
+    lnλs = range(log(minλ), log(maxλ), step=Δlnλ)
     lambdas = exp.(lnλs)
 
-    # tabulate all available input data
-    indata = InputData()
+    # assign each line to the input data to synth it from
+    # TODO move this to its own function and make it more thought out
+    if isempty(templates)
+        # get properties of input data lines
+        lp = LineProperties()
+        geff_input = get_geff(lp)
+        depth_input = get_depth(lp)
+        input_files = get_file(lp)
 
-    # assign indices that point synthetic line to appropriate input data
-    geff_input = get_geff.(indata.lineprops)
-    depth_input = get_depth.(indata.lineprops)
-    data_inds = zeros(Int64, length(lines))
-
-    # loop over lines and do 2D nearest neighbor
-    for i in eachindex(lines)
-        param_dist = sqrt.((geff_input .- geffs[i]).^2 + (depth_input .- depths[i]).^2)
-        idx = argmin(param_dist)
-        data_inds[i] = idx
+        # allocate memory and loop, choosing best template line
+        templates = Array{String, 1}(undef, length(lines))
+        for i in eachindex(templates)
+            param_dist = sqrt.((geff_input .- geffs[i]).^2 + (depth_input .- depths[i]).^2)
+            templates[i] = input_files[argmin(param_dist)]
+        end
+    else
+        @assert length(templates) == length(lines)
+        if all(map(x -> split(x, ".")[end] != "h5", templates))
+            templates .*= ".h5"
+        end
     end
 
-    # now make sure everything is sorted
-    if !issorted(lines)
-        inds = sortperm(lines)
-        lines = lines[inds]
-        depths = depths[inds]
-        geffs = geffs[inds]
-        blueshifts = blueshifts[inds]
-        variability = variability[inds]
-        data_inds = data_inds[inds]
+    # make sure templates are absolute paths to files
+    if all(.!isabspath.(templates))
+        for i in eachindex(templates)
+            templates[i] = GRASS.soldir * templates[i]
+        end
     end
-    return SpecParams(lines, depths, geffs, blueshifts,
-                      variability, coverage, resolution,
-                      lambdas, indata, data_inds, kwargs)
+    @assert all(isfile.(templates))
+
+    # get indices to sort on template line wavelength
+    template_wavelengths = get_template_wavelength.(templates)
+    inds = sortperm(template_wavelengths)
+
+    # collect ranges if necessary
+    lines = collect_range(lines)
+    depths = collect_range(depths)
+    geffs = collect_range(geffs)
+    blueshifts = collect_range(blueshifts)
+
+    # now do the sorting
+    lines .= lines[inds]
+    depths .= depths[inds]
+    geffs .= geffs[inds]
+    blueshifts .= blueshifts[inds]
+    variability .= variability[inds]
+    templates .= templates[inds]
+    return SpecParams(lines, depths, geffs, blueshifts, variability,
+                      resolution, lambdas, templates)
 end
 
-function SpecParams(spec::SpecParams, idx::Int64)
-    inds = spec.data_inds .== idx
-    indata_temp = InputData(spec.indata.dirs[idx], spec.indata.lineprops[idx])
-    return SpecParams(spec.lines[inds], spec.depths[inds], spec.geffs[inds],
-                      spec.conv_blueshifts[inds], spec.variability[inds],
-                      spec.coverage, spec.resolution, spec.lambdas,
-                      indata_temp, spec.data_inds[inds], spec.kwargs)
-end
+"""
+    SpecParams(spec, template_file)
 
-function SpecParams(config::String)
-    @assert isfile(config)
+Return a copy of ```spec``` with only the synthetic line parameters corresponding to ```template_file```
+"""
+function SpecParams(spec::SpecParams, template_file::String)
+    # make sure it's a file name and not just a string
+    file = template_file
+    if split(file, ".")[end] != "h5"
+        file *= ".h5"
+    end
 
+    # make sure it's an absolute path
+    if !isabspath(file)
+        file = GRASS.soldir * file
+    end
+    @assert isfile(file)
 
-
-    return nothing
+    # get indices
+    # idx = findall(spec.templates .== file)
+    idx = spec.templates .== file
+    return SpecParams(view(spec.lines, idx),
+                      view(spec.depths, idx),
+                      view(spec.geffs, idx),
+                      view(spec.conv_blueshifts, idx),
+                      view(spec.variability, idx),
+                      spec.resolution,
+                      spec.lambdas,
+                      view(spec.templates, idx))
 end

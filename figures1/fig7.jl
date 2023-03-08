@@ -15,9 +15,6 @@ using DataFrames
 using LaTeXStrings
 using HypothesisTests
 
-# define rms loop function
-include(GRASS.moddir * "figures/fig_functions.jl")
-
 # some global stuff
 const N = 132
 const Nloop = 2400
@@ -90,7 +87,7 @@ function main()
     rms_largedead = convert(Array{Float64}, rms_largedead)
 
     # save the output
-    outfile = datadir * "observe_" * string(N) * "_loop_" * string(Nloop) * ".jld2"
+    outfile = datadir * "scaling_benchmark.jld2"
     save(outfile,
          "avg_shortdead", avg_shortdead,
          "rms_shortdead", rms_shortdead,
@@ -113,10 +110,10 @@ if plot
     # plotting imports
     import PyPlot; plt = PyPlot; mpl = plt.matplotlib; plt.ioff()
     using PyCall; animation = pyimport("matplotlib.animation")
-    mpl.style.use(GRASS.moddir * "figures/fig.mplstyle")
+    mpl.style.use(GRASS.moddir * "figures1/fig.mplstyle")
 
     # read in the data
-    file = datadir * "observe_" * string(N) * "_loop_" * string(Nloop) * ".jld2"
+    file = datadir * "scaling_benchmark.jld2"
     d = load(file)
     avg_shortdead = d["avg_shortdead"]
     rms_shortdead = d["rms_shortdead"]

@@ -48,134 +48,10 @@ function calculate_bisector_lslope(λrest::T, wav::AA{T,2}, bis::AA{T,2}) where 
 end
 
 
-function measure_bisector(xs::AA{T,1}, ys::AA{T,1}; interpolate::Bool=true,
-                          top::T=0.99, len::Integer=100) where T<:AF
-    if interpolate
-        return measure_bisector_interpolate(xs, ys, top=top, len=len)
-    else
-        return measure_bisector_loop(xs, ys, top=top, len=len)
-    end
-end
-
-
-function measure_bisector_interpolate(xs::AA{T,1}, ys::AA{T,1}; top::T=0.99,
-                                      len::Integer=100, max_loop::Int=20) where T<:AF
-    # check lengths and normalization
-    @assert length(xs) == length(ys)
-
-    # normalize the spec, find bottom of line
-    ys ./= maximum(ys)
-    botind = argmin(ys)
-    depths = range(ys[botind], top, length=len)
-
-    # find left and right halves
-    lind = findfirst(ys .< top)
-    rind = findlast(ys .< top)
-    lspec = reverse(ys[lind:botind])
-    rspec = ys[botind:rind]
-    lwav = reverse(xs[lind:botind])
-    rwav = xs[botind:rind]
-
-    # make sure lspec is sorted
-    num_loop = 0
-    unsorted = !issorted(lspec)
-    while unsorted
-        num_loop += 1
-        ldiff = diff(lspec)
-        inds = BitArray(vcat(0, ldiff .< 0))
-        lspec[inds] .= NaN
-        itp = LinearInterpolation(reverse(lwav[.!inds]),
-                                  reverse(lspec[.!inds]),
-                                  extrapolation_bc=Flat())
-        lspec .= itp.(lwav)
-        unsorted = !issorted(lspec)
-        if num_loop > max_loop
-            break
-        end
-    end
-
-    # make sure rspec is sorted
-    num_loop = 0
-    unsorted = !issorted(rspec)
-    while unsorted
-        num_loop += 1
-        rdiff = diff(rspec)
-        inds = BitArray(vcat(0, rdiff .< 0))
-        rspec[inds] .= NaN
-        itp = LinearInterpolation(rwav[.!inds], rspec[.!inds],
-                                  extrapolation_bc=Flat())
-        rspec .= itp.(rwav)
-        unsorted = !issorted(rspec)
-        if num_loop > max_loop
-            break
-        end
-    end
-
-    # interpolate wavelengths onto intensity grid
-    lspline = LinearInterpolation(lspec, lwav, extrapolation_bc=Flat())
-    rspline = LinearInterpolation(rspec, rwav, extrapolation_bc=Flat())
-    wavs = (lspline(depths) .+ rspline(depths)) ./ 2.0
-    return wavs, depths
-end
-
-
-function measure_bisector_loop(xs::AA{T,1}, ys::AA{T,1}; top::T=0.99,
-                               len::Integer=100) where T<:AF
-    # normalize the spec, find bottom of line
-    ys ./= maximum(ys)
-
-    # assign depths to measure bisector at
-    dep = range(one(T)-minimum(ys)-0.01, one(T) - top, length=len)
-
-    # set iterators
-    nccf = Int(length(xs) ÷ 2)
-    L = nccf
-    R = nccf
-
-    # allocate memory
-    xL = zeros(len)
-    xR = zeros(len)
-    wav = zeros(len)
-
-    # loop over depths
-    for d in eachindex(dep)
-        y = one(T) - dep[d]
-        while((ys[L] < y) & (L > 0))
-            L -= 1
-        end
-
-        while ((ys[R] < y) & (R < length(xs)))
-            R += 1
-        end
-
-        if ((y > maximum(ys[1:nccf])) | (y > maximum(ys[nccf+1:end])))
-            L = 0
-            R = length(xs)
-        end
-
-        if L == 0
-            xL[d] = xL[d-1]
-        else
-            mL = (xs[L+1] - xs[L]) / (ys[L+1] - ys[L])
-            xL[d] = xs[L] + mL * (y - ys[L])
-        end
-
-        if R == length(xs)
-            xR[d] = xR[d-1]
-        else
-            mR = (xs[R-1] - xs[R]) / (ys[R-1] - ys[R])
-            xR[d] = xs[R] + mR * (y - ys[R])
-        end
-        wav[d] = (xL[d] + xR[d]) / 2.0
-    end
-    return wav, one(T) .- dep
-end
-
-
-function bisector_uncertainty(wav::AA{T,1}, bis::AA{T,1}) where T<:AF
-    dF = diff(bis)
-    dv = diff(wav)
-    return one(T)/sqrt(2.0) .* dF ./ abs.(dF ./ dv)
+function calc_bisector_uncertainty(bis::AA{T,1}, int::AA{T,1}) where T<:AF
+    dF = diff(int)
+    dv = diff(bis)
+    return one(T)/sqrt(2.0) .* 1.0 ./ abs.(dF ./ dv)
 end
 
 
@@ -209,8 +85,16 @@ function calc_line_quantity(wavs::AA{T,1}, flux::AA{T,1}; continuum::T=1.0,
 
     # loop over flux values and measure quantity defined by f function
     for i in eachindex(y_out)
-        lidx = searchsortedfirst(lflux, y_out[i])
-        ridx = searchsortedfirst(rflux, y_out[i])
+        lidx = findfirst(x -> x .>= y_out[i], lflux)
+        ridx = findfirst(x -> x .>= y_out[i], rflux)
+
+        if isnothing(lidx)
+            lidx = length(lflux)
+        end
+
+        if isnothing(ridx)
+            ridx = length(rflux)
+        end
 
         # adjust indices to account for views
         wav_lidx = min_flux_idx - lidx
@@ -280,4 +164,26 @@ function calc_bisector(wavs::AA{T,1}, flux::AA{T,2}; kwargs...) where T<:Real
     f = y -> calc_bisector(wavs, y; kwargs...)
     out = map(f, eachcol(flux))
     return cat([x[1] for x in out]..., dims=2), cat([x[2] for x in out]..., dims=2)
+end
+
+function calc_bisector_cubic(wavs::AA{T,1}, flux::AA{T,1}) where T<:Real
+    # find index of minimum
+    idx_min = argmin(flux)
+
+    # take difference quotient
+    dfdλ = diff(flux)./diff(wavs)
+
+    # starting from middle, find last element where deriv. is pos/neg.
+    idx1 = idx_min - findlast(view(dfdλ, idx_min:-1:1) .< 0.0) + 1
+    idx2 = findlast(view(dfdλ, idx_min:length(dfdλ)) .> 0.0) + idx_min - 1
+
+    # construct the interpolants
+    itp1 = cubic_interp(view(flux, idx_min:-1:idx1), view(wavs, idx_min:-1:idx1))
+    itp2 = cubic_interp(view(flux, idx_min:idx2), view(wavs, idx_min:idx2))
+
+    # get the bisector
+    flux_out = range(minimum(flux), maximum(flux) - 0.01, length=50)
+    bis_out = (itp2.(flux_out) .+ itp1.(flux_out))./2
+
+    return bis_out, flux_out
 end
