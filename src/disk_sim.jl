@@ -161,9 +161,9 @@ function disk_sim(spec::SpecParams{T}, disk::DiskParams{T}, soldata::SolarData{T
     return nothing
 end
 
-function disk_sim_rm(spec::SpecParams{T}, disk::DiskParams{T}, soldata::SolarData{T},
-                     prof::AA{T,1}, outspec::AA{T,2}, tloop::AA{Int,2},
-                     planet::Planet; verbose::Bool=true, nsubgrid::Int=256,
+function disk_sim_rm(spec::SpecParams{T}, disk::DiskParams{T}, planet::Planet,
+                     soldata::SolarData{T}, prof::AA{T,1}, outspec::AA{T,2},
+                     tloop::AA{Int,2}; verbose::Bool=true, nsubgrid::Int=256,
                      skip_times::BitVector=BitVector(zeros(disk.Nt))) where T<:AF
 
     # pre-calculate the norm terms
