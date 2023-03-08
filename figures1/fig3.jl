@@ -1,23 +1,19 @@
 # environment + packages
 using Pkg; Pkg.activate(".")
 using CSV
-using HTTP
-using GZip
 using CUDA
 using GRASS
 using LsqFit
 using Statistics
 using DataFrames
 using Interpolations
+using EchelleCCFs: λ_air_to_vac
 
 # plotting
 using LaTeXStrings
 import PyPlot; plt = PyPlot; mpl = plt.matplotlib; plt.ioff()
 using PyCall; animation = pyimport("matplotlib.animation");
-mpl.style.use(GRASS.moddir * "figures/fig.mplstyle")
-
-# # define some functions
-include(GRASS.moddir * "figures/fig_functions.jl")
+mpl.style.use(GRASS.moddir * "figures1/fig.mplstyle")
 
 # get command line args and output directories
 run, plot = parse_args(ARGS)
@@ -25,46 +21,6 @@ grassdir, plotdir, datadir = check_plot_dirs()
 
 # decide whether to use gpu
 use_gpu = CUDA.functional()
-
-function download_iag()
-    println(">>> Downloading IAG atlas...")
-    file = HTTP.download("https://cdsarc.unistra.fr/ftp/J/A+A/587/A65/spvis.dat.gz",
-                         GRASS.moddir * "figures/", update_period=Inf)
-    println(">>> IAG atlas downloaded!")
-    return nothing
-end
-
-function read_iag(; isolate=true)
-    # download the IAG atlas
-    file = GRASS.moddir * "figures/spvis.dat.gz"
-    if !isfile(file)
-        download_iag()
-    end
-
-    # read in the IAG atlas
-    iag = GZip.open(file, "r") do io
-        CSV.read(io, DataFrame, ignorerepeated=true, delim=" ", header=["wavenum", "nflux", "flux"])
-    end
-
-    # convert wavenumber to wavelength in angstroms
-    wavs = (1 ./ iag.wavenum) * 1e8
-
-    # reverse to deal with conversion of units
-    reverse!(wavs)
-    reverse!(iag.nflux)
-
-    # isolate region around 5434.5 line
-    if isolate
-        ind1 = findfirst(x -> x .> 5435.5, wavs)
-        ind2 = findfirst(x -> x .> 5436.55, wavs)
-
-        plt.plot(view(wavs,ind1:ind2), view(iag.nflux, ind1:ind2));plt.show()
-        return wavs[ind1:ind2], iag.nflux[ind1:ind2]
-    end
-
-
-    return wavs, iag.nflux[ind1:ind2]
-end
 
 function interpolate_spec(wavs, flux)
     wavs_itp = collect(range(wavs[1], wavs[end], step=mean(diff(wavs))))
@@ -141,24 +97,25 @@ function main()
     btop = 0.9
 
     # get spectrum and interpolate onto even wavelength grid
-    wavs_iag, flux_iag = read_iag(isolate=true)
+    wavs_iag, flux_iag = GRASS.read_iag_atlas()
     wavs_iag, flux_iag = interpolate_spec(wavs_iag, flux_iag)
 
     # set up for GRASS spectrum simulation
     lines = [5434.5232]
     depths = [1.0 - minimum(flux_iag)]
     resolution = 700000.0
-    spec = SpecParams(lines=lines, depths=depths, resolution=resolution, extrapolate=true)
+    templates = ["FeI_5434"]
+    spec = SpecParams(lines=lines, depths=depths, templates=templates, resolution=resolution)
     disk = DiskParams(N=132, Nt=15)
 
     # synthesize spectra, calculate ccf, and get CCF bisector
     len = 72
-    lambdas1, outspec1 = synthesize_spectra(spec, disk, seed_rng=false, verbose=true, top=NaN, use_gpu=use_gpu)
+    lambdas1, outspec1 = synthesize_spectra(spec, disk, verbose=true, use_gpu=use_gpu)
     outspec1 ./= maximum(outspec1)
     v_grid, ccf1 = calc_ccf(lambdas1, outspec1, spec, normalize=true)
     outspec1 = mean(outspec1, dims=2)[:,1]
     ccfm = mean(ccf1, dims=2)[:,1]
-    vel_sim, bis_sim = GRASS.measure_bisector(v_grid, ccfm, interpolate=false, top=btop, len=len)
+    vel_sim, bis_sim = GRASS.calc_bisector(v_grid, ccfm, top=btop, nflux=len)
 
     # model the line blends out of the IAG spectrum
     println(">>> Modeling out line blends in IAG spectrum...")
@@ -171,22 +128,20 @@ function main()
 
     # calculate a CCF for the IAG spectrum and trim it
     v_grid_iag, ccf_iag = calc_ccf(wavs_iag, flux_iag, [wavs_iag[argmin(flux_iag)]],
-                                   [1.0 - minimum(flux_iag)],
-                                   1e6, normalize=true)
+                                   [1.0 - minimum(flux_iag)], 1e6, normalize=true, Δv_max=3e4)
     ind1 = findfirst(x -> x .> -vlim, v_grid_iag)
     ind2 = findfirst(x -> x .> vlim, v_grid_iag)
-    vel_iag, bis_iag = GRASS.measure_bisector(v_grid_iag[ind1:ind2], ccf_iag[ind1:ind2],
-                                              interpolate=true, top=btop, len=len)
+    vel_iag, bis_iag = GRASS.calc_bisector(v_grid_iag[ind1:ind2], ccf_iag[ind1:ind2], top=btop, nflux=len)
+    # vel_iag, bis_iag = GRASS.calc_bisector(v_grid_iag, ccf_iag, interpolate=true, top=btop, len=len)
 
     # calculate a CCF for the cleaned IAG spectrum and trim it
     wavs_iag, flux_iag_cor = interpolate_spec(wavs_iag, flux_iag_cor)
     v_grid_iag2, ccf_iag2 = calc_ccf(wavs_iag, flux_iag_cor, [wavs_iag[argmin(flux_iag_cor)]],
-                                    [1.0 - minimum(flux_iag_cor)],
-                                    1e6, normalize=true)
+                                    [1.0 - minimum(flux_iag_cor)], 1e6, normalize=true, Δv_max=3e4)
     ind1 = findfirst(x -> x .> -vlim, v_grid_iag2)
     ind2 = findfirst(x -> x .> vlim, v_grid_iag2)
-    vel_iag2, bis_iag2 = GRASS.measure_bisector(v_grid_iag2[ind1:ind2], ccf_iag2[ind1:ind2],
-                                                interpolate=true, top=btop, len=len)
+    vel_iag2, bis_iag2 = GRASS.calc_bisector(v_grid_iag2[ind1:ind2], ccf_iag2[ind1:ind2], top=btop, nflux=len)
+    # vel_iag2, bis_iag2 = GRASS.calc_bisector(v_grid_iag2, ccf_iag2, interpolate=true, top=btop, len=len)
 
     # interpolate IAG onto same wavelength scale as synthetic spectrum
     itp = LinearInterpolation(wavs_iag, flux_iag, extrapolation_bc=1.0)
@@ -200,7 +155,7 @@ function main()
         gs = mpl.gridspec.GridSpec(nrows=2, ncols=1, height_ratios=[2, 1], figure=fig, hspace=0.05)
         ax1 = fig.add_subplot(gs[1])
         ax2 = fig.add_subplot(gs[2])
-        ax1.plot(lambdas1, outspec1, c="black", lw= 1.5, label=L"{\rm Synthetic}")
+        ax1.plot(lambdas1, outspec1, c="black", lw=1.5, label=L"{\rm Synthetic}")
         ax1.plot(wavs_iag, flux_iag./maximum(flux_iag), marker="s", c="tab:blue", ms=2.0, lw=1.0, markevery=10, label=L"{\rm IAG}")
         ax1.plot(wavs_iag, flux_iag_cor./maximum(flux_iag_cor), alpha=0.9, marker="o", c="tab:green", ms=2.0, lw=1.0, markevery=10, label=L"{\rm Cleaned\ IAG}")
         ax2.plot(lambdas1, flux_iag_itp./maximum(flux_iag_itp) .- outspec1, c="tab:blue", marker="s", ms=2.0, lw=0)
@@ -222,8 +177,8 @@ function main()
         println(">>> Figure written to: " * plotdir * "fig3a.pdf")
 
         # align bisectors to arbitrary point
-        vel_sim .-= mean(vel_sim)
-        vel_iag .-= mean(vel_iag) - 42.0
+        vel_sim .-= (mean(vel_sim) + 10.0)
+        vel_iag .-= (mean(vel_iag) - 42.0)
         vel_iag2 .-= mean(vel_iag2)
 
         # plot the bisectors

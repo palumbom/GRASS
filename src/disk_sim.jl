@@ -1,20 +1,17 @@
 # line loop function, update prof in place
-function line_loop_cpu(prof::AA{T,1}, mid::T, depth::T, z_rot::T,
-                       conv_blueshift::T, lambdas::AA{T,1},
+function line_loop_cpu(prof::AA{T,1}, λΔD::T, depth::T, lambdas::AA{T,1},
                        wsp::SynthWorkspace{T}) where T<:AF
     # first trim the bisectors to the correct depth
-    trim_bisector!(depth, wsp.wavt, wsp.bist, wsp.dept, wsp.widt)
-
-    # calculate line center given rot. and conv. doppler shift -> λrest * (1 + z)
-    λΔD = mid * (one(T) + z_rot) * (one(T) + conv_blueshift)
+    trim_bisector!(depth, wsp.bist, wsp.intt)
 
     # find window around shifted line
-    lind = findfirst(x -> x > λΔD - 1.5, lambdas)
+    buff = maximum(wsp.widt) / 2.0
+    lind = findfirst(x -> x > λΔD - buff, lambdas)
     if isnothing(lind)
         lind = firstindex(lambdas)
     end
 
-    rind = findfirst(x -> x > λΔD + 1.5, lambdas)
+    rind = findfirst(x -> x > λΔD + buff, lambdas)
     if isnothing(rind)
         rind = lastindex(lambdas)
     end
@@ -28,124 +25,187 @@ function line_loop_cpu(prof::AA{T,1}, mid::T, depth::T, z_rot::T,
     return nothing
 end
 
-function time_loop_cpu(t_loop::Int, prof::AA{T,1}, z_rot::T,
-                       key::Tuple{Symbol, Symbol}, liter::UnitRange{Int},
-                       spec::SpecParams{T}, soldata::SolarData,
-                       wsp::SynthWorkspace{T}) where T<:AF
+function time_loop_cpu(tloop::Int, prof::AA{T,1}, z_rot::T, z_cbs::T,
+                       z_cbs_avg::T, key::Tuple{Symbol, Symbol},
+                       liter::UnitRange{Int}, spec::SpecParams{T},
+                       soldata::SolarData, wsp::SynthWorkspace{T}) where T<:AF
     # get views needed for line synthesis
-    wsp.wavt .= view(soldata.wav[key], :, t_loop)
-    wsp.bist .= view(soldata.bis[key], :, t_loop)
-    wsp.dept .= view(soldata.dep[key], :, t_loop)
-    wsp.widt .= view(soldata.wid[key], :, t_loop)
+    wsp.bist .= view(soldata.bis[key], :, tloop)
+    wsp.intt .= view(soldata.int[key], :, tloop)
+    wsp.widt .= view(soldata.wid[key], :, tloop)
 
     # loop over specified synthetic lines
     prof .= one(T)
     for l in liter
-        wsp.wavt .*= spec.variability[l]
-        line_loop_cpu(prof, spec.lines[l], spec.depths[l], z_rot,
-                      spec.conv_blueshifts[l], spec.lambdas, wsp)
+        # calculate the position of the line center
+        extra_z = spec.conv_blueshifts[l] - z_cbs_avg
+        λΔD = spec.lines[l] * (1.0 + z_rot) * (1.0 + z_cbs) * (1.0 + extra_z)
+
+        # synthesize the line
+        wsp.bist .*= spec.variability[l]
+        line_loop_cpu(prof, λΔD, spec.depths[l], spec.lambdas, wsp)
     end
     return nothing
 end
 
-function generate_indices(Nt::Integer, len::Integer)
-    # initialize variable to get total number of indices
-    sum_lens = 0
+function calc_disk_avg_cbs(grid::StepRangeLen, disc_mu::AA{T,1}, mu_symb::AA{Symbol,1},
+                           disk::DiskParams{T}, soldata::SolarData{T}) where T<:AF
+    # calculate normalization terms and get convective blueshifts
+    numer = 0
+    denom = 0
+    for i in eachindex(grid)
+        for j in eachindex(grid)
+            # get positiosns
+            x = grid[i]
+            y = grid[j]
 
-    # start at random index less than len and go to len
-    start = Iterators.take(rand(1:len):len, Nt)
-    sum_lens += length(start)
+            # move to next iteration if off grid
+            (x^2 + y^2) > one(T) && continue
 
-    # return if that's all that's needed
-    if length(start) == Nt
-         @assert sum_lens == Nt
-        return Iterators.flatten(start)
+            # get input data for place on disk
+            key = get_key_for_pos(x, y, disc_mu, mu_symb)
+            while !(key in keys(soldata.len))
+                idx = findfirst(key[1] .== soldata.ax)
+                if isnothing(idx) || idx == length(soldata.ax)
+                    idx = 1
+                end
+                key = (soldata.ax[idx+1], key[2])
+            end
+
+            # calc limb darkening and get convective blueshift
+            norm_term = calc_norm_term(x, y, disk)
+            numer += soldata.cbs[key] * norm_term
+            denom += norm_term
+        end
     end
-
-    # find out how many more cycles are needed
-    niter = ceil(Int, (Nt - length(start))/len)
-
-    # make vector of iterators and
-    inds = Vector{Base.Iterators.Take{UnitRange{Int64}}}(undef, niter + 1)
-    inds[1] = start
-    for i in 2:niter
-        inds[i] = Iterators.take(1:len, len)
-        sum_lens += len
-    end
-
-    # ensure the last one only takes the the remainder
-    inds[end] = Iterators.take(1:len, Nt - sum_lens)
-    sum_lens += length(inds[end])
-    @assert sum_lens == Nt
-
-    # return flattened iterator
-    return Iterators.flatten(inds)
+    return numer/denom, denom
 end
 
-function disk_sim(spec::SpecParams{T}, disk::DiskParams{T,Int64},
-                  soldata::SolarData{T}, prof::AA{T,1}, outspec::AA{T,2},
-                  planet::Vararg{Union{Nothing, Planet},1}=nothing;
-                  seed_rng::Bool=false, verbose::Bool=true, nsubgrid::Int=256,
-                  kwargs...) where T<:AF
+function disk_sim(spec::SpecParams{T}, disk::DiskParams{T}, soldata::SolarData{T},
+                  prof::AA{T,1}, outspec::AA{T,2}, tloop::AA{Int,2}, 
+                  planet::Vararg{Union{Nothing, Planet},1}=nothing; 
+                  verbose::Bool=true, nsubgrid::Int=256,
+                  skip_times::BitVector=BitVector(zeros(disk.Nt))) where T<:AF
+    # make grid
+    grid = make_grid(N=disk.N)
+
     # set pre-allocations and make generator that will be re-used
     outspec .= zero(T)
-    wsp = SynthWorkspace(spec)
-    liter = 1:length(spec.lines)
+    wsp = SynthWorkspace()
+    liter = 1:length(spec.lines); @assert length(liter) >= 1
 
     # get list of discrete mu's in input data
     mu_symb = soldata.mu
     disc_mu = parse_mu_string.(mu_symb)
 
-    # seeding rng
-    if seed_rng
-        if verbose println("Seeding RNG") end
-        Random.seed!(42)
+    # get intensity-weighted disk-avereged convective blueshift
+    z_cbs_avg, sum_norm_terms = calc_disk_avg_cbs(grid, disc_mu, mu_symb, disk, soldata)
+
+    # loop over grid positions
+    for i in eachindex(grid)
+        for j in eachindex(grid)
+            # get positiosns
+            x = grid[i]
+            y = grid[j]
+
+            # move to next iteration if off grid
+            (x^2 + y^2) > one(T) && continue
+
+            # get input data for place on disk
+            key = get_key_for_pos(x, y, disc_mu, mu_symb)
+
+            # use data for same mu from different axis if axis is missing
+            while !(key in keys(soldata.len))
+                idx = findfirst(key[1] .== soldata.ax)
+                if isnothing(idx) || idx == length(soldata.ax)
+                    idx = 1
+                end
+                key = (soldata.ax[idx+1], key[2])
+            end
+            len = soldata.len[key]
+
+            # get total doppler shift for the line, and norm_term
+            z_cbs = soldata.cbs[key]
+            z_rot = patch_velocity_los(x, y, pole=disk.pole)
+            norm_term = calc_norm_term(x, y, disk)
+
+            # loop over time
+            for t in 1:disk.Nt
+                # check that tloop hasn't exceeded number of epochs
+                if tloop[i,j] > len
+                    tloop[i,j] = 1
+                end
+
+                # if skip times is true, continue to next iter
+                if skip_times[t]
+                    tloop[i,j] += 1
+                    continue
+                end
+
+                # update profile in place
+                time_loop_cpu(tloop[i,j], prof, z_rot, z_cbs, z_cbs_avg, key, liter, spec, soldata, wsp)
+
+                # apply normalization term and add to outspec
+                outspec[:,t] .+= (prof .* norm_term)
+
+                # iterate tloop
+                tloop[i,j] += 1
+            end
+        end
     end
 
+    # divide by sum of weights
+    outspec ./= sum_norm_terms
+
+    # set instances of outspec where skip is true to 0 and return
+    outspec[:, skip_times] .= zero(T)
+    return nothing
+  end
+
     # pre-calculate the norm terms
-    norm_terms = calc_norm_terms(disk)
+    # norm_terms = calc_norm_terms(disk)
 
     # loop over spatial grid positions
-    rm = !isnothing(planet...)
-    if !rm
-        # make grid
-        grid = make_grid(N=disk.N)
+    # rm = !isnothing(planet...)
+    # if !rm
+    #    # make grid
+    #    grid = make_grid(N=disk.N)
 
-        # anonymous func for calling spatial loop
-        f = (t,n) -> spatial_loop(t[1], t[2], n, spec, disk, soldata, wsp, prof,
+    #    # anonymous func for calling spatial loop
+    #    f = (t,n) -> spatial_loop(t[1], t[2], n, spec, disk, soldata, wsp, prof,
                                   outspec, liter, mu_symb, disc_mu; kwargs...)
-        map(f, grid, norm_terms)
-    else
-        # get planet positions
-        tvec = get_simulation_times(disk)
-        xpos, ypos = calc_planet_position(tvec, planet...)
+    #    map(f, grid, norm_terms)
+    # else
+    #    # get planet positions
+    #    tvec = get_simulation_times(disk)
+    #    xpos, ypos = calc_planet_position(tvec, planet...)
 
-        # TODO hardcoded for debugging
-        xpos = range(-1.25, 1.25, length=disk.Nt)
+    #    # TODO hardcoded for debugging
+    #    xpos = range(-1.25, 1.25, length=disk.Nt)
 
-        # get grid details
-        grid_range = make_grid_range(disk.N)
-        grid_edges = get_grid_edges(grid_range)
+    #    # get grid details
+    #    grid_range = make_grid_range(disk.N)
+    #    grid_edges = get_grid_edges(grid_range)
 
-        # allocate memory
-        unocculted = trues(nsubgrid, nsubgrid)
-        sublimbdarks = zeros(nsubgrid, nsubgrid)
-        sub_z_rots = zeros(nsubgrid, nsubgrid)
+    #    # allocate memory
+    #    unocculted = trues(nsubgrid, nsubgrid)
+    #    sublimbdarks = zeros(nsubgrid, nsubgrid)
+    #    sub_z_rots = zeros(nsubgrid, nsubgrid)
 
 
-        # anonymous func for calling spatial loop
-        f = (t,n) -> spatial_loop_rm(t[1], t[2], n, grid_range, grid_edges,
+    #    # anonymous func for calling spatial loop
+    #    f = (t,n) -> spatial_loop_rm(t[1], t[2], n, grid_range, grid_edges,
                                      spec, disk, planet..., soldata, wsp,
                                      prof, outspec, unocculted, sublimbdarks,
                                      sub_z_rots, liter, mu_symb, disc_mu,
                                      xpos, ypos; nsubgrid=nsubgrid, kwargs...)
-        map(f, CartesianIndices((1:disk.N, 1:disk.N)), norm_terms)
-    end
+    #    map(f, CartesianIndices((1:disk.N, 1:disk.N)), norm_terms)
+    # end
 
     # ensure normalization and return
-    outspec ./= maximum(outspec, dims=1)
-    return nothing
-end
+    # outspec ./= maximum(outspec, dims=1)
+    # return nothing
+# end
 
 function spatial_loop(x::T, y::T, norm_term::T, spec::SpecParams{T},
                       disk::DiskParams{T,Int64}, soldata::SolarData{T},

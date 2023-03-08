@@ -1,13 +1,10 @@
-using Distributed
-
 # parallelized for loop
-@everywhere function spec_loop(spec::SpecParams, disk::DiskParams, Nloop::T;
-                               top::Float64=NaN, use_gpu::Bool=false) where T<:Integer
+function spec_loop(spec::SpecParams, disk::DiskParams, Nloop::T; use_gpu::Bool=false) where T<:Integer
     rms0 = zeros(Nloop)
     avg0 = zeros(Nloop)
     for j in 1:Nloop
         # synthesize spectra
-        lambdas, outspec = synthesize_spectra(spec, disk, seed_rng=false, top=top, use_gpu=use_gpu)
+        lambdas, outspec = synthesize_spectra(spec, disk, seed_rng=false, use_gpu=use_gpu, verbose=false)
 
         # extract velocities
         v_grid, ccf = calc_ccf(lambdas, outspec, spec, normalize=true)
@@ -21,11 +18,16 @@ using Distributed
 end
 
 # small function to check and create file structure
-function check_plot_dirs()
+function check_plot_dirs(;topdir=nothing)
+    # set the directory you want the outpout to be in
+    if isnothing(topdir)
+        topdir = homedir()
+    end
+
     # directories
-    dirs = [homedir() * "/grass_output/",
-            homedir() * "/grass_output/plots/",
-            homedir() * "/grass_output/data/"]
+    dirs = [topdir * "/grass_output/",
+            topdir * "/grass_output/plots/",
+            topdir * "/grass_output/data/"]
 
     # create dirs if they dont exist, and return dir names
     for dir in dirs
@@ -68,3 +70,4 @@ function parse_args(args)
     end
     return run, plot
 end
+

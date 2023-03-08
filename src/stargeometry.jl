@@ -1,6 +1,4 @@
 # set discrete values of mu for input observations
-# const disc_mu = [0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.85, 0.9, 0.95, 1.0]
-# const mu_symb = [:mu02, :mu03, :mu04, :mu05, :mu06, :mu07, :mu08, :mu085, :mu09, :mu095, :mu10]
 const disc_ax = [:n, :e, :s, :w, :c]
 
 make_grid(N::Integer) = Iterators.product(range(-1.0, 1.0, length=N), range(-1.0, 1.0, length=N))
@@ -118,6 +116,58 @@ function calc_norm_terms(disk::DiskParams; nsubgrid::Int=256)
     return calc_norm_terms(disk.N, disk.u1, disk.u2, nsubgrid=nsubgrid)
 end
 
+function calc_norm_terms(N::Int, u1::T, u2::T; nsubgrid::Int=256) where T<:AF
+    # get grids
+    len = Int(N/2)
+    grid = Iterators.product(range(0.0, 1.0, length=len),
+                             range(0.0, 1.0, length=len))
+    grid_range = range(0.0, 1.0, length=len)
+    grid_edges = get_grid_edges(grid_range)
+
+    # allocate memory for norm_terms
+    norm_terms = zeros(N, N)
+    norm_terms_quadrant = zeros(size(grid))
+
+    # calculate distances
+    dist2 = map(z -> calc_dist2(z, (0.0, 0.0)), grid)
+
+    # find edge pixels
+    is_edge = (dist2 .>= (1.0 - step(grid_range))) .&& (dist2 .<= 1.0 + step(grid_range))
+    is_not_edge = (.!is_edge) .&& (dist2 .< 1.0)
+
+    # calculate norm terms on not_edge pixels
+    for idx in findall(is_not_edge) #CartesianIndices(norm_terms)
+        i = idx[1]; j= idx[2]
+        norm_terms_quadrant[idx] = quad_limb_darkening.(grid_range[i], grid_range[j], u1, u2)
+    end
+
+    # calculate norm terms for edge pixels
+    for idx in findall(is_edge)
+        i = idx[1]; j= idx[2]
+
+        # make subgrid
+        xrange = range(grid_edges[i], grid_edges[i+1], length=nsubgrid)
+        yrange = range(grid_edges[j], grid_edges[j+1], length=nsubgrid)
+        subgrid = Iterators.product(xrange, yrange)
+
+        # calculate norm terms on subgrid
+        sublimbdarks = quad_limb_darkening.(calc_mu.(subgrid), u1, u2)
+        norm_terms_quadrant[idx] = mean(sublimbdarks)
+    end
+
+    # now copy quadrants over
+    norm_terms[len+1:end, len+1:end] .= norm_terms_quadrant
+    norm_terms[1:len, len+1:end] .= reverse!(norm_terms_quadrant, dims=(1))
+    norm_terms[len+1:end, 1:len] .= reverse!(norm_terms_quadrant, dims=(1,2))
+    norm_terms[1:len, 1:len] .= reverse!(norm_terms_quadrant, dims=(1))
+    return norm_terms ./ sum(norm_terms)
+end
+
+function calc_norm_terms(disk::DiskParams; nsubgrid::Int=256)
+    return calc_norm_terms(disk.N, disk.u1, disk.u2, nsubgrid=nsubgrid)
+end
+
+
 # Find the nearest axis to a given point on a grid
 function find_nearest_ax(x::T, y::T) where T<:AF
     if (x^2 + y^2) > one(T)
@@ -152,6 +202,11 @@ function assemble_dict_key(mu_ind::Int, ax::Symbol, mu_symb::AA{Symbol,1})
 end
 
 function get_key_for_pos(x::T, y::T, disc_mu::AA{T,1}, mu_symb::AA{Symbol,1}) where T<:AF
+    # make sure we are not off the disk
+    if x^2 + y^2 > 1
+        return nothing
+    end
+
     # find nearest mu index
     mu_ind = find_nearest_mu(x, y, disc_mu)
 

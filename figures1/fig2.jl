@@ -8,10 +8,7 @@ using Statistics
 using LaTeXStrings
 import PyPlot; plt = PyPlot; mpl = plt.matplotlib; plt.ioff()
 using PyCall; animation = pyimport("matplotlib.animation");
-mpl.style.use(GRASS.moddir * "figures/fig.mplstyle")
-
-# define some functions
-include(GRASS.moddir * "figures/fig_functions.jl")
+mpl.style.use(GRASS.moddir * "figures1/fig.mplstyle")
 
 # get command line args and output directories
 run, plot = parse_args(ARGS)
@@ -23,11 +20,10 @@ function main()
     ncurves = 25
 
     # get input data
-    bisinfo = GRASS.SolarData(relative=true, extrapolate=true)
+    bisinfo = GRASS.SolarData(fname = GRASS.soldir * "FeI_5434.h5")
     key = (:c, :mu10)
     bis = bisinfo.bis[key]
-    wav = bisinfo.wav[key]
-    dep = bisinfo.dep[key]
+    int = bisinfo.int[key]
     wid = bisinfo.wid[key]
 
     # create colormap and colorbar
@@ -42,7 +38,7 @@ function main()
     fig = plt.figure()
     ax1 = fig.add_subplot()
     for (i, t) in enumerate(iter)
-        ax1.plot(wav[:,t][2:end].*1000, bis[:,t][2:end], c=cols[i], alpha=0.75)
+        ax1.plot(bis[:,t][2:end].*1000, int[:,t][2:end], c=cols[i], alpha=0.75)
     end
 
     # shade upper region
@@ -69,7 +65,7 @@ function main()
     fig = plt.figure()
     ax1 = fig.add_subplot()
     for (i, t) in enumerate(iter)
-        ax1.plot(dep[:,t], wid[:,t], c=cols[i], alpha=0.75)
+        ax1.plot(int[:,t], wid[:,t], c=cols[i], alpha=0.75)
     end
 
     # set axis limits + labels

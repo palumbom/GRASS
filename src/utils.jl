@@ -2,6 +2,12 @@ function ismonotonic(A::AA{T,1}) where T<:AF
     return (all(diff(A) .>= zero(T)) | all(diff(A) .<= zero(T)))
 end
 
+function strip_columns(A::AA{T,1}, cols::AA{Bool,1}) where T<:AF
+    @assert length(cols) == length(A)
+    return A[.!cols]
+end
+
+
 function strip_columns(A::AA{T,2}, cols::AA{Bool,1}) where T<:AF
     @assert length(cols) == size(A,2)
     return A[:, .!cols]
@@ -69,4 +75,13 @@ function moving_average(a, n)
         out[i] = sum(window) / length(window)
     end
     return out
+end
+
+function collect_range(range::AA{T,1}) where T
+    if typeof(range) <: StepRangeLen
+        return collect(range)
+    else
+        return range
+    end
+    return nothing
 end
