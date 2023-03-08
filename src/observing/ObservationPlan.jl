@@ -44,11 +44,11 @@ function get_skip_times(nt_per_night, nt_per_exposure, nt_per_deadtime)
     return repeat(iter_skips, nt_per_night ÷ nt_per_iter)
 end
 
-function simulate_observations(obs::ObservationPlan, spec::SpecParams;
-                               N::Int=128, snr::T=Inf, new_res::T=NaN,
+function simulate_observations(obs::ObservationPlan, spec::SpecParams,
                                planet::Vararg{Union{Nothing,Planet}}=nothing;
+                               N::Int=128, snr::T=Inf, new_res::T=NaN,
                                verbose::Bool=false, seed_rng::Bool=false,
-                               use_gpu::Bool=false; kwargs...) where T<:AF
+                               use_gpu::Bool=false, kwargs...) where T<:AF
     # assertions
     @assert (isnan(new_res) | (new_res < 7e5))
 

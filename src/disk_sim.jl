@@ -82,8 +82,7 @@ function calc_disk_avg_cbs(grid::StepRangeLen, disc_mu::AA{T,1}, mu_symb::AA{Sym
 end
 
 function disk_sim(spec::SpecParams{T}, disk::DiskParams{T}, soldata::SolarData{T},
-                  prof::AA{T,1}, outspec::AA{T,2}, tloop::AA{Int,2}, 
-                  planet::Vararg{Union{Nothing, Planet},1}=nothing; 
+                  prof::AA{T,1}, outspec::AA{T,2}, tloop::AA{Int,2};
                   verbose::Bool=true, nsubgrid::Int=256,
                   skip_times::BitVector=BitVector(zeros(disk.Nt))) where T<:AF
     # make grid
@@ -160,55 +159,60 @@ function disk_sim(spec::SpecParams{T}, disk::DiskParams{T}, soldata::SolarData{T
     # set instances of outspec where skip is true to 0 and return
     outspec[:, skip_times] .= zero(T)
     return nothing
-  end
+end
+
+function disk_sim_rm(spec::SpecParams{T}, disk::DiskParams{T}, soldata::SolarData{T},
+                     prof::AA{T,1}, outspec::AA{T,2}, tloop::AA{Int,2},
+                     planet::Planet; verbose::Bool=true, nsubgrid::Int=256,
+                     skip_times::BitVector=BitVector(zeros(disk.Nt))) where T<:AF
 
     # pre-calculate the norm terms
-    # norm_terms = calc_norm_terms(disk)
+    norm_terms = calc_norm_terms(disk)
 
     # loop over spatial grid positions
-    # rm = !isnothing(planet...)
-    # if !rm
-    #    # make grid
-    #    grid = make_grid(N=disk.N)
+    rm = !isnothing(planet...)
+    if !rm
+       # make grid
+       grid = make_grid(N=disk.N)
 
-    #    # anonymous func for calling spatial loop
-    #    f = (t,n) -> spatial_loop(t[1], t[2], n, spec, disk, soldata, wsp, prof,
+       # anonymous func for calling spatial loop
+       f = (t,n) -> spatial_loop(t[1], t[2], n, spec, disk, soldata, wsp, prof,
                                   outspec, liter, mu_symb, disc_mu; kwargs...)
-    #    map(f, grid, norm_terms)
-    # else
-    #    # get planet positions
-    #    tvec = get_simulation_times(disk)
-    #    xpos, ypos = calc_planet_position(tvec, planet...)
+       map(f, grid, norm_terms)
+    else
+       # get planet positions
+       tvec = get_simulation_times(disk)
+       xpos, ypos = calc_planet_position(tvec, planet...)
 
-    #    # TODO hardcoded for debugging
-    #    xpos = range(-1.25, 1.25, length=disk.Nt)
+       # TODO hardcoded for debugging
+       xpos = range(-1.25, 1.25, length=disk.Nt)
 
-    #    # get grid details
-    #    grid_range = make_grid_range(disk.N)
-    #    grid_edges = get_grid_edges(grid_range)
+       # get grid details
+       grid_range = make_grid_range(disk.N)
+       grid_edges = get_grid_edges(grid_range)
 
-    #    # allocate memory
-    #    unocculted = trues(nsubgrid, nsubgrid)
-    #    sublimbdarks = zeros(nsubgrid, nsubgrid)
-    #    sub_z_rots = zeros(nsubgrid, nsubgrid)
+       # allocate memory
+       unocculted = trues(nsubgrid, nsubgrid)
+       sublimbdarks = zeros(nsubgrid, nsubgrid)
+       sub_z_rots = zeros(nsubgrid, nsubgrid)
 
 
-    #    # anonymous func for calling spatial loop
-    #    f = (t,n) -> spatial_loop_rm(t[1], t[2], n, grid_range, grid_edges,
+       # anonymous func for calling spatial loop
+       f = (t,n) -> spatial_loop_rm(t[1], t[2], n, grid_range, grid_edges,
                                      spec, disk, planet..., soldata, wsp,
                                      prof, outspec, unocculted, sublimbdarks,
                                      sub_z_rots, liter, mu_symb, disc_mu,
                                      xpos, ypos; nsubgrid=nsubgrid, kwargs...)
-    #    map(f, CartesianIndices((1:disk.N, 1:disk.N)), norm_terms)
-    # end
+       map(f, CartesianIndices((1:disk.N, 1:disk.N)), norm_terms)
+    end
 
     # ensure normalization and return
-    # outspec ./= maximum(outspec, dims=1)
-    # return nothing
-# end
+    outspec ./= maximum(outspec, dims=1)
+    return nothing
+end
 
 function spatial_loop(x::T, y::T, norm_term::T, spec::SpecParams{T},
-                      disk::DiskParams{T,Int64}, soldata::SolarData{T},
+                      disk::DiskParams{T}, soldata::SolarData{T},
                       wsp::SynthWorkspace{T}, prof::AA{T,1}, outspec::AA{T,2},
                       liter::UnitRange{Int64}, mu_symb::AA{Symbol,1}, disc_mu::AA{T,1};
                       skip_times::BitVector=BitVector(zeros(disk.Nt))) where T<:AF
@@ -248,7 +252,7 @@ end
 
 function spatial_loop_rm(i::Int64, j::Int64, norm_term0::T, grid::AA{T,1},
                          grid_edges::AA{T,1}, spec::SpecParams{T},
-                         disk::DiskParams{T,Int64}, planet::Planet,
+                         disk::DiskParams{T}, planet::Planet,
                          soldata::SolarData{T}, wsp::SynthWorkspace{T},
                          prof::AA{T,1}, outspec::AA{T,2}, unocculted::AA{Bool,2},
                          sublimbdarks::AA{T,2}, sub_z_rots::AA{T,2},
