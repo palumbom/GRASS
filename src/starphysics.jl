@@ -60,6 +60,11 @@ Return value is in (Rsol/day)/speed of light (i.e., dimensionless like z = v/c)
 - `pole = (0,1,0)`: unit vector for stellar rotation axis (default is equator-on)
 """
 function patch_velocity_los(x::T, y::T; rstar=one(T), pole=(zero(T), one(T), zero(T))) where T<:AF
+    # make sure on the disk
+    r2 = calc_r2(x,y)
+    r2 > 1.0 && return 0.0
+
+    # caculate velocity and project onto line of sight
     polex, poley, polez = pole
     v0 = 0.000168710673 # in (Rsol/day)/speed_of_light
     z = sqrt(rstar - calc_r2(x,y))
