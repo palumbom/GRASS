@@ -225,7 +225,12 @@ function synthesize_spectra(spec::SpecParams{T}, disk::DiskParams{T},
             outspec_temp .= 0.0
 
             # run the simulation and multiply outspec by this spectrum
-            disk_sim(spec_temp, disk, soldata, prof, outspec_temp, tloop, planet..., verbose=verbose)
+            rm = !isnothing(planet...)
+            if !rm
+                disk_sim(spec_temp, disk, soldata, prof, outspec_temp, tloop, verbose=verbose)
+            else
+                disk_sim_rm(spec_temp, disk, soldata, prof, outspec_temp, tloop, planet..., verbose=verbose)
+            end
             outspec .*= outspec_temp
         end
         return spec.lambdas, outspec
