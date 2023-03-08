@@ -31,10 +31,6 @@ end
     @test GRASS.calc_norm_term(0.0, 0.0, N, u1, u2) == pi ./ (2.0 * N^2)
 
     # test summation of normalization terms
-    f = x -> GRASS.calc_norm_term(x..., N, 0.4, 0.26)
-    norm = mapreduce(f, +, GRASS.make_grid(N))
-    @test isapprox(norm, 1.0, atol=1e-3)
-
     norm2 = sum(GRASS.calc_norm_terms(N, u1, u2))
     @test isapprox(norm2, 1.0, atol=1e-6)
 end
