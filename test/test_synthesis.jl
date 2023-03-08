@@ -87,7 +87,7 @@ end
 
     # do the trimming
     GRASS.trim_bisector!(dep, bist1, intt1)
-
+    
     # allocate memory for line
     λs = range(5432.0, 5437.0, step=5434.5/7e5)
     lwavgrid = zeros(100)

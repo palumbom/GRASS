@@ -29,8 +29,8 @@ import Base.Iterators: take, flatten, ProductIterator
 import Base: AbstractArray as AA
 import Base: AbstractFloat as AF
 
-# plots
-import PyPlot; plt = PyPlot; mpl = plt.matplotlib; plt.ioff()
+# configure plotting with matplotlib
+include("config_pyplot.jl")
 
 # configure directories
 include("config.jl")
@@ -50,6 +50,9 @@ include("starphysics.jl")
 # data read-in + calculations
 include("inputIO.jl")
 include("bisectors.jl")
+
+# rossiter mclaughlin
+include("rm_effect.jl")
 
 # star simulation
 include("trim.jl")
@@ -77,12 +80,12 @@ include("gpu/gpu_physics.jl")
 include("gpu/gpu_data.jl")
 include("gpu/gpu_trim.jl")
 include("gpu/gpu_sim.jl")
+include("gpu/gpu_rm.jl")
 include("gpu/gpu_synthesis.jl")
 
 # functions for plotting figures
 include("fig_functions.jl")
 include("iag_utils.jl")
-
 
 function generate_tloop!(tloop::AA{Int,2}, grid::StepRangeLen, soldata::SolarData{T}) where T<:AF
     # make sure dimensions are correct
@@ -119,7 +122,7 @@ function generate_tloop!(tloop::AA{Int,2}, grid::StepRangeLen, soldata::SolarDat
 end
 
 """
-    synthesize_spectra(spec, disk; seed_rng=false, verbose=true, top=NaN)
+    synthesize_spectra(spec, disk; seed_rng=false, verbose=true)
 
 Synthesize spectra given parameters in `spec` and `disk` instances.
 
@@ -127,7 +130,9 @@ Synthesize spectra given parameters in `spec` and `disk` instances.
 - `spec::SpecParams`: SpecParams instance
 - `disk::DiskParams`: DiskParams instance
 """
-function synthesize_spectra(spec::SpecParams{T}, disk::DiskParams{T};
+
+function synthesize_spectra(spec::SpecParams{T}, disk::DiskParams{T},
+                            planet::Vararg{Union{Nothing,Planet}}=nothing;
                             seed_rng::Bool=false, verbose::Bool=true,
                             use_gpu::Bool=false, precision::DataType=Float64) where T<:AF
     # parse out dimensions for memory allocation
@@ -178,7 +183,12 @@ function synthesize_spectra(spec::SpecParams{T}, disk::DiskParams{T};
             end
 
             # run the simulation and multiply outspec by this spectrum
-            disk_sim_gpu(spec_temp, disk, soldata, gpu_allocs, outspec, verbose=verbose)
+            rm = !isnothing(planet...)
+            if !rm
+                disk_sim_gpu(spec_temp, disk, soldata, gpu_allocs, outspec, verbose=verbose)
+            else 
+                disk_sim_rm_gpu(spec_temp, disk, planet..., soldata, gpu_allocs, outspec, verbose=verbose)
+            end
         end
         return spec.lambdas, outspec
     else
@@ -215,7 +225,7 @@ function synthesize_spectra(spec::SpecParams{T}, disk::DiskParams{T};
             outspec_temp .= 0.0
 
             # run the simulation and multiply outspec by this spectrum
-            disk_sim(spec_temp, disk, soldata, prof, outspec_temp, tloop, verbose=verbose)
+            disk_sim(spec_temp, disk, soldata, prof, outspec_temp, tloop, planet..., verbose=verbose)
             outspec .*= outspec_temp
         end
         return spec.lambdas, outspec
