@@ -1,12 +1,17 @@
 # set discrete values of mu for input observations
 const disc_ax = [:n, :e, :s, :w, :c]
 
+# make grid
 make_grid(N::Integer) = range(-1.0, 1.0, length=N) # Iterators.product(range(-1.0, 1.0, length=N), range(-1.0, 1.0, length=N))
 make_grid(;N::Integer=132) = make_grid(N)
-make_grid_range(N::Integer) = range(-1.0, 1.0, length=N)
 
-get_grid_xs(grid::ProductIterator) = getindex.(collect(grid), 1)
-get_grid_ys(grid::ProductIterator) = getindex.(collect(grid), 2)
+# make product iterator
+make_grid_2D(N::Integer) = Iterators.product(range(-1.0, 1.0, length=N), range(-1.0, 1.0, length=N))
+make_grid_2D(grid::StepRangeLen) = Iterators.product(grid, grid)
+
+# get xs and ys from product iterator
+get_grid_xs(grid_2D::ProductIterator) = getindex.(collect(grid_2D), 1)
+get_grid_ys(grid_2D::ProductIterator) = getindex.(collect(grid_2D), 2)
 
 function get_grid_edges(grid::StepRangeLen)
     start = first(grid) - 0.5 * step(grid)

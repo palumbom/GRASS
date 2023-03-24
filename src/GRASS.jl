@@ -134,7 +134,8 @@ Synthesize spectra given parameters in `spec` and `disk` instances.
 function synthesize_spectra(spec::SpecParams{T}, disk::DiskParams{T},
                             planet::Vararg{Union{Nothing,Planet}}=nothing;
                             seed_rng::Bool=false, verbose::Bool=true,
-                            use_gpu::Bool=false, precision::DataType=Float64) where T<:AF
+                            use_gpu::Bool=false, precision::DataType=Float64,
+                            fixed_width::Bool=false, fixed_bisector::Bool=false) where T<:AF
     # parse out dimensions for memory allocation
     N = disk.N
     Nt = disk.Nt

@@ -1,3 +1,5 @@
+import PyPlot; plt = PyPlot
+
 # line loop function, update prof in place
 function line_loop_cpu(prof::AA{T,1}, λΔD::T, depth::T, lambdas::AA{T,1},
                        wsp::SynthWorkspace{T}) where T<:AF
@@ -169,42 +171,30 @@ function disk_sim_rm(spec::SpecParams{T}, disk::DiskParams{T}, planet::Planet,
     # pre-calculate the norm terms
     norm_terms = calc_norm_terms(disk)
 
-    # loop over spatial grid positions
-    rm = !isnothing(planet...)
-    if !rm
-       # make grid
-       grid = make_grid(N=disk.N)
+    # get planet positions
+    tvec = get_simulation_times(disk)
+    xpos, ypos = calc_planet_position(tvec, planet...)
 
-       # anonymous func for calling spatial loop
-       f = (t,n) -> spatial_loop(t[1], t[2], n, spec, disk, soldata, wsp, prof,
-                                  outspec, liter, mu_symb, disc_mu; kwargs...)
-       map(f, grid, norm_terms)
-    else
-       # get planet positions
-       tvec = get_simulation_times(disk)
-       xpos, ypos = calc_planet_position(tvec, planet...)
+    # TODO hardcoded for debugging
+    xpos = range(-1.25, 1.25, length=disk.Nt)
 
-       # TODO hardcoded for debugging
-       xpos = range(-1.25, 1.25, length=disk.Nt)
+    # get grid details
+    grid_range = make_grid_range(disk.N)
+    grid_edges = get_grid_edges(grid_range)
 
-       # get grid details
-       grid_range = make_grid_range(disk.N)
-       grid_edges = get_grid_edges(grid_range)
-
-       # allocate memory
-       unocculted = trues(nsubgrid, nsubgrid)
-       sublimbdarks = zeros(nsubgrid, nsubgrid)
-       sub_z_rots = zeros(nsubgrid, nsubgrid)
+    # allocate memory
+    unocculted = trues(nsubgrid, nsubgrid)
+    sublimbdarks = zeros(nsubgrid, nsubgrid)
+    sub_z_rots = zeros(nsubgrid, nsubgrid)
 
 
-       # anonymous func for calling spatial loop
-       f = (t,n) -> spatial_loop_rm(t[1], t[2], n, grid_range, grid_edges,
-                                     spec, disk, planet..., soldata, wsp,
-                                     prof, outspec, unocculted, sublimbdarks,
-                                     sub_z_rots, liter, mu_symb, disc_mu,
-                                     xpos, ypos; nsubgrid=nsubgrid, kwargs...)
-       map(f, CartesianIndices((1:disk.N, 1:disk.N)), norm_terms)
-    end
+    # anonymous func for calling spatial loop
+    f = (t,n) -> spatial_loop_rm(t[1], t[2], n, grid_range, grid_edges,
+                                 spec, disk, planet..., soldata, wsp,
+                                 prof, outspec, unocculted, sublimbdarks,
+                                 sub_z_rots, liter, mu_symb, disc_mu,
+                                 xpos, ypos; nsubgrid=nsubgrid, kwargs...)
+    map(f, CartesianIndices((1:disk.N, 1:disk.N)), norm_terms)
 
     # ensure normalization and return
     outspec ./= maximum(outspec, dims=1)
