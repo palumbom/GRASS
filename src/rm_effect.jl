@@ -54,46 +54,35 @@ end
 function plot_planet_transit(disk::DiskParams, planet::Planet)
     # get grids
     grid_1D = make_grid(disk.N)
-    grid_2D = make_grid_2D(grid_1D)
+    grid_2D = make_grid_2D(disk.N)
     grid_xs = get_grid_xs(grid_2D)
     grid_ys = get_grid_ys(grid_2D)
     grid_edges = get_grid_edges(grid_1D)
 
-    # prodi = Iterators.product(grid, grid)
-    # grid_xs = get_grid_xs(prodi)
-    # grid_ys = get_grid_ys(prodi)
+    # get map of rotational velocities
+    mus = calc_mu.(grid_2D)
+    vels = patch_velocity_los.(grid_2D, pole=disk.pole) .* c_kms
+    ints = calc_norm_terms(disk)
 
+    ints[mus .<= 0.0] .= NaN
+    vels[mus .<= 0.0] .= NaN
 
-    # # get map of rotational velocities
-    # mus = calc_mu.(prodi)
-    # vels = patch_velocity_los.(prodi, pole=disk.pole) .* c_kms
-    # plt.imshow(vels); plt.show()
-    # ints = calc_norm_terms(disk)
-    # ints[mus .<= 0.0] .= NaN
-    # vels[mus .<= 0.0] .= NaN
+    # customize color map
+    cmap = pycopy.copy(mpl.pyplot.matplotlib.cm.get_cmap("seismic"))
+    cmap.set_bad("k")
+    # cmap.set_under("k")
 
-    # println("derp")
+    # initialize fig object
+    fig = plt.figure()
+    axs = fig.add_subplot()
 
-    # # customize color map
-    # cmap = pycopy.copy(mpl.pyplot.matplotlib.cm.get_cmap("seismic"))
-    # cmap.set_bad("k")
-    # # cmap.set_under("k")
-
-    # # initialize fig object
-    # fig = plt.figure()
-    # axs = fig.add_subplot()
-
-    # # plot the disk with line for planet
-    # # img = axs.imshow(vels', origin="lower", cmap=cmap,
-    # #                  extent=[-1,1,-1,1],
-    # #                  vmin=minimum(filter(!isnan, vels)),
-    # #                  vmax=maximum(filter(!isnan, vels)))
-    # img = axs.pcolormesh(grid_xs, grid_ys, vels, cmap=cmap, shading="auto",
-    #                      vmin=minimum(filter(!isnan, vels)),
-    #                      vmax=maximum(filter(!isnan, vels)))
-    # axs.axhline(planet.b, c="k")
-    # cb = fig.colorbar(img)
-    # cb.ax.set_ylabel("LOS Velocity (km/s)")
-    # plt.show()
+    # plot the disk with line for planet
+    img = axs.pcolormesh(grid_xs, grid_ys, vels, cmap=cmap, shading="auto",
+                         vmin=minimum(filter(!isnan, vels)),
+                         vmax=maximum(filter(!isnan, vels)))
+    axs.axhline(planet.b, c="k")
+    cb = fig.colorbar(img)
+    cb.ax.set_ylabel("LOS Velocity (km/s)")
+    plt.show()
     return nothing
 end

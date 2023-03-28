@@ -17,6 +17,7 @@ using Random
 using DataFrames
 using Statistics
 using Distributions
+using ImageFiltering
 using Interpolations
 
 # import specific methods
