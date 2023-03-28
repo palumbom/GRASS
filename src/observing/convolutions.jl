@@ -60,44 +60,22 @@ function rebin_spectrum(xs_old, ys_old, xs_new)
     return ys_new
 end
 
-# TODO better name
 function convolve_gauss(xs::AA{T,1}, ys::AA{T,1}; new_res::T=1.17e5,
                         oversampling::T=1.0) where T<:AbstractFloat
-    # TODO: input spectrum is not infinitely sharp
-    # new res is actually convolution res
-    # TODO 5/7 ??
-    # TODO width in velocity, not wavelength
+    # get kernel
     σ = 5434.5232 / new_res / 2.354
     g(x, n) = (one(T)/(σ * sqrt(2.0 * π))) * exp(-0.5 * ((x - n)/σ)^2)
+    kernel = g.(xs, xs[Int(length(xs)/2)])
 
-    # pad x array to deal with edges
-    # TODO: make padding smarter
-    xstep = minimum(diff(xs))
-    # newxs = range(first(xs)-100*xstep, last(xs)+100*xstep, step=xstep)
-    newxs = vcat(range(first(xs)-100*xstep, first(xs)-xstep, step=xstep),
-                 xs,
-                 range(last(xs)+xstep, last(xs)+100*xstep, step=xstep))
+    # pad the signal
+    signal = vcat(zeros(100), ys[:,1], zeros(100))
+    signal[1:100] .= first(ys[:,1])
+    signal[end-100:end] .= last(ys[:,1])
 
-    # TODO test that difference at left and right edges is small
-
-    # find matching indices
-    ind1 = searchsortedfirst(newxs, xs[1])
-    ind2 = searchsortedfirst(newxs, xs[end])
-
-    # pad y array
-    newys = similar(newxs)
-    newys[1:ind1-1] .= first(ys)
-    newys[ind1:ind2] .= ys
-    newys[ind2+1:end] .= last(ys)
-
-    # perform convolution
-    # TODO make this block a function for type stability
-    conv = similar(newxs)
-    eval_g = zeros(size(newys))
-    for i in eachindex(conv)
-        eval_g .= g.(newxs, newxs[i])
-        conv[i] = sum(newys .* eval_g) / sum(eval_g)
-    end
+    # do the convolution
+    new_ys = imfilter(signal, reflect(centered(kernel./maximum(kernel))), Fill(0))
+    new_ys = new_ys[101:end-100]
+    new_ys ./= maximum(new_ys)
 
     # get wavelength grid at lower resolution
     # TODO: do the math for oversampling??
@@ -106,22 +84,9 @@ function convolve_gauss(xs::AA{T,1}, ys::AA{T,1}; new_res::T=1.17e5,
     xs_out = exp.(lnλs)
 
     # re-sample convolved data onto lower res grid (preserving flux)
-    ys_out = rebin_spectrum(newxs, newys, xs_out)
+    ys_out = rebin_spectrum(xs, new_ys, xs_out)
     return xs_out, ys_out
 end
-
-# TODO this is HIGHLY broken
-# function convolve_gauss(xs::AA{T,1}, ys::AA{T,2}; new_res::T=1.17e5, oversampling::T=1.0) where T<:AbstractFloat
-#     flux_out = zeros(length(xs), size(ys,2))
-#     for i in 1:size(ys,2)
-#         out = convolve_gauss(xs, ys[:,i], new_res=new_res, oversampling=oversampling)
-#         @show length(wavs_out)
-#         @show length(out[1])
-#         flux_out[:, i] .= out[2]
-#     end
-#     out = convolve_gauss(xs, ys[:,1], new_res=new_res, oversampling=oversampling)
-#     return out[1], flux_out
-# end
 
 function degrade_resolution(wave::AA{T,1}, spec::AA{T,1}; R_new::T=700000.0, snr::T=Inf) where T<:AF
     # get new resolution element and wavelength grid
