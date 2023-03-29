@@ -1,3 +1,29 @@
+function calc_bisector_inverse_slope(bis::AA{T,1}, int::AA{T,1}) where T<:AF
+    # get total depth
+    dep = one(T) - minimum(int)
+    bot = minimum(int)
+
+    # find indices
+    idx10 = findfirst(x -> x .> 0.10 * dep + bot, int)
+    idx40 = findfirst(x -> x .> 0.40 * dep + bot, int)
+    idx55 = findfirst(x -> x .> 0.55 * dep + bot, int)
+    idx90 = findfirst(x -> x .> 0.90 * dep + bot, int)
+
+    # get v_t and v_b
+    v_t = mean(bis[idx55:idx90])
+    v_b = mean(bis[idx10:idx40])
+    return v_t - v_b
+end
+
+function calc_bisector_inverse_slope(bis::AA{T,2}, int::AA{T,2}) where T<:AF
+    out = zeros(size(bis,2))
+    for i in 1:size(bis,2)
+        out[i] = calc_bisector_inverse_slope(bis[:,i], int[:,i])
+    end
+    return out
+end
+
+
 function calculate_bisector_span(λrest::T, wav::AA{T,1}) where T<:AF
     minw = minimum(filter(!isnan, wav))
     return abs(minw - wav[5])/wav[5] * (c_ms)
@@ -11,7 +37,6 @@ function calculate_bisector_span(λrest::T, wav::AA{T,2}) where T<:AF
     end
     return out
 end
-
 
 function calculate_bisector_extreme(λrest::T, wav::AA{T,2}, bis::AA{T,2}) where T<:AF
     out = zeros(size(wav,2))
