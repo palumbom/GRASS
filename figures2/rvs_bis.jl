@@ -20,9 +20,9 @@ line_names = GRASS.get_name(lp)
 line_titles = replace.(line_names, "_" => " ")
 
 for (idx, file) in enumerate(lp.file)
-    if idx != 8
-        continue
-    end
+    # if idx != 8
+    #     continue
+    # end
     # set up paramaters for spectrum
     N = 132
     Nt = 1000
@@ -40,7 +40,7 @@ for (idx, file) in enumerate(lp.file)
     lambdas1, outspec1 = synthesize_spectra(spec1, disk, seed_rng=false, verbose=true, use_gpu=true)
 
     # set oversampling and resolutions, set color sequence
-    oversampling = 2.0
+    oversampling = 4.0
     resolutions = reverse([0.98e5, 1.2e5, 1.37e5, 2.7e5])
     instruments = ["PEPSI", "EXPRES", "NEID", "KPF"]
     colors = ["tab:blue", "tab:orange", "tab:green", "tab:purple"]
@@ -49,7 +49,8 @@ for (idx, file) in enumerate(lp.file)
     # create fig + axes objects
     fig1, axs1 = plt.subplots()
     fig2, axs2 = plt.subplots(nrows=2, ncols=2, sharex=true, sharey=true)
-    plt.subplots_adjust(wspace=0.0, hspace=0.0)
+    fig2.subplots_adjust(wspace=0.0, hspace=0.0)
+    fig3, axs3 = plt.subplots()
 
     # loop over resolutions
     for i in eachindex(resolutions)
@@ -84,39 +85,43 @@ for (idx, file) in enumerate(lp.file)
             end
         end
 
-        v_grid, ccf1 = calc_ccf(wavs_out[:,1], flux_out, [5434.5], [0.9],
+        # calculate a ccf
+        v_grid, ccf1 = calc_ccf(wavs_out[:,1], flux_out, lines, depths,
                                 resolutions[i], normalize=true,
                                 mask_type=EchelleCCFs.TopHatCCFMask,
                                 Δv_step=125.0)
         rvs1, sigs1 = calc_rvs_from_ccf(v_grid, ccf1)
 
+        axs3.plot(v_grid, ccf1)
+        plt.show()
+
+        # calculate bisector and BIS
         bis, int = GRASS.calc_bisector(v_grid, ccf1, nflux=20)
         bis_inv_slope = GRASS.calc_bisector_inverse_slope(bis, int)
 
-        # plot the line profiles
-        # axs1.plot(mean(wavs_out, dims=2), mean(flux_out, dims=2), c=colors[i], label=labels[i])
-
         # plot the bisectors
-        # axs1.plot(mean(bis, dims=2)[2:end-1], mean(int, dims=2)[2:end-1], c=colors[i])
-
-        # plot ccfs
-        # plt.plot(v_grid, mean(ccf1, dims=2), c=colors[i])
+        axs1.plot(mean(bis, dims=2)[2:end-1], mean(int, dims=2)[2:end-1], c=colors[i], label=labels[i])
 
         # plot BIS and apparent RV
         axs2[i].scatter(rvs1 .- mean(rvs1), bis_inv_slope .- mean(bis_inv_slope), c=colors[i], s=2)
 
+        # plot the line profiles
+        # axs1.plot(mean(wavs_out, dims=2), mean(flux_out, dims=2), c=colors[i], label=labels[i])
+
+        # plot ccfs
+        # plt.plot(v_grid, mean(ccf1, dims=2), c=colors[i])
     end
     # set plot stuff for first plot
     axs1.set_xlabel(L"\Delta v\ {\rm (m s}^{-1}{\rm )}")
-    axs1.set_ylabel(L"{\rm Normalized\ Flux}")
-    axs1.set_title(("\${\\rm " * replace(line_titles[idx], " "=>"\\ ") * "}\$"))
+    axs1.set_ylabel(L"{\rm CCF}")
+    axs1.set_title("\${\\rm " * replace(line_titles[idx], " "=>"\\ ") * "}\$")
     axs1.legend()
+    fig1.savefig(line_names[idx] * "_bisector.pdf")
 
-    plt.show()
-
-    # plt.xlim(-1.5, 1.5)
-    # plt.ylim(-1.0, 0.85)
-    # plt.xlabel(L"\Delta {\rm RV\ (m/s)}")
-    # plt.ylabel(L"{\rm BIS\ (m/s)}")
-    # plt.show()
+    # set plot stuff for second plot
+    fig2.supxlabel(L"\Delta {\rm (m s}^{-1}{\rm )}")
+    fig2.supylabel(L"{\rm BIS}\ - \overline{\rm BIS}\ {\rm (m s}^{-1}{\rm )}")
+    fig2.suptitle("\${\\rm " * replace(line_titles[idx], " "=>"\\ ") * "}\$")
+    fig2.savefig(line_names[idx] * "_rv_vs_bis.pdf")
+    plt.close("all")
 end
