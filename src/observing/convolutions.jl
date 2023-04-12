@@ -63,7 +63,8 @@ end
 function convolve_gauss(xs::AA{T,1}, ys::AA{T,1}; new_res::T=1.17e5,
                         oversampling::T=1.0) where T<:AbstractFloat
     # get kernel
-    σ = 5434.5232 / new_res / 2.354
+    # TODO: wavelength dependent kernel width???
+    σ = mean(xs) / new_res / 2.354
     g(x, n) = (one(T)/(σ * sqrt(2.0 * π))) * exp(-0.5 * ((x - n)/σ)^2)
     kernel = g.(xs, xs[Int(length(xs)/2)])
 
@@ -78,12 +79,11 @@ function convolve_gauss(xs::AA{T,1}, ys::AA{T,1}; new_res::T=1.17e5,
     new_ys ./= maximum(new_ys)
 
     # get wavelength grid at lower resolution
-    # TODO: do the math for oversampling??
     Δlnλ = 1.0 / new_res
     lnλs = range(log(first(xs)), log(last(xs)), step=Δlnλ/oversampling)
     xs_out = exp.(lnλs)
 
-    # re-sample convolved data onto lower res grid (preserving flux)
+    # flux-conserving resample the convolved data onto lower res grid
     ys_out = rebin_spectrum(xs, new_ys, xs_out)
     return xs_out, ys_out
 end
