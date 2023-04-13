@@ -45,9 +45,6 @@ line_names = GRASS.get_name(lp)
 line_titles = replace.(line_names, "_" => " ")
 
 for (idx, file) in enumerate(lp.file)
-    if line_names[idx] != "FeI_5576"
-        continue
-    end
     # set up paramaters for spectrum
     N = 132
     Nt = 1000
@@ -138,7 +135,7 @@ for (idx, file) in enumerate(lp.file)
 
         # get the slope of the fit
         slope = round(coeffs(pfit)[2], digits=3)
-        fit_label = "\$ R \\sim " .* string(slope) .* "\$"
+        fit_label = "\$ " .* string(slope) .* "\$"
 
         # plot the bisectors
         axs1.plot(mean(bis, dims=2)[2:end-1], mean(int, dims=2)[2:end-1], c=colors[i], label=labels[i])
