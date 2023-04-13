@@ -41,15 +41,16 @@ end
 lp = GRASS.LineProperties()
 line_species = GRASS.get_species(lp)
 rest_wavelengths = GRASS.get_rest_wavelength(lp)
+line_depths = GRASS.get_depth(lp)
 line_names = GRASS.get_name(lp)
 line_titles = replace.(line_names, "_" => " ")
 
 for (idx, file) in enumerate(lp.file)
     # set up paramaters for spectrum
     N = 132
-    Nt = 1000
+    Nt = 1500
     lines = [rest_wavelengths[idx]]
-    depths = [0.9]
+    depths = [line_depths[idx]]
     geffs = [0.0]
     templates = [file]
     variability = repeat([true], length(lines))
@@ -137,8 +138,13 @@ for (idx, file) in enumerate(lp.file)
         slope = round(coeffs(pfit)[2], digits=3)
         fit_label = "\$ " .* string(slope) .* "\$"
 
-        # plot the bisectors
-        axs1.plot(mean(bis, dims=2)[2:end-1], mean(int, dims=2)[2:end-1], c=colors[i], label=labels[i])
+        # get the bisectors and subtract off mean
+        mean_bis = dropdims(mean(bis, dims=2))[2:end-1]
+        mean_int = dropdims(mean(int, dims=2))[2:end-1]
+        mean_bis .-= mean(mean_bis)
+
+        # plot the bisector
+        axs1.plot(mean_bis, mean_int, c=colors[i], label=labels[i])
 
         # plot BIS and apparent RV
         axs2[i].scatter(xdata, ydata, c=colors[i], s=2, label=labels[i])
