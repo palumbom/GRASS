@@ -65,6 +65,7 @@ function patch_velocity_los(x::T, y::T; rstar=one(T), pole=(zero(T), one(T), zer
     r2 = calc_r2(x,y)
     r2 > 1.0 && return 0.0
 
+    # TODO: v_max is HARDCODED
     # caculate velocity and project onto line of sight
     polex, poley, polez = pole
     v0 = 0.000168710673 # in (Rsol/day)/speed_of_light

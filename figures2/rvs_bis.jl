@@ -46,9 +46,12 @@ line_names = GRASS.get_name(lp)
 line_titles = replace.(line_names, "_" => " ")
 
 for (idx, file) in enumerate(lp.file)
+    if line_names[idx] != "FeI_5576"
+        continue
+    end
     # set up paramaters for spectrum
     N = 132
-    Nt = 1500
+    Nt = 1250
     lines = [rest_wavelengths[idx]]
     depths = [line_depths[idx]]
     geffs = [0.0]
@@ -76,7 +79,7 @@ for (idx, file) in enumerate(lp.file)
     # create fig + axes objects
     fig1, axs1 = plt.subplots(figsize=(11,8.5))
     fig2, axs2 = plt.subplots(figsize=(11,8.5), nrows=2, ncols=2, sharex=true, sharey=true)
-    fig3, axs3 = plt.subplots(figsize=(11,8.5))
+    # fig3, axs3 = plt.subplots(figsize=(11,8.5))
 
     # re-order axs so that its indexed by row
     axs2 = [axs2[1], axs2[3], axs2[2], axs2[4]]
@@ -114,9 +117,12 @@ for (idx, file) in enumerate(lp.file)
             end
         end
 
+        # set mask with to two pixels in velocity
+        mask_width = (GRASS.c_ms/resolutions[i]) * (2.0/oversampling)
+
         # calculate a ccf
         v_grid, ccf1 = calc_ccf(wavs_out[:,1], flux_out, lines, depths,
-                                resolutions[i], normalize=true,
+                                resolutions[i], mask_width=mask_width,
                                 mask_type=EchelleCCFs.TopHatCCFMask,
                                 Δv_step=125.0)
         rvs1, sigs1 = calc_rvs_from_ccf(v_grid, ccf1)
@@ -139,8 +145,8 @@ for (idx, file) in enumerate(lp.file)
         fit_label = "\$ " .* string(slope) .* "\$"
 
         # get the bisectors and subtract off mean
-        mean_bis = dropdims(mean(bis, dims=2))[2:end-1]
-        mean_int = dropdims(mean(int, dims=2))[2:end-1]
+        mean_bis = dropdims(mean(bis, dims=2), dims=2)[2:end-1]
+        mean_int = dropdims(mean(int, dims=2), dims=2)[2:end-1]
         mean_bis .-= mean(mean_bis)
 
         # plot the bisector
@@ -149,37 +155,47 @@ for (idx, file) in enumerate(lp.file)
         # plot BIS and apparent RV
         axs2[i].scatter(xdata, ydata, c=colors[i], s=2, label=labels[i])
         axs2[i].plot(xmodel, ymodel, c="k", ls="--", label=L"{\rm Slope } \approx\ " * fit_label)
+        # axs2[i].text(labels[i], -1.0, -1.0,)
 
         # plot the line profiles
-        axs3.plot(mean(wavs_out, dims=2), mean(flux_out, dims=2), c=colors[i], label=labels[i])
+        # axs3.plot(mean(wavs_out, dims=2), mean(flux_out, dims=2), c=colors[i], label=labels[i])
 
         # plot ccfs
         # plt.plot(v_grid, mean(ccf1, dims=2), c=colors[i])
     end
+    # set font sizes
+    title_font = 26
+    tick_font = 20
+    legend_font = 18
+
     # set plot stuff for first plot
-    axs1.set_xlabel(L"\Delta v\ {\rm (m s}^{-1}{\rm )}")
-    axs1.set_ylabel(L"{\rm CCF}")
-    axs1.set_title("\${\\rm " * replace(line_titles[idx], " "=>"\\ ") * "}\$")
-    axs1.legend()
+    axs1.set_xlabel(L"\Delta v\ {\rm (m s}^{-1}{\rm )}", fontsize=title_font)
+    axs1.set_ylabel(L"{\rm CCF}", fontsize=title_font)
+    axs1.set_title("\${\\rm " * replace(line_titles[idx], " "=>"\\ ") * "}\$", fontsize=title_font)
+    axs1.tick_params(axis="both", which="major", labelsize=tick_font)
+    axs1.legend(fontsize=legend_font)
     fig1.savefig("plottos/" * line_names[idx] * "_bisector.pdf", bbox_inches="tight")
 
     # set plot stuff for second plot
     for ax in axs2
-        ax.legend(loc="upper right")
+        ax.tick_params(axis="both", which="major", labelsize=tick_font)
+        ax.legend(loc="upper right", fontsize=legend_font, ncols=1,
+                  columnspacing=0.8, handletextpad=0.5, labelspacing=0.08)
         ax.set_xlim(-1.25, 1.25)
-        ax.set_ylim(-1.25, 1.25)
+        ax.set_ylim(-1.25, 1.4)
     end
-    fig2.supxlabel(L"\Delta v\ {\rm (m s}^{-1}{\rm )}")
-    fig2.supylabel(L"{\rm BIS}\ - \overline{\rm BIS}\ {\rm (m s}^{-1}{\rm )}")
-    fig2.suptitle("\${\\rm " * replace(line_titles[idx], " "=>"\\ ") * "}\$")
+    fig2.supxlabel(L"\Delta v\ {\rm (m s}^{-1}{\rm )}", fontsize=title_font)
+    fig2.supylabel(L"{\rm BIS}\ - \overline{\rm BIS}\ {\rm (m s}^{-1}{\rm )}", fontsize=title_font)
+    fig2.suptitle("\${\\rm " * replace(line_titles[idx], " "=>"\\ ") * "}\$", fontsize=title_font)
     fig2.savefig("plottos/" * line_names[idx] * "_rv_vs_bis.pdf", bbox_inches="tight")
 
     # set plot stuff for third plot
-    axs3.set_xlabel(L"{\rm Wavelength\ (\AA)}")
-    axs3.set_ylabel(L"{\rm Normalized\ Flux}")
-    axs3.set_title("\${\\rm " * replace(line_titles[idx], " "=>"\\ ") * "}\$")
-    axs3.legend()
-    fig3.savefig("plottos/" * line_names[idx] * "_line_profile.pdf", bbox_inches="tight")
+    # axs3.tick_params(axis="both", which="major", labelsize=tick_font)
+    # axs3.set_xlabel(L"{\rm Wavelength\ (\AA)}", fontsize=title_font)
+    # axs3.set_ylabel(L"{\rm Normalized\ Flux}", fontsize=title_font)
+    # axs3.set_title("\${\\rm " * replace(line_titles[idx], " "=>"\\ ") * "}\$", fontsize=title_font)
+    # axs3.legend(fontsize=legend_font)
+    # fig3.savefig("plottos/" * line_names[idx] * "_line_profile.pdf", bbox_inches="tight")
 
     plt.close("all")
 end

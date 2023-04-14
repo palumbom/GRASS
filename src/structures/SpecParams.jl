@@ -77,7 +77,8 @@ Construct a `SpecParams` composite type instance. If `variability` is not specif
 - `resolution::Float64=7e8`: Spectral resolution of spectrum
 """
 function SpecParams(;lines=[], depths=[], geffs=[], variability=[],
-                    templates=[], blueshifts=[], resolution=7e5, buffer=2.0)
+                    templates=[], blueshifts=[], resolution=7e5, buffer=2.0,
+                    oversampling=2.0)
     @assert length(lines) == length(depths)
     @assert !isempty(lines)
     @assert !isempty(depths)
@@ -118,7 +119,7 @@ function SpecParams(;lines=[], depths=[], geffs=[], variability=[],
     # generate Delta ln lambda
     minλ = minimum(lines) - buffer
     maxλ = maximum(lines) + buffer
-    Δlnλ = (1.0 / resolution)
+    Δlnλ = (1.0 / resolution) / oversampling
     lnλs = range(log(minλ), log(maxλ), step=Δlnλ)
     lambdas = exp.(lnλs)
 
