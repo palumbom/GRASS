@@ -46,9 +46,6 @@ line_names = GRASS.get_name(lp)
 line_titles = replace.(line_names, "_" => " ")
 
 for (idx, file) in enumerate(lp.file)
-    if line_names[idx] != "FeI_5576"
-        continue
-    end
     # set up paramaters for spectrum
     N = 132
     Nt = 1250
@@ -77,8 +74,8 @@ for (idx, file) in enumerate(lp.file)
     labels = "\$ R \\sim " .* round_and_format.(resolutions) .* "{\\rm \\ (" .* instruments .* ")}" .* "\$"
 
     # create fig + axes objects
-    fig1, axs1 = plt.subplots(figsize=(11,8.5))
-    fig2, axs2 = plt.subplots(figsize=(11,8.5), nrows=2, ncols=2, sharex=true, sharey=true)
+    fig1, axs1 = plt.subplots(figsize=(10.0,7.7))
+    fig2, axs2 = plt.subplots(figsize=(10.0,7.7), nrows=2, ncols=2, sharex=true, sharey=true)
     # fig3, axs3 = plt.subplots(figsize=(11,8.5))
 
     # re-order axs so that its indexed by row
@@ -150,12 +147,12 @@ for (idx, file) in enumerate(lp.file)
         mean_bis .-= mean(mean_bis)
 
         # plot the bisector
-        axs1.plot(mean_bis, mean_int, c=colors[i], label=labels[i])
+        axs1.plot(mean_bis, mean_int, c=colors[i], label=labels[i], lw=3.0)
 
         # plot BIS and apparent RV
-        axs2[i].scatter(xdata, ydata, c=colors[i], s=2, label=labels[i])
-        axs2[i].plot(xmodel, ymodel, c="k", ls="--", label=L"{\rm Slope } \approx\ " * fit_label)
-        # axs2[i].text(labels[i], -1.0, -1.0,)
+        axs2[i].scatter(xdata, ydata, c=colors[i], s=2)#, label=labels[i])
+        axs2[i].plot(xmodel, ymodel, c="k", ls="--", label=L"{\rm Slope } \approx\ " * fit_label, lw=2.5)
+        axs2[i].text(-1.1, -1.05, labels[i], fontsize=18, bbox=Dict("boxstyle" => "round", "fc" => "white", "ec" => "lightgray"))
 
         # plot the line profiles
         # axs3.plot(mean(wavs_out, dims=2), mean(flux_out, dims=2), c=colors[i], label=labels[i])
@@ -171,9 +168,9 @@ for (idx, file) in enumerate(lp.file)
     # set plot stuff for first plot
     axs1.set_xlabel(L"\Delta v\ {\rm (m s}^{-1}{\rm )}", fontsize=title_font)
     axs1.set_ylabel(L"{\rm CCF}", fontsize=title_font)
-    axs1.set_title("\${\\rm " * replace(line_titles[idx], " "=>"\\ ") * "}\$", fontsize=title_font)
-    axs1.tick_params(axis="both", which="major", labelsize=tick_font)
-    axs1.legend(fontsize=legend_font)
+    axs1.set_title("\${\\rm " * replace(line_titles[idx], " "=>"\\ ") * "\\ \\AA}\$", fontsize=title_font)
+    axs1.tick_params(axis="both", which="major", labelsize=tick_font+4)
+    axs1.legend(fontsize=legend_font+2)
     fig1.savefig("plottos/" * line_names[idx] * "_bisector.pdf", bbox_inches="tight")
 
     # set plot stuff for second plot
@@ -183,10 +180,13 @@ for (idx, file) in enumerate(lp.file)
                   columnspacing=0.8, handletextpad=0.5, labelspacing=0.08)
         ax.set_xlim(-1.25, 1.25)
         ax.set_ylim(-1.25, 1.4)
+        ax.set_xticks([-1, -0.5, 0.0, 0.5, 1.0])
+        ax.set_yticks([-1, -0.5, 0.0, 0.5, 1.0])
     end
-    fig2.supxlabel(L"\Delta v\ {\rm (m s}^{-1}{\rm )}", fontsize=title_font)
-    fig2.supylabel(L"{\rm BIS}\ - \overline{\rm BIS}\ {\rm (m s}^{-1}{\rm )}", fontsize=title_font)
-    fig2.suptitle("\${\\rm " * replace(line_titles[idx], " "=>"\\ ") * "}\$", fontsize=title_font)
+    fig2.supxlabel(L"\Delta v\ {\rm (m s}^{-1}{\rm )}", fontsize=title_font, x=0.55, y=0.05)
+    fig2.supylabel(L"{\rm BIS}\ - \overline{\rm BIS}\ {\rm (m s}^{-1}{\rm )}", fontsize=title_font, x=0.03, y=0.52)
+    fig2.suptitle("\${\\rm " * replace(line_titles[idx], " "=>"\\ ") * "\\ \\AA}\$", fontsize=title_font, x=0.55, y=0.95)
+    plt.tight_layout(pad=-2.0)
     fig2.savefig("plottos/" * line_names[idx] * "_rv_vs_bis.pdf", bbox_inches="tight")
 
     # set plot stuff for third plot
