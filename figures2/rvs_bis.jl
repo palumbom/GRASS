@@ -45,6 +45,19 @@ line_depths = GRASS.get_depth(lp)
 line_names = GRASS.get_name(lp)
 line_titles = replace.(line_names, "_" => " ")
 
+# set oversampling and resolutions, set color sequence
+oversampling = 4.0
+resolutions = reverse([0.98e5, 1.2e5, 1.37e5, 2.7e5])
+instruments = ["PEPSI", "EXPRES", "NEID", "KPF"]
+# colors = ["tab:blue", "tab:orange", "tab:green", "tab:purple"]
+colors = ["#56B4E9", "#E69F00", "#009E73", "#CC79A7"]
+
+# get labels for resolutions
+labels = "\$ R \\sim " .* round_and_format.(resolutions) .* "{\\rm \\ (" .* instruments .* ")}" .* "\$"
+
+depths_plot = zeros(length(lp.file))
+slopes_plot = zeros(length(lp.file), length(resolutions))
+
 for (idx, file) in enumerate(lp.file)
     # set up paramaters for spectrum
     N = 132
@@ -57,26 +70,17 @@ for (idx, file) in enumerate(lp.file)
     resolution = 7e5
     seed_rng = true
 
+    depths_plot[idx] = line_depths[idx]
+
     disk = DiskParams(N=N, Nt=Nt)
     spec1 = SpecParams(lines=lines, depths=depths, variability=variability,
                        geffs=geffs, templates=templates, resolution=resolution)
     lambdas1, outspec1 = synthesize_spectra(spec1, disk, seed_rng=true,
                                             verbose=true, use_gpu=true)
 
-    # set oversampling and resolutions, set color sequence
-    oversampling = 4.0
-    resolutions = reverse([0.98e5, 1.2e5, 1.37e5, 2.7e5])
-    instruments = ["PEPSI", "EXPRES", "NEID", "KPF"]
-    # colors = ["tab:blue", "tab:orange", "tab:green", "tab:purple"]
-    colors = ["#56B4E9", "#E69F00", "#009E73", "#CC79A7"]
-
-    # get labels for resolutions
-    labels = "\$ R \\sim " .* round_and_format.(resolutions) .* "{\\rm \\ (" .* instruments .* ")}" .* "\$"
-
     # create fig + axes objects
     fig1, axs1 = plt.subplots(figsize=(10.0,7.7))
     fig2, axs2 = plt.subplots(figsize=(10.0,7.7), nrows=2, ncols=2, sharex=true, sharey=true)
-    # fig3, axs3 = plt.subplots(figsize=(11,8.5))
 
     # re-order axs so that its indexed by row
     axs2 = [axs2[1], axs2[3], axs2[2], axs2[4]]
@@ -154,6 +158,9 @@ for (idx, file) in enumerate(lp.file)
         axs2[i].plot(xmodel, ymodel, c="k", ls="--", label=L"{\rm Slope } \approx\ " * fit_label, lw=2.5)
         axs2[i].text(-1.1, -1.05, labels[i], fontsize=18, bbox=Dict("boxstyle" => "round", "fc" => "white", "ec" => "lightgray"))
 
+        # plot slope vs line depth
+        slopes_plot[idx, i] = coeffs(pfit)[2]
+
         # plot the line profiles
         # axs3.plot(mean(wavs_out, dims=2), mean(flux_out, dims=2), c=colors[i], label=labels[i])
 
@@ -196,6 +203,18 @@ for (idx, file) in enumerate(lp.file)
     # axs3.set_title("\${\\rm " * replace(line_titles[idx], " "=>"\\ ") * "}\$", fontsize=title_font)
     # axs3.legend(fontsize=legend_font)
     # fig3.savefig("plottos/" * line_names[idx] * "_line_profile.pdf", bbox_inches="tight")
-
     plt.close("all")
 end
+
+fig3, axs3 = plt.subplots()
+for i in eachindex(resolutions)
+    sort_idx = sortperm(depths_plot)
+    axs3.scatter(depths_plot[sort_idx], slopes_plot[sort_idx,i], color=colors[i])
+    axs3.plot(depths_plot[sort_idx], slopes_plot[sort_idx,i], color=colors[i], label=labels[i])
+end
+
+axs3.set_xlabel("Depth")
+axs3.set_ylabel("Slope")
+axs3.legend()
+fig3.savefig("plottos/slope_vs_depth.pdf")
+plt.show()
