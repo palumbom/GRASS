@@ -10,3 +10,4 @@
 
 .ipynb_checkpoints
 /docs/build/
+input_data/*
