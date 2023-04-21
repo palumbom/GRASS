@@ -1,3 +1,5 @@
+using Pkg
+Pkg.build("GRASS")
 using GRASS
 using Documenter
 

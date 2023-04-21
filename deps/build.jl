@@ -10,4 +10,3 @@ open(GzipDecompressorStream, download_loc) do io
 end
 
 mv(joinpath("..", "tmp", "input_data"), joinpath("..", "input_data"), force=true)
-rm(joinpath("..", "tmp"), force=true)
