@@ -1,8 +1,18 @@
-const download_url = ""
-const download_path = joinpath("..", "data", "input")
+using Tar, CodecZlib
 
-function download_input_data()
+moddir = abspath(joinpath(@__DIR__, ".."))
+datdir = abspath(joinpath(moddir, "data/"))
+soldir = abspath(joinpath(datdir, "input/"))
 
-
-    return nothing
+@assert isdir(moddir)
+@assert isdir(datdir)
+if !isdir(soldir)
+    mkdir(soldir)
 end
+
+download_url = "https://g-50c10.ffdaa9.e229.data.globus.org/GRASS_Input/input.tar.gz"
+download_loc = abspath(joinpath(datdir, "input.tar.gz"))
+
+download(download_url, download_loc)
+
+Tar.extract(download_loc, soldir)
