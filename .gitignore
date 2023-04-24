@@ -13,7 +13,6 @@
 docs/build/
 Manifest.toml
 data/spvis.dat
-data/spvis.dat.gz
 data/iag_blueshifts.dat
 sftp-config*.json
-
+data/input/*.h5
