@@ -9,50 +9,8 @@ using Statistics
 using EchelleCCFs
 using Distributions
 
-# plotting
-using LaTeXStrings
-import PyPlot; plt = PyPlot; mpl = plt.matplotlib; plt.ioff()
-mpl.style.use(GRASS.moddir * "figures1/fig.mplstyle")
-
-# get command line args and output directories
-run, plot = parse_args(ARGS)
+# get plot directories
 grassdir, plotdir, datadir = check_plot_dirs()
-
-# determine whether to use GPU
-use_gpu = CUDA.functional()
-
-function blueshift_vs_depth(depths::AbstractArray{Float64,1};
-                            use_gpu::Bool=use_gpu,
-                            blueshifts=[])
-    # set up stuff for lines
-    lines = [5250.6]
-    templates = ["FeI_5250.6"]
-    resolution = 7e5
-    disk = DiskParams(N=132, Nt=50)
-
-    # allocate memory and loop over depths
-    rvs_avg = zeros(length(depths))
-    std_avg = zeros(length(depths))
-    for (idx, depth) in enumerate(depths)
-        @printf(">>> Doing depth %.2f \r", depth)
-        if isempty(blueshifts)
-            spec = SpecParams(lines=lines, depths=[depth], templates=templates, resolution=resolution)
-        else
-            spec = SpecParams(lines=lines, depths=[depth], blueshifts=[blueshifts[idx]], templates=templates, resolution=resolution)
-        end
-
-        # synthesize spectra
-        lambdas1, outspec1 = synthesize_spectra(spec, disk, use_gpu=use_gpu, verbose=false)
-
-        # calculate the RVs
-        v_grid, ccf1 = calc_ccf(lambdas1, outspec1, spec)
-        rvs1, sigs1 = calc_rvs_from_ccf(v_grid, ccf1)
-        rvs_avg[idx] = mean(rvs1)
-        std_avg[idx] = std(rvs1)
-    end
-    println()
-    return rvs_avg, std_avg
-end
 
 # read in the data table from IAG paper
 df_iag = GRASS.read_iag_blueshifts()
@@ -124,20 +82,18 @@ end
 
 # get blueshifts to simulation
 blueshifts = model(bin_centers, pfit.param)
-rvs_avg, rvs_std = blueshift_vs_depth(bin_centers)
 
-# plot the result
-fig, ax1 = plt.subplots()
-ax1.scatter(depths, blueshift, s=1, alpha=0.5, c="k", label=L"{\rm IAG}")
-ax1.errorbar(bin_centers, blueshift_med, yerr=blueshift_std, fmt=".", capsize=2.0,
-             markersize=10, c="black", label=L"{\rm Binned\ IAG}")
-plt.plot(xs, ys, "k--")
-ax1.scatter(bin_centers, rvs_avg, c="tab:blue", s=25, label=L"{\rm Synthetic}", zorder=3)
-plt.xlim(0.0, 1.0)
-ax1.set_ylim(-1000, 400)
-ax1.set_xlabel(L"{\rm Depth}")
-ax1.set_ylabel(L"{\rm Convective\ Blueshift\ (ms^{-1})}")
-ax1.legend(ncol=3, fontsize=11, loc="upper center")
-fig.savefig(plotdir * "conv_blueshift.pdf")
-# plt.show()
-plt.clf(); plt.close()
+# evaluate the model on a fine grid of depths
+depths_out = range(0.01, 1.0, step=0.01)
+blueshifts_out = model(depths_out, pfit.param)
+
+# do nearest neighbor interpolation on std
+sigmas_out = zeros(length(depths_out))
+for i in eachindex(depths_out)
+    idx = GRASS.searchsortednearest(bin_centers, depths_out[i])
+    sigmas_out[i] = blueshift_std[idx]
+end
+
+# write the IAG data to disk
+df_out = DataFrame("depth" => depths_out, "blueshift" => blueshifts_out, "sigma" => sigmas_out)
+CSV.write(GRASS.datdir * "convective_blueshift.dat", df_out)
