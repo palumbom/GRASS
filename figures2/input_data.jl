@@ -3,11 +3,13 @@ using CSV
 using DataFrames
 using Statistics
 using GRASS
+using PyCall
 
 # plotting imports
 import PyPlot; plt = PyPlot; mpl = plt.matplotlib; plt.ioff()
 using LaTeXStrings
 mpl.style.use(GRASS.moddir * "figures1/fig.mplstyle")
+adjust_text = pyimport("adjustText")
 
 # get command line args and output directories
 run, plot = parse_args(ARGS)
@@ -161,29 +163,190 @@ function plot_input_data(line_name::String, line_info::DataFrame)
     return
 end
 
-function main()
+# function main()
     # make sure directory tree is set up
     if !isdir(plotdir * "input_plots/")
         mkdir(plotdir * "input_plots/")
     end
 
-    # get summary of present lines
-    line_info = CSV.read(GRASS.datdir * "line_info.csv", DataFrame)
+    # # get summary of present lines
+    # line_info = CSV.read(GRASS.datdir * "line_info.csv", DataFrame)
 
-    # loop over lines in line list
-    for name in line_info.name
-        # plot the spectrum
-        plot_input_spectra(name, line_info; highlight=true)
+    # # get summary of present line atomic params etc.
+    lp = LineProperties(exclude=[""])
+    files = lp.file
+    airwavs = GRASS.get_rest_wavelength(lp)
+    names = GRASS.get_name(lp)
 
-        # plot the input data if it exists
-        indir = GRASS.soldir * name * "/"
-        if isdir(indir) && !isempty(indir)
-            plot_input_data(name, line_info)
+    # # number of breaks in plot needed
+    # nregions = length(unique(files))
+    # files = unique(files)
+    # fdirs = split.(getindex.(splitdir.(files), 2), ".")
+
+    # look for input data
+    larsdir = "/storage/home/mlp95/ford_dir/mlp95/lars_spectra/"
+    dirs = filter(isdir, readdir(larsdir, join=true))
+    nregions = length(dirs)
+
+    # get the wavelength regions
+    wavmins = zeros(length(dirs))
+    fluxmins = zeros(length(dirs))
+    wavmaxs = zeros(length(dirs))
+    fluxmaxs = zeros(length(dirs))
+    for i in eachindex(dirs)
+        # get subset'd dataframes
+        df = GRASS.sort_spectrum_data(dir=dirs[i])
+        df = subset(df, :axis => x -> x .== "c")
+        file = joinpath(dirs[i], df.fname[1])
+
+        # read in the file
+        wavs, flux = GRASS.read_spectrum(file)
+        flux = mean(flux,dims=2)./maximum(mean(flux,dims=2))
+
+        wavmins[i] = minimum(wavs)
+        fluxmins[i] = minimum(flux)
+        wavmaxs[i] = maximum(wavs)
+        fluxmaxs[i] = maximum(flux)
+    end
+
+    # sort on wavmin indices
+    idx = sortperm(wavmins)
+    wavmins .= wavmins[idx]
+    fluxmins .= fluxmins[idx]
+    wavmaxs .= wavmaxs[idx]
+    fluxmaxs .= fluxmaxs[idx]
+    dirs .= dirs[idx]
+
+    # get width of wavelength regions
+    wav_wids = wavmaxs .- wavmins
+    wav_rats = wav_wids ./ wav_wids[1]
+
+    # create plot objects
+    fig = plt.figure(figsize=(21,8))
+    gss = mpl.gridspec.GridSpec(1, nregions, width_ratios=wav_rats)
+    axs = [plt.subplot(ax) for ax in gss]
+    # fig, axs = plt.subplots(1, nregions, sharey=true, figsize=(15,3))
+    fig.subplots_adjust(wspace=0.05)
+
+    # loop over files
+    for i in eachindex(dirs)
+        # get subset'd dataframes
+        df = GRASS.sort_spectrum_data(dir=dirs[i])
+        df = subset(df, :axis => x -> x .== "c")
+        file = joinpath(dirs[i], df.fname[1])
+
+        # read in the file
+        wavs, spec = GRASS.read_spectrum(file)
+
+        # take a simple mean and roughly normalize
+        wavs = dropdims(mean(wavs, dims=2), dims=2)
+        spec = dropdims(mean(spec, dims=2), dims=2)
+        spec ./= maximum(spec)
+
+        # smooth the spectrum
+        wavs = GRASS.moving_average(wavs, 5)
+        spec = GRASS.moving_average(spec, 5)
+
+        # interpolate up to high res for nice plotting of minima
+        itp = GRASS.linear_interp(wavs, spec)
+        wavs2 = range(minimum(wavs), maximum(wavs), step=minimum(diff(wavs)/5))
+        spec2 = itp.(wavs2)
+
+        # plot the data
+        axs[i].plot(wavs2, spec2, c="k")
+
+        # set the xlimits
+        axs[i].set_xlim(minimum(wavs2) - 0.5, maximum(wavs2) + 0.5)
+        axs[i].set_ylim(-0.1, 1.1)
+        # axs[i].set_box_aspect(0.5)
+
+        # axs[i].grid(false)
+
+        # set the ticks
+        wavmin = round(Int,minimum(wavs2))
+        wavmid = round(Int, median(wavs2))
+        wavmax = round(Int,maximum(wavs2))
+
+        # find airwavs in wavelength region
+        # idk = findall(x -> (x .<= maximum(wavs2) .& (x .>= minimum(wavs2))), airwavs)
+        airwav_idx = findall(x -> (x .<= maximum(wavs2)) .& (x .>= minimum(wavs2)), airwavs)
+        airwav_ann = airwavs[airwav_idx]
+        names_ann = names[airwav_idx]
+
+        texts = []
+        for j in eachindex(airwav_idx)
+            # find location on axis
+            idx2 = findfirst(x-> x .>= airwav_ann[j], wavs2)
+            min = argmin(spec2[idx2-50:idx2+50]) + idx2 - 50
+
+            # set rotation
+            if isapprox(airwav_ann[j], 5896, atol=1e0)
+                rotation = 0.0
+                d1 = 0.025
+                d2 = 0.1
+            else
+                rotation = 270.0
+                d1 = 0.025
+                d2 = 0.22
+            end
+
+            # annotate with line name
+            arrowprops = Dict("facecolor"=>"black", "lw"=>1.5, "arrowstyle"=>"-")
+            txt = axs[i].annotate(("\${\\rm " * replace(names_ann[j], "_" => "\\ ") * "}\$"), rotation=rotation,
+                                  (wavs2[min], spec2[min] - d1), (wavs2[min], spec2[min] - d2),
+                                  arrowprops=arrowprops, horizontalalignment="center", fontsize=12)
+            push!(texts, txt)
+        end
+
+        # d = 0.5
+        # adjust_text.adjust_text(texts, arrowprops=Dict("arrowstyle"=>"-", "color"=>"k", "lw"=>0.5),
+        #                         expand_text=(d, d), expand_points=(d, d), expand_objects=(d, d),
+        #                         expand_align=(d,d))
+
+        # set the xticks
+        axs[i].set_xticks([wavmid-2, wavmid, wavmid+2])
+        axs[i].xaxis.set_tick_params(rotation=45)
+
+        # deal with axis break decoration stuff
+        d = 0.01
+        if i > 1
+            axs[i].yaxis.set_tick_params(left=false, labelleft=false)
+            axs[i].spines["left"].set_visible(false)
+            axs[i].plot([-d, +d], [-d, +d], transform=axs[i].transAxes, c="k", clip_on=false, lw=1)
+            axs[i].plot([-d, +d], [1-d, 1+d], transform=axs[i].transAxes, c="k", clip_on=false, lw=1)
+        end
+
+        if i < length(dirs)
+            axs[i].spines["right"].set_visible(false)
+            axs[i].plot([1-d, 1+d], [-d, +d], transform=axs[i].transAxes, c="k", clip_on=false, lw=1)
+            axs[i].plot([1-d, 1+d], [1-d, 1+d], transform=axs[i].transAxes, c="k", clip_on=false, lw=1)
         end
     end
-end
 
-if (run | plot)
-    main()
-end
+    # make axis labels
+    fig.supxlabel(L"{\rm Wavelength\ (\AA)}", y=-0.01, fontsize=21)
+    fig.supylabel(L"{\rm Normalized\ Flux}", x=0.09, fontsize=21)
+
+    # save the fig
+    fig.savefig("spectra_collage.pdf")
+    plt.clf(); plt.close()
+
+    # plot all the lines with broken axes
+
+    # # loop over lines in line list
+    # for name in line_info.name
+    #     # plot the spectrum
+    #     plot_input_spectra(name, line_info; highlight=true)
+
+    #     # plot the input data if it exists
+    #     indir = GRASS.soldir * name * "/"
+    #     if isdir(indir) && !isempty(indir)
+    #         plot_input_data(name, line_info)
+    #     end
+    # end
+# end
+
+# if (run | plot)
+#     main()
+# end
 
