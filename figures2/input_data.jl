@@ -8,7 +8,7 @@ using PyCall
 # plotting imports
 import PyPlot; plt = PyPlot; mpl = plt.matplotlib; plt.ioff()
 using LaTeXStrings
-mpl.style.use(GRASS.moddir * "figures1/fig.mplstyle")
+mpl.style.use(joinpath(GRASS.moddir, "fig.mplstyle"))
 adjust_text = pyimport("adjustText")
 
 # get command line args and output directories
@@ -305,7 +305,8 @@ end
 
         # set the xticks
         axs[i].set_xticks([wavmid-2, wavmid, wavmid+2])
-        axs[i].xaxis.set_tick_params(rotation=45)
+        axs[i].xaxis.set_tick_params(rotation=45, fontsize=16)
+        axs[i].yaxis.set_tick_params(fontsize=16)
 
         # deal with axis break decoration stuff
         d = 0.01
