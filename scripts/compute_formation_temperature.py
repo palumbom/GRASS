@@ -179,7 +179,6 @@ for i in range(len(airwavs)):
     avgtemp50[i] = np.mean(T1o2_spec[idxl50:idxr50])
 
 # write it out to the csv
-df["avg_temp_80"] = avgtemp80
-df["avg_temp_50"] = avgtemp50
-
-pdb.set_trace()
+data["avg_temp_80"] = avgtemp80
+data["avg_temp_50"] = avgtemp50
+data.to_csv(dfile)
