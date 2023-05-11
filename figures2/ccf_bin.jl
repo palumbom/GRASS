@@ -44,7 +44,7 @@ templates = String[]
 for i in eachindex(rest_wavelengths)
     # ltemp = rand(Uniform(minimum(rest_wavelengths), maximum(rest_wavelengths)), nlines)
     ltemp = rand(Uniform(5200, 5400), nlines)
-    dtemp = rand(Normal(line_depths[i], 0.05), nlines)
+    dtemp = rand(Normal(line_depths[i]-0.05, 0.05), nlines)
     push!(lines, ltemp...)
     push!(depths, dtemp...)
     push!(templates, repeat([line_files[i]], nlines)...)
@@ -62,4 +62,4 @@ spec1 = SpecParams(lines=lines, depths=depths, variability=variability, template
 lambdas1, outspec1 = synthesize_spectra(spec1, disk, seed_rng=true, verbose=true, use_gpu=true)
 
 # save it to a JLD
-jldsave("spectra_for_bin.jld2", wavs=lambdas1, flux=outspec1)
+jldsave("spectra_for_bin.jld2", wavs=lambdas1, flux=outspec1, templates=templates, lines=lines, depths=depths)
