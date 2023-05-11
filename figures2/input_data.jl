@@ -257,7 +257,7 @@ end
 
         # set the xlimits
         axs[i].set_xlim(minimum(wavs2) - 0.5, maximum(wavs2) + 0.5)
-        axs[i].set_ylim(-0.1, 1.1)
+        axs[i].set_ylim(-0.1, 1.075)
         # axs[i].set_box_aspect(0.5)
 
         # axs[i].grid(false)
@@ -282,19 +282,35 @@ end
             # set rotation
             if isapprox(airwav_ann[j], 5896, atol=1e0)
                 rotation = 0.0
-                d1 = 0.025
-                d2 = 0.1
+                x1 = 0.0
+                x2 = 0.0
+                y1 = 0.025
+                y2 = 0.1
+            elseif isapprox(airwav_ann[j], 5250.6, atol=1e-1)
+                rotation = 270.0
+                x1 = -0.15
+                x2 = -0.4
+                y1 = 0.015
+                y2 = 0.22
+            elseif isapprox(airwav_ann[j], 5436.6, atol=1e-1)
+                rotation = 270.0
+                x1 = -0.15
+                x2 = -0.4
+                y1 = 0.015
+                y2 = 0.22
             else
                 rotation = 270.0
-                d1 = 0.025
-                d2 = 0.22
+                x1 = 0.0
+                x2 = 0.0
+                y1 = 0.025
+                y2 = 0.22
             end
 
             # annotate with line name
             arrowprops = Dict("facecolor"=>"black", "lw"=>1.5, "arrowstyle"=>"-")
             txt = axs[i].annotate(("\${\\rm " * replace(names_ann[j], "_" => "\\ ") * "}\$"), rotation=rotation,
-                                  (wavs2[min], spec2[min] - d1), (wavs2[min], spec2[min] - d2),
-                                  arrowprops=arrowprops, horizontalalignment="center", fontsize=12)
+                                  (wavs2[min] - x1, spec2[min] - y1), (wavs2[min] - x2, spec2[min] - y2),
+                                  arrowprops=arrowprops, horizontalalignment="center", fontsize=14)
             push!(texts, txt)
         end
 
@@ -305,8 +321,8 @@ end
 
         # set the xticks
         axs[i].set_xticks([wavmid-2, wavmid, wavmid+2])
-        axs[i].xaxis.set_tick_params(rotation=45, fontsize=16)
-        axs[i].yaxis.set_tick_params(fontsize=16)
+        axs[i].xaxis.set_tick_params(rotation=45, labelsize=18)
+        axs[i].yaxis.set_tick_params(labelsize=18)
 
         # deal with axis break decoration stuff
         d = 0.01
