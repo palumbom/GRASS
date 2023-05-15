@@ -127,6 +127,12 @@ if plot
 
     println(">>> Max GPU benchmark = " * string(maximum(b_gpu_avg)))
 
+    # compute speedup
+    speedup = b_gpu[1:max_cpu]/b_cpu
+
+    plt.plot(n_res[1:max_cpu], speedup)
+    plt.show()
+
     # plotting function (use globals who cares i don't)
     function plot_scaling(;logscale=true)
         # create plotting objects
@@ -141,12 +147,6 @@ if plot
         else
             scale = "linscale"
         end
-
-        # compute speedup
-        speedup = b_gpu[1:max_cpu]/b_cpu
-
-        plt.plot(n_res[1:max_cpu], speedup)
-        plt.show()
 
         # plot on ax1
         ms = 7.5
@@ -169,6 +169,6 @@ if plot
     end
 
     # plot it
-    plot_scaling(logscale=true)
-    plot_scaling(logscale=false)
+    # plot_scaling(logscale=true)
+    # plot_scaling(logscale=false)
 end
