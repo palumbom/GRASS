@@ -145,4 +145,10 @@ for i in eachindex(idxs)
 end
 
 # read in formation temps
+# TODO measure temperature weighted by information content (slope)
 line_info = CSV.read(GRASS.datdir * "line_info.csv", DataFrame)
+plt.scatter(line_info.air_wavelength, line_info.avg_temp_50, c="tab:blue")
+plt.scatter(line_info.air_wavelength, line_info.avg_temp_80, c="k")
+plt.xlabel("Wavelength")
+plt.ylabel("Avg. Line Formation Temperature")
+plt.show()
