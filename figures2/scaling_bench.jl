@@ -1,40 +1,20 @@
 using Pkg; Pkg.activate(".")
-using Printf
-using Profile
-using BenchmarkTools
+using JLD2
 using CUDA
 using GRASS
-using JLD2
+using Printf
 using FileIO
 using Statistics
+using BenchmarkTools
 
 # plotting imports
 using LaTeXStrings
 import PyPlot; plt = PyPlot; mpl = plt.matplotlib; plt.ioff()
-mpl.style.use(GRASS.moddir * "figures1/fig.mplstyle")
+mpl.style.use(GRASS.moddir * "fig.mplstyle")
 
 # parse args + get directories
 run, plot = parse_args(ARGS)
 grassdir, plotdir, datadir = check_plot_dirs()
-
-function precompile_with_spectra_test()
-    N = 132
-    Nt = 50
-    lines = [5434.5]
-    depths = [0.5]
-    geffs = [0.0]
-    templates = ["FeI_5434"]
-    variability = repeat([true], length(lines))
-    resolution = 7e5
-
-    disk = DiskParams(N=N, Nt=Nt)
-    spec = SpecParams(lines=lines, depths=depths, variability=variability,
-                       geffs=geffs, templates=templates, resolution=resolution)
-
-    lambdas1, outspec1 = synthesize_spectra(spec, disk, seed_rng=true, use_gpu=false)
-    lambdas2, outspec2 = synthesize_spectra(spec, disk, seed_rng=true, use_gpu=true)
-    return nothing
-end
 
 function benchmark_cpu(spec::SpecParams, disk::DiskParams)
     lambdas1, outspec1 = synthesize_spectra(spec, disk, verbose=false, seed_rng=true)
@@ -86,10 +66,6 @@ function bmark_everything(b_cpu, b_gpu, lines, depths; max_cpu=8)
 end
 
 function main()
-    # make sure its precompiled
-    println(">>> Doing precompilation synthesis...")
-    precompile_with_spectra_test()
-
     # line parameters
     nlines = 24
     lines = range(5434.5, step=5.0, length=nlines)
@@ -130,9 +106,9 @@ function main()
     return nothing
 end
 
-if run
-    main()
-end
+# if run
+#     main()
+# end
 
 if plot
     # read in the data
@@ -165,6 +141,12 @@ if plot
         else
             scale = "linscale"
         end
+
+        # compute speedup
+        speedup = b_gpu[1:max_cpu]/b_cpu
+
+        plt.plot(n_res[1:max_cpu], speedup)
+        plt.show()
 
         # plot on ax1
         ms = 7.5
