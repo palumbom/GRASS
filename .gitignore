@@ -12,8 +12,9 @@
 # specific files/directories
 data/input/
 docs/build/
+Manifest.toml
 data/spvis.dat
-data/input/*.h5
-sftp-config*.json
 data/iag_blueshifts.dat
-
+sftp-config*.json
+data/input/*.h5
+LocalPreferences.toml
