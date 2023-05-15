@@ -106,9 +106,9 @@ function main()
     return nothing
 end
 
-# if run
-#     main()
-# end
+if run
+    main()
+end
 
 if plot
     # read in the data
@@ -122,16 +122,13 @@ if plot
     b_gpu = d["b_gpu"]
 
     # get mean gpu benchmark
-    b_gpu_avg = mean(b_gpu, dims=2)
-    b_gpu_std = std(b_gpu, dims=2)
-
-    println(">>> Max GPU benchmark = " * string(maximum(b_gpu_avg)))
+    b_gpu_avg = dropdims(mean(b_gpu, dims=2),dims=2)
+    b_gpu_std = dropdims(std(b_gpu, dims=2),dims=2)
 
     # compute speedup
-    speedup = b_gpu[1:max_cpu]/b_cpu
+    speedup = b_cpu[1:max_cpu]./b_gpu_avg[1:max_cpu]
 
-    plt.plot(n_res[1:max_cpu], speedup)
-    plt.show()
+    println(">>> Max GPU benchmark = " * string(maximum(b_gpu_avg)))
 
     # plotting function (use globals who cares i don't)
     function plot_scaling(;logscale=true)
@@ -163,12 +160,13 @@ if plot
         ax1.set_ylabel(L"{\rm Synthesis\ time\ (s)}")
         ax2.set_xlabel(L"{\rm Width\ of\ spectrum\ (\AA)}")
         ax1.legend()
+        plt.show()
         fig.savefig(plotdir * "scaling_bench_" * scale * ".pdf")
         plt.clf(); plt.close()
         return nothing
     end
 
     # plot it
-    # plot_scaling(logscale=true)
-    # plot_scaling(logscale=false)
+    plot_scaling(logscale=true)
+    plot_scaling(logscale=false)
 end

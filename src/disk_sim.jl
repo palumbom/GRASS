@@ -4,24 +4,8 @@ function line_loop_cpu(prof::AA{T,1}, λΔD::T, depth::T, lambdas::AA{T,1},
     # first trim the bisectors to the correct depth
     trim_bisector!(depth, wsp.bist, wsp.intt)
 
-    # find window around shifted line
-    buff = maximum(wsp.widt) / 2.0
-    lind = findfirst(x -> x > λΔD - buff, lambdas)
-    if isnothing(lind)
-        lind = firstindex(lambdas)
-    end
-
-    rind = findfirst(x -> x > λΔD + buff, lambdas)
-    if isnothing(rind)
-        rind = lastindex(lambdas)
-    end
-
-    # only compute flux values on window around the shifted line center
-    lambda_window = view(lambdas, lind:rind)
-    prof_window = view(prof, lind:rind)
-
     # update the line profile in place
-    line_profile_cpu!(λΔD, lambda_window, prof_window, wsp)
+    line_profile_cpu!(λΔD, lambdas, prof, wsp)
     return nothing
 end
 
