@@ -134,6 +134,26 @@ function find_nearest_ax(x::T, y::T) where T<:AF
     end
 end
 
+function find_nearest_ax_code(x::T, y::T) where T<:AF
+    if (x^2 + y^2) > one(T)
+        return nothing
+    elseif ((y == zero(T)) & (x == zero(T))) # center
+        return 0
+    elseif y >= abs(x) # north
+        return 1
+    elseif y <= -abs(x) # south
+        return 2
+    elseif x <= -abs(y) # east
+        return 3
+    elseif x >= abs(y) # west
+        return 4
+    end
+end
+
+function ax_code_to_symbol(code::Int)
+    return [:c, :n, :s, :e, :w][code+1]
+end
+
 function find_nearest_mu(mu::T, disc_mu::AA{T,1}) where T<:AF
     return searchsortednearest(disc_mu, mu)
 end
@@ -150,22 +170,36 @@ function assemble_dict_key(mu_ind::Int, ax::Symbol, mu_symb::AA{Symbol,1})
     end
 end
 
-function get_key_for_pos(x::T, y::T, disc_mu::AA{T,1}, mu_symb::AA{Symbol,1}) where T<:AF
+function get_key_for_pos(x::T, y::T, disc_mu::AA{T,1}, disc_ax::AA{Int,1}) where T<:AF
     # make sure we are not off the disk
     if x^2 + y^2 > 1
         return nothing
     end
 
-    # find nearest mu index
-    mu_ind = find_nearest_mu(x, y, disc_mu)
+    # find the nearest mu ind and ax code
+    mu = calc_mu(x,y)
+    mu_ind = searchsortednearest(disc_mu, mu)
+    ax_val = find_nearest_ax_code(x, y)
 
-    # get nearest axis and mu
-    near_mu = disc_mu[mu_ind]
-    near_ax = find_nearest_ax(x, y)
+    # return early if the nearest mu is 1.0
+    if disc_mu[mu_ind] == 1.0
+        return (:c, :mu10)
+    end
 
-    # assemble dictionary key & extract values
-    key = assemble_dict_key(mu_ind, near_ax, mu_symb)
-    return key
+    # find subarray of disc_mu and disk_ax matching mu
+    idxs = findall(disc_mu .== disc_mu[mu_ind])
+    mu_view = view(disc_mu, idxs)
+    ax_view = view(disc_ax, idxs)
+
+    # move to new axis if it isn't present in the data
+    if !(ax_val in ax_view)
+        ax_val = ax_view[1]
+    end
+
+    # convert mu and ax codes to symbol key
+    mu_symb = mu_to_symb(disc_mu[mu_ind])
+    ax_symb = ax_code_to_symbol(ax_val)
+    return (ax_symb, mu_symb)
 end
 
 function mu_to_xy(mu::T, ax::Symbol) where T<:AF

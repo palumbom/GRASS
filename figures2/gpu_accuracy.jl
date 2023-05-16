@@ -27,14 +27,16 @@ function generate_spectrum(disk::DiskParams, spec::SpecParams; use_gpu::Bool=fal
 end
 
 # set up paramaters for spectrum
-lines = [5500.0]#, 5503.0]
-depths = [0.8]#, 0.65]
-templates = ["FeI_5250.6"]#, "FeI_5434"]
-res = 7e5
+lines = [5500.0, 5501.5]
+depths = [0.8, 0.65]
+templates = ["FeI_5250.6", "FeI_5434"]
+resolution = 7e5
+buffer = 1.5
 
 # create composite types
 disk = DiskParams(N=132, Nt=5)
-spec = SpecParams(lines=lines, depths=depths, templates=templates, resolution=res)
+spec = SpecParams(lines=lines, depths=depths, templates=templates,
+                  resolution=resolution, buffer=buffer)
 
 # get the spectra
 wavs_cpu, flux_cpu = generate_spectrum(disk, spec, use_gpu=false)
@@ -50,10 +52,10 @@ resids = flux_gpu_mean .- flux_cpu_mean
 # set up plot
 fig, (ax1, ax2) = plt.subplots(nrows=2, ncols=1, figsize=(8,6), sharex=true)
 fig.subplots_adjust(hspace=-0.05)
-ax2.ticklabel_format(style="scientific", axis="y")
+# ax2.ticklabel_format(style="scientific", axis="y")
 
-ax1.plot(wavs_cpu, flux_cpu_mean, c=colors[1], label=L"{\rm CPU}")
-ax1.plot(wavs_gpu, flux_gpu_mean, c=colors[2], label=L"{\rm GPU}")
+ax1.plot(wavs_cpu, flux_cpu_mean, ls="--", c=colors[1], label=L"{\rm CPU}")
+ax1.plot(wavs_gpu, flux_gpu_mean, ls="-.", c=colors[2], label=L"{\rm GPU}")
 ax2.scatter(wavs_cpu, resids, s=2, c="k")
 
 ax1.set_ylabel(L"{\rm Normalized\ Flux}")

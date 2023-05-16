@@ -32,8 +32,9 @@ function time_loop_cpu(tloop::Int, prof::AA{T,1}, z_rot::T, z_cbs::T,
     return nothing
 end
 
-function calc_disk_avg_cbs(grid::StepRangeLen, disc_mu::AA{T,1}, mu_symb::AA{Symbol,1},
-                           disk::DiskParams{T}, soldata::SolarData{T}) where T<:AF
+function calc_disk_avg_cbs(disk::DiskParams{T}, soldata::SolarData{T},
+                           grid::StepRangeLen, disc_mu::AA{T,1},
+                           disc_ax::AA{Int,1}) where T<:AF
     # calculate normalization terms and get convective blueshifts
     numer = 0
     denom = 0
@@ -47,14 +48,7 @@ function calc_disk_avg_cbs(grid::StepRangeLen, disc_mu::AA{T,1}, mu_symb::AA{Sym
             (x^2 + y^2) > one(T) && continue
 
             # get input data for place on disk
-            key = get_key_for_pos(x, y, disc_mu, mu_symb)
-            while !(key in keys(soldata.len))
-                idx = findfirst(key[1] .== soldata.ax)
-                if isnothing(idx) || idx == length(soldata.ax)
-                    idx = 1
-                end
-                key = (soldata.ax[idx+1], key[2])
-            end
+            key = get_key_for_pos(x, y, disc_mu, disc_ax)
 
             # calc limb darkening and get convective blueshift
             norm_term = calc_norm_term(x, y, disk)
@@ -76,12 +70,26 @@ function disk_sim(spec::SpecParams{T}, disk::DiskParams{T}, soldata::SolarData{T
     wsp = SynthWorkspace()
     liter = 1:length(spec.lines); @assert length(liter) >= 1
 
-    # get list of discrete mu's in input data
-    mu_symb = soldata.mu
-    disc_mu = parse_mu_string.(mu_symb)
+    # get the value of mu and ax codes
+    disc_ax = parse_ax_string.(getindex.(keys(soldata.len),1))
+    disc_mu = parse_mu_string.(getindex.(keys(soldata.len),2))
+
+    # get indices to sort by mus
+    inds_mu = sortperm(disc_mu)
+    disc_mu .= disc_mu[inds_mu]
+    disc_ax .= disc_ax[inds_mu]
+
+    # get indices to sort by axis within mu sort
+    for mu_val in unique(disc_mu)
+        inds1 = (disc_mu .== mu_val)
+        inds2 = sortperm(disc_ax[inds1])
+
+        disc_mu[inds1] .= disc_mu[inds1][inds2]
+        disc_ax[inds1] .= disc_ax[inds1][inds2]
+    end
 
     # get intensity-weighted disk-avereged convective blueshift
-    z_cbs_avg, sum_norm_terms = calc_disk_avg_cbs(grid, disc_mu, mu_symb, disk, soldata)
+    z_cbs_avg, sum_norm_terms = calc_disk_avg_cbs(disk, soldata, grid, disc_mu, disc_ax)
 
     # loop over grid positions
     for i in eachindex(grid)
@@ -94,16 +102,7 @@ function disk_sim(spec::SpecParams{T}, disk::DiskParams{T}, soldata::SolarData{T
             (x^2 + y^2) > one(T) && continue
 
             # get input data for place on disk
-            key = get_key_for_pos(x, y, disc_mu, mu_symb)
-
-            # use data for same mu from different axis if axis is missing
-            while !(key in keys(soldata.len))
-                idx = findfirst(key[1] .== soldata.ax)
-                if isnothing(idx) || idx == length(soldata.ax)
-                    idx = 1
-                end
-                key = (soldata.ax[idx+1], key[2])
-            end
+            key = get_key_for_pos(x, y, disc_mu, disc_ax)
             len = soldata.len[key]
 
             # get total doppler shift for the line, and norm_term
