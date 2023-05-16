@@ -66,6 +66,8 @@ function find_data_index_gpu(x, y, disc_mu, disc_ax)
     mu_ind = searchsortednearest_gpu(disc_mu, mu)
     ax_val = find_nearest_ax_gpu(x, y)
 
+
+    # TODO idk what this chunk of code does???
     # find the first index of disc_mu with that discrete mu val
     i = 1
     while disc_mu[i] != disc_mu[mu_ind]

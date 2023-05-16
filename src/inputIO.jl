@@ -3,6 +3,10 @@ function parse_mu_string(s::String)
     return tryparse(Float64, s[1] * "." * s[2:end])
 end
 
+function mu_to_symb(mu::T) where T<:AF
+    return Symbol("mu" * replace(string(mu), "."=>""))
+end
+
 function parse_mu_string(s::Symbol)
     return parse_mu_string(string(s))
 end
