@@ -50,3 +50,29 @@ function trim_bisector_gpu!(depth, variability, lenall, bisall_out, intall_out, 
     end
     return nothing
 end
+
+function copy_fixed_width!(widall_out, widall_in, lenall)
+    # get indices from GPU blocks + threads
+    idx = threadIdx().x + blockDim().x * (blockIdx().x-1)
+    sdx = blockDim().x * gridDim().x
+    idy = threadIdx().y + blockDim().y * (blockIdx().y-1)
+    sdy = blockDim().y * gridDim().y
+    idz = threadIdx().z + blockDim().z * (blockIdx().z-1)
+    sdz = blockDim().z * gridDim().z
+
+    # loop over disk positions for bisectors
+    for i in idx:sdx:CUDA.length(lenall)
+        # loop over epochs of bisectors
+        for j in idy:sdy:CUDA.size(widall_in, 2)
+            # don't bother trimming nothing
+            if j > lenall[i]
+                continue
+            end
+            # loop over the indices of width
+            for k in idz:sdz:CUDA.size(widall_in, 1)
+                @inbounds widall_out[k,j,i] = widall_in[k,1,i]
+            end
+        end
+    end
+    return nothing
+end

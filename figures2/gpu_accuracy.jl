@@ -5,7 +5,6 @@ using GRASS
 using Printf
 using FileIO
 using Revise
-using Formatting
 using Statistics
 using EchelleCCFs
 using Distributions
@@ -22,7 +21,6 @@ colors = ["#56B4E9", "#E69F00", "#009E73", "#CC79A7"]
 run, plot = parse_args(ARGS)
 grassdir, plotdir, datadir = check_plot_dirs()
 
-"""
 # set up paramaters for spectrum
 lines = [5500.0, 5500.85, 5501.4, 5502.20, 5502.5, 5503.05]
 depths = [0.75, 0.4, 0.65, 0.55, 0.25, 0.7]
@@ -31,7 +29,7 @@ resolution = 7e5
 buffer = 0.6
 
 # create composite types
-disk = DiskParams(N=132, Nt=5)
+disk = DiskParams(N=132, Nt=50)
 spec = SpecParams(lines=lines, depths=depths, templates=templates,
                   resolution=resolution, buffer=buffer)
 
@@ -48,21 +46,40 @@ flux_cpu_mean64 = dropdims(mean(flux_cpu64, dims=2), dims=2)
 flux_gpu_mean64 = dropdims(mean(flux_gpu64, dims=2), dims=2)
 flux_gpu_mean32 = dropdims(mean(flux_gpu32, dims=2), dims=2)
 
-# get residuals
+# get flux residuals
 resids64 = flux_cpu_mean64 .- flux_gpu_mean64
 resids32 = flux_cpu_mean64 .- flux_gpu_mean32
+
+@show maximum(abs.(resids64))
+@show maximum(abs.(resids32))
 
 # test residuals for normality
 AD1 = OneSampleADTest(resids64, Normal())
 AD2 = OneSampleADTest(resids32, Normal())
-"""
+
+# compute velocities
+v_grid, ccf1 = calc_ccf(wavs_cpu64, flux_cpu64, spec, normalize=true, mask_type=EchelleCCFs.TopHatCCFMask)
+rvs_cpu64, sigs_cpu64 = calc_rvs_from_ccf(v_grid, ccf1)
+
+v_grid, ccf1 = calc_ccf(wavs_gpu64, flux_gpu64, spec, normalize=true, mask_type=EchelleCCFs.TopHatCCFMask)
+rvs_gpu64, sigs_gpu64 = calc_rvs_from_ccf(v_grid, ccf1)
+
+v_grid, ccf1 = calc_ccf(wavs_gpu32, flux_gpu32, spec, normalize=true, mask_type=EchelleCCFs.TopHatCCFMask)
+rvs_gpu32, sigs_gpu32 = calc_rvs_from_ccf(v_grid, ccf1)
+
+# get velocity residuals
+v_resid64 = rvs_cpu64 - rvs_gpu64
+v_resid32 = rvs_cpu64 - rvs_gpu32
+
+@show mean(v_resid64)
+@show mean(v_resid32)
 
 # set up plot
 fig, (ax1, ax2, ax3) = plt.subplots(nrows=3, ncols=1, figsize=(8,10), sharex=true)
 
 ms = 2.0
-ax1.plot(wavs_cpu64, flux_cpu_mean64, ls="--", c="k", ms=ms, label=L"{\rm CPU\ (Float64)}")
-ax1.plot(wavs_gpu64, flux_gpu_mean64, ls="-.", c=colors[1], ms=ms, label=L"{\rm GPU\ (Float64)}")
+ax1.plot(wavs_cpu64, flux_cpu_mean64, ls="-", c="k", ms=ms, label=L"{\rm CPU\ (Float64)}")
+ax1.plot(wavs_gpu64, flux_gpu_mean64, ls="--", c=colors[1], ms=ms, label=L"{\rm GPU\ (Float64)}")
 ax1.plot(wavs_gpu32, flux_gpu_mean32, ls=":", c=colors[2], ms=ms, label=L"{\rm GPU\ (Float32)}")
 ax2.scatter(wavs_cpu64, resids64, s=5, marker="o", c=colors[1], alpha=0.9)
 ax3.scatter(wavs_cpu64, resids32, s=5, marker="s", c=colors[2], alpha=0.9)
@@ -106,7 +123,7 @@ ax3.set_yticklabels([L"-1.0", L"-0.5", L"0.0", L"0.5", L"1.0"])
 
 ax1.legend(loc="lower center", ncols=3, fontsize=13)
 ax1.set_ylabel(L"{\rm Normalized\ Flux}")
-ax2.set_ylabel(L"({\rm Flux}_{\rm CPU} - {\rm Flux}_{\rm GPU}) \times 10^{-15}")
+ax2.set_ylabel(L"({\rm Flux}_{\rm CPU} - {\rm Flux}_{\rm GPU}) \times 10^{-14}")
 ax3.set_ylabel(L"({\rm Flux}_{\rm CPU} - {\rm Flux}_{\rm GPU}) \times 10^{-3}")
 ax3.set_xlabel(L"{\rm Wavelength\ (\AA)}")
 

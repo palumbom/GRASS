@@ -67,8 +67,9 @@ function disk_sim_gpu(spec::SpecParams{T}, disk::DiskParams{T}, soldata::SolarDa
 
     # allocate arrays for fresh copy of input data to copy to each loop
     @cusync begin
-        bisall_gpu_loop = CUDA.zeros(precision, size(bisall_gpu))
-        intall_gpu_loop = CUDA.zeros(precision, size(intall_gpu))
+        bisall_gpu_loop = CUDA.zeros(precision, CUDA.size(bisall_gpu))
+        intall_gpu_loop = CUDA.zeros(precision, CUDA.size(intall_gpu))
+        widall_gpu_loop = CUDA.zeros(precision, CUDA.size(widall_gpu))
     end
 
     # # get launch parameters
@@ -117,6 +118,7 @@ function disk_sim_gpu(spec::SpecParams{T}, disk::DiskParams{T}, soldata::SolarDa
             @cusync begin
                 CUDA.copyto!(bisall_gpu_loop, bisall_gpu)
                 CUDA.copyto!(intall_gpu_loop, intall_gpu)
+                CUDA.copyto!(widall_gpu_loop, widall_gpu)
             end
 
             # trim all the bisector data
@@ -125,14 +127,16 @@ function disk_sim_gpu(spec::SpecParams{T}, disk::DiskParams{T}, soldata::SolarDa
                                                                                        intall_gpu_loop, bisall_gpu,
                                                                                        intall_gpu)
 
-            # TODO kernel to deal with turning off width variability!!!!
-
+            # fix the width if variability is turned off
+            if !spec.variability[l]
+                @cusync @captured @cuda threads=threads2 blocks=blocks2 copy_fixed_width!(widall_gpu_loop, widall_gpu, lenall_gpu)
+            end
 
             # assemble line shape on even int grid
             @cusync @captured @cuda threads=threads3 blocks=blocks3 fill_workspaces!(spec.lines[l], extra_z[l], grid,
                                                                                      tloop, data_inds, z_rot, z_cbs,
                                                                                      bisall_gpu_loop, intall_gpu_loop,
-                                                                                     widall_gpu, allwavs, allints)
+                                                                                     widall_gpu_loop, allwavs, allints)
 
             # do the line synthesis, interp back onto wavelength grid
             @cusync @captured @cuda threads=threads4 blocks=blocks4 line_profile_gpu!(starmap, grid, lambdas, allwavs, allints)
