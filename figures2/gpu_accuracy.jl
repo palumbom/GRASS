@@ -29,7 +29,7 @@ resolution = 7e5
 buffer = 0.6
 
 # create composite types
-disk = DiskParams(N=132, Nt=50)
+disk = DiskParams(N=132, Nt=5)
 spec = SpecParams(lines=lines, depths=depths, templates=templates,
                   resolution=resolution, buffer=buffer)
 
@@ -42,9 +42,9 @@ println(">>> Doing GPU synthesis (single precision)...")
 wavs_gpu32, flux_gpu32 = synthesize_spectra(spec, disk, seed_rng=true, verbose=true, use_gpu=true, precision=Float32)
 
 # compute means
-flux_cpu_mean64 = dropdims(mean(flux_cpu64, dims=2), dims=2)
-flux_gpu_mean64 = dropdims(mean(flux_gpu64, dims=2), dims=2)
-flux_gpu_mean32 = dropdims(mean(flux_gpu32, dims=2), dims=2)
+flux_cpu_mean64 = flux_cpu64[:,1] #dropdims(mean(flux_cpu64, dims=2), dims=2)
+flux_gpu_mean64 = flux_gpu64[:,1] #dropdims(mean(flux_gpu64, dims=2), dims=2)
+flux_gpu_mean32 = flux_gpu32[:,1] #dropdims(mean(flux_gpu32, dims=2), dims=2)
 
 # get flux residuals
 resids64 = flux_cpu_mean64 .- flux_gpu_mean64
