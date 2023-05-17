@@ -187,7 +187,7 @@ function synthesize_spectra(spec::SpecParams{T}, disk::DiskParams{T};
             end
 
             # run the simulation and multiply outspec by this spectrum
-            disk_sim_gpu(spec_temp, disk, soldata, gpu_allocs, outspec, verbose=verbose)
+            disk_sim_gpu(spec_temp, disk, soldata, gpu_allocs, outspec, verbose=verbose, precision=precision)
         end
         return spec.lambdas, outspec
     else

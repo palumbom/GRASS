@@ -4,6 +4,7 @@ using CUDA
 using GRASS
 using Printf
 using FileIO
+using Profile
 using Statistics
 using BenchmarkTools
 
@@ -11,6 +12,7 @@ using BenchmarkTools
 using LaTeXStrings
 import PyPlot; plt = PyPlot; mpl = plt.matplotlib; plt.ioff()
 mpl.style.use(GRASS.moddir * "fig.mplstyle")
+colors = ["#56B4E9", "#E69F00", "#009E73", "#CC79A7"]
 
 # parse args + get directories
 run, plot = parse_args(ARGS)
@@ -89,7 +91,7 @@ function main()
 
     # allocate memory for benchmark results and run it
     n_gpu_loops = 16
-    max_cpu = minimum([12, length(lines)])
+    max_cpu = minimum([15, length(lines)])
     b_cpu = similar(lines)
     b_gpu = zeros(length(lines), n_gpu_loops)
     bmark_everything(b_cpu, b_gpu, lines, depths, max_cpu=max_cpu)
@@ -107,6 +109,7 @@ function main()
 end
 
 if run
+    @assert CUDA.functional()
     main()
 end
 
@@ -148,19 +151,25 @@ if plot
         # plot on ax1
         ms = 7.5
         ax1.plot(n_res[1:max_cpu], b_cpu[1:max_cpu], marker="o", ms=ms, c="k", label=L"{\rm CPU}")
-        ax1.plot(n_res, b_gpu_avg, marker="s", ms=ms, c="tab:blue", label=L"{\rm GPU}")
+        ax1.plot(n_res, b_gpu_avg, marker="s", ms=ms, c=colors[1], label=L"{\rm GPU}")
 
         # plot on twin axis
         ax2.plot(n_lam[1:max_cpu], b_cpu[1:max_cpu], marker="o", ms=ms, c="k")
-        ax2.plot(n_lam, b_gpu_avg, marker="s", ms=ms, c="tab:blue")
+        ax2.plot(n_lam, b_gpu_avg, marker="s", ms=ms, c=colors[1])
         ax2.grid(false)
+
+        # minor tick locator
+        if logscale
+            locmin = mpl.ticker.LogLocator(base=10.0,subs=(0.2,0.4,0.6,0.8))
+            ax1.yaxis.set_minor_locator(locmin)
+        end
 
         # axis label stuff
         ax1.set_xlabel(L"{\rm \#\ of\ res.\ elements}")
         ax1.set_ylabel(L"{\rm Synthesis\ time\ (s)}")
         ax2.set_xlabel(L"{\rm Width\ of\ spectrum\ (\AA)}")
         ax1.legend()
-        plt.show()
+        fig.tight_layout()
         fig.savefig(plotdir * "scaling_bench_" * scale * ".pdf")
         plt.clf(); plt.close()
         return nothing

@@ -2,9 +2,6 @@ function disk_sim_gpu(spec::SpecParams{T}, disk::DiskParams{T}, soldata::SolarDa
                       gpu_allocs::GPUAllocs, outspec::AA{T,2}; verbose::Bool=false,
                       seed_rng::Bool=false, precision::DataType=Float64,
                       skip_times::BitVector=BitVector(zeros(disk.Nt))) where T<:AF
-    # set single or double precision
-    prec = precision
-
     # get dimensions for memory alloc
     N = disk.N
     Nt = disk.Nt
@@ -12,8 +9,12 @@ function disk_sim_gpu(spec::SpecParams{T}, disk::DiskParams{T}, soldata::SolarDa
 
     # get pole component vectors and limb darkening parameters
     polex, poley, polez = disk.pole
-    u1 = disk.u1
-    u2 = disk.u2
+    polex = convert(precision, polex)
+    poley = convert(precision, poley)
+    polez = convert(precision, polez)
+
+    u1 = convert(precision, disk.u1)
+    u2 = convert(precision, disk.u2)
 
     # parse out composite type
     grid = gpu_allocs.grid
@@ -55,19 +56,19 @@ function disk_sim_gpu(spec::SpecParams{T}, disk::DiskParams{T}, soldata::SolarDa
 
     # move input data to gpu
     @cusync begin
-        disc_mu_gpu = CuArray{prec}(disc_mu_cpu)
+        disc_mu_gpu = CuArray{precision}(disc_mu_cpu)
         disc_ax_gpu = CuArray{Int32}(disc_ax_cpu)
         lenall_gpu = CuArray{Int32}(lenall_cpu)
-        cbsall_gpu = CuArray{prec}(cbsall_cpu)
-        bisall_gpu = CuArray{prec}(bisall_cpu)
-        intall_gpu = CuArray{prec}(intall_cpu)
-        widall_gpu = CuArray{prec}(widall_cpu)
+        cbsall_gpu = CuArray{precision}(cbsall_cpu)
+        bisall_gpu = CuArray{precision}(bisall_cpu)
+        intall_gpu = CuArray{precision}(intall_cpu)
+        widall_gpu = CuArray{precision}(widall_cpu)
     end
 
     # allocate arrays for fresh copy of input data to copy to each loop
     @cusync begin
-        bisall_gpu_loop = CUDA.copy(bisall_gpu)
-        intall_gpu_loop = CUDA.copy(intall_gpu)
+        bisall_gpu_loop = CUDA.zeros(precision, size(bisall_gpu))
+        intall_gpu_loop = CUDA.zeros(precision, size(intall_gpu))
     end
 
     # # get launch parameters
@@ -113,11 +114,19 @@ function disk_sim_gpu(spec::SpecParams{T}, disk::DiskParams{T}, soldata::SolarDa
 
         # loop over lines to synthesize
         for l in eachindex(spec.lines)
+            @cusync begin
+                CUDA.copyto!(bisall_gpu_loop, bisall_gpu)
+                CUDA.copyto!(intall_gpu_loop, intall_gpu)
+            end
+
             # trim all the bisector data
             @cusync @captured @cuda threads=threads2 blocks=blocks2 trim_bisector_gpu!(spec.depths[l], spec.variability[l],
                                                                                        lenall_gpu, bisall_gpu_loop,
                                                                                        intall_gpu_loop, bisall_gpu,
                                                                                        intall_gpu)
+
+            # TODO kernel to deal with turning off width variability!!!!
+
 
             # assemble line shape on even int grid
             @cusync @captured @cuda threads=threads3 blocks=blocks3 fill_workspaces!(spec.lines[l], extra_z[l], grid,

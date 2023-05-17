@@ -162,14 +162,6 @@ function find_nearest_mu(x::T, y::T, disc_mu::AA{T,1}) where T<:AF
     return find_nearest_mu(calc_mu(x,y), disc_mu)
 end
 
-function assemble_dict_key(mu_ind::Int, ax::Symbol, mu_symb::AA{Symbol,1})
-    if mu_symb[mu_ind] == :mu10 # e.g., if mu == 1.0
-        return (:c, :mu10)
-    else
-        return (ax, mu_symb[mu_ind])
-    end
-end
-
 function get_key_for_pos(x::T, y::T, disc_mu::AA{T,1}, disc_ax::AA{Int,1}) where T<:AF
     # make sure we are not off the disk
     if x^2 + y^2 > 1
