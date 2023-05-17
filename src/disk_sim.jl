@@ -27,11 +27,13 @@ function time_loop_cpu(tloop::Int, prof::AA{T,1}, z_rot::T, z_cbs::T,
         extra_z = spec.conv_blueshifts[l] - z_cbs_avg
         λΔD = spec.lines[l] * (1.0 + z_rot) * (1.0 + z_cbs) * (1.0 + extra_z)
 
-        # synthesize the line
+        # get rid of bisector and fix width if variability is turned off
         wsp.bist .*= spec.variability[l]
-        # if !spec.variability[l]
-        #     wsp.widt .= mean(soldata.wid[key], dims=2)
-        # end
+        if !spec.variability[l]
+            wsp.widt .= view(soldata.wid[key], :, 1)
+        end
+
+        # synthesize the line
         line_loop_cpu(prof, λΔD, spec.depths[l], spec.lambdas, wsp)
     end
     return nothing

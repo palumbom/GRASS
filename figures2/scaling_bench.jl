@@ -23,13 +23,13 @@ function benchmark_cpu(spec::SpecParams, disk::DiskParams)
     return nothing
 end
 
-function benchmark_gpu(spec::SpecParams, disk::DiskParams)
-    lambdas1, outspec1 = synthesize_spectra(spec, disk, verbose=false, seed_rng=true, use_gpu=true)
+function benchmark_gpu(spec::SpecParams, disk::DiskParams, precision::DataType)
+    lambdas1, outspec1 = synthesize_spectra(spec, disk, verbose=false, seed_rng=true, use_gpu=true, precision=precision)
     return nothing
 end
 
 # benchmarking wrapper function
-function bmark_everything(b_cpu, b_gpu, lines, depths; max_cpu=8)
+function bmark_everything(b_cpu, b_gpu, b_gpu32, lines, depths; max_cpu=8)
     for i in eachindex(lines)
         @printf(">>> Benchmarking %s of %s\n", i, length(lines))
 
@@ -55,11 +55,20 @@ function bmark_everything(b_cpu, b_gpu, lines, depths; max_cpu=8)
         end
 
         # GPU bench loop
-        @printf("\t>>> Performing GPU bench (N=132, Nt=50): ")
+        @printf("\t>>> Performing GPU double precision bench (N=132, Nt=50): ")
         for j in 1:n_gpu_loops
             Profile.clear_malloc_data()
             CUDA.synchronize()
-            b_gpu[i,j] = @belapsed benchmark_gpu($spec, $disk)
+            b_gpu[i,j] = @belapsed benchmark_gpu($spec, $disk, $Float64)
+            CUDA.synchronize()
+        end
+        println()
+
+        @printf("\t>>> Performing GPU single precision bench (N=132, Nt=50): ")
+        for j in 1:n_gpu_loops
+            Profile.clear_malloc_data()
+            CUDA.synchronize()
+            b_gpu32[i,j] = @belapsed benchmark_gpu($spec, $disk, $Float32)
             CUDA.synchronize()
         end
         println()
@@ -94,7 +103,8 @@ function main()
     max_cpu = minimum([15, length(lines)])
     b_cpu = similar(lines)
     b_gpu = zeros(length(lines), n_gpu_loops)
-    bmark_everything(b_cpu, b_gpu, lines, depths, max_cpu=max_cpu)
+    b_gpu32 = zeros(length(lines), n_gpu_loops)
+    bmark_everything(b_cpu, b_gpu, b_gpu32, lines, depths, max_cpu=max_cpu)
 
     # write info to disk
     outfile = datadir * "scaling_benchmark.jld2"
@@ -104,7 +114,8 @@ function main()
          "n_res", n_res,
          "n_lam", n_lam,
          "b_cpu", b_cpu,
-         "b_gpu", b_gpu)
+         "b_gpu", b_gpu,
+         "b_gpu32", b_gpu32)
     return nothing
 end
 
@@ -123,10 +134,14 @@ if plot
     n_lam = d["n_lam"]
     b_cpu = d["b_cpu"]
     b_gpu = d["b_gpu"]
+    b_gpu32 = d["b_gpu32"]
 
     # get mean gpu benchmark
     b_gpu_avg = dropdims(mean(b_gpu, dims=2),dims=2)
     b_gpu_std = dropdims(std(b_gpu, dims=2),dims=2)
+
+    b_gpu_avg32 = dropdims(mean(b_gpu32, dims=2),dims=2)
+    b_gpu_std32 = dropdims(std(b_gpu32, dims=2),dims=2)
 
     # compute speedup
     speedup = b_cpu[1:max_cpu]./b_gpu_avg[1:max_cpu]
@@ -150,12 +165,14 @@ if plot
 
         # plot on ax1
         ms = 7.5
-        ax1.plot(n_res[1:max_cpu], b_cpu[1:max_cpu], marker="o", ms=ms, c="k", label=L"{\rm CPU}")
-        ax1.plot(n_res, b_gpu_avg, marker="s", ms=ms, c=colors[1], label=L"{\rm GPU}")
+        ax1.plot(n_res[1:max_cpu], b_cpu[1:max_cpu], marker="o", ms=ms, c="k", label=L"{\rm CPU\ (Float64)}")
+        ax1.plot(n_res, b_gpu_avg, marker="s", ms=ms, c=colors[1], label=L"{\rm GPU\ (Float64)}")
+        ax1.plot(n_res, b_gpu_avg32, marker="^", ms=ms, c=colors[2], label=L"{\rm GPU\ (Float32)}")
 
         # plot on twin axis
         ax2.plot(n_lam[1:max_cpu], b_cpu[1:max_cpu], marker="o", ms=ms, c="k")
         ax2.plot(n_lam, b_gpu_avg, marker="s", ms=ms, c=colors[1])
+        ax2.plot(n_lam, b_gpu_avg32, marker="^", ms=ms, c=colors[2])
         ax2.grid(false)
 
         # minor tick locator
