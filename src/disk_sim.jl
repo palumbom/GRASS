@@ -13,20 +13,25 @@ function time_loop_cpu(tloop::Int, prof::AA{T,1}, z_rot::T, z_cbs::T,
                        z_cbs_avg::T, key::Tuple{Symbol, Symbol},
                        liter::UnitRange{Int}, spec::SpecParams{T},
                        soldata::SolarData, wsp::SynthWorkspace{T}) where T<:AF
-    # get views needed for line synthesis
-    wsp.bist .= view(soldata.bis[key], :, tloop)
-    wsp.intt .= view(soldata.int[key], :, tloop)
-    wsp.widt .= view(soldata.wid[key], :, tloop)
-
-    # loop over specified synthetic lines
+    # reset prof
     prof .= one(T)
+
+    # loop over lines
     for l in liter
+        # get views needed for line synthesis
+        wsp.bist .= view(soldata.bis[key], :, tloop)
+        wsp.intt .= view(soldata.int[key], :, tloop)
+        wsp.widt .= view(soldata.wid[key], :, tloop)
+
         # calculate the position of the line center
         extra_z = spec.conv_blueshifts[l] - z_cbs_avg
         λΔD = spec.lines[l] * (1.0 + z_rot) * (1.0 + z_cbs) * (1.0 + extra_z)
 
         # synthesize the line
         wsp.bist .*= spec.variability[l]
+        # if !spec.variability[l]
+        #     wsp.widt .= mean(soldata.wid[key], dims=2)
+        # end
         line_loop_cpu(prof, λΔD, spec.depths[l], spec.lambdas, wsp)
     end
     return nothing

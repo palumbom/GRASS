@@ -66,8 +66,6 @@ function find_data_index_gpu(x, y, disc_mu, disc_ax)
     mu_ind = searchsortednearest_gpu(disc_mu, mu)
     ax_val = find_nearest_ax_gpu(x, y)
 
-
-    # TODO idk what this chunk of code does???
     # find the first index of disc_mu with that discrete mu val
     i = 1
     while disc_mu[i] != disc_mu[mu_ind]
@@ -137,8 +135,8 @@ function initialize_arrays_for_gpu(tloop, data_inds, norm_terms, z_rot,
     sdy = blockDim().y * gridDim().y
 
     # make some aliases
-    len = CUDA.length(grid)
-    rstar = one(eltype(grid))
+    Ndisk = CUDA.length(grid)
+    rstar = CUDA.one(CUDA.eltype(grid))
 
     # parallelized loop over grid
     for i in idx:sdx:CUDA.length(grid)
@@ -163,7 +161,7 @@ function initialize_arrays_for_gpu(tloop, data_inds, norm_terms, z_rot,
             end
 
             # calculate the normalization
-            @inbounds norm_terms[i,j] = calc_norm_term(x, y, len, u1, u2)
+            @inbounds norm_terms[i,j] = calc_norm_term(x, y, Ndisk, u1, u2)
 
             # calculate the rotational and convective doppler shift
             @inbounds z_rot[i,j] = patch_velocity_los_gpu(x, y, rstar, polex, poley, polez)

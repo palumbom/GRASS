@@ -23,12 +23,12 @@ function line_profile_cpu!(mid::T, lambdas::AA{T,1}, prof::AA{T,1},
     allints[1:len] .= view(intm, itr)
 
     # get indices for interpolation view
-    lind = findlast(x -> x < allwavs[1], lambdas)
+    lind = findlast(x -> x <= allwavs[1], lambdas)
     if isnothing(lind)
         lind = firstindex(lambdas)
     end
 
-    rind = findfirst(x -> x > allwavs[end], lambdas)
+    rind = findfirst(x -> x >= allwavs[end], lambdas)
     if isnothing(rind)
         rind = lastindex(lambdas)
     end
