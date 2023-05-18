@@ -159,6 +159,12 @@ function synthesize_spectra(spec::SpecParams{T}, disk::DiskParams{T};
         # make sure there is actually a GPU to use
         @assert CUDA.functional()
 
+        # warn user if precision is single
+        # TODO actually throw a warning and not just a print statement
+        # if precision <: Float32
+        #     println(">>> WARNING: Single-precision implementation produces large flux and velocity errors!!")
+        # end
+
         # pre-allocate memory for gpu
         gpu_allocs = GPUAllocs(spec, disk, grid, precision=precision)
 

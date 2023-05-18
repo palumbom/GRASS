@@ -12,7 +12,8 @@ using Distributions
 # plotting
 using LaTeXStrings
 import PyPlot; plt = PyPlot; mpl = plt.matplotlib; plt.ioff()
-mpl.style.use(GRASS.moddir * "figures1/fig.mplstyle")
+mpl.style.use(GRASS.moddir * "fig.mplstyle")
+colors = ["#56B4E9", "#E69F00", "#009E73", "#CC79A7"]
 
 # get command line args and output directories
 run, plot = parse_args(ARGS)
@@ -26,7 +27,8 @@ function blueshift_vs_depth(depths::AbstractArray{Float64,1};
                             blueshifts=[])
     # set up stuff for lines
     lines = [5250.6]
-    templates = ["FeI_5250.6"]
+    templates = ["FeI_5434"]
+    variability = falses(length(lines))
     resolution = 7e5
     disk = DiskParams(N=132, Nt=50)
 
@@ -36,12 +38,13 @@ function blueshift_vs_depth(depths::AbstractArray{Float64,1};
     for (idx, depth) in enumerate(depths)
         @printf(">>> Doing depth %.2f \r", depth)
         if isempty(blueshifts)
-            spec = SpecParams(lines=lines, depths=[depth], templates=templates, resolution=resolution)
+            spec = SpecParams(lines=lines, depths=[depth], templates=templates, variability=variability, resolution=resolution)
         else
             spec = SpecParams(lines=lines, depths=[depth], blueshifts=[blueshifts[idx]], templates=templates, resolution=resolution)
         end
 
         # synthesize spectra
+        # turn off variability so just convective blueshift affects velocity
         lambdas1, outspec1 = synthesize_spectra(spec, disk, use_gpu=use_gpu, verbose=false)
 
         # calculate the RVs
@@ -128,16 +131,16 @@ rvs_avg, rvs_std = blueshift_vs_depth(bin_centers)
 
 # plot the result
 fig, ax1 = plt.subplots()
-ax1.scatter(depths, blueshift, s=1, alpha=0.5, c="k", label=L"{\rm IAG}")
+ax1.scatter(depths, blueshift, s=1, alpha=0.5, c="k", label=L"{\rm Raw\ IAG}")
 ax1.errorbar(bin_centers, blueshift_med, yerr=blueshift_std, fmt=".", capsize=2.0,
              markersize=10, c="black", label=L"{\rm Binned\ IAG}")
 plt.plot(xs, ys, "k--")
-ax1.scatter(bin_centers, rvs_avg, c="tab:blue", s=25, label=L"{\rm Synthetic}", zorder=3)
+ax1.scatter(bin_centers, rvs_avg, c=colors[1], marker="s", s=25, alpha=0.9, label=L"{\rm Synthetic}", zorder=3)
 plt.xlim(0.0, 1.0)
 ax1.set_ylim(-1000, 400)
-ax1.set_xlabel(L"{\rm Depth}")
-ax1.set_ylabel(L"{\rm Convective\ Blueshift\ (ms^{-1})}")
+ax1.set_xlabel(L"{\rm Line\ Depth}")
+ax1.set_ylabel(L"{\rm Absolute\ Convective\ Blueshift\ (ms^{-1})}")
 ax1.legend(ncol=3, fontsize=11, loc="upper center")
-fig.savefig(plotdir * "conv_blueshift.pdf")
+fig.savefig(joinpath(plotdir, "conv_blueshift.pdf"))
 # plt.show()
 plt.clf(); plt.close()
