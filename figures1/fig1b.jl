@@ -8,7 +8,7 @@ using Statistics
 using LaTeXStrings
 import PyPlot; plt = PyPlot; mpl = plt.matplotlib; plt.ioff()
 using PyCall; animation = pyimport("matplotlib.animation");
-mpl.style.use(GRASS.moddir * "figures1/fig.mplstyle")
+mpl.style.use(GRASS.moddir * "fig.mplstyle")
 
 # get command line args and output directories
 run, plot = parse_args(ARGS)

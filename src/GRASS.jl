@@ -1,5 +1,3 @@
-# TODO check this line
-#__precompile__
 module GRASS
 
 # parallelization modules
@@ -138,7 +136,8 @@ Synthesize spectra given parameters in `spec` and `disk` instances.
 """
 function synthesize_spectra(spec::SpecParams{T}, disk::DiskParams{T};
                             seed_rng::Bool=false, verbose::Bool=true,
-                            use_gpu::Bool=false, precision::DataType=Float64) where T<:AF
+                            use_gpu::Bool=false, precision::DataType=Float64,
+                            skip_times::BitVector=falses(disk.Nt)) where T<:AF
     # parse out dimensions for memory allocation
     N = disk.N
     Nt = disk.Nt
@@ -160,10 +159,9 @@ function synthesize_spectra(spec::SpecParams{T}, disk::DiskParams{T};
         @assert CUDA.functional()
 
         # warn user if precision is single
-        # TODO actually throw a warning and not just a print statement
-        # if precision <: Float32
-        #     println(">>> WARNING: Single-precision implementation produces large flux and velocity errors!!")
-        # end
+        if precision <: Float32
+           @warn "Single-precision GPU implementation produces large flux and velocity errors!"
+        end
 
         # pre-allocate memory for gpu
         gpu_allocs = GPUAllocs(spec, disk, grid, precision=precision)
@@ -193,7 +191,8 @@ function synthesize_spectra(spec::SpecParams{T}, disk::DiskParams{T};
             end
 
             # run the simulation and multiply outspec by this spectrum
-            disk_sim_gpu(spec_temp, disk, soldata, gpu_allocs, outspec, verbose=verbose, precision=precision)
+            disk_sim_gpu(spec_temp, disk, soldata, gpu_allocs, outspec, verbose=verbose,
+                         skip_times=skip_times, precision=precision)
         end
         return spec.lambdas, outspec
     else
@@ -230,7 +229,8 @@ function synthesize_spectra(spec::SpecParams{T}, disk::DiskParams{T};
             outspec_temp .= 0.0
 
             # run the simulation and multiply outspec by this spectrum
-            disk_sim(spec_temp, disk, soldata, prof, outspec_temp, tloop, verbose=verbose)
+            disk_sim(spec_temp, disk, soldata, prof, outspec_temp, tloop,
+                     skip_times=skip_times, verbose=verbose)
             outspec .*= outspec_temp
         end
         return spec.lambdas, outspec

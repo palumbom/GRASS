@@ -68,7 +68,7 @@ end
 
 function disk_sim(spec::SpecParams{T}, disk::DiskParams{T}, soldata::SolarData{T},
                   prof::AA{T,1}, outspec::AA{T,2}, tloop::AA{Int,2}; verbose::Bool=true,
-                  skip_times::BitVector=BitVector(zeros(disk.Nt))) where T<:AF
+                  skip_times::BitVector=falses(disk.Nt)) where T<:AF
     # make grid
     grid = make_grid(N=disk.N)
 

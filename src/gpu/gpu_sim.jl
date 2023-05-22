@@ -1,7 +1,7 @@
 function disk_sim_gpu(spec::SpecParams{T}, disk::DiskParams{T}, soldata::SolarData{T},
                       gpu_allocs::GPUAllocs, outspec::AA{T,2}; verbose::Bool=false,
                       seed_rng::Bool=false, precision::DataType=Float64,
-                      skip_times::BitVector=BitVector(zeros(disk.Nt))) where T<:AF
+                      skip_times::BitVector=falses(disk.Nt)) where T<:AF
     # get dimensions for memory alloc
     N = disk.N
     Nt = disk.Nt
@@ -124,13 +124,8 @@ function disk_sim_gpu(spec::SpecParams{T}, disk::DiskParams{T}, soldata::SolarDa
             # trim all the bisector data
             @cusync @captured @cuda threads=threads2 blocks=blocks2 trim_bisector_gpu!(spec.depths[l], spec.variability[l],
                                                                                        lenall_gpu, bisall_gpu_loop,
-                                                                                       intall_gpu_loop, bisall_gpu,
-                                                                                       intall_gpu)
-
-            # fix the width if variability is turned off
-            if !spec.variability[l]
-                @cusync @captured @cuda threads=threads2 blocks=blocks2 copy_fixed_width!(widall_gpu_loop, widall_gpu, lenall_gpu)
-            end
+                                                                                       intall_gpu_loop, widall_gpu_loop,
+                                                                                       bisall_gpu, intall_gpu, widall_gpu)
 
             # assemble line shape on even int grid
             @cusync @captured @cuda threads=threads3 blocks=blocks3 fill_workspaces!(spec.lines[l], extra_z[l], grid,

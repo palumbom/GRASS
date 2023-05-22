@@ -1,0 +1,22 @@
+#!/bin/bash
+#PBS -A dfc13_mri
+#PBS -l qos=mgc_open
+#PBS -l nodes=1:ppn=1:gpus=1
+#PBS -l feature=rhel7
+#PBS -l walltime=08:00:00
+#PBS -l pmem=8gb
+#PBS -w /storage/home/mlp95/work/GRASS/
+#PBS -j oe
+#PBS -o /storage/home/mlp95/work/logs/
+#PBS -e /storage/home/mlp95/work/logs/
+#PBS -N GRASS_ccfbin
+
+echo "Starting job $PBS_JOBNAME"
+date
+echo "Job id: $PBS_JOBID"
+echo "About to change into $PBS_O_WORKDIR"
+cd $PBS_O_WORKDIR
+echo "About to start Julia"
+julia /storage/home/mlp95/work/GRASS/figures2/ccf_bin.jl
+echo "Julia exited"
+date
