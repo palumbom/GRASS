@@ -123,7 +123,7 @@ ax3.yaxis.offsetText.set_visible(false)
 ax3.set_yticks([-1.0e-3, -0.5e-3, 0.0, 0.5e-3, 1.0e-3])
 ax3.set_yticklabels([L"-1.0", L"-0.5", L"0.0", L"0.5", L"1.0"])
 
-legend = ax1.legend(loc="lower left", mode="expand", ncols=3, fontsize=12,
+legend = ax1.legend(loc="lower left", mode="expand", ncols=3, fontsize=12.5,
                     bbox_to_anchor=(0, 1.02, 1, 0.2), handletextpad=0.33)
 for legend_handle in legend.legendHandles
     legend_handle._sizes = [20.0]

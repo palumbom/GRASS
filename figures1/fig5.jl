@@ -1,12 +1,10 @@
 # import stuff
-using Distributed
-@everywhere using Pkg
-@everywhere Pkg.activate(".")
-@everywhere using Statistics
-@everywhere using CUDA
-@everywhere using GRASS
-@everywhere using SharedArrays
-@everywhere using EchelleCCFs
+using Pkg; Pkg.activate(".")
+using Statistics
+using CUDA
+using GRASS
+using SharedArrays
+using EchelleCCFs
 using CSV
 using DataFrames
 using LaTeXStrings
@@ -76,7 +74,7 @@ if plot
     # plotting imports
     import PyPlot; plt = PyPlot; mpl = plt.matplotlib; plt.ioff()
     using PyCall; animation = pyimport("matplotlib.animation")
-    mpl.style.use(GRASS.moddir * "figures1/fig.mplstyle")
+    mpl.style.use(GRASS.moddir * "fig.mplstyle")
 
     # read in the data
     fname = datadir * "rms_vs_depth_" * string(N) * ".csv"

@@ -65,32 +65,65 @@ function simulate_observations(obs::ObservationPlan, spec::SpecParams;
 
     # synthesize the spectra at default resolution
     Nλ = length(spec.lambdas)
-    outspec = zeros(Nλ, disk.Nt)
-    if use_gpu
-        disk_sim_gpu(spec, disk, outspec, skip_times=skip_times)
-    else
-        disk_sim(spec, disk, prof, outspec, skip_times=skip_times)
-        prof = ones(Nλ)
-    end
+    # outspec = zeros(Nλ, disk.Nt)
+
+    wavs, flux = synthesize_spectra(spec, disk, verbose=false, use_gpu=use_gpu,
+                                    skip_times=skip_times)
+
+    # if use_gpu
+    #     disk_sim_gpu(spec, disk, outspec, skip_times=skip_times)
+    # else
+    #     disk_sim(spec, disk, prof, outspec, skip_times=skip_times)
+    #     prof = ones(Nλ)
+    # end
 
 
     # allocate memory for binned spectra
     flux_binned = zeros(Nλ, obs.N_obs)
     for i in 1:obs.N_obs
         inds = (i-1) * nt_per_iter + 1: i * nt_per_iter
-        flux_binned[:, i] = sum(outspec[:, inds], dims=2) ./ sum(.!skip_times[inds])
+        flux_binned[:, i] = sum(flux[:, inds], dims=2) ./ sum(.!skip_times[inds])
     end
 
     # degrade the resolution
     if !isnan(new_res)
-        flux_binned = convolve_gauss(spec.lambdas, flux_binned, new_res=new_res)
+        # set two pixels per res element
+        oversampling = 2.0
+
+        # get size of output to convolve from initial convolution
+        wavs_to_deg = view(wavs, :, 1)
+        flux_to_deg = view(flux_binned, :, 1)
+        wavs_degd, flux_degd = GRASS.convolve_gauss(wavs_to_deg,
+                                                    flux_to_deg,
+                                                    new_res=new_res,
+                                                    oversampling=oversampling)
+
+        # allocate memory for degraded spectra
+        # wavs_degd = zeros(size(wavs_degd, 1), size(flux_binned, 2))
+        flux_degd = zeros(size(wavs_degd, 1), size(flux_binned, 2))
+
+        # loop over epochs and do convolution
+        for j in 1:size(flux_binned, 2)
+            flux_to_deg = view(flux_binned, :, j)
+            wavs_temp, flux_temp = GRASS.convolve_gauss(wavs_to_deg,
+                                                        flux_to_deg,
+                                                        new_res=new_res,
+                                                        oversampling=oversampling)
+
+            # copy to array
+            # wavs_degd[:, j] .= wavs_temp
+            flux_degd[:, j] .= flux_temp
+        end
+
+        wavs = wavs_degd
+        flux_binned = flux_degd
     end
 
     # add noise to specified snr per res element
     flux_binned = add_noise(flux_binned, snr)
 
     # calculate ccf and velocities
-    v_grid, ccf1 = calc_ccf(spec.lambdas, flux_binned, spec, normalize=true)
+    v_grid, ccf1 = calc_ccf(wavs, flux_binned, spec, normalize=true)
     rvs, sigs = calc_rvs_from_ccf(v_grid, ccf1)
     return rvs, sigs
 end
