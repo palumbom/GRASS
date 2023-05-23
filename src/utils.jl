@@ -76,12 +76,3 @@ function moving_average(a, n)
     end
     return out
 end
-
-function collect_range(range::AA{T,1}) where T
-    if typeof(range) <: StepRangeLen
-        return collect(range)
-    else
-        return range
-    end
-    return nothing
-end
