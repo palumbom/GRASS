@@ -16,7 +16,7 @@ using DataFrames
 using Statistics
 using Distributions
 using Interpolations
-# using PrecompileTools
+using PrecompileTools
 
 # import specific methods
 import Glob.glob
@@ -237,28 +237,29 @@ function synthesize_spectra(spec::SpecParams{T}, disk::DiskParams{T};
     end
 end
 
-# # precompile stuff function
-# @compile_workload begin
-#     N = 132
-#     Nt = 2
-#     lines = [5434.5]
-#     depths = [0.5]
-#     geffs = [0.0]
-#     templates = ["FeI_5434"]
-#     variability = repeat([true], length(lines))
-#     resolution = 7e5
+# precompile stuff
+@compile_workload begin
+    N = 132
+    Nt = 2
+    lines = [5434.5]
+    depths = [0.5]
+    geffs = [0.0]
+    templates = ["FeI_5434"]
+    variability = repeat([true], length(lines))
+    resolution = 7e5
 
-#     disk = DiskParams(N=N, Nt=Nt)
-#     spec = SpecParams(lines=lines, depths=depths, variability=variability,
-#                        geffs=geffs, templates=templates, resolution=resolution)
+    disk = DiskParams(N=N, Nt=Nt)
+    spec = SpecParams(lines=lines, depths=depths, variability=variability,
+                       geffs=geffs, templates=templates, resolution=resolution)
 
-#     if CUDA.functional()
-#         lambdas1, outspec = synthesize_spectra(spec, disk, seed_rng=true, verbose=false, use_gpu=true)
-#         lambdas1, outspec = synthesize_spectra(spec, disk, seed_rng=true, verbose=false, use_gpu=false)
-#     else
-#         lambdas1, outspec = synthesize_spectra(spec, disk, seed_rng=true, verbose=false, use_gpu=false)
-#     end
-# end
+    if CUDA.functional()
+        # TODO figure out what's going wrong with GPU precompilation caching
+        # lambdas1, outspec = synthesize_spectra(spec, disk, seed_rng=true, verbose=false, use_gpu=true)
+        lambdas1, outspec = synthesize_spectra(spec, disk, seed_rng=true, verbose=false, use_gpu=false)
+    else
+        lambdas1, outspec = synthesize_spectra(spec, disk, seed_rng=true, verbose=false, use_gpu=false)
+    end
+end
 
 # export some stuff
 export SpecParams, DiskParams, LineProperties, SolarData, synthesize_spectra,
