@@ -2,6 +2,7 @@
 *.gz
 *.log
 *.pdf
+*.jld2
 *.jl.cov
 *.jl.mem
 *.jl.*.cov
