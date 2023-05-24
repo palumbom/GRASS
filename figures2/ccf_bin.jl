@@ -37,7 +37,7 @@ function main()
     # draw random line depths and centers
     nlines = 10
     # lines = Float64[]
-    lines = range(5200, 5500, length=nlines*length(rest_wavelengths))
+    lines = range(5200, 5600, length=nlines*length(rest_wavelengths))
     depths = Float64[]
     templates = String[]
     for i in eachindex(rest_wavelengths)
@@ -49,8 +49,10 @@ function main()
         push!(templates, repeat([line_files[i]], nlines)...)
     end
 
-    # re-shuffle line order by generating random indices
-    lines = lines[randperm(length(lines))]
+    # re-shuffle template order by generating random indices
+    idx = randperm(length(lines))
+    depths = depths[idx]
+    templates = templates[idx]
 
     # synthesize a spectrum
     N = 132
@@ -69,108 +71,123 @@ function main()
 end
 
 # run the simulation
-if run
-    main()
-end
-
-# if plot
-#     function make_ccf_plots(wavs, flux, lines, depths, title)
-#         # calculate a ccf for one line
-#         v_grid, ccf1 = calc_ccf(wavs, flux, lines, depths,
-#                                 7e5, mask_type=EchelleCCFs.TopHatCCFMask,
-#                                 Δv_step=125.0)
-#         rvs1, sigs1 = calc_rvs_from_ccf(v_grid, ccf1)
-#         bis, int = GRASS.calc_bisector(v_grid, ccf1, nflux=20)
-#         bis_inv_slope = GRASS.calc_bisector_inverse_slope(bis, int)
-
-#         # get data to fit / plot
-#         xdata = rvs1 .- mean(rvs1)
-#         ydata = bis_inv_slope .- mean(bis_inv_slope)
-
-#         # do the fit
-#         pfit = Polynomials.fit(xdata, ydata, 1)
-#         xmodel = range(-2, 2, length=5)
-#         ymodel = pfit.(xmodel)
-
-#         # get slope string to annotate
-#         slope = round(coeffs(pfit)[2], digits=3)
-#         fit_label = "\$ " .* string(slope) .* "\$"
-
-#         # calc mean to plot
-#         mean_bis = dropdims(mean(bis, dims=2), dims=2)[2:end-2]
-#         mean_int = dropdims(mean(int, dims=2), dims=2)[2:end-2]
-#         mean_bis .-= mean(mean_bis)
-
-#         # make plotting objects
-#         fig, (ax1, ax2) = plt.subplots(nrows=1, ncols=2, figsize=(9, 7))
-#         fig.subplots_adjust(wspace=0.05)
-#         # ax1.set_box_aspect(1)
-#         # ax2.set_box_aspect(1)
-
-#         ax1.plot(mean_bis, mean_int, c="k", lw=3.0)
-#         ax2.scatter(xdata, ydata, c="k", s=1.5, alpha=0.9)
-#         ax2.plot(xmodel, ymodel, c="k", ls="--", label=L"{\rm Slope } \approx\ " * fit_label, lw=2.5)
-#         ax2.legend()
-
-#         ax1.set_xlabel(L"\Delta\ v\ {\rm (m/s)}")
-#         ax1.set_ylabel(L"{\rm Normalized\ CCF}")
-#         ax2.set_xlabel(L"\Delta v\ {\rm (m s}^{-1}{\rm )}")
-#         ax2.set_ylabel(L"{\rm BIS}\ - \overline{\rm BIS}\ {\rm (m s}^{-1}{\rm )}")
-#         ax2.yaxis.set_label_position("right")
-#         ax2.yaxis.tick_right()
-#         fig.suptitle("{\\rm " * replace(title, " "=> "\\ ") * "}", y=0.98)
-#         fig.tight_layout()
-#         fig.savefig(joinpath("/Users/michael/Desktop/ccf_bin_plots/", title * ".pdf"))
-#         # plt.show()
-#         plt.clf(); plt.close()
-#     end
-
-#     # load the file
-#     data = load("/Users/michael/Desktop/spectra_for_bin.jld2")
-#     depths = data["depths"]
-#     wavs = data["wavs"]
-#     lines = data["lines"]
-#     flux = data["flux"]
-#     templates = data["templates"]
-
-#     # collect lines
-#     lines = collect(lines)
-
-#     # do a random line and do all lines
-#     make_ccf_plots(wavs, flux[:,1:100], [lines[41]], [depths[41]], "Single Line")
-#     # make_ccf_plots(wavs, flux, lines, depths, "All Lines")
-
-#     # # get list of line idxs in each depth bin
-#     # depth_bins = range(0.0, 1.0, step=0.1)
-#     # idxs = []
-#     # for i in eachindex(depth_bins)
-#     #     # get indices
-#     #     i == 1 && continue
-#     #     idx = map(x -> (x .<= depth_bins[i]) & (x .> depth_bins[i - 1]), depths)
-#     #     push!(idxs, idx)
-#     # end
-
-#     # #
-#     # for i in eachindex(idxs)
-#     #     # get line title
-#     #     title = "Depths gt " * string(depth_bins[i]) * " and lt " * string(depth_bins[i+1])
-#     #     println(title)
-
-#     #     # get the lines and make plots
-#     #     lines_i = view(lines, idxs[i])
-#     #     depths_i = view(depths, idxs[i])
-#     #     if isempty(lines_i)
-#     #         continue
-#     #     end
-#     #     make_ccf_plots(wavs, flux, lines_i, depths_i, title)
-#     # end
-
-#     # # read in formation temps
-#     # # TODO measure temperature weighted by information content (slope)
-#     # line_info = CSV.read(GRASS.datdir * "line_info.csv", DataFrame)
-#     # plt.scatter(line_info.air_wavelength, line_info.avg_temp_50, c="tab:blue")
-#     # plt.scatter(line_info.air_wavelength, line_info.avg_temp_80, c="k")
-#     # plt.xlabel("Wavelength")
-#     # plt.ylabel("Avg. Line Formation Temperature")
-#     # plt.show()
+# if run
+#     main()
 # end
+
+if plot
+    function make_ccf_plots(wavs, flux, lines, depths, title)
+        # calculate a ccf for one line
+        v_grid, ccf1 = calc_ccf(wavs, flux, lines, depths,
+                                7e5, mask_type=EchelleCCFs.TopHatCCFMask,
+                                Δv_step=125.0)
+        rvs1, sigs1 = calc_rvs_from_ccf(v_grid, ccf1)
+        bis, int = GRASS.calc_bisector(v_grid, ccf1, nflux=20)
+        bis_inv_slope = GRASS.calc_bisector_inverse_slope(bis, int)
+
+        # get data to fit / plot
+        xdata = rvs1 .- mean(rvs1)
+        ydata = bis_inv_slope .- mean(bis_inv_slope)
+
+        # do the fit
+        pfit = Polynomials.fit(xdata, ydata, 1)
+        xmodel = range(-2, 2, length=5)
+        ymodel = pfit.(xmodel)
+
+        # get slope string to annotate
+        slope = round(coeffs(pfit)[2], digits=3)
+        fit_label = "\$ " .* string(slope) .* "\$"
+
+        # calc mean to plot
+        mean_bis = dropdims(mean(bis, dims=2), dims=2)[2:end-2]
+        mean_int = dropdims(mean(int, dims=2), dims=2)[2:end-2]
+        mean_bis .-= mean(mean_bis)
+
+        # make plotting objects
+        fig, (ax1, ax2) = plt.subplots(nrows=1, ncols=2, figsize=(9, 7))
+        fig.subplots_adjust(wspace=0.05)
+        # ax1.set_box_aspect(1)
+        # ax2.set_box_aspect(1)
+
+        ax1.plot(mean_bis, mean_int, c="k", lw=3.0)
+        ax2.scatter(xdata, ydata, c="k", s=1.5, alpha=0.9)
+        ax2.plot(xmodel, ymodel, c="k", ls="--", label=L"{\rm Slope } \approx\ " * fit_label, lw=2.5)
+        ax2.legend()
+
+        ax1.set_xlabel(L"\Delta\ v\ {\rm (m/s)}")
+        ax1.set_ylabel(L"{\rm Normalized\ CCF}")
+        ax2.set_xlabel(L"\Delta v\ {\rm (m s}^{-1}{\rm )}")
+        ax2.set_ylabel(L"{\rm BIS}\ - \overline{\rm BIS}\ {\rm (m s}^{-1}{\rm )}")
+        ax2.yaxis.set_label_position("right")
+        ax2.yaxis.tick_right()
+        fig.suptitle("{\\rm " * replace(title, " "=> "\\ ") * "}", y=0.98)
+        fig.tight_layout()
+        fig.savefig(joinpath("/Users/michael/Desktop/ccf_bin_plots/", title * ".pdf"))
+        # plt.show()
+        plt.clf(); plt.close()
+    end
+
+    # load the file
+    data = load("/Users/michael/Desktop/spectra_for_bin.jld2")
+    depths = data["depths"]
+    wavs = data["wavs"]
+    lines = data["lines"]
+    flux = data["flux"]
+    templates = data["templates"]
+
+    # collect lines
+    lines = collect(lines)
+
+    # plot the spectrum
+    # plt.plot(wavs, flux[:,1])
+    # plt.show()
+
+    # do all lines
+    # make_ccf_plots(wavs, flux, lines, depths, "All Lines")
+
+    # do a single line (a nice one)
+    idx = findfirst(x -> occursin.("FeI_5250.6", x), templates)
+    make_ccf_plots(wavs, flux, [lines[idx]], [depths[idx]], "Single Line")
+
+    # now do all lines of a given template
+    lp = GRASS.LineProperties()
+    line_names = GRASS.get_name(lp)
+    for i in line_names
+        idx = findall(x -> occursin.(i, x), templates)
+        make_ccf_plots(wavs, flux, lines[idx], depths[idx], i)
+    end
+
+    # # get list of line idxs in each depth bin
+    # depth_bins = range(0.0, 1.0, step=0.1)
+    # idxs = []
+    # for i in eachindex(depth_bins)
+    #     # get indices
+    #     i == 1 && continue
+    #     idx = map(x -> (x .<= depth_bins[i]) & (x .> depth_bins[i - 1]), depths)
+    #     push!(idxs, idx)
+    # end
+
+    # #
+    # for i in eachindex(idxs)
+    #     # get line title
+    #     title = "Depths gt " * string(depth_bins[i]) * " and lt " * string(depth_bins[i+1])
+    #     println(title)
+
+    #     # get the lines and make plots
+    #     lines_i = view(lines, idxs[i])
+    #     depths_i = view(depths, idxs[i])
+    #     if isempty(lines_i)
+    #         continue
+    #     end
+    #     make_ccf_plots(wavs, flux, lines_i, depths_i, title)
+    # end
+
+    # # read in formation temps
+    # # TODO measure temperature weighted by information content (slope)
+    # line_info = CSV.read(GRASS.datdir * "line_info.csv", DataFrame)
+    # plt.scatter(line_info.air_wavelength, line_info.avg_temp_50, c="tab:blue")
+    # plt.scatter(line_info.air_wavelength, line_info.avg_temp_80, c="k")
+    # plt.xlabel("Wavelength")
+    # plt.ylabel("Avg. Line Formation Temperature")
+    # plt.show()
+end
