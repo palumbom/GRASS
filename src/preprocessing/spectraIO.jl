@@ -45,7 +45,18 @@ function extract_line_params(s::String)
     return [fpath fname datetimes wavelength muposition helio_axis]
 end
 
-function read_spectrum(filename::String)
+function get_observing_cadence(filename::String)
+    # Primary HDU has spectra + noise in frame 1/2
+    cad = FITS(filename) do f
+        # read contents
+        head = read_header(f[1])
+        return head["CADENCE"]
+    end
+    return cad
+end
+
+
+function read_spectrum(filename::String; omit_bad_rows::Bool=true)
     # Primary HDU has spectra + noise in frame 1/2
     head = []
     flux = []
@@ -54,26 +65,32 @@ function read_spectrum(filename::String)
     FITS(filename) do f
         # read contents
         head = read_header(f[1])
-        flux = FITSIO.read(f[1])[:,:,1]
-        nois = FITSIO.read(f[1])[:,:,2]
+        flux = convert.(Float64, FITSIO.read(f[1])[:,:,1])
+        nois = convert.(Float64, FITSIO.read(f[1])[:,:,2])
         wavs = FITSIO.read(f[2])
+
+        # get table data
+        if omit_bad_rows
+            # find rows with bad status
+            df = DataFrame(f[3])
+            cols = map(iszero, hcat(df.COMB_F0, df.COMB_FR, df.COMB_LOCKED, df.COMB_PLO_OK))
+            status = .!map(all, eachrow(cols))
+
+            # remove the bad columns
+            wavs = strip_columns(wavs, status)
+            flux = strip_columns(flux, status)
+            nois = strip_columns(nois, status)
+        end
 
         # determine if conversion to angstroms is necessary
         if all(wavs .< 1e3)
             wavs .*= 1.0e10
         end
     end
-    return wavs, convert.(Float64, flux)
+    return wavs, flux, nois
 end
 
-function write_the_fits(fname::String, xdat::AbstractArray{T,2}, ydat::AbstractArray{T,2}) where T<:Real
-    FITS(fname, "w") do io
-        write(io, cat(xdat, ydat, dims=3))
-    end
-    return nothing
-end
-
-function bin_spectrum(wavs::AbstractArray{T,2}, flux::AbstractArray{T,2}; binsize::Integer=10) where T<:Real
+function bin_spectrum(wavs::AA{T,2}, flux::AA{T,2}; binsize::Integer=10) where T<:Real
     @assert size(wavs) == size(flux)
     @assert binsize >= 1
     @assert binsize < size(wavs,2)
@@ -85,8 +102,56 @@ function bin_spectrum(wavs::AbstractArray{T,2}, flux::AbstractArray{T,2}; binsiz
 
     # do the binning
     for i in 0:(nbins-1)
-        wavs[:,i+1] = mean(wavs[:, i*binsize+1:(i+1)*binsize], dims=2)
+        # get new wavelength grid
+        new_wavs = dropdims(mean(wavs[:, i*binsize+1:(i+1)*binsize], dims=2), dims=2)
+
+        # do-flux conserving re-bin onto new wavelength grid
+        for j in i*binsize+1:(i+1)*binsize
+            flux[:, j] = rebin_spectrum(view(wavs, :, j), view(flux, :, j), new_wavs)
+        end
+
+        # assign new wavelength to memory and take mean flux
+        wavs[:,i+1] = new_wavs
         flux[:,i+1] = mean(flux[:, i*binsize+1:(i+1)*binsize], dims=2)
     end
     return view(wavs, :, 1:nbins), view(flux, :, 1:nbins)
+end
+
+function bin_spectrum_weighted(wavs::AA{T,2}, flux::AA{T,2},
+                               nois::AA{T,2}; binsize::Integer=10) where T<:Real
+    @assert size(wavs) == size(flux)
+    @assert binsize >= 1
+    @assert binsize < size(wavs,2)
+
+    # get sizes
+    nwave = size(wavs,1)
+    ntime = size(wavs,2)
+    nbins = floor(Int, ntime/binsize)
+
+    # do the binning
+    for i in 0:(nbins-1)
+        # get new wavelength grid
+        new_wavs = dropdims(mean(wavs[:, i*binsize+1:(i+1)*binsize], dims=2), dims=2)
+
+        # do-flux conserving re-bin onto new wavelength grid
+        for j in i*binsize+1:(i+1)*binsize
+            flux_new, nois_new = rebin_spectrum(view(wavs, :, j), view(flux, :, j),
+                                                view(nois, :, j), new_wavs)
+
+            flux[:, j] = flux_new
+            nois[:, j] = nois_new
+        end
+
+        # assign new wavelength to memory
+        wavs[:,i+1] = new_wavs
+
+        # get weighted flux
+        wghts = 1.0 ./ view(nois, :,i*binsize+1:(i+1)*binsize).^2.0
+        flux[:,i+1] = sum(flux[:, i*binsize+1:(i+1)*binsize] .* wghts, dims=2)
+        flux[:,i+1] ./= sum(wghts, dims=2)
+
+        # get the new uncertainty on weighted average
+        nois[:,i+1] = 1.0 ./ sqrt.(sum(wghts, dims=2))
+    end
+    return view(wavs, :, 1:nbins), view(flux, :, 1:nbins), view(nois, :, 1:nbins)
 end

@@ -120,7 +120,6 @@ function identify_bad_cols(bisall::AA{T,2}, intall::AA{T,2}, widall::AA{T,2};
 end
 
 function relative_bisector_wavelengths(bis::AA{T,2}) where T<:AF
-    # TODO: find better way; how does this jive w/ convective blueshift?
     bis .-= mean(bis)
     return nothing
 end
@@ -136,7 +135,7 @@ function extrapolate_input_data(bist::AA{T,1}, intt::AA{T,1}, widt::AA{T,1}, top
 
     # fit the top bisector area and replace with model fit
     idx1 = searchsortedfirst(intt, top - 0.1 * dep )
-    idx2 = searchsortedfirst(intt, top) - 1
+    idx2 = searchsortedfirst(intt, top) - 2
     bfit = pfit(view(intt, idx1:idx2), view(bist, idx1:idx2), 1)
     bist[idx2:end] .= bfit.(view(intt, idx2:length(intt)))
 

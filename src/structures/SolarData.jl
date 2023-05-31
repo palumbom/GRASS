@@ -30,8 +30,8 @@ function SolarData(;fname::String="", relative::Bool=true, extrapolate::Bool=tru
 end
 
 function SolarData(fname::String; relative::Bool=true, extrapolate::Bool=true,
-                    adjust_mean::Bool=true, contiguous_only::Bool=false,
-                    fixed_width::Bool=false, fixed_bisector::Bool=false)
+                   adjust_mean::Bool=true, contiguous_only::Bool=false,
+                   fixed_width::Bool=false, fixed_bisector::Bool=false)
     # make sure the file exists
     @assert isfile(fname)
 
