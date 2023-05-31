@@ -101,7 +101,9 @@ function find_wing_index(val, arr; min=argmin(arr))
 end
 
 
-function fit_line_wings(wavs_iso::AA{T,1}, flux_iso::AA{T,1}; debug::Bool=false) where T<:AF
+function fit_line_wings(wavs_iso::AA{T,1}, flux_iso::AA{T,1};
+                        nois_iso::AA{T,1}=zeros(length(flux_iso)),
+                        debug::Bool=false) where T<:AF
     # get indices and values for minimum, depth, and bottom
     min = argmin(flux_iso)
     bot = flux_iso[min]
@@ -128,16 +130,23 @@ function fit_line_wings(wavs_iso::AA{T,1}, flux_iso::AA{T,1}; debug::Bool=false)
         lidx95, ridx95 = find_wing_index(0.95 * depth + bot, flux_iso, min=min)
         lwing = lidx90:lidx20
         rwing = ridx20:ridx95
-    elseif isapprox(wavs_iso[argmin(flux_iso)], 5432.8, atol=0.5)
+    elseif isapprox(wavs_iso[argmin(flux_iso)], 5432.9, atol=0.5)
         lidx95, ridx95 = find_wing_index(0.95 * depth + bot, flux_iso, min=min)
         lwing = lidx95:lidx20
-        rwing = ridx20:ridx80
-    elseif isapprox(wavs_iso[argmin(flux_iso)], 5434.5, atol=0.5)
-        lwing = lidx50:lidx20
-        rwing = ridx20:ridx60
-    elseif isapprox(wavs_iso[argmin(flux_iso)], 5436.3, atol=0.5)
+        rwing = ridx20:ridx95
+    elseif isapprox(wavs_iso[argmin(flux_iso)], 5434.52, atol=0.3)
+        lwing = lidx70:lidx40
+        rwing = ridx40:ridx70
+    elseif isapprox(wavs_iso[argmin(flux_iso)], 5435.8, atol=0.3)
         lwing = lidx90:lidx20
         rwing = ridx20:ridx90
+    elseif isapprox(wavs_iso[argmin(flux_iso)], 5436.3, atol=0.5)
+        lidx90, ridx90 = find_wing_index(0.90 * depth + bot, flux_iso, min=min)
+        lwing = lidx90:lidx20
+        rwing = ridx20:ridx90
+    elseif isapprox(wavs_iso[argmin(flux_iso)], 5380.3, atol=0.5)
+        lwing = lidx70:lidx20
+        rwing = ridx20:ridx70
     elseif isapprox(wavs_iso[argmin(flux_iso)], 5578.7, atol=0.5)
         lwing = lidx90:lidx20
         rwing = ridx20:ridx90
@@ -151,6 +160,10 @@ function fit_line_wings(wavs_iso::AA{T,1}, flux_iso::AA{T,1}; debug::Bool=false)
         lidx95, ridx95 = find_wing_index(0.95 * depth + bot, flux_iso, min=min)
         lwing = lidx95:lidx20
         rwing = ridx20:ridx95
+    elseif isapprox(wavs_iso[argmin(flux_iso)], 6170.5, atol=0.5)
+        lidx95, ridx95 = find_wing_index(0.95 * depth + bot, flux_iso, min=min)
+        lwing = lidx95:lidx10
+        rwing = ridx20:ridx95
     elseif isapprox(wavs_iso[argmin(flux_iso)], 6173.3, atol=0.5)
         lidx95, ridx95 = find_wing_index(0.95 * depth + bot, flux_iso, min=min)
         lwing = lidx95:lidx10
@@ -162,15 +175,35 @@ function fit_line_wings(wavs_iso::AA{T,1}, flux_iso::AA{T,1}; debug::Bool=false)
         lwing = lidx90:lidx20
         rwing = ridx20:ridx80
     else
-        lwing = lidx80:lidx10
-        rwing = ridx10:ridx80
+        lwing = lidx80:lidx30
+        rwing = ridx30:ridx80
     end
 
+    # find ones
+    idx_contl = findall(isone, flux_iso[1:min])
+    idx_contr = findall(isone, flux_iso[min+1:end]) .+ min
+
     # create arrays to fit on
-    wavs_lfit = vcat(wavs_iso[lwing], wavs_iso[core])
-    flux_lfit = vcat(flux_iso[lwing], flux_iso[core])
-    wavs_rfit = vcat(wavs_iso[core], wavs_iso[rwing])
-    flux_rfit = vcat(flux_iso[core], flux_iso[rwing])
+    # wavs_lfit = vcat(wavs_iso[idx_contl], wavs_iso[lwing], wavs_iso[min-2:min+10])
+    # flux_lfit = vcat(flux_iso[idx_contl], flux_iso[lwing], flux_iso[min-2:min+10])
+
+    # wavs_rfit = vcat(wavs_iso[min-10:min+2], wavs_iso[rwing], wavs_iso[idx_contr])
+    # flux_rfit = vcat(flux_iso[min-10:min+2], flux_iso[rwing], flux_iso[idx_contr])
+
+    wavs_lfit = vcat(wavs_iso[idx_contl], wavs_iso[lwing])
+    flux_lfit = vcat(flux_iso[idx_contl], flux_iso[lwing])
+
+    wavs_rfit = vcat(wavs_iso[rwing], wavs_iso[idx_contr])
+    flux_rfit = vcat(flux_iso[rwing], flux_iso[idx_contr])
+
+    if all(iszero.(nois_iso))
+        wts_lfit = ones(length(flux_lfit))
+        wts_rfit = ones(length(flux_rfit))
+    else
+        wts = 1.0 ./ (nois_iso .^ 2.0)
+        wts_lfit = vcat(nois_iso[idx_contl], nois_iso[lwing])
+        wts_rfit = vcat(nois_iso[rwing], nois_iso[idx_contr])
+    end
 
     # set boundary conditions and initial guess
     # GOOD FOR FeI 5434 + others
@@ -179,14 +212,14 @@ function fit_line_wings(wavs_iso::AA{T,1}, flux_iso::AA{T,1}; debug::Bool=false)
         ub = [2.5, wavs_iso[min], 0.75, 0.75]
         p0 = [.97, wavs_iso[min], 0.05, 0.16]
     else
-        lb = [0.0, wavs_iso[min]-minimum(diff(wavs_iso)), 1e-5, 1e-5]
-        ub = [2.5, wavs_iso[min]+minimum(diff(wavs_iso)), 0.15, 0.15]
+        lb = [0.0, wavs_iso[min]- 2.0 * minimum(diff(wavs_iso)), 1e-5, 1e-5]
+        ub = [2.5, wavs_iso[min]+ 2.0 * minimum(diff(wavs_iso)), 0.15, 0.15]
         p0 = [0.2, wavs_iso[min], 0.02, 0.001]
     end
 
     # perform the fit
-    lfit = curve_fit(GRASS.fit_voigt, wavs_lfit, flux_lfit, p0, lower=lb, upper=ub)
-    rfit = curve_fit(GRASS.fit_voigt, wavs_rfit, flux_rfit, p0, lower=lb, upper=ub)
+    lfit = curve_fit(GRASS.fit_voigt, wavs_lfit, flux_lfit, wts_lfit, p0, lower=lb, upper=ub)
+    rfit = curve_fit(GRASS.fit_voigt, wavs_rfit, flux_rfit, wts_rfit, p0, lower=lb, upper=ub)
 
     if debug
         @show lfit.param

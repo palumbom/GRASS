@@ -7,13 +7,22 @@ using GRASS
 
 import PyPlot; plt = PyPlot; mpl = plt.matplotlib; plt.ioff()
 using LaTeXStrings
-mpl.style.use(GRASS.moddir * "figures1/fig.mplstyle")
+mpl.style.use(GRASS.moddir * "fig.mplstyle")
 
 # set LARS spectra absolute dir and read line info file
 const data_dir = "/storage/group/ebf11/default/mlp95/lars_spectra/"
-const line_info = CSV.read(GRASS.datdir * "line_info.csv", DataFrame,
-                           types=[String, String, Float64, Float64, Float64,
-                                  Float64, Float64, Float64, String])
+line_info = CSV.read(GRASS.datdir * "line_info.csv", DataFrame,
+                           types=[String, String, Float64, Float64,
+                                  Float64, Float64, Float64, Float64,
+                                  String, Float64, Float64])
+
+for col in eachcol(line_info)
+    replace!(col,missing => NaN)
+end
+
+line_info[!,"height"] = convert.(Float64, line_info[!,"height"])
+line_info[!,"avg_temp_80"] = convert.(Float64, line_info[!,"avg_temp_80"])
+line_info[!,"avg_temp_50"] = convert.(Float64, line_info[!,"avg_temp_50"])
 
 # output directories for misc stuff
 const grassdir, plotdir, datadir = GRASS.check_plot_dirs()
@@ -47,7 +56,7 @@ function preprocess_line(line_name::String; clobber::Bool=true, verbose::Bool=tr
         # debugging block + filename printing
         if debug && i > 1
         # if debug && splitdir(fits_files[i])[end] != "lars_l12_20160820-120935_clv5434_mu05_n.ns.chvtt.fits"
-        # if splitdir(fits_files[i])[end] != "lars_l12_20161013-161738_clv6302_mu05_n.ns.chvtt.fits"
+        # if splitdir(fits_files[i])[end] != "lars_l12_20170516-091334_clv5380_mu07_e.ns.chvtt.fits"
         # if debug && !contains(fits_files[i], "mu07_n")
             break
             # nothing
@@ -61,12 +70,25 @@ function preprocess_line(line_name::String; clobber::Bool=true, verbose::Bool=tr
         mu_string = spec_df.mu[i]
         ax_string = spec_df.axis[i]
 
-        # read in the spectrum and normalize it
-        wavs, flux = GRASS.bin_spectrum(GRASS.read_spectrum(fits_files[i])...)
-        flux ./= maximum(flux, dims=1)
+        # get nobs per bin
+        cad = GRASS.get_observing_cadence(fits_files[i])
+        if verbose
+            println("\t \t >>> cadence = "  * string(cad) * " sec")
+        end
 
-        # allocate memory for extrapolation height value
-        top = zeros(size(wavs,2))
+        if !iszero(15 % cad)
+            println("\t \t >>> Cadence cannot be binned to 15 seconds, moving on...")
+            continue
+        else
+            binsize = convert(Int, 15/cad)
+        end
+
+        # read in the spectrum, and bin it to 15 second obs
+        @show binsize
+        wavs, flux, nois = GRASS.bin_spectrum_weighted(GRASS.read_spectrum(fits_files[i])..., binsize=binsize)
+
+        # do a normalization
+        flux ./= maximum(flux, dims=1)
 
         # allocate memory for measuring input data
         nflux = 100
@@ -74,12 +96,13 @@ function preprocess_line(line_name::String; clobber::Bool=true, verbose::Bool=tr
         int1 = zeros(nflux, size(wavs,2))
         int2 = zeros(nflux, size(wavs,2))
         wid = zeros(nflux, size(wavs,2))
+        top = zeros(size(wavs,2))
 
         # loop over epochs in spectrum file
         for t in 1:size(wavs, 2)
             # debugging block
             if debug && t > 1
-            # if debug && t != 57
+            # if debug && t != 16
                 break
                 # nothing
                 # continue
@@ -88,6 +111,7 @@ function preprocess_line(line_name::String; clobber::Bool=true, verbose::Bool=tr
             # get view of this time slice
             wavst = view(wavs, :, t)
             fluxt = view(flux, :, t)
+
             if debug
                 fig, (ax1, ax2) = plt.subplots(1,2, figsize=(9,6))
                 ax1.plot(wavst, fluxt, c="k", label="raw spec")
@@ -101,14 +125,17 @@ function preprocess_line(line_name::String; clobber::Bool=true, verbose::Bool=tr
             depth = 1.0 - bot
 
             # find indices to isolate the line
-            if line_name in ["CI_5380", "FeI_5434", "FeI_5382", "FeI_5383", "CaI_6169.0", "FeI_6301", "FeI_6302"]
-                idx1, idx2 = GRASS.find_wing_index(0.9 * depth + bot, fluxt, min=min)
-            else
-                idx1, idx2 = GRASS.find_wing_index(0.95 * depth + bot, fluxt, min=min)
-            end
+            # if line_name in ["CI_5380", "FeI_5434", "FeI_5382", "FeI_5383", "CaI_6169.0", "FeI_6301", "FeI_6302"]
+            #     idx1, idx2 = GRASS.find_wing_index(0.9 * depth + bot, fluxt, min=min)
+            # else
+            #     idx1, idx2 = GRASS.find_wing_index(0.95 * depth + bot, fluxt, min=min)
+            # end
+
+            # find indices to isolate the line
+            idx1, idx2 = GRASS.find_wing_index(0.95 * depth + bot, fluxt, min=min)
 
             # check that the indices dont take us into another line
-            wavbuff = 0.2
+            wavbuff = 0.3
             if line_name != "NaI_5896" && wavst[min] - wavst[idx1] > wavbuff
                 idx1 = findfirst(x -> x .> wavst[min] - wavbuff, wavst)
                 idx1 = argmax(fluxt[idx1:min]) + idx1
@@ -118,12 +145,19 @@ function preprocess_line(line_name::String; clobber::Bool=true, verbose::Bool=tr
                 idx2 = argmax(fluxt[min:idx2]) + min
             end
 
+            # pad flux_iso with ones
+            cont_idxl = findall(x -> (1.0 .- x) .< 0.001, fluxt[1:idx1])
+            cont_idxr = findall(x -> (1.0 .- x) .< 0.001, fluxt[idx2+2:end]) .+ idx2
+
+            flux_padl = ones(length(cont_idxl))
+            flux_padr = ones(length(cont_idxr))
+
             # view of isolated line
-            wavs_iso = copy(view(wavst, idx1:idx2))
-            flux_iso = copy(view(fluxt, idx1:idx2))
+            wavs_iso = vcat(wavst[cont_idxl], copy(view(wavst, idx1:idx2)), wavst[cont_idxr])
+            flux_iso = vcat(flux_padl, copy(view(fluxt, idx1:idx2)), flux_padr)
 
             # if the spectrum is bad and line isolation didn't work, move on
-            if line_name != "NaI_5896" && last(wavs_iso) - first(wavs_iso) > 0.6
+            if line_name != "NaI_5896" && wavst[idx2] - first(wavst[idx1]) > 0.75
                 println("\t\t >>> Problem with t = " * string(t) * ", moving on...")
                 continue
             elseif std(flux_iso) < 0.01
@@ -135,6 +169,11 @@ function preprocess_line(line_name::String; clobber::Bool=true, verbose::Bool=tr
             lfit, rfit = GRASS.fit_line_wings(wavs_iso, flux_iso, debug=debug)
             if !(lfit.converged & rfit.converged)
                 println("\t\t >>> Fit did not converge for t = " * string(t) * ", moving on...")
+                if !debug
+                    continue
+                end
+            elseif (abs(lfit.param[2] - line_df.air_wavelength[1]) > 0.1) | (abs(rfit.param[2] - line_df.air_wavelength[1]) > 0.1)
+                println("\t\t >>> Wrong line was fit for t = " * string(t) * ", moving on...")
                 if !debug
                     continue
                 end
@@ -160,13 +199,13 @@ function preprocess_line(line_name::String; clobber::Bool=true, verbose::Bool=tr
             if line_name == "NaI_5896"
                 top[t] = 0.65 * depth + bot
             elseif line_name == "FeI_5434"
-                top[t] = 0.7 * depth + bot
-            elseif line_name == "FeI_5379"
-                top[t] = 0.9 * depth + bot
+                top[t] = 0.75 * depth + bot
             elseif line_name == "FeI_6302"
                 top[t] = 0.7 * depth + bot
+            elseif line_name == "CI_5380"
+                top[t] = 0.7 * depth + bot
             else
-                top[t] = 0.75 * depth + bot
+                top[t] = 0.8 * depth + bot
             end
 
             # debugging code block
@@ -237,11 +276,11 @@ function main()
     for name in line_info.name
         # skip the "hard" lines for now
         # (name in ["CI_5380", "FeI_5382"]) && continue
-        name != "FeI_6302" && continue
+        name != "NaI_5896" && continue
 
         # print the line name and preprocess it
         println(">>> Processing " * name * "...")
-        preprocess_line(name, debug=false)
+        preprocess_line(name, debug=true)
     end
     return nothing
 end
