@@ -32,7 +32,8 @@ function measure_continuum(flux::AA{T,1}) where T<:AF
     # return nothing
 end
 
-function find_wing_index(val, arr; min=argmin(arr))
+function find_wing_index(val::T, arr::AA{T,1}; min::Int=argmin(arr)) where T<:AF
+    @assert !isnothing(min)
     lidx = findfirst(x -> x .>= val, reverse(arr[1:min]))
     ridx = findfirst(x -> x .>= val, arr[min:end])
     if isnothing(lidx)
@@ -179,6 +180,10 @@ function fit_line_wings(wavs_iso::AA{T,1}, flux_iso::AA{T,1};
         ub = [2.5, wavs_iso[min], 0.75, 0.75]
         p0 = [.97, wavs_iso[min], 0.05, 0.16]
     elseif isapprox(wavs_iso[argmin(flux_iso)], 5432.546, atol=0.25)
+        lb = [0.0, wavs_iso[min]- 5.0 * minimum(diff(wavs_iso)), 1e-5, 1e-5]
+        ub = [2.5, wavs_iso[min]+ 5.0 * minimum(diff(wavs_iso)), 0.15, 0.15]
+        p0 = [0.2, wavs_iso[min], 0.05, 0.05]
+    elseif isapprox(wavs_iso[argmin(flux_iso)], 5383.368, atol=0.25)
         lb = [0.0, wavs_iso[min]- 5.0 * minimum(diff(wavs_iso)), 1e-5, 1e-5]
         ub = [2.5, wavs_iso[min]+ 5.0 * minimum(diff(wavs_iso)), 0.15, 0.15]
         p0 = [0.2, wavs_iso[min], 0.05, 0.05]
