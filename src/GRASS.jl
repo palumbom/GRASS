@@ -13,6 +13,7 @@ using LsqFit
 using FITSIO
 using Random
 using Dierckx
+using StatsBase
 using DataFrames
 using Statistics
 using Distributions
