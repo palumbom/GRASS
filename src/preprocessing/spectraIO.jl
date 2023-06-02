@@ -45,6 +45,8 @@ function extract_line_params(s::String)
     return [fpath fname datetimes wavelength muposition helio_axis]
 end
 
+
+
 function get_observing_cadence(filename::String)
     # Primary HDU has spectra + noise in frame 1/2
     cad = FITS(filename) do f
@@ -154,4 +156,95 @@ function bin_spectrum_weighted(wavs::AA{T,2}, flux::AA{T,2},
         nois[:,i+1] = 1.0 ./ sqrt.(sum(wghts, dims=2))
     end
     return view(wavs, :, 1:nbins), view(flux, :, 1:nbins), view(nois, :, 1:nbins)
+end
+
+function write_line_params(line_df::DataFrame; clobber::Bool=false)
+    # get the filename
+    fname = GRASS.soldir * line_df.name[1] * ".h5"
+
+    # create the file if it doesn't exist
+    if clobber | !isfile(fname)
+        h5open(fname, "w") do f; end
+    end
+
+    # write the line properties as attributes of the file
+    h5open(fname, "r+") do f
+        # get the attrributes
+        attr = HDF5.attributes(f)
+
+        # check if the metadata already exists
+        if haskey(attr, "depth")
+            println("\t >>> " * splitdir(fname)[end] * " metadata already exists...")
+        else
+            # read in the IAG data and isolate the line
+            # TODO: line of interest may not be deepest line!!!
+            println("\t >>> Writing line properties to " * splitdir(fname)[end])
+            iag_wavs, iag_flux = read_iag_atlas(isolate=true, airwav=line_df.air_wavelength[1])
+
+            idx1 = findfirst(x -> x .<= line_df.air_wavelength[1] - 0.25, iag_wavs)
+            idx2 = findfirst(x -> x .>= line_df.air_wavelength[1] + 0.25, iag_wavs)
+            iag_depth = 1.0 - minimum(view(iag_flux, idx1:idx2))
+
+            # write the attributes to file metadata
+            for n in names(line_df)
+                if ismissing(line_df[!, n][1])
+                    attr[n] = NaN
+                else
+                    attr[n] = line_df[!, n][1]
+                end
+            end
+            attr["depth"] = iag_depth
+        end
+
+        # look for any pre-existing input data and delete it
+        if !isempty(keys(f))
+            println("\t >>> Purging old input data...")
+            for k in keys(f)
+                delete_object(f, k)
+            end
+        end
+    end
+    return nothing
+end
+
+function write_input_data(line_df::DataFrame, ax::String, mu::String, datetime::Dates.DateTime,
+                          top_ints::AA{T,1}, bis::AA{T,2}, int::AA{T,2}, wid::AA{T,2}) where T<:AF
+    # get the filename
+    fname = GRASS.soldir * line_df.name[1] * ".h5"
+
+    # create the file if it doesn't exist
+    if !isfile(fname)
+        h5open(fname, "w") do f; end
+    end
+
+    # write the data
+    h5open(fname, "r+") do f
+        # create the group for this disk position if it doesn't exists
+        if !haskey(f, ax * "_" * mu)
+            create_group(f, ax * "_" * mu)
+            pos_group = f[ax * "_" * mu]
+
+            # set attributes for this group
+            attr = HDF5.attributes(pos_group)
+            attr["mu"] = mu
+            attr["axis"] = ax
+        end
+
+        # create the sub-group for this specific datetime
+        pos_group = f[ax * "_" * mu]
+        create_group(pos_group, string(datetime))
+        g = pos_group[string(datetime)]
+
+        # set attributes
+        attr = HDF5.attributes(g)
+        attr["datetime"] = string(datetime)
+        attr["length"] = size(bis,2)
+
+        # fill out the datasets
+        g["top_ints"] = top_ints
+        g["bisectors"] = bis
+        g["intensities"] = int
+        g["widths"] = wid
+    end
+    return nothing
 end
