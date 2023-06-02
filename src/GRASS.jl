@@ -240,32 +240,32 @@ function synthesize_spectra(spec::SpecParams{T}, disk::DiskParams{T};
 end
 
 # precompile stuff
-# if !isempty(soldir)
-#     @compile_workload begin
-#         # params for spectra
-#         N = 132
-#         Nt = 2
-#         lines = [5434.5]
-#         depths = [0.5]
-#         geffs = [0.0]
-#         templates = ["FeI_5434"]
-#         variability = repeat([true], length(lines))
-#         resolution = 7e5
+if !isempty(soldir)
+    @compile_workload begin
+        # params for spectra
+        N = 132
+        Nt = 2
+        lines = [5434.5]
+        depths = [0.5]
+        geffs = [0.0]
+        templates = ["FeI_5434"]
+        variability = repeat([true], length(lines))
+        resolution = 7e5
 
-#         # make composite type instances
-#         disk = DiskParams(N=N, Nt=Nt)
-#         spec = SpecParams(lines=lines, depths=depths, variability=variability,
-#                            geffs=geffs, templates=templates, resolution=resolution)
+        # make composite type instances
+        disk = DiskParams(N=N, Nt=Nt)
+        spec = SpecParams(lines=lines, depths=depths, variability=variability,
+                           geffs=geffs, templates=templates, resolution=resolution)
 
-#         if CUDA.functional()
-#             # TODO figure out what's going wrong with GPU precompilation caching
-#             # lambdas1, outspec = synthesize_spectra(spec, disk, seed_rng=true, verbose=false, use_gpu=true)
-#             lambdas1, outspec = synthesize_spectra(spec, disk, seed_rng=true, verbose=false, use_gpu=false)
-#         else
-#             lambdas1, outspec = synthesize_spectra(spec, disk, seed_rng=true, verbose=false, use_gpu=false)
-#         end
-#     end
-# end
+        if CUDA.functional()
+            # TODO figure out what's going wrong with GPU precompilation caching
+            # lambdas1, outspec = synthesize_spectra(spec, disk, seed_rng=true, verbose=false, use_gpu=true)
+            lambdas1, outspec = synthesize_spectra(spec, disk, seed_rng=true, verbose=false, use_gpu=false)
+        else
+            lambdas1, outspec = synthesize_spectra(spec, disk, seed_rng=true, verbose=false, use_gpu=false)
+        end
+    end
+end
 
 # export some stuff
 export SpecParams, DiskParams, LineProperties, SolarData, synthesize_spectra,

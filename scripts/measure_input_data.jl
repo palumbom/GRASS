@@ -56,7 +56,8 @@ function preprocess_line(line_name::String; clobber::Bool=true, verbose::Bool=tr
         # debugging block + filename printing
         # if debug && i > 1
             # break
-        if debug && splitdir(fits_files[i])[end] != "lars_l12_20160820-173755_clv5434_mu095_e.ns.chvtt.fits"
+            # nothing
+        if debug && splitdir(fits_files[i])[end] != "lars_l12_20161017-163508_clv6302_mu07_e.ns.chvtt.fits"
             continue
         # if debug && !contains(fits_files[i], "mu03_n")
             # continue
@@ -109,9 +110,9 @@ function preprocess_line(line_name::String; clobber::Bool=true, verbose::Bool=tr
             # debugging block
             # if debug && t > 1
                 # break
-            if debug && t != 27
-                continue
-            end
+            # if debug && t != 11
+            #     continue
+            # end
 
             # get view of this time slice
             wavst = view(wavs, :, t)
@@ -129,19 +130,24 @@ function preprocess_line(line_name::String; clobber::Bool=true, verbose::Bool=tr
             min = argmin(fluxt[idx-minbuff:idx+minbuff]) + idx - (minbuff+1)
             bot = fluxt[min]
             depth = 1.0 - bot
-
-            # find indices to isolate the line
-            # if line_name in ["CI_5380", "FeI_5434", "FeI_5382", "FeI_5383", "CaI_6169.0", "FeI_6301", "FeI_6302"]
-            #     idx1, idx2 = GRASS.find_wing_index(0.9 * depth + bot, fluxt, min=min)
-            # else
-            #     idx1, idx2 = GRASS.find_wing_index(0.95 * depth + bot, fluxt, min=min)
-            # end
+            if isnan(bot)
+                println("\t\t >>> Problem with t = " * string(t) * ", moving on...")
+                continue
+            end
 
             # find indices to isolate the line
             idx1, idx2 = GRASS.find_wing_index(0.9 * depth + bot, fluxt, min=min)
+            if isnothing(idx1) | isnothing(idx2)
+                println("\t\t >>> Problem with t = " * string(t) * ", moving on...")
+                continue
+            end
 
             # check that the indices dont take us into another line
-            wavbuff = 0.3
+            if line_name == "FeI_6302"
+                wavbuff = 0.2
+            else
+                wavbuff = 0.3
+            end
             if line_name != "NaI_5896" && wavst[min] - wavst[idx1] > wavbuff
                 idx1 = findfirst(x -> x .> wavst[min] - wavbuff, wavst)
                 idx1 = argmax(fluxt[idx1:min]) + idx1
@@ -283,7 +289,7 @@ function main()
     for name in line_info.name
         # skip the "hard" lines for now
         # (name in ["CI_5380", "FeI_5382"]) && continue
-        # name != "MnI_5432" && continue
+        name != "FeI_6302" && continue
 
         # print the line name and preprocess it
         println(">>> Processing " * name * "...")
