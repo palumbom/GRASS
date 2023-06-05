@@ -1,11 +1,11 @@
 # get groups of lines in same osbserved spectral regions
 const line_groups = [["FeI_5250.2", "FeI_5250.6"],
-                     ["FeI_5379", "CI_5380", "TiII_5381", "FeI_5383"],
-                     ["FeI_5432", "FeI_5434", "NiI_5435", "FeI_5436.3", "FeI_5436.6"],
+                     ["FeI_5379", "CI_5380", "TiII_5381", "FeI_5382", "FeI_5383"],
+                     ["MnI_5432", "FeI_5432", "FeI_5434", "NiI_5435", "FeI_5436.3", "FeI_5436.6"],
                      ["FeI_5576", "NiI_5578"],
                      ["NaI_5896"],
                      ["FeII_6149", "FeI_6151"],
-                     ["CaI_6169.0", "FeI_6173"],
+                     ["CaI_6169.0", "CaI_6169.5", "FeI_6170", "FeI_6173"],
                      ["FeI_6301", "FeI_6302"]]
 
 function get_name_from_filename(line1::String)
