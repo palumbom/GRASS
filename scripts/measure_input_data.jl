@@ -157,6 +157,12 @@ function preprocess_line(line_name::String; clobber::Bool=true, verbose::Bool=tr
                 idx2 = argmax(fluxt[min:idx2]) + min
             end
 
+
+            # measure the bisector before we play with line wings
+            wavs_iso = view(wavst, idx1:idx2)
+            flux_iso = view(fluxt, idx1:idx2)
+            bis[:,t], int1[:,t] = GRASS.calc_bisector(wavs_iso, flux_iso, nflux=nflux, top=maximum(flux_iso))
+
             # pad flux_iso with ones
             cont_idxl = findall(x -> (1.0 .- x) .< 0.001, fluxt[1:idx1])
             cont_idxr = findall(x -> (1.0 .- x) .< 0.001, fluxt[idx2+2:end]) .+ idx2
@@ -233,12 +239,8 @@ function preprocess_line(line_name::String; clobber::Bool=true, verbose::Bool=tr
             # replace the line wings above top[t]% continuum
             GRASS.replace_line_wings(lfit, rfit, wavs_meas, flux_meas, min, top[t], debug=debug)
 
-            # measure the bisector and width function
-            bis[:,t], int1[:,t] = GRASS.calc_bisector(wavs_meas, flux_meas, nflux=nflux, top=0.999)
+            # measure the width function
             int2[:,t], wid[:,t] = GRASS.calc_width_function(wavs_meas, flux_meas, nflux=nflux, top=0.999)
-
-            # make sure the intensities are the same
-            @assert all(int1[:,t] .== int2[:,t])
 
             # debug plottings
             if debug
@@ -268,12 +270,13 @@ function preprocess_line(line_name::String; clobber::Bool=true, verbose::Bool=tr
             end
         end
         bis = GRASS.strip_columns(bis, bad_cols)
-        int = GRASS.strip_columns(int1, bad_cols)
         wid = GRASS.strip_columns(wid, bad_cols)
+        int1 = GRASS.strip_columns(int1, bad_cols)
+        int2 = GRASS.strip_columns(int2, bad_cols)
 
         # write input data to disk
         if !debug
-            GRASS.write_input_data(line_df, ax_string, mu_string, datetime, top, bis, int, wid)
+            GRASS.write_input_data(line_df, ax_string, mu_string, datetime, top, bis, int1, wid, int2)
         end
     end
 
@@ -289,7 +292,7 @@ function main()
     for name in line_info.name
         # skip the "hard" lines for now
         # (name in ["CI_5380", "FeI_5382"]) && continue
-        name != "FeI_6302" && continue
+        name != "FeI_5434" && continue
 
         # print the line name and preprocess it
         println(">>> Processing " * name * "...")
