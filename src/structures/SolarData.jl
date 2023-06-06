@@ -81,15 +81,17 @@ function SolarData(fname::String; relative::Bool=true, extrapolate::Bool=true,
                 # allocate memory
                 top = zeros(sum(ntimes))
                 bis = zeros(100, sum(ntimes))
-                int = zeros(100, sum(ntimes))
                 wid = zeros(100, sum(ntimes))
+                int1 = zeros(100, sum(ntimes))
+                int2 = zeros(100, sum(ntimes))
 
                 # read in
                 for (i, t) in enumerate(keys(f[k]))
                     top[sum(ntimes[1:i-1])+1:sum(ntimes[1:i])] = read(f[k][t]["top_ints"])
                     bis[:, sum(ntimes[1:i-1])+1:sum(ntimes[1:i])] = read(f[k][t]["bisectors"])
-                    int[:, sum(ntimes[1:i-1])+1:sum(ntimes[1:i])] = read(f[k][t]["intensities"])
+                    int1[:, sum(ntimes[1:i-1])+1:sum(ntimes[1:i])] = read(f[k][t]["bis_intensities"])
                     wid[:, sum(ntimes[1:i-1])+1:sum(ntimes[1:i])] = read(f[k][t]["widths"])
+                    int2[:, sum(ntimes[1:i-1])+1:sum(ntimes[1:i])] = read(f[k][t]["wid_intensities"])
                 end
             end
 
@@ -99,8 +101,9 @@ function SolarData(fname::String; relative::Bool=true, extrapolate::Bool=true,
             if sum(badcols) > 0
                 top = strip_columns(top, badcols)
                 bis = strip_columns(bis, badcols)
-                int = strip_columns(int, badcols)
                 wid = strip_columns(wid, badcols)
+                int1 = strip_columns(int1, badcols)
+                int2 = strip_columns(int2, badcols)
             end
 
             # match the means of noncontiguous datasets
