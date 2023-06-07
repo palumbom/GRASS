@@ -16,11 +16,12 @@ function measure_convective_blueshifts(fname)
                 # get bisectors
                 top = read(f[k][t]["top_ints"])
                 bis = read(f[k][t]["bisectors"])
-                int = read(f[k][t]["intensities"])
+                int = read(f[k][t]["bis_intensities"])
                 wid = read(f[k][t]["widths"])
+                int2 = read(f[k][t]["wid_intensities"])
 
                 # identify bad columns and strip them out
-                badcols = identify_bad_cols(bis, int, wid)
+                badcols = identify_bad_cols(bis, int, wid, int2)
 
                 if sum(badcols) > 0
                     bis = strip_columns(bis, badcols)
@@ -42,10 +43,7 @@ function measure_convective_blueshifts(fname)
 
                     # average of bisector velocity above bottom and below top
                     idx1 = 5 # the lowest-most measurements are usually janky
-                    idx2 = findfirst(x -> x .>= bot + 0.8 * dep, intt)
-                    if isnothing(idx2) || topt < idx2
-                        idx2 = findfirst(x -> x .>= topt, intt)
-                    end
+                    idx2 = findfirst(x -> x .>= topt, intt)
 
                     # take the mean λ of bisectors
                     vlos[i] += mean(view(bist, idx1:idx2))

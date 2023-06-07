@@ -20,10 +20,21 @@ Construct a `SpecParams` composite type instance.
 """
 function SolarData(;fname::String="", relative::Bool=true, extrapolate::Bool=true,
                     adjust_mean::Bool=true, contiguous_only::Bool=false,
-                    fixed_width::Bool=false, fixed_bisector::Bool=false,)
+                    fixed_width::Bool=false, fixed_bisector::Bool=false)
+    # default
     if isempty(fname)
-        fname = GRASS.soldir * "FeI_5434.h5"
+        fname = joinpath(soldir, "FeI_5434.h5")
     end
+
+    # if doesn't end in file
+    if !contains(fname, ".h5")
+        fname *= ".h5"
+    end
+
+    if !isabspath(fname)
+        fname = joinpath(soldir, fname)
+    end
+
     return SolarData(fname, relative=relative, extrapolate=extrapolate,
                      adjust_mean=adjust_mean, contiguous_only=contiguous_only,
                      fixed_width=fixed_width, fixed_bisector=fixed_bisector)
@@ -68,8 +79,9 @@ function SolarData(fname::String; relative::Bool=true, extrapolate::Bool=true,
                 # read in
                 top = read(f[k][t]["top_ints"])
                 bis = read(f[k][t]["bisectors"])
-                int = read(f[k][t]["intensities"])
+                int1 = read(f[k][t]["bis_intensities"])
                 wid = read(f[k][t]["widths"])
+                int2 = read(f[k][t]["wid_intensities"])
             # stitch together all observations of given disk position
             else
                 # get total number of epochs
@@ -96,14 +108,22 @@ function SolarData(fname::String; relative::Bool=true, extrapolate::Bool=true,
             end
 
             # identify bad columns and strip them out
-            badcols = identify_bad_cols(bis, int, wid)
-
+            badcols = identify_bad_cols(bis, int1, wid, int2)
             if sum(badcols) > 0
                 top = strip_columns(top, badcols)
                 bis = strip_columns(bis, badcols)
                 wid = strip_columns(wid, badcols)
                 int1 = strip_columns(int1, badcols)
                 int2 = strip_columns(int2, badcols)
+            end
+
+            # interpolate bisector onto width intensity grid
+            for t in eachindex(top)
+                intt = view(int1, :, t)
+                bist = view(bis, :, t)
+                itp = linear_interp(intt, bist, bc=last(bist))
+                bis[:,t] .= itp.(view(int2, :, t))
+                int1[:,t] .= view(int2, :, t)
             end
 
             # match the means of noncontiguous datasets
@@ -121,11 +141,11 @@ function SolarData(fname::String; relative::Bool=true, extrapolate::Bool=true,
             end
 
             if extrapolate
-                extrapolate_input_data(bis, int, wid, top)
+                extrapolate_input_data(bis, int1, wid, top, parse_mu_string(mu))
             end
 
             # express bisector wavelengths relative to mean
-            # add in convective blueshift at synthesis stage (later)
+            # add in convective blueshift at line synthesis stage
             if relative
                 relative_bisector_wavelengths(bis)
             end
@@ -135,7 +155,7 @@ function SolarData(fname::String; relative::Bool=true, extrapolate::Bool=true,
             topdict[Symbol(ax), Symbol(mu)] = top
             cbsdict[Symbol(ax), Symbol(mu)] = vconv
             bisdict[Symbol(ax), Symbol(mu)] = (bis .* !fixed_bisector) .+ (λrest .* fixed_bisector * !relative)
-            intdict[Symbol(ax), Symbol(mu)] = int
+            intdict[Symbol(ax), Symbol(mu)] = int1
             if !fixed_width
                 widdict[Symbol(ax), Symbol(mu)] = wid
             else
