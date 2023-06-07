@@ -54,11 +54,11 @@ function preprocess_line(line_name::String; clobber::Bool=true, verbose::Bool=tr
     fits_files = spec_df.fpath .* spec_df.fname
     for i in eachindex(fits_files)
         # debugging block + filename printing
-        # if debug && i > 1
-            # break
+        if debug && i > 1
+            break
             # nothing
-        if debug && splitdir(fits_files[i])[end] != "lars_l12_20161017-163508_clv6302_mu07_e.ns.chvtt.fits"
-            continue
+        # if debug && splitdir(fits_files[i])[end] != "lars_l12_20161017-163508_clv6302_mu07_e.ns.chvtt.fits"
+            # continue
         # if debug && !contains(fits_files[i], "mu03_n")
             # continue
         elseif verbose
@@ -110,9 +110,9 @@ function preprocess_line(line_name::String; clobber::Bool=true, verbose::Bool=tr
             # debugging block
             # if debug && t > 1
                 # break
-            # if debug && t != 11
-            #     continue
-            # end
+            if debug && t != 7
+                continue
+            end
 
             # get view of this time slice
             wavst = view(wavs, :, t)
@@ -161,7 +161,8 @@ function preprocess_line(line_name::String; clobber::Bool=true, verbose::Bool=tr
             # measure the bisector before we play with line wings
             wavs_iso = view(wavst, idx1:idx2)
             flux_iso = view(fluxt, idx1:idx2)
-            bis[:,t], int1[:,t] = GRASS.calc_bisector(wavs_iso, flux_iso, nflux=nflux, top=maximum(flux_iso))
+            bis[:,t], int1[:,t] = GRASS.calc_bisector(wavs_iso, flux_iso, nflux=nflux,
+                                                      top=maximum(flux_iso) - 0.01)
 
             # pad flux_iso with ones
             cont_idxl = findall(x -> (1.0 .- x) .< 0.001, fluxt[1:idx1])
@@ -289,10 +290,10 @@ function preprocess_line(line_name::String; clobber::Bool=true, verbose::Bool=tr
 end
 
 function main()
-    for name in line_info.name
+    for name in line_info.name[20:end]
         # skip the "hard" lines for now
         # (name in ["CI_5380", "FeI_5382"]) && continue
-        name != "FeI_5434" && continue
+        # name != "FeI_5434" && continue
 
         # print the line name and preprocess it
         println(">>> Processing " * name * "...")
