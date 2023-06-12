@@ -33,8 +33,11 @@ function time_loop_cpu(tloop::Int, prof::AA{T,1}, z_rot::T, z_cbs::T,
             wsp.widt .= view(soldata.wid[key], :, 1)
         end
 
+        # get depth to trim to from depth contrast
+        dtrim = spec.depths[l] #* soldata.dep_contrast[key]
+
         # synthesize the line
-        line_loop_cpu(prof, λΔD, spec.depths[l], spec.lambdas, wsp)
+        line_loop_cpu(prof, λΔD, dtrim, spec.lambdas, wsp)
     end
     return nothing
 end

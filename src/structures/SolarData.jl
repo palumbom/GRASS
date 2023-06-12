@@ -3,6 +3,7 @@ struct SolarData{T1<:AF}
     int::Dict{Tuple{Symbol,Symbol}, AbstractArray{T1,2}}
     wid::Dict{Tuple{Symbol,Symbol}, AbstractArray{T1,2}}
     top::Dict{Tuple{Symbol,Symbol}, AbstractArray{T1,1}}
+    dep_contrast::Dict{Tuple{Symbol,Symbol}, T1}
     cbs::Dict{Tuple{Symbol,Symbol}, T1}
     len::Dict{Tuple{Symbol,Symbol}, Int}
     ax::Array{Symbol,1}
@@ -166,7 +167,18 @@ function SolarData(fname::String; relative::Bool=true, extrapolate::Bool=true,
             push!(mus, mu)
         end
     end
+
+    # compute mean depth at disk center
+    dep_dc = mean(1.0 .- view(intdict[(:c, :mu10)], 1, :))
+
+    # compute depth contrasts
+    dep_contrast = Dict{Tuple{Symbol,Symbol}, Float64}()
+    for k in keys(intdict)
+        dep_contrast[k] = mean(1.0 .- view(intdict[k], 1, :)) / dep_dc
+    end
+
+    # get key components
     axs = Symbol.(unique(axs))
     mus = Symbol.(sort!(unique(mus)))
-    return SolarData(bisdict, intdict, widdict, topdict, cbsdict, lendict, axs, mus)
+    return SolarData(bisdict, intdict, widdict, topdict, dep_contrast, cbsdict, lendict, axs, mus)
 end
