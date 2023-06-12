@@ -192,7 +192,8 @@ function calc_bisector(wavs::AA{T,1}, flux::AA{T,2}; kwargs...) where T<:Real
     return cat([x[1] for x in out]..., dims=2), cat([x[2] for x in out]..., dims=2)
 end
 
-function calc_bisector_cubic(wavs::AA{T,1}, flux::AA{T,1}) where T<:Real
+function calc_bisector_cubic(wavs::AA{T,1}, flux::AA{T,1}; top::T=maximum(flux),
+                             nflux::Int=length(flux)) where T<:Real
     # find index of minimum
     idx_min = argmin(flux)
 
@@ -208,7 +209,7 @@ function calc_bisector_cubic(wavs::AA{T,1}, flux::AA{T,1}) where T<:Real
     itp2 = cubic_interp(view(flux, idx_min:idx2), view(wavs, idx_min:idx2))
 
     # get the bisector
-    flux_out = range(minimum(flux), maximum(flux) - 0.01, length=50)
+    flux_out = range(minimum(flux), top, length=nflux)
     bis_out = (itp2.(flux_out) .+ itp1.(flux_out))./2
 
     return bis_out, flux_out
