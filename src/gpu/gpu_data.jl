@@ -2,6 +2,7 @@ function sort_data_for_gpu(soldata::SolarData{T}) where T<:AbstractFloat
     # allocate memory for arrays to pass to gpu
     len = collect(values(soldata.len))
     cbs = collect(values(soldata.cbs))
+    dep_contrast = collect(values(soldata.dep_contrast))
     npositions = length(len)
     bis = zeros(100, maximum(len), npositions)
     int = zeros(100, maximum(len), npositions)
@@ -24,6 +25,7 @@ function sort_data_for_gpu(soldata::SolarData{T}) where T<:AbstractFloat
     # get the arrays in mu sorted order
     len .= len[inds_mu]
     cbs .= cbs[inds_mu]
+    dep_contrast .= dep_contrast[inds_mu]
     bis .= view(bis, :, :, inds_mu)
     int .= view(int, :, :, inds_mu)
     wid .= view(wid, :, :, inds_mu)
@@ -37,11 +39,12 @@ function sort_data_for_gpu(soldata::SolarData{T}) where T<:AbstractFloat
 
         len[inds1] .= len[inds1][inds2]
         cbs[inds1] .= cbs[inds1][inds2]
+        dep_contrast[inds1] .= dep_contrast[inds1][inds2]
         bis[:, :, inds1] .= bis[:, :, inds1][:, :, inds2]
         int[:, :, inds1] .= int[:, :, inds1][:, :, inds2]
         wid[:, :, inds1] .= wid[:, :, inds1][:, :, inds2]
     end
-    return disc_mu, disc_ax, len, cbs, bis, int, wid
+    return disc_mu, disc_ax, len, cbs, dep_contrast, bis, int, wid
 end
 
 function find_nearest_ax_gpu(x::T, y::T) where T<:AbstractFloat

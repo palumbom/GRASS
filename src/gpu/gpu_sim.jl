@@ -34,9 +34,10 @@ function disk_sim_gpu(spec::SpecParams{T}, disk::DiskParams{T}, soldata::SolarDa
     disc_ax_cpu = sorted_data[2]
     lenall_cpu = sorted_data[3]
     cbsall_cpu = sorted_data[4]
-    bisall_cpu = sorted_data[5]
-    intall_cpu = sorted_data[6]
-    widall_cpu = sorted_data[7]
+    depcontrast_cpu = sorted_data[5]
+    bisall_cpu = sorted_data[6]
+    intall_cpu = sorted_data[7]
+    widall_cpu = sorted_data[8]
 
     # set number of threads and blocks for N*N matrix gpu functions
     threads1 = (16,16)
@@ -63,6 +64,7 @@ function disk_sim_gpu(spec::SpecParams{T}, disk::DiskParams{T}, soldata::SolarDa
         bisall_gpu = CuArray{precision}(bisall_cpu)
         intall_gpu = CuArray{precision}(intall_cpu)
         widall_gpu = CuArray{precision}(widall_cpu)
+        depcontrast_gpu = CuArray{precision}(depcontrast_cpu)
     end
 
     # allocate arrays for fresh copy of input data to copy to each loop
@@ -123,9 +125,10 @@ function disk_sim_gpu(spec::SpecParams{T}, disk::DiskParams{T}, soldata::SolarDa
 
             # trim all the bisector data
             @cusync @captured @cuda threads=threads2 blocks=blocks2 trim_bisector_gpu!(spec.depths[l], spec.variability[l],
-                                                                                       lenall_gpu, bisall_gpu_loop,
-                                                                                       intall_gpu_loop, widall_gpu_loop,
-                                                                                       bisall_gpu, intall_gpu, widall_gpu)
+                                                                                       depcontrast_gpu, lenall_gpu,
+                                                                                       bisall_gpu_loop, intall_gpu_loop,
+                                                                                       widall_gpu_loop, bisall_gpu,
+                                                                                       intall_gpu, widall_gpu)
 
             # assemble line shape on even int grid
             @cusync @captured @cuda threads=threads3 blocks=blocks3 fill_workspaces!(spec.lines[l], extra_z[l], grid,
