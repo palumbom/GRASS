@@ -18,6 +18,7 @@ using DataFrames
 using Statistics
 using Polynomials
 using Distributions
+using ImageFiltering
 using Interpolations
 using PrecompileTools
 
