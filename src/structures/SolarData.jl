@@ -168,6 +168,10 @@ function SolarData(fname::String; relative::Bool=true, extrapolate::Bool=true,
         end
     end
 
+    # get key components
+    axs = Symbol.(unique(axs))
+    mus = Symbol.(sort!(unique(mus)))
+
     # compute mean depth at disk center
     dep_dc = mean(1.0 .- view(intdict[(:c, :mu10)], 1, :))
 
@@ -177,8 +181,18 @@ function SolarData(fname::String; relative::Bool=true, extrapolate::Bool=true,
         dep_contrast[k] = mean(1.0 .- view(intdict[k], 1, :)) / dep_dc
     end
 
-    # get key components
-    axs = Symbol.(unique(axs))
-    mus = Symbol.(sort!(unique(mus)))
+    # make sure the keys of all dictionaries are sorted
+    bisdict = Dict(sort(bisdict, by=x -> x[2]))
+    intdict = Dict(sort(intdict, by=x -> x[2]))
+    widdict = Dict(sort(widdict, by=x -> x[2]))
+    topdict = Dict(sort(topdict, by=x -> x[2]))
+    dep_contrast = Dict(sort(dep_contrast, by=x -> x[2]))
+    cbsdict = Dict(sort(cbsdict, by=x -> x[2]))
+    lendict = Dict(sort(lendict, by=x -> x[2]))
+
+    # assertion to verify keys are the same
+    @assert all(keys(bisdict) .== keys(dep_contrast))
+
+    # construct the composite tpye
     return SolarData(bisdict, intdict, widdict, topdict, dep_contrast, cbsdict, lendict, axs, mus)
 end

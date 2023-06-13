@@ -11,7 +11,7 @@ function trim_bisector_gpu!(depth, variability, depcontrast, lenall, bisall_out,
     # loop over disk positions for bisectors
     for i in idx:sdx:CUDA.length(lenall)
         # get depth to trim to
-        dtrim = depth #* depcontrast[i]
+        dtrim = depth * depcontrast[i]
 
         # loop over epochs of bisectors
         for j in idy:sdy:CUDA.size(bisall_in, 2)
@@ -45,8 +45,7 @@ function trim_bisector_gpu!(depth, variability, depcontrast, lenall, bisall_out,
                 end
             else
                 for k in idz:sdz:CUDA.size(bisall_in, 1)
-                    new_intt = (1.0 - dtrim) + (k-1) * step
-                    @inbounds intt_out[k] = new_intt
+                    @inbounds intt_out[k] = (1.0 - dtrim) + (k-1) * step
                     @inbounds bist_out[k] = 0.0
                     @inbounds widall_out[k,j,i] = widall_in[k,1,i]
                 end
