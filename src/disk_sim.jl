@@ -19,9 +19,9 @@ function time_loop_cpu(tloop::Int, prof::AA{T,1}, z_rot::T, z_cbs::T,
     # loop over lines
     for l in liter
         # get views needed for line synthesis
-        wsp.bist .= view(soldata.bis[key], :, tloop)
-        wsp.intt .= view(soldata.int[key], :, tloop)
-        wsp.widt .= view(soldata.wid[key], :, tloop)
+        wsp.bist .= copy(view(soldata.bis[key], :, tloop))
+        wsp.intt .= copy(view(soldata.int[key], :, tloop))
+        wsp.widt .= copy(view(soldata.wid[key], :, tloop))
 
         # calculate the position of the line center
         extra_z = spec.conv_blueshifts[l] - z_cbs_avg
@@ -34,7 +34,7 @@ function time_loop_cpu(tloop::Int, prof::AA{T,1}, z_rot::T, z_cbs::T,
         end
 
         # get depth to trim to from depth contrast
-        dtrim = spec.depths[l] #* soldata.dep_contrast[key]
+        dtrim = spec.depths[l] * soldata.dep_contrast[key]
 
         # synthesize the line
         line_loop_cpu(prof, λΔD, dtrim, spec.lambdas, wsp)

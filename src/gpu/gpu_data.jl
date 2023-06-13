@@ -1,8 +1,10 @@
 function sort_data_for_gpu(soldata::SolarData{T}) where T<:AbstractFloat
-    # allocate memory for arrays to pass to gpu
+    # collect attributes that are 1D arrays
     len = collect(values(soldata.len))
     cbs = collect(values(soldata.cbs))
     dep_contrast = collect(values(soldata.dep_contrast))
+
+    # allocate memory for bisector + width data
     npositions = length(len)
     bis = zeros(100, maximum(len), npositions)
     int = zeros(100, maximum(len), npositions)
