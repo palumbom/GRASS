@@ -10,7 +10,7 @@ struct LineProperties{T<:AF}
     file::AA{String,1}
 end
 
-function LineProperties(;dir=GRASS.soldir, exclude::AA{String,1}=["CI_5380", "FeI_5382", "NaI_5896"], verbose::Bool=false)
+function LineProperties(;dir=GRASS.soldir, exclude::AA{String,1}=["CI_5380", "NaI_5896"], verbose::Bool=false)
     @assert isdir(dir)
 
     # get list of files
