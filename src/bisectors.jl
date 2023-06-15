@@ -1,4 +1,7 @@
 function calc_bisector_inverse_slope(bis::AA{T,1}, int::AA{T,1}) where T<:AF
+    @assert maximum(int) <= 1.0
+    @assert minimum(int) >= 0.0
+
     # get total depth
     dep = one(T) - minimum(int)
     bot = minimum(int)
