@@ -118,13 +118,8 @@ function SolarData(fname::String; relative::Bool=true, extrapolate::Bool=true,
                 int2 = strip_columns(int2, badcols)
             end
 
-            # interpolate bisector onto width intensity grid
-            for t in eachindex(top)
-                intt = view(int1, :, t)
-                bist = view(bis, :, t)
-                itp = linear_interp(intt, bist, bc=last(bist))
-                bis[:,t] .= itp.(view(int2, :, t))
-                int1[:,t] .= view(int2, :, t)
+            if extrapolate
+                extrapolate_input_data(bis, int1, wid, int2, parse_mu_string(mu))
             end
 
             # match the means of noncontiguous datasets
@@ -139,10 +134,6 @@ function SolarData(fname::String; relative::Bool=true, extrapolate::Bool=true,
 
                 # now adjust the mean
                 adjust_data_mean(bis, ntimes)
-            end
-
-            if extrapolate
-                extrapolate_input_data(bis, int1, wid, top, parse_mu_string(mu))
             end
 
             # express bisector wavelengths relative to mean
