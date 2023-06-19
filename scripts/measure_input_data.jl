@@ -108,10 +108,10 @@ function preprocess_line(line_name::String; clobber::Bool=true, verbose::Bool=tr
         # loop over epochs in spectrum file
         for t in 1:size(wavs, 2)
             # debugging block
-            # if debug && t > 1
-                # break
-            if debug && t != 7
-                continue
+            if debug && t > 1
+                break
+            # if debug && t != 7
+                # continue
             end
 
             # get view of this time slice
@@ -290,14 +290,14 @@ function preprocess_line(line_name::String; clobber::Bool=true, verbose::Bool=tr
 end
 
 function main()
-    for name in line_info.name[20:end]
+    for name in line_info.name
         # skip the "hard" lines for now
         # (name in ["CI_5380", "FeI_5382"]) && continue
-        # name != "FeI_5434" && continue
+        name != "FeI_6302" && continue
 
         # print the line name and preprocess it
         println(">>> Processing " * name * "...")
-        preprocess_line(name, debug=false)
+        preprocess_line(name, debug=true)
     end
     return nothing
 end

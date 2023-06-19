@@ -126,11 +126,18 @@ function relative_bisector_wavelengths(bis::AA{T,2}) where T<:AF
     return nothing
 end
 
-function extrapolate_input_data(bist::AA{T,1}, intt::AA{T,1}, widt::AA{T,1},
-                                top::T, mu::T; weights=ones(length(bist))) where T<:AF
+function extrapolate_input_data(bist::AA{T,1}, intt1::AA{T,1},
+                                widt::AA{T,1}, intt2::AA{T,1},
+                                mu::T; weights=ones(length(bist))) where T<:AF
+
+    # interpolate bisector onto common intensity grid
+    itp = linear_interp(intt1, bist, bc=last(bist))
+    bist .= itp.(intt2)
+    intt1 .= intt2
+
     # set weights to exclude data from fit
-    thresh = 0.8 * (maximum(intt) - minimum(intt)) + minimum(intt)
-    idx = findfirst(x -> x .>= thresh, intt) - 1
+    thresh = 0.8 * (maximum(intt1) - minimum(intt1)) + minimum(intt1)
+    idx = findfirst(x -> x .>= thresh, intt1) - 1
     idx = clamp(idx, firstindex(weights), lastindex(weights))
     weights[1:2] .= 0.0
     weights[idx:end] .= 0.0
@@ -141,33 +148,35 @@ function extrapolate_input_data(bist::AA{T,1}, intt::AA{T,1}, widt::AA{T,1},
     else
         order = 3
     end
-    bfit1 = pfit(intt, bist, order, weights=weights)
-    bfit2 = pfit(intt[3:10], bist[3:10], 1)
+    bfit1 = pfit(intt2, bist, order, weights=weights)
+    bfit2 = pfit(intt2[3:10], bist[3:10], 1)
 
     # replace top and bottom with model fit
-    bist[idx:end] .= bfit1.(intt[idx:end])
-    bist[1:3] .= bfit2.(intt[1:3])
+    bist[idx:end] .= bfit1.(intt2[idx:end])
+    bist[1:3] .= bfit2.(intt2[1:3])
 
     # extrapolate the width up to the continuum
     idx = length(widt) - 1
-    wfit = pfit(view(intt, idx:length(intt)), view(widt, idx:length(intt)), 1)
-    widt[idx:end] .= wfit.([intt[idx], 1.0])
-    intt[end] = 1.0
+    wfit = pfit(view(intt1, idx:length(intt1)), view(widt, idx:length(intt1)), 1)
+    widt[idx:end] .= wfit.([intt1[idx], 1.0])
+    intt1[end] = 1.0
+
     return nothing
 end
 
-function extrapolate_input_data(bis::AA{T,2}, int::AA{T,2}, wid::AA{T,2}, top::AA{T,1}, mu::T) where T<:AF
+function extrapolate_input_data(bis::AA{T,2}, int1::AA{T,2}, wid::AA{T,2}, int2::AA{T,2}, mu::T) where T<:AF
     weights = ones(size(bis,1))
-    for t in eachindex(top)
+    for t in 1:size(bis,2)
         # reset weights
         weights .= one(T)
 
         # take a slice for one time snapshot
         bist = view(bis, :, t)
-        intt = view(int, :, t)
         widt = view(wid, :, t)
+        intt1 = view(int1, :, t)
+        intt2 = view(int2, :, t)
 
-        extrapolate_input_data(bist, intt, widt, top[t], mu, weights=weights)
+        extrapolate_input_data(bist, intt1, widt, intt2, mu, weights=weights)
     end
     return nothing
 end
