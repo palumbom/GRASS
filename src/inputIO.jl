@@ -136,7 +136,7 @@ function extrapolate_input_data(bist::AA{T,1}, intt1::AA{T,1},
     intt1 .= intt2
 
     # set weights to exclude data from fit
-    thresh = 0.8 * (maximum(intt1) - minimum(intt1)) + minimum(intt1)
+    thresh = 0.9 * (maximum(intt1) - minimum(intt1)) + minimum(intt1)
     idx = findfirst(x -> x .>= thresh, intt1) - 1
     idx = clamp(idx, firstindex(weights), lastindex(weights))
     weights[1:2] .= 0.0
@@ -176,6 +176,7 @@ function extrapolate_input_data(bis::AA{T,2}, int1::AA{T,2}, wid::AA{T,2}, int2:
         intt1 = view(int1, :, t)
         intt2 = view(int2, :, t)
 
+        # plt.plot(bist, intt1)
         extrapolate_input_data(bist, intt1, widt, intt2, mu, weights=weights)
     end
     return nothing
