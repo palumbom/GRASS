@@ -130,6 +130,9 @@ function extrapolate_input_data(bist::AA{T,1}, intt1::AA{T,1},
                                 widt::AA{T,1}, intt2::AA{T,1},
                                 mu::T; weights=ones(length(bist))) where T<:AF
 
+    # extrapolate the width up to the continuum
+    # intt2[end] = 1.0
+
     # interpolate bisector onto common intensity grid
     itp = linear_interp(intt1, bist, bc=last(bist))
     bist .= itp.(intt2)
@@ -154,13 +157,6 @@ function extrapolate_input_data(bist::AA{T,1}, intt1::AA{T,1},
     # replace top and bottom with model fit
     bist[idx:end] .= bfit1.(intt2[idx:end])
     bist[1:3] .= bfit2.(intt2[1:3])
-
-    # extrapolate the width up to the continuum
-    idx = length(widt) - 1
-    wfit = pfit(view(intt1, idx:length(intt1)), view(widt, idx:length(intt1)), 1)
-    widt[idx:end] .= wfit.([intt1[idx], 1.0])
-    intt1[end] = 1.0
-
     return nothing
 end
 
