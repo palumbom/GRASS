@@ -108,30 +108,12 @@ function SolarData(fname::String; relative::Bool=true, extrapolate::Bool=true,
                 end
             end
 
-            # identify bad columns and strip them out
-            badcols = identify_bad_cols(bis, int1, wid, int2)
-            if sum(badcols) > 0
-                top = strip_columns(top, badcols)
-                bis = strip_columns(bis, badcols)
-                wid = strip_columns(wid, badcols)
-                int1 = strip_columns(int1, badcols)
-                int2 = strip_columns(int2, badcols)
-            end
-
             if extrapolate
                 extrapolate_input_data(bis, int1, wid, int2, parse_mu_string(mu))
             end
 
             # match the means of noncontiguous datasets
             if length(ntimes) > 1 && adjust_mean && !contiguous_only
-                # fix ntimes to deal with removed columns
-                inds = findall(badcols)
-                ntimes_cum = cumsum(ntimes)
-                for i in inds
-                    idx = findfirst(x -> x .>= i, ntimes_cum)
-                    ntimes[idx] -= 1
-                end
-
                 # now adjust the mean
                 adjust_data_mean(bis, ntimes)
             end
