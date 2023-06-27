@@ -131,7 +131,7 @@ function extrapolate_input_data(bist::AA{T,1}, intt1::AA{T,1},
                                 mu::T; weights=ones(length(bist))) where T<:AF
 
     # extrapolate the width up to the continuum
-    # intt2[end] = 1.0
+    intt2[end] = 1.0
 
     # interpolate bisector onto common intensity grid
     itp = linear_interp(intt1, bist, bc=last(bist))
