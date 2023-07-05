@@ -159,6 +159,54 @@ function extrapolate_input_data(bist::AA{T,1}, intt1::AA{T,1},
     weights[idx1:end] .= 0.0
     weights[1:idx2] .= 0.0
 
+    # perform a polynomial fits to the bisector
+    if (mu < 0.4) || (depth < 0.3)
+        order = 1
+    else
+        order = 3
+    end
+    bfit1 = pfit(intt2, bist, order, weights=weights)
+    bfit2 = pfit(intt2[3:10], bist[3:10], 1)
+
+    # replace top and bottom with model fit
+    bist[idx1:end] .= bfit1.(intt2[idx1:end])
+    bist[1:3] .= bfit2.(intt2[1:3])
+    return nothing
+end
+
+#=function extrapolate_input_data(bist::AA{T,1}, intt1::AA{T,1},
+                                widt::AA{T,1}, intt2::AA{T,1},
+                                mu::T; weights=ones(length(bist))) where T<:AF
+
+    # extrapolate the width up to the continuum
+    intt2[end] = 1.0
+
+    # interpolate bisector onto common intensity grid
+    itp = linear_interp(intt1, bist, bc=last(bist))
+    bist .= itp.(intt2)
+    intt1 .= intt2
+
+    # get indices to exclude data from fit
+    thresh = 0.9
+    idx1 = findfirst(x -> x .>= thresh, intt1)
+    idx1 -= 1
+    idx1 = clamp(idx1, firstindex(weights), lastindex(weights))
+
+    depth = 1.0 - minimum(intt1)
+    if depth > 0.45
+        thresh = minimum(intt1) + 0.5 * depth
+        idx2 = findfirst(x -> x .>= thresh, intt1)
+        idx2 -= 1
+        idx2 = clamp(idx2, firstindex(weights), idx1)
+    else
+        idx2 = 1
+    end
+
+    # set weights
+    weights[1:2] .= 0.0
+    weights[idx1:end] .= 0.0
+    weights[1:idx2] .= 0.0
+
     if (mu < 0.4) || (depth <= 0.3)
         order = 1
     else
@@ -172,7 +220,7 @@ function extrapolate_input_data(bist::AA{T,1}, intt1::AA{T,1},
     bist[idx3:end] .= bfit1.(intt2[idx3:end])
     bist[1:3] .= bfit2.(intt2[1:3])
     return nothing
-end
+end=#
 
 function extrapolate_input_data(bis::AA{T,2}, int1::AA{T,2}, wid::AA{T,2}, int2::AA{T,2}, mu::T) where T<:AF
     weights = ones(size(bis,1))

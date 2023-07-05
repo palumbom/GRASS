@@ -25,7 +25,7 @@ function time_loop_cpu(tloop::Int, prof::AA{T,1}, z_rot::T, z_cbs::T,
 
         # calculate the position of the line center
         extra_z = spec.conv_blueshifts[l] - z_cbs_avg
-        λΔD = spec.lines[l] * (1.0 + z_rot) * (1.0 + z_cbs) * (1.0 + extra_z)
+        λΔD = spec.lines[l] * (1.0 + z_rot) * (1.0 + z_cbs .* spec.variability[l]) * (1.0 + extra_z)
 
         # get rid of bisector and fix width if variability is turned off
         wsp.bist .*= spec.variability[l]
