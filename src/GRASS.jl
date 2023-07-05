@@ -23,6 +23,7 @@ using Interpolations
 using PrecompileTools
 
 # import specific methods
+import NaNMath: sum as nansum
 import Glob.glob
 import Dates.DateTime
 import Polynomials: fit as pfit, coeffs

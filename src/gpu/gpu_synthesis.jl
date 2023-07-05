@@ -1,4 +1,4 @@
-function fill_workspaces!(line, extra_z, grid, tloop, data_inds, z_rot,
+function fill_workspaces!(line, variability, extra_z, grid, tloop, data_inds, z_rot,
                           z_cbs, bisall, intall, widall, allwavs, allints)
     # get indices from GPU blocks + threads
     idx = threadIdx().x + blockDim().x * (blockIdx().x-1)
@@ -20,7 +20,7 @@ function fill_workspaces!(line, extra_z, grid, tloop, data_inds, z_rot,
             end
 
             # calculate shifted line center
-            λΔD = line * (1.0 + z_rot[i,j]) * (1.0 + z_cbs[i,j]) * (1.0 + extra_z)
+            λΔD = line * (1.0 + z_rot[i,j]) * (1.0 + z_cbs[i,j] * variability) * (1.0 + extra_z)
 
             # get length of input data arrays to loop over
             lent = 100
