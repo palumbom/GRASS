@@ -147,21 +147,3 @@ function convolve_gauss(xs::AA{T,1}, ys::AA{T,1}; new_res::T=1.17e5,
     ys_out = rebin_spectrum(xs, new_ys, xs_out)
     return xs_out, ys_out
 end
-
-function degrade_resolution(wave::AA{T,1}, spec::AA{T,1}; R_new::T=700000.0, snr::T=Inf) where T<:AF
-    # get new resolution element and wavelength grid
-    dλ = wave[1]/R_new
-    λs = range(wave[1], wave[end], step=dλ)
-
-    # interpolate the spectrum onto new wavelength grid
-    spl = LinearInterpolation(wave, spec, extrapolation_bc=Flat())
-    new_spec = spl(λs)
-
-    # add noise and return
-    return λs, add_noise(new_spec, snr)
-end
-
-function degrade_resolution(wave::AA{T,1}, spec::AA{T,2}; R_new::T=700000.0) where T<:AF
-    return [degrade_resolution(wave, spec[:,i]) for i in 1:size(spec,2)]
-    # return map(x -> degrade_resolution(wave, spec[:,i]), [])
-end
