@@ -1,142 +1,154 @@
-"""
-    synthesize_spectra(spec, disk; seed_rng=false, verbose=true, top=NaN)
-
-Synthesize spectra given parameters in `spec` and `disk` instances.
-
-# Arguments
-- `spec::SpecParams`: SpecParams instance
-- `disk::DiskParams`: DiskParams instance
-"""
-function synthesize_spectra(spec::SpecParams, disk::DiskParams;
-                            seed_rng::Bool=false, verbose::Bool=true,
-                            top::Float64=NaN)
-    # allocate memory for synthesis
-    Nλ = length(spec.lambdas)
-    prof = ones(Nλ)
-    outspec = zeros(Nλ, disk.Nt)
-
-    # run the simulation (outspec modified in place)
-    disk_sim(spec, disk, prof, outspec, seed_rng=seed_rng, verbose=verbose, top=top)
-    return spec.lambdas, outspec
-end
-
 # line loop function, update prof in place
-function line_loop(prof::AA{T,1}, mid::T, depth::T,
-                   rot_shift::T, conv_blueshift::T,
-                   lambdas::AA{T,1}, wsp::SynthWorkspace{T}; top::T=NaN) where T<:AF
+function line_loop_cpu(prof::AA{T,1}, λΔD::T, depth::T, lambdas::AA{T,1},
+                       wsp::SynthWorkspace{T}) where T<:AF
     # first trim the bisectors to the correct depth
-    trim_bisector_chop!(depth, wsp.wavt, wsp.bist, wsp.dept, wsp.widt, top=top)
+    trim_bisector!(depth, wsp.bist, wsp.intt)
 
-    # update the line profile
-    line_profile!(mid, rot_shift, conv_blueshift, lambdas, prof, wsp)
+    # update the line profile in place
+    line_profile_cpu!(λΔD, lambdas, prof, wsp)
     return nothing
 end
 
-function time_loop(t_loop::Int, prof::AA{T,1}, rot_shift::T,
-                   key::Tuple{Symbol, Symbol}, liter::UnitRange{Int},
-                   spec::SpecParams{T}, wsp::SynthWorkspace{T}; top::T=NaN) where T<:AF
-    # some assertions
-    @assert all(prof .== one(T))
+function time_loop_cpu(tloop::Int, prof::AA{T,1}, z_rot::T, z_cbs::T,
+                       z_cbs_avg::T, key::Tuple{Symbol, Symbol},
+                       liter::UnitRange{Int}, spec::SpecParams{T},
+                       soldata::SolarData, wsp::SynthWorkspace{T}) where T<:AF
+    # reset prof
+    prof .= one(T)
 
-    # get views needed for line synthesis
-    wsp.wavt .= view(spec.soldata.wav[key], :, t_loop)
-    wsp.bist .= view(spec.soldata.bis[key], :, t_loop)
-    wsp.dept .= view(spec.soldata.dep[key], :, t_loop)
-    wsp.widt .= view(spec.soldata.wid[key], :, t_loop)
-
-    # loop over specified synthetic lines
+    # loop over lines
     for l in liter
-        wsp.wavt .*= spec.variability[l]
-        line_loop(prof, spec.lines[l], spec.depths[l], rot_shift,
-                  spec.conv_blueshifts[l], spec.lambdas, wsp, top=top)
+        # get views needed for line synthesis
+        wsp.bist .= copy(view(soldata.bis[key], :, tloop))
+        wsp.intt .= copy(view(soldata.int[key], :, tloop))
+        wsp.widt .= copy(view(soldata.wid[key], :, tloop))
+
+        # calculate the position of the line center
+        extra_z = spec.conv_blueshifts[l] - z_cbs_avg
+        λΔD = spec.lines[l] * (1.0 + z_rot) * (1.0 + z_cbs .* spec.variability[l]) * (1.0 + extra_z)
+
+        # get rid of bisector and fix width if variability is turned off
+        wsp.bist .*= spec.variability[l]
+        if !spec.variability[l]
+            wsp.widt .= view(soldata.wid[key], :, 1)
+        end
+
+        # get depth to trim to from depth contrast
+        dtrim = spec.depths[l] * soldata.dep_contrast[key]
+
+        # synthesize the line
+        line_loop_cpu(prof, λΔD, dtrim, spec.lambdas, wsp)
     end
     return nothing
 end
 
-function generate_indices(Nt::Integer, len::Integer)
-    # initialize variable to get total number of indices
-    sum_lens = 0
+function calc_disk_avg_cbs(disk::DiskParams{T}, soldata::SolarData{T},
+                           grid::StepRangeLen, disc_mu::AA{T,1},
+                           disc_ax::AA{Int,1}) where T<:AF
+    # calculate normalization terms and get convective blueshifts
+    numer = 0
+    denom = 0
+    for i in eachindex(grid)
+        for j in eachindex(grid)
+            # get positiosns
+            x = grid[i]
+            y = grid[j]
 
-    # start at random index less than len and go to len
-    start = Iterators.take(rand(1:len):len, Nt)
-    sum_lens += length(start)
+            # move to next iteration if off grid
+            (x^2 + y^2) > one(T) && continue
 
-    # return if that's all that's needed
-    if length(start) == Nt
-         @assert sum_lens == Nt
-        return Iterators.flatten(start)
+            # get input data for place on disk
+            key = get_key_for_pos(x, y, disc_mu, disc_ax)
+
+            # calc limb darkening and get convective blueshift
+            norm_term = calc_norm_term(x, y, disk)
+            numer += soldata.cbs[key] * norm_term
+            denom += norm_term
+        end
     end
-
-    # find out how many more cycles are needed
-    niter = ceil(Int, (Nt - length(start))/len)
-
-    # make vector of iterators and
-    inds = Vector{Base.Iterators.Take{UnitRange{Int64}}}(undef, niter + 1)
-    inds[1] = start
-    for i in 2:niter
-        inds[i] = Iterators.take(1:len, len)
-        sum_lens += len
-    end
-
-    # ensure the last one only takes the the remainder
-    inds[end] = Iterators.take(1:len, Nt - sum_lens)
-    sum_lens += length(inds[end])
-    @assert sum_lens == Nt
-
-    # return flattened iterator
-    return Iterators.flatten(inds)
+    return numer/denom, denom
 end
 
-function disk_sim(spec::SpecParams{T}, disk::DiskParams{T,Int64}, prof::AA{T,1},
-                  outspec::AA{T,2}; top::T=NaN, seed_rng::Bool=false,
-                  skip_times::BitVector=BitVector(zeros(disk.Nt)),
-                  verbose::Bool=true) where T<:AF
+function disk_sim(spec::SpecParams{T}, disk::DiskParams{T}, soldata::SolarData{T},
+                  prof::AA{T,1}, outspec::AA{T,2}, tloop::AA{Int,2}; verbose::Bool=true,
+                  skip_times::BitVector=falses(disk.Nt)) where T<:AF
     # make grid
     grid = make_grid(N=disk.N)
 
     # set pre-allocations and make generator that will be re-used
     outspec .= zero(T)
-    wsp = SynthWorkspace(ndepths=100)
-    liter = 1:length(spec.lines)
+    wsp = SynthWorkspace()
+    liter = 1:length(spec.lines); @assert length(liter) >= 1
 
-    # seeding rng
-    if seed_rng
-        if verbose println("Seeding RNG") end
-        Random.seed!(42)
+    # get the value of mu and ax codes
+    disc_ax = parse_ax_string.(getindex.(keys(soldata.len),1))
+    disc_mu = parse_mu_string.(getindex.(keys(soldata.len),2))
+
+    # get indices to sort by mus
+    inds_mu = sortperm(disc_mu)
+    disc_mu .= disc_mu[inds_mu]
+    disc_ax .= disc_ax[inds_mu]
+
+    # get indices to sort by axis within mu sort
+    for mu_val in unique(disc_mu)
+        inds1 = (disc_mu .== mu_val)
+        inds2 = sortperm(disc_ax[inds1])
+
+        disc_mu[inds1] .= disc_mu[inds1][inds2]
+        disc_ax[inds1] .= disc_ax[inds1][inds2]
     end
 
+    # get intensity-weighted disk-avereged convective blueshift
+    z_cbs_avg, sum_norm_terms = calc_disk_avg_cbs(disk, soldata, grid, disc_mu, disc_ax)
+
     # loop over grid positions
-    for i in grid
-        for j in grid
+    for i in eachindex(grid)
+        for j in eachindex(grid)
+            # get positiosns
+            x = grid[i]
+            y = grid[j]
+
             # move to next iteration if off grid
-            (i^2 + j^2) > one(T) && continue
+            (x^2 + y^2) > one(T) && continue
 
             # get input data for place on disk
-            key = get_key_for_pos(i, j)
-            len = spec.soldata.len[key]
+            key = get_key_for_pos(x, y, disc_mu, disc_ax)
+            len = soldata.len[key]
 
-            # get redshift z and norm term for location on disk
-            rot_shift = patch_velocity_los(i, j, pole=disk.pole)
-            norm_term = calc_norm_term(i, j, disk)
+            # get total doppler shift for the line, and norm_term
+            z_cbs = soldata.cbs[key]
+            z_rot = patch_velocity_los(x, y, pole=disk.pole)
+            norm_term = calc_norm_term(x, y, disk)
 
-            # loop over time, starting at random epoch
-            inds = generate_indices(disk.Nt, len)
-            for (t, t_loop) in enumerate(inds)
+            # loop over time
+            for t in 1:disk.Nt
+                # check that tloop hasn't exceeded number of epochs
+                if tloop[i,j] > len
+                    tloop[i,j] = 1
+                end
+
                 # if skip times is true, continue to next iter
-                skip_times[t] && continue
+                if skip_times[t]
+                    tloop[i,j] += 1
+                    continue
+                end
 
                 # update profile in place
-                prof .= one(T)
-                time_loop(t_loop, prof, rot_shift, key, liter, spec, wsp, top=top)
+                time_loop_cpu(tloop[i,j], prof, z_rot, z_cbs, z_cbs_avg, key, liter, spec, soldata, wsp)
 
                 # apply normalization term and add to outspec
                 outspec[:,t] .+= (prof .* norm_term)
+
+                # iterate tloop
+                tloop[i,j] += 1
             end
         end
     end
 
+    # divide by sum of weights
+    outspec ./= sum_norm_terms
+
     # set instances of outspec where skip is true to 0 and return
-    outspec ./= maximum(outspec, dims=1)
     outspec[:, skip_times] .= zero(T)
     return nothing
 end

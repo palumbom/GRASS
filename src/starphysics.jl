@@ -44,7 +44,7 @@ Calculate stellar rotation period in days at given sine of latitude.
 - `B::Float64=2.396`: Coefficient from Snodgrass & Ulrich (1990)
 - `C::Float64=1.787`: Coefficient from Snodgrass & Ulrich (1990)
 """
-function rotation_period(sin_lat::T; A::T=14.713, B::T=-2.396, C::T=-1.787) where T<:AF
+function rotation_period(sin_lat::T, A::T=14.713, B::T=-2.396, C::T=-1.787) where T<:AF
     @assert -1.0 <= sin_lat <= 1.0
     return 360.0/(A + B * sin_lat^2 + C * sin_lat^4)
 end
@@ -59,7 +59,7 @@ Return value is in (Rsol/day)/speed of light (i.e., dimensionless like z = v/c)
 - `rstar::Float64=1.0`: in R_sol (affects return velocity, but not x,y)
 - `pole = (0,1,0)`: unit vector for stellar rotation axis (default is equator-on)
 """
-function patch_velocity_los(x::T,y::T; rstar=one(T), pole=(zero(T), one(T), zero(T))) where T<:AF
+function patch_velocity_los(x::T, y::T; rstar=one(T), pole=(zero(T), one(T), zero(T))) where T<:AF
     polex, poley, polez = pole
     v0 = 0.000168710673 # in (Rsol/day)/speed_of_light
     z = sqrt(rstar - calc_r2(x,y))

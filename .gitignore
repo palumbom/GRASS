@@ -1,13 +1,21 @@
-*.DS_Store
-*.jl.*.cov
-*.jl.cov
-*.jl.mem
+# file endings
+*.gz
 *.log
 *.pdf
+*.jld2
+*.jl.cov
+*.jl.mem
+*.jl.*.cov
+*.DS_Store
 *.sublime-workspace
-*.gz
-*.json
+*.ipynb_checkpoints
 
-.ipynb_checkpoints
-/docs/build/
-input_data/*
+# specific files/directories
+data/input/
+docs/build/
+Manifest.toml
+data/spvis.dat
+data/iag_blueshifts.dat
+sftp-config*.json
+data/input/*.h5
+LocalPreferences.toml

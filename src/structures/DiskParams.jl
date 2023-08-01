@@ -1,9 +1,9 @@
-struct DiskParams{T1<:AF, T2<:Integer}
-    N::T2
-    Nt::T2
-    pole::Tuple{T1,T1,T1}
-    u1::T1
-    u2::T1
+struct DiskParams{T<:AF}
+    N::Int
+    Nt::Int
+    pole::Tuple{T,T,T}
+    u1::T
+    u2::T
 end
 
 """
@@ -28,5 +28,5 @@ function DiskParams(;N=132, Nt=NaN, pole=(0.0, 1.0, 0.0), u1=0.4, u2=0.26)
         @warn "Given pole vector is not a unit vector. Normalizing..."
         pole = pole./sqrt(sum(pole.^2))
     end
-    return DiskParams(N, Nt, pole, u1, u2)
+    return DiskParams(N, Nt, convert.(typeof(u1), pole), u1, u2)
 end

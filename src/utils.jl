@@ -2,6 +2,12 @@ function ismonotonic(A::AA{T,1}) where T<:AF
     return (all(diff(A) .>= zero(T)) | all(diff(A) .<= zero(T)))
 end
 
+function strip_columns(A::AA{T,1}, cols::AA{Bool,1}) where T<:AF
+    @assert length(cols) == length(A)
+    return A[.!cols]
+end
+
+
 function strip_columns(A::AA{T,2}, cols::AA{Bool,1}) where T<:AF
     @assert length(cols) == size(A,2)
     return A[:, .!cols]
@@ -32,8 +38,12 @@ Calculate the RMS of given data about the observed mean.
 # Arguments
 - `A::AbstractArray{Float64,1}`: 1D array containing data for RMS calculation
 """
-function calc_rms(A::AA{T,1}) where T<:AF
+function calc_rms(A::AA{T,1}) where T
     return sqrt(sum((A.-mean(A)).^2)/length(A))
+end
+
+function calc_rms(A::AA{T,N}; dims::Integer) where {T,N}
+    return mapslices(calc_rms, A, dims=dims)
 end
 
 function strip_nans_by_column(A::AA{T,1}) where T<:AF
@@ -53,4 +63,20 @@ end
 
 function findnearest(A::AA{T,1}, t) where T<:Real
     return findmin(abs.(A.-t))[2]
+end
+
+unzip(A) = (getfield.(A,x) for x in fieldnames(eltype(A)))
+
+# function moving_average(a::AA{T,1}, n::Int) where T<:AF
+#     # allocate memory
+#     out = zeros(length(a) - 2n)
+#     for i in eachindex(out)
+#         window = view(a, i:(i+n))
+#         out[i] = sum(window) / length(window)
+#     end
+#     return out
+# end
+
+function moving_average(a::AA{T,1}, n::Int) where T<:AF
+    return imfilter(a, ones(n)/n)
 end
