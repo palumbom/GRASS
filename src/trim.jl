@@ -1,19 +1,30 @@
-function trim_bisector_chop!(depth::T, wavt::AA{T,1}, bist::AA{T,1},
-                             dept::AA{T,1}, widt::AA{T,1};
-                             top::T=NaN) where T<:AF
-    # replace spurious measurements at top of bisector
-    ind1 = searchsortedfirst(bist, one(T) - depth)
-    if !isnan(top)
-        ind2 = searchsortedfirst(bist, top)
-        wavt[ind2:end] .= wavt[ind2]
+function trim_bisector!(depth::T, bist::AA{T,1}, intt::AA{T,1}) where T<:AF
+    # choose method depending if synth line is deeper than input
+    if (one(T) - depth) < first(intt)
+        trim_bisector_scale!(depth, bist, intt)
+    else
+        trim_bisector_chop!(depth, bist, intt)
     end
-
-    # get new grid of depths
-    dept .= range((one(T) - depth), one(T), length=length(dept))
-    bist .= dept
-
-    # spline interpolate onto same-length grid
-    itp1 = extrapolate(interpolate!(wavt, BSpline(Linear())), Flat())
-    wavt .= itp1.(range(ind1, length(dept), length=length(dept)))
     return nothing
 end
+
+function trim_bisector_chop!(depth::T, bist::AA{T,1}, intt::AA{T,1}) where T<:AF
+    @assert first(intt) <= (one(T) - depth)
+
+    # create interpolators
+    itp1 = linear_interp(intt, bist)
+
+    # get new grid of depths, interpolate the data, and return
+    # TODO figure out memory with new_int
+    new_int = range((one(T) - depth), maximum(intt), length=length(intt))
+    bist .= itp1.(new_int)
+    intt .= new_int
+    return nothing
+end
+
+function trim_bisector_scale!(depth::T, bist::AA{T,1}, intt::AA{T,1}) where T<:AF
+    # get new grid of depths, effectively scaling the width and bisector data
+    intt .= range((one(T) - depth), one(T), length=length(intt))
+    return nothing
+end
+

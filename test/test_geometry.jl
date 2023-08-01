@@ -29,6 +29,15 @@ end
     u1 = 0.0
     u2 = 0.0
     @test GRASS.calc_norm_term(0.0, 0.0, N, u1, u2) == pi ./ (2.0 * N^2)
+
+    # test summation
+    norm = 0
+    for x in GRASS.make_grid(N)
+        for y in GRASS.make_grid(N)
+            norm += GRASS.calc_norm_term(x, y, N, 0.4, 0.26)
+        end
+    end
+    @test isapprox(norm, 1.0, atol=1e-3)
 end
 
 end
