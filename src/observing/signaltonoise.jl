@@ -1,4 +1,7 @@
 function add_noise!(flux::AbstractArray{T,1}, snr::T) where T<:Real
+    # TODO: snr different in continuum and line cores?
+    # N = snr ^ 2.0
+
     # generate noise and scale to SNR
     noise = randn(length(flux))
     scale = flux ./ std(noise)
