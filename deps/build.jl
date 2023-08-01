@@ -18,5 +18,4 @@ download_loc = abspath(joinpath(datdir, "input.tar.gz"))
 
 download(download_url, download_loc)
 
-
 Tar.extract(download_loc, soldir)
