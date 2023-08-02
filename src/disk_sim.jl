@@ -95,17 +95,15 @@ function disk_sim_3d(spec::SpecParams{T}, disk::DiskParams{T}, soldata::SolarDat
     # loop over grid positions
     for i in eachindex(disk.ϕc)
         for j in eachindex(disk.θc)
-            # calculate mu
-            μc = calc_mu(disk.ϕc[i], disk.θc[j], R_θ=disk.R_θ, O⃗=disk.O⃗)
-
             # move to next iteration if patch element is not visible
-            μc < zero(T) && continue
+            μc = wsp.μs[i,j]
+            μc <= zero(T) && continue
 
             # get input data for place on disk
             key = wsp.keys[i,j]
             len = soldata.len[key]
 
-            # get total doppler shift for the line, and norm_term
+            # get total desired convective blueshift for line
             z_cbs = soldata.cbs[key]
 
             # get ld and projected area element
@@ -127,7 +125,8 @@ function disk_sim_3d(spec::SpecParams{T}, disk::DiskParams{T}, soldata::SolarDat
                 end
 
                 # update profile in place
-                time_loop_cpu(tloop[i,j], prof, z_rot, z_cbs, z_cbs_avg, key, liter, spec, soldata, wsp)
+                time_loop_cpu(tloop[i,j], prof, z_rot, z_cbs, z_cbs_avg,
+                              key, liter, spec, soldata, wsp)
 
                 # apply normalization term and add to outspec
                 outspec[:,t] .+= (prof .* ld * dA)
