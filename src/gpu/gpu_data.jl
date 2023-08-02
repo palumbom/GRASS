@@ -65,10 +65,9 @@ function find_nearest_ax_gpu(x::T, y::T) where T<:AbstractFloat
     end
 end
 
-function find_data_index_gpu(x, y, disc_mu, disc_ax)
+function find_data_index_gpu(μ, x, y, disc_mu, disc_ax)
     # find the nearest mu ind and ax code
-    mu = calc_mu(x,y)
-    mu_ind = searchsortednearest_gpu(disc_mu, mu)
+    mu_ind = searchsortednearest_gpu(disc_mu, μ)
     ax_val = find_nearest_ax_gpu(x, y)
 
     # find the first index of disc_mu with that discrete mu val
@@ -130,32 +129,123 @@ function iterate_tloop_gpu!(tloop, data_inds, lenall, grid)
     return nothing
 end
 
-function initialize_arrays_for_gpu(tloop, data_inds, norm_terms, z_rot,
-                                   z_cbs, grid, disc_mu, disc_ax, lenall,
-                                   cbsall, u1, u2, polex, poley, polez)
+function calc_mu_gpu(xyz, O⃗)
+    dp = xyz[1] * O⃗[1] + xyz[2] * O⃗[2] + xyz[3] * O⃗[3]
+    n1 = CUDA.sqrt(O⃗[1]^2.0 + O⃗[2]^2.0 + O⃗[3]^2.0)
+    n2 = CUDA.sqrt(xyz[1]^2.0 + xyz[2]^2.0 + xyz[3]^2.0)
+    return dp / (n1 * n2)
+end
+
+function sphere_to_cart_gpu!(xyz, ρs, ϕc, θc)
+    # compute trig quantities
+    sinϕ = CUDA.sin(ϕc)
+    sinθ = CUDA.sin(θc)
+    cosϕ = CUDA.cos(ϕc)
+    cosθ = CUDA.cos(θc)
+
+    # now get cartesian coords
+    x = ρs * cosϕ * cosθ
+    y = ρs * cosϕ * sinθ
+    z = ρs * sinϕ
+
+    # dot product for rotation matrix
+    @inbounds xyz[1] = x #* R_θ[1,1] + x * R_θ[1,2] + x * R_θ[1,3]
+    @inbounds xyz[2] = y #* R_θ[2,1] + y * R_θ[2,2] + y * R_θ[2,3]
+    @inbounds xyz[3] = z #* R_θ[3,1] + z * R_θ[3,2] + z * R_θ[3,3]
+    return nothing
+end
+
+function rotate_vector_gpu!(xyz, R_θ)
+    x = xyz[1]
+    y = xyz[2]
+    z = xyz[3]
+    @inbounds xyz[1] = x * R_θ[1,1] + x * R_θ[1,2] + x * R_θ[1,3]
+    @inbounds xyz[2] = y * R_θ[2,1] + y * R_θ[2,2] + y * R_θ[2,3]
+    @inbounds xyz[3] = z * R_θ[3,1] + z * R_θ[3,2] + z * R_θ[3,3]
+    return nothing
+end
+
+function rotation_period_gpu(ϕ, A, B, C)
+    sinϕ = sin(ϕ)
+    return 360.0/(A + B * sinϕ^2.0 + C * sinϕ^4.0)
+end
+
+
+function initialize_arrays_for_gpu(vec1, vec2, vec3, ρs, ϕc, θc, R_θ, O⃗, μs,
+                                   tloop, data_inds,
+                                   norm_terms, z_rot, z_cbs, disc_mu,
+                                   disc_ax, lenall, cbsall, A, B, C, u1, u2)
     # get indices from GPU blocks + threads
     idx = threadIdx().x + blockDim().x * (blockIdx().x-1)
     sdx = blockDim().x * gridDim().x
     idy = threadIdx().y + blockDim().y * (blockIdx().y-1)
     sdy = blockDim().y * gridDim().y
 
-    # make some aliases
-    Ndisk = CUDA.length(grid)
-    rstar = CUDA.one(CUDA.eltype(grid))
+    # get grid steps
+    dϕ = ϕc[2] - ϕc[1]
+    dθ = θc[2] - θc[1]
 
     # parallelized loop over grid
-    for i in idx:sdx:CUDA.length(grid)
-        for j in idy:sdy:CUDA.length(grid)
-            # find position on disk and move to next iter if off disk
-            x = grid[i]
-            y = grid[j]
-            r2 = calc_r2(x, y)
-            if r2 > 1.0
+    for i in idx:sdx:CUDA.length(ϕc)
+        for j in idy:sdy:CUDA.length(θc)
+            # take view of pre-allocated memory
+            xyz = CUDA.view(vec1, i, j, :)
+            abc = CUDA.view(vec2, i, j, :)
+            def = CUDA.view(vec3, i, j, :)
+
+            # get cartesian coords in star frame
+            sphere_to_cart_gpu!(xyz, ρs, ϕc[i], θc[j])
+
+            # get vector from spherical circle center to surface patch
+            abc[1] = xyz[1]
+            abc[2] = xyz[2]
+            abc[3] = 0.0
+
+            # take cross product to get vector in direction of rotation
+            def[1] = abc[2] * ρs
+            def[2] = - abc[1] * ρs
+            def[3] = 0.0
+
+            # make it a unit vector
+            def_norm = CUDA.sqrt(def[1]^2.0 + def[2]^2.0 + def[3]^2.0)
+            def[1] /= def_norm
+            def[2] /= def_norm
+
+            # set magnitude by differentiak rotation
+            rp = (0.000168710673 / rotation_period_gpu(ϕc[i], A, B, C))
+            def[1] *= rp
+            def[2] *= rp
+
+            # rotate it by inclination
+            rotate_vector_gpu!(xyz, R_θ)
+            rotate_vector_gpu!(def, R_θ)
+
+            # get vector pointing from observer to surface patch
+            abc[1] = xyz[1] - O⃗[1]
+            abc[2] = xyz[2] - O⃗[2]
+            abc[3] = xyz[3] - O⃗[3]
+
+            # get angle between them
+            n1 = CUDA.sqrt(abc[1]^2.0 + abc[2]^2.0 + abc[3]^2.0)
+            n2 = CUDA.sqrt(def[1]^2.0 + def[2]^2.0 + def[3]^2.0)
+            angle = (abc[1] * def[1] + abc[2] * def[2] + abc[3] * def[3])
+            angle /= (n1 * n2)
+
+            # project it
+            z_rot[i,j] = n2 * angle
+
+            # get cartesian coords in star frame and rotate
+            sphere_to_cart_gpu!(xyz, ρs, ϕc[i], θc[j])
+            rotate_vector_gpu!(xyz, R_θ)
+
+            # calculate mu
+            @inbounds μs[i,j] = calc_mu_gpu(xyz, O⃗)
+            if μs[i,j] <= 0.0
                 continue
             end
 
             # find the correct data index and
-            idx = find_data_index_gpu(x, y, disc_mu, disc_ax)
+            idx = find_data_index_gpu(μs[i,j], xyz[1], xyz[2], disc_mu, disc_ax)
             @inbounds data_inds[i,j] = idx
 
             # initialize tloop value if not already set by CPU
@@ -165,12 +255,46 @@ function initialize_arrays_for_gpu(tloop, data_inds, norm_terms, z_rot,
                 @inbounds tloop[i,j] = 1
             end
 
-            # calculate the normalization
-            @inbounds norm_terms[i,j] = calc_norm_term(x, y, Ndisk, u1, u2)
+            # calculate the limb darkening
+            ld = quad_limb_darkening(μs[i,j], u1, u2)
 
-            # calculate the rotational and convective doppler shift
-            @inbounds z_rot[i,j] = patch_velocity_los_gpu(x, y, rstar, polex, poley, polez)
-            @inbounds z_cbs[i,j] = cbsall[idx]
+            # calculate the surface element and project along line of sight
+            dA = calc_dA(ρs, ϕc[i], dϕ, dθ)
+            @inbounds abc[1] = xyz[1] - O⃗[1]
+            @inbounds abc[2] = xyz[2] - O⃗[2]
+            @inbounds abc[3] = xyz[3] - O⃗[3]
+            dp = CUDA.abs(abc[1] * xyz[1] + abc[2] * xyz[2] + abc[3] * xyz[3])
+
+            # set norm term as product of limb darkening and projected dA
+            @inbounds norm_terms[i,j] = ld * dA * dp
+
+            # # calculate the rotational velocity along LOS
+            # # get vector pointing from star origin to spherical circle height
+            # @inbounds xyz[3] = [0]
+
+            # # set abc as pole vector in star frame
+
+
+            # # velocity magnitude at equator, in Rsol/day/c_ms
+            # v0 = 0.000168710673
+
+            # # get velocity vector direction and set magnitude
+            # vel = cross(C⃗, P⃗)
+            # vel /= norm(vel)
+            # vel *= (v0 / rotation_period(ϕ; A=disk.A, B=disk.B, C=disk.C))
+
+            # # rotate by stellar inclination
+            # xyz .= disk.R_θ * xyz
+            # vel .= disk.R_θ * vel
+
+            # # find get vector from observer to surface patch, return projection
+            # O⃗_surf = xyz .- disk.O⃗
+            # angle = dot(O⃗_surf, vel) / (norm(O⃗_surf) * norm(vel))
+            # return norm(vel) * angle
+
+            # # calculate the rotational and convective doppler shift
+            # @inbounds z_rot[i,j] = patch_velocity_los_gpu(x, y, rstar, polex, poley, polez)
+            # @inbounds z_cbs[i,j] = cbsall[idx]
         end
     end
     return nothing

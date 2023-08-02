@@ -60,7 +60,7 @@ function patch_velocity_los(ϕ::T, θ::T, disk::DiskParams{T}; P⃗=[0.0, 0.0, d
     # get vector pointing from spherical circle to patch
     xyz = sphere_to_cart(disk.ρs, ϕ, θ)
 
-    # get vector pointing from star origin to spherical circle height
+    # get vector from spherical circle center to surface patch
     C⃗ = xyz .- [0.0, 0.0, last(xyz)]
 
     # velocity magnitude at equator, in Rsol/day/c_ms
