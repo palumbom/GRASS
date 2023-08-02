@@ -17,6 +17,7 @@ using StatsBase
 using DataFrames
 using Statistics
 using Polynomials
+using LinearAlgebra
 using Distributions
 using ImageFiltering
 using Interpolations
