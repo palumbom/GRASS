@@ -1,5 +1,4 @@
 using LinearAlgebra
-using GRASS
 import PyPlot; plt = PyPlot; mpl = plt.matplotlib; plt.ioff()
 
 function get_xyz_for_surface(ρ::T, ϕ::T, θ::T) where T
@@ -112,7 +111,7 @@ vel_plot[idx] .= NaN
 
 # plt.pcolormesh(xs_new, zs_new, rad2deg.(acos.(μs_plot)))
 # plt.pcolormesh(xs_new, zs_new, vs, cmap="seismic", vmin=-2000, vmax=2000, edgecolors="k")
-plt.pcolormesh(xs_new, zs_new, dA_proj./sum(dA_proj))#, edgecolors="k")
+plt.pcolormesh(xs_new, zs_new, vel_plot)#, edgecolors="k")
 plt.colorbar()
 plt.show()
 

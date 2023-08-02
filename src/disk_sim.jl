@@ -60,7 +60,7 @@ function precompute_quantities(wsp::SynthWorkspace{T}, disk::DiskParams{T}, sold
 
             # calc limb darkening normalization term
             ld = quad_limb_darkening(μc, disk.u1, disk.u2)
-            dA = calc_projected_area_element(disk.ϕc[i], disk.θc[j], disk)
+            dA = calc_projected_dA(disk.ϕc[i], disk.θc[j], disk)
             numer += soldata.cbs[key] * (ld * dA)
             denom += ld * dA
 

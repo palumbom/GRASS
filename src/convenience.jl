@@ -118,17 +118,14 @@ function synth_gpu(spec::SpecParams{T}, disk::DiskParams{T}, seed_rng::Bool,
     Nλ = length(spec.lambdas)
 
     # allocate memory
-    tloop_init = zeros(Int, N, N)
+    tloop_init = zeros(Int, length(disk.ϕc), length(disk.θc))
     outspec = ones(Nλ, Nt)
 
     # get number of calls to disk_sim needed
     templates = unique(spec.templates)
 
-    # get grid
-    grid = make_grid(N=disk.N)
-
     # pre-allocate memory for gpu
-    gpu_allocs = GPUAllocs(spec, disk, grid, precision=precision)
+    gpu_allocs = GPUAllocs(spec, disk, precision=precision)
 
     # run the simulation and return
     for (idx, file) in enumerate(templates)
@@ -150,7 +147,7 @@ function synth_gpu(spec::SpecParams{T}, disk::DiskParams{T}, seed_rng::Bool,
         if (idx > 1) && in_same_group(templates[idx - 1], templates[idx])
             @cusync CUDA.copyto!(gpu_allocs.tloop, tloop_init)
         else
-            generate_tloop!(tloop_init, grid, soldata)
+            generate_tloop!(tloop_init, disk, soldata)
             @cusync CUDA.copyto!(gpu_allocs.tloop, tloop_init)
         end
 

@@ -14,13 +14,13 @@ function get_grid_centers(grid::StepRangeLen)
     return range(start, stop, length=length(grid)-1)
 end
 
-function calc_area_element(ρs::T, ϕc::T, dϕ::T, dθ::T) where T<:AF
+function calc_dA(ρs::T, ϕc::T, dϕ::T, dθ::T) where T<:AF
     return ρs^2.0 * sin(π/2.0 - ϕc) * dϕ * dθ
 end
 
-function calc_projected_area_element(ϕc::T, θc::T, disk::DiskParams{T}) where T<:AF
+function calc_projected_dA(ϕc::T, θc::T, disk::DiskParams{T}) where T<:AF
     # get area element
-    dA = calc_area_element(disk.ρs, ϕc, step(disk.ϕe), step(disk.θe))
+    dA = calc_dA(disk.ρs, ϕc, step(disk.ϕe), step(disk.θe))
 
     # get cartesian coords and rotate them
     xyz = sphere_to_cart(disk.ρs, ϕc, θc)
@@ -45,11 +45,15 @@ function sphere_to_cart(ρ::T, ϕ::T, θ::T) where T
     return [x, y, z]
 end
 
-function calc_mu(ϕ::T, θ::T; R_θ::AA{T,2}=Matrix(1.0I,3,3), O⃗::AA{T,1}=[0.0, 220.0, 0.0]) where T<:AF
+function calc_mu(ϕ::T, θ::T, R_θ::AA{T,2}, O⃗::AA{T,1}) where T<:AF
     # get cartesian coords and rotate them
     xyz = sphere_to_cart(one(T), ϕ, θ)
     xyz .= R_θ * xyz
     return dot(O⃗, xyz) / (norm(O⃗) * norm(xyz))
+end
+
+function calc_mu(ϕ::T, θ::T; R_θ::AA{T,2}=Matrix(1.0I,3,3), O⃗::AA{T,1}=[0.0, 220.0, 0.0]) where T<:AF
+    return calc_mu(ϕ, θ, R_θ, O⃗)
 end
 
 # Find the nearest axis to a given point on a grid
