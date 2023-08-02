@@ -1,4 +1,5 @@
 using LinearAlgebra
+using GRASS
 import PyPlot; plt = PyPlot; mpl = plt.matplotlib; plt.ioff()
 
 function get_xyz_for_surface(ρ::T, ϕ::T, θ::T) where T
@@ -123,3 +124,12 @@ plt.show()
 # plt.ylabel("y")
 # plt.zlabel("z")
 # plt.show()
+
+
+# v = zeros(length(ϕc), length(θc))
+# for i in 1:length(ϕc)
+#     for j in 1:length(θc)
+
+#     end
+# end
+

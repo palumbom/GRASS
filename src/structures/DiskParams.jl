@@ -25,7 +25,7 @@ Construct a `DiskParams` composite type instance.
 - `Nt::Integer=50`: Number of 15-second snapshots
 - `pole::Tuple{Float64, Float64, Float64}=(0.0, 1.0, 0.0)`: Unit vector specificying rotation axis direction. Default is equator-on.
 """
-function DiskParams(;N=132, Nt=NaN, inclination=0.0, u1=0.4,
+function DiskParams(;N=132, Nt=NaN, inclination=90.0, u1=0.4,
                      u2=0.26, A=14.713, B=-2.396, C=-1.787)
     # assertions and warnings
     @assert !isnan(Nt)

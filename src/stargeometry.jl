@@ -11,7 +11,7 @@ end
 function get_grid_centers(grid::StepRangeLen)
     start = first(grid) + 0.5 * step(grid)
     stop = last(grid) - 0.5 * step(grid)
-    return range(start, stop, step=step(grid))
+    return range(start, stop, length=length(grid)-1)
 end
 
 function calc_area_element(ρs::T, ϕc::T, dϕ::T, dθ::T) where T<:AF
