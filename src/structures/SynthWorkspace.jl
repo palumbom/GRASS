@@ -1,15 +1,20 @@
-struct SynthWorkspace{T<:AF, N}
-    lwavgrid::AA{T,N}
-    rwavgrid::AA{T,N}
-    allwavs::AA{T,N}
-    allints::AA{T,N}
-    bist::AA{T,N}
-    intt::AA{T,N}
-    widt::AA{T,N}
+struct SynthWorkspace{T<:AF}
+    lwavgrid::AA{T,1}
+    rwavgrid::AA{T,1}
+    allwavs::AA{T,1}
+    allints::AA{T,1}
+    bist::AA{T,1}
+    intt::AA{T,1}
+    widt::AA{T,1}
+    μs::AA{T,2}
+    ld::AA{T,2}
+    dA::AA{T,2}
+    z_rot::AA{T,2}
+    keys::AA{Tuple{Symbol, Symbol},2}
 end
 
-function SynthWorkspace(;ndepths::Integer=100)
-    # allocate the needed memory
+function SynthWorkspace(; ngrid::Integer=132, ndepths::Integer=100)
+    # allocate the needed memory for synthesis
     lwavgrid = zeros(ndepths)
     rwavgrid = zeros(ndepths)
     allwavs  = zeros(2 * ndepths)
@@ -17,5 +22,15 @@ function SynthWorkspace(;ndepths::Integer=100)
     bist     = zeros(ndepths)
     intt     = zeros(ndepths)
     widt     = zeros(ndepths)
-    return SynthWorkspace(lwavgrid, rwavgrid, allwavs, allints, bist, intt, widt)
+
+    # allocate the memory for keys, velocities, ld, etc.
+    μs = zeros(ngrid, ngrid)
+    ld = zeros(ngrid, ngrid)
+    dA = zeros(ngrid, ngrid)
+    z_rot = zeros(ngrid, ngrid)
+    keys = repeat([(:c,:mu10)], ngrid, ngrid)
+
+    return SynthWorkspace(lwavgrid, rwavgrid, allwavs,
+                          allints, bist, intt, widt,
+                          μs, ld, dA, z_rot, keys)
 end

@@ -1,17 +1,39 @@
 # set discrete values of mu for input observations
 const disc_ax = [:n, :e, :s, :w, :c]
 
-make_grid(N::Integer) = range(-1.0, 1.0, length=N)
-make_grid(;N::Integer=256) = make_grid(N)
+# make_grid(N::Integer) = range(-1.0, 1.0, length=N)
+# make_grid(;N::Integer=256) = make_grid(N)
 
-get_grid_xs(grid::ProductIterator) = getindex.(collect(grid), 1)
-get_grid_ys(grid::ProductIterator) = getindex.(collect(grid), 2)
+function make_grid(N::Integer)
+    # create grid edges
+    ϕe = range(deg2rad(-90.0), deg2rad(90.0), length=N)
+    θe = range(deg2rad(0.0), deg2rad(360.0), length=N)
+    return ϕe, θe
+end
 
-function get_grid_edges(grid::StepRangeLen)
-    start = first(grid) - 0.5 * step(grid)
-    stop = last(grid) + 0.5 * step(grid)
+function get_grid_centers(grid::StepRangeLen)
+    start = first(grid) + 0.5 * step(grid)
+    stop = last(grid) - 0.5 * step(grid)
     return range(start, stop, step=step(grid))
 end
+
+function calc_area_element(ρs::T, ϕc::T, dϕ::T, dθ::T) where T<:AF
+    return ρs^2.0 * sin(π/2.0 - ϕc) * dϕ * dθ
+end
+
+function calc_projected_area_element(ϕc::T, θc::T, disk::DiskParams{T}) where T<:AF
+    # get area element
+    dA = calc_area_element(disk.ρs, ϕc, step(disk.ϕe), step(disk.θe))
+
+    # get cartesian coords and rotate them
+    xyz = sphere_to_cart(disk.ρs, ϕc, θc)
+    xyz .= disk.R_θ * xyz
+
+    # get vector from observer to surface element and return projection
+    O⃗_surf = xyz .- disk.O⃗
+    return dA * abs(dot(O⃗_surf, xyz))
+end
+
 
 function calc_dist2(x1::T, y1::T, x2::T, y2::T) where T<:AF
     return (x1 - x2)^2 + (y1 - y2)^2
@@ -29,18 +51,25 @@ function calc_r2(t::Tuple{T,T}) where T<:AF
     return calc_r2(t[1], t[2])
 end
 
-# Get mu on disk from provided (x,y) position:
-# TODO: relies on small angle approx?
-function calc_mu(r2::T) where T<:AF
-    return sqrt((r2 < one(T)) * (one(T) - r2))
+function sphere_to_cart(ρ::T, ϕ::T, θ::T) where T
+    # compute trig quantitites
+    sinϕ = sin(ϕ)
+    sinθ = sin(θ)
+    cosϕ = cos(ϕ)
+    cosθ = cos(θ)
+
+    # now get cartesian coords
+    x = ρ * cosϕ * cosθ
+    y = ρ * cosϕ * sinθ
+    z = ρ * sinϕ
+    return [x, y, z]
 end
 
-function calc_mu(x::T, y::T) where T<:AF
-    return calc_mu(calc_r2(x,y))
-end
-
-function calc_mu(t::Tuple{T,T}) where T<:AF
-    return calc_mu(calc_r2(t))
+function calc_mu(ϕ::T, θ::T; R_θ::AA{T,2}=Matrix(1.0I,3,3), O⃗::AA{T,1}=[0.0, 220.0, 0.0]) where T<:AF
+    # get cartesian coords and rotate them
+    xyz = sphere_to_cart(one(T), ϕ, θ)
+    xyz .= R_θ * xyz
+    return dot(O⃗, xyz) / (norm(O⃗) * norm(xyz))
 end
 
 # Calculate mu for each position on a grid
@@ -154,24 +183,19 @@ function ax_code_to_symbol(code::Int)
     return [:c, :n, :s, :e, :w][code+1]
 end
 
-function find_nearest_mu(mu::T, disc_mu::AA{T,1}) where T<:AF
-    return searchsortednearest(disc_mu, mu)
-end
-
-function find_nearest_mu(x::T, y::T, disc_mu::AA{T,1}) where T<:AF
-    return find_nearest_mu(calc_mu(x,y), disc_mu)
-end
-
-function get_key_for_pos(x::T, y::T, disc_mu::AA{T,1}, disc_ax::AA{Int,1}) where T<:AF
+function get_key_for_pos(μ::T, ϕ::T, θ::T, disc_mu::AA{T,1}, disc_ax::AA{Int,1}; R_θ::AA{T,2}=Matrix(1.0I,3,3),) where T<:AF
     # make sure we are not off the disk
-    if x^2 + y^2 > 1
+    if μ < 0.0
         return nothing
     end
 
+    # get cartesian position for axis
+    xyz = sphere_to_cart(one(T), ϕ, θ)
+    xyz .= R_θ * xyz
+
     # find the nearest mu ind and ax code
-    mu = calc_mu(x,y)
-    mu_ind = searchsortednearest(disc_mu, mu)
-    ax_val = find_nearest_ax_code(x, y)
+    mu_ind = searchsortednearest(disc_mu, μ)
+    ax_val = find_nearest_ax_code(xyz[1], xyz[2])
 
     # return early if the nearest mu is 1.0
     if disc_mu[mu_ind] == 1.0
@@ -192,24 +216,4 @@ function get_key_for_pos(x::T, y::T, disc_mu::AA{T,1}, disc_ax::AA{Int,1}) where
     mu_symb = mu_to_symb(disc_mu[mu_ind])
     ax_symb = ax_code_to_symbol(ax_val)
     return (ax_symb, mu_symb)
-end
-
-function mu_to_xy(mu::T, ax::Symbol) where T<:AF
-    @assert zero(T) <= mu <= one(T)
-    @assert ax in [:n, :e, :s, :w, :c]
-
-    # get radial distance from disk center
-    r = sqrt(one(T) - mu^2)
-
-    if ax == :n
-        return (0.0, r)
-    elseif ax == :e
-        return (-r, 0.0)
-    elseif ax == :w
-        return (r, 0.0)
-    elseif ax == :s
-        return (0.0, -r)
-    else
-        return (0.0, 0.0)
-    end
 end

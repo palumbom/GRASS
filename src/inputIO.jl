@@ -23,6 +23,27 @@ function parse_ax_string(s::Symbol)
     return parse_ax_string(string(s))
 end
 
+function sort_mu_and_ax(soldata::SolarData{T}) where T<:AF
+    # get the value of mu and ax codes
+    disc_ax = parse_ax_string.(getindex.(keys(soldata.len),1))
+    disc_mu = parse_mu_string.(getindex.(keys(soldata.len),2))
+
+    # get indices to sort by mus
+    inds_mu = sortperm(disc_mu)
+    disc_mu .= disc_mu[inds_mu]
+    disc_ax .= disc_ax[inds_mu]
+
+    # get indices to sort by axis within mu sort
+    for mu_val in unique(disc_mu)
+        inds1 = (disc_mu .== mu_val)
+        inds2 = sortperm(disc_ax[inds1])
+
+        disc_mu[inds1] .= disc_mu[inds1][inds2]
+        disc_ax[inds1] .= disc_ax[inds1][inds2]
+    end
+    return disc_mu, disc_ax
+end
+
 function adjust_data_mean(arr::AA{T,2}, ntimes::Vector{Int64};
                           lo_ind::Int=15, hi_ind::Int=75) where T<:Real
     # get indices for number of contiguous obs

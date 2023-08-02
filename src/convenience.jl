@@ -1,36 +1,21 @@
-function generate_tloop!(tloop::AA{Int,2}, grid::StepRangeLen, soldata::SolarData{T}) where T<:AF
+function generate_tloop!(tloop::AA{Int,2}, disk::DiskParams, soldata::SolarData{T}) where T<:AF
     # make sure dimensions are correct
-    @assert size(tloop) == (length(grid), length(grid))
+    @assert size(tloop) == (length(disk.ϕc), length(disk.θc))
 
-    # get the value of mu and ax codes
-    disc_ax = parse_ax_string.(getindex.(keys(soldata.len),1))
-    disc_mu = parse_mu_string.(getindex.(keys(soldata.len),2))
+    # get sorted mu and axis values
+    disc_mu, disc_ax = sort_mu_and_ax(soldata)
 
-    # get indices to sort by mus
-    inds_mu = sortperm(disc_mu)
-    disc_mu .= disc_mu[inds_mu]
-    disc_ax .= disc_ax[inds_mu]
+    # loop over grid
+    for i in eachindex(disk.ϕc)
+        for j in eachindex(disk.θc)
+            # calculate mu
+            μc = calc_mu(disk.ϕc[i], disk.θc[j], R_θ=disk.R_θ, O⃗=disk.O⃗)
 
-    # get indices to sort by axis within mu sort
-    for mu_val in unique(disc_mu)
-        inds1 = (disc_mu .== mu_val)
-        inds2 = sortperm(disc_ax[inds1])
-
-        disc_mu[inds1] .= disc_mu[inds1][inds2]
-        disc_ax[inds1] .= disc_ax[inds1][inds2]
-    end
-
-    for i in eachindex(grid)
-        for j in eachindex(grid)
-            # get positiosns
-            x = grid[i]
-            y = grid[j]
-
-            # move to next iteration if off grid
-            (x^2 + y^2) > one(T) && continue
+            # move to next iteration if patch element is not visible
+            μc < zero(T) && continue
 
             # get input data for place on disk
-            key = get_key_for_pos(x, y, disc_mu, disc_ax)
+            key = get_key_for_pos(μc, disk.ϕc[i], disk.θc[j], disc_mu, disc_ax, R_θ=disk.R_θ)
             len = soldata.len[key]
 
             # generate random index
@@ -68,20 +53,19 @@ function synth_cpu(spec::SpecParams{T}, disk::DiskParams{T}, seed_rng::Bool,
     Nt = disk.Nt
     Nλ = length(spec.lambdas)
 
-    # allocate memory needed
-    tloop_init = zeros(Int, N, N)
+    # allocate memory for time indices
+    tloop = zeros(Int, length(disk.ϕc), length(disk.θc))
+    tloop_init = similar(tloop)
+
+    # allocate memory for spectra synthesis
+    wsp = SynthWorkspace(ngrid=length(disk.ϕc))
+    prof = ones(Nλ)
     outspec = ones(Nλ, Nt)
+    outspec_temp = zeros(Nλ, Nt)
+
 
     # get number of calls to disk_sim needed
     templates = unique(spec.templates)
-
-    # get grid
-    grid = make_grid(N=disk.N)
-
-    # allocate memory for CPU
-    prof = ones(Nλ)
-    outspec_temp = zeros(Nλ, Nt)
-    tloop = zeros(Int, N, N)
 
     # run the simulation (outspec modified in place)
     for (idx, file) in enumerate(templates)
@@ -103,7 +87,7 @@ function synth_cpu(spec::SpecParams{T}, disk::DiskParams{T}, seed_rng::Bool,
         if (idx > 1) && in_same_group(templates[idx - 1], templates[idx])
             tloop .= tloop_init
         else
-            generate_tloop!(tloop_init, grid, soldata)
+            generate_tloop!(tloop_init, disk, soldata)
             tloop .= tloop_init
         end
 
@@ -111,8 +95,8 @@ function synth_cpu(spec::SpecParams{T}, disk::DiskParams{T}, seed_rng::Bool,
         outspec_temp .= 0.0
 
         # run the simulation and multiply outspec by this spectrum
-        disk_sim(spec_temp, disk, soldata, prof, outspec_temp, tloop,
-                 skip_times=skip_times, verbose=verbose)
+        disk_sim_3d(spec_temp, disk, soldata, wsp, prof, outspec_temp, tloop,
+                    skip_times=skip_times, verbose=verbose)
         outspec .*= outspec_temp
     end
     return spec.lambdas, outspec
