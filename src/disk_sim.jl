@@ -42,164 +42,76 @@ function time_loop_cpu(tloop::Int, prof::AA{T,1}, z_rot::T, z_cbs::T,
     return nothing
 end
 
-function calc_disk_avg_cbs(disk::DiskParams{T}, soldata::SolarData{T},
-                           grid::StepRangeLen, disc_mu::AA{T,1},
-                           disc_ax::AA{Int,1}) where T<:AF
+function precompute_quantities(wsp::SynthWorkspace{T}, disk::DiskParams{T}, soldata::SolarData{T},
+                               disc_mu::AA{T,1}, disc_ax::AA{Int,1}) where T<:AF
     # calculate normalization terms and get convective blueshifts
     numer = 0
     denom = 0
-    for i in eachindex(grid)
-        for j in eachindex(grid)
-            # get positiosns
-            x = grid[i]
-            y = grid[j]
+    for i in eachindex(disk.ϕc)
+        for j in eachindex(disk.θc)
+            # calculate mu
+            μc = calc_mu(disk.ϕc[i], disk.θc[j], R_θ=disk.R_θ, O⃗=disk.O⃗)
 
-            # move to next iteration if off grid
-            (x^2 + y^2) > one(T) && continue
+            # move to next iteration if patch element is not visible
+            μc < zero(T) && continue
 
             # get input data for place on disk
-            key = get_key_for_pos(x, y, disc_mu, disc_ax)
+            key = get_key_for_pos(μc, disk.ϕc[i], disk.θc[j], disc_mu, disc_ax, R_θ=disk.R_θ)
 
-            # calc limb darkening and get convective blueshift
-            norm_term = calc_norm_term(x, y, disk)
-            numer += soldata.cbs[key] * norm_term
-            denom += norm_term
+            # calc limb darkening normalization term
+            ld = quad_limb_darkening(μc, disk.u1, disk.u2)
+            dA = calc_projected_area_element(disk.ϕc[i], disk.θc[j], disk)
+            numer += soldata.cbs[key] * (ld * dA)
+            denom += ld * dA
+
+            # get rotational velocity for location on disk
+            z_rot = patch_velocity_los(disk.ϕc[i], disk.θc[j], disk)
+
+            # copy to workspace
+            wsp.dA[i,j] = dA
+            wsp.μs[i,j] = μc
+            wsp.ld[i,j] = ld
+            wsp.z_rot[i,j] = z_rot
+            wsp.keys[i,j] = key
         end
     end
     return numer/denom, denom
 end
 
-function disk_sim(spec::SpecParams{T}, disk::DiskParams{T}, soldata::SolarData{T},
-                  prof::AA{T,1}, outspec::AA{T,2}, tloop::AA{Int,2}; verbose::Bool=true,
-                  skip_times::BitVector=falses(disk.Nt)) where T<:AF
-    # make grid
-    grid = make_grid(N=disk.N)
-
-    # set pre-allocations and make generator that will be re-used
-    outspec .= zero(T)
-    wsp = SynthWorkspace()
-    liter = 1:length(spec.lines); @assert length(liter) >= 1
-
-    # get the value of mu and ax codes
-    disc_ax = parse_ax_string.(getindex.(keys(soldata.len),1))
-    disc_mu = parse_mu_string.(getindex.(keys(soldata.len),2))
-
-    # get indices to sort by mus
-    inds_mu = sortperm(disc_mu)
-    disc_mu .= disc_mu[inds_mu]
-    disc_ax .= disc_ax[inds_mu]
-
-    # get indices to sort by axis within mu sort
-    for mu_val in unique(disc_mu)
-        inds1 = (disc_mu .== mu_val)
-        inds2 = sortperm(disc_ax[inds1])
-
-        disc_mu[inds1] .= disc_mu[inds1][inds2]
-        disc_ax[inds1] .= disc_ax[inds1][inds2]
-    end
-
-    # get intensity-weighted disk-avereged convective blueshift
-    z_cbs_avg, sum_norm_terms = calc_disk_avg_cbs(disk, soldata, grid, disc_mu, disc_ax)
-
-    # loop over grid positions
-    for i in eachindex(grid)
-        for j in eachindex(grid)
-            # get positiosns
-            x = grid[i]
-            y = grid[j]
-
-            # move to next iteration if off grid
-            (x^2 + y^2) > one(T) && continue
-
-            # get input data for place on disk
-            key = get_key_for_pos(x, y, disc_mu, disc_ax)
-            len = soldata.len[key]
-
-            # get total doppler shift for the line, and norm_term
-            z_cbs = soldata.cbs[key]
-            z_rot = patch_velocity_los(x, y, pole=disk.pole)
-            norm_term = calc_norm_term(x, y, disk)
-
-            # loop over time
-            for t in 1:disk.Nt
-                # check that tloop hasn't exceeded number of epochs
-                if tloop[i,j] > len
-                    tloop[i,j] = 1
-                end
-
-                # if skip times is true, continue to next iter
-                if skip_times[t]
-                    tloop[i,j] += 1
-                    continue
-                end
-
-                # update profile in place
-                time_loop_cpu(tloop[i,j], prof, z_rot, z_cbs, z_cbs_avg, key, liter, spec, soldata, wsp)
-
-                # apply normalization term and add to outspec
-                outspec[:,t] .+= (prof .* norm_term)
-
-                # iterate tloop
-                tloop[i,j] += 1
-            end
-        end
-    end
-
-    # divide by sum of weights
-    outspec ./= sum_norm_terms
-
-    # set instances of outspec where skip is true to 0 and return
-    outspec[:, skip_times] .= zero(T)
-    return nothing
-end
-
 function disk_sim_3d(spec::SpecParams{T}, disk::DiskParams{T}, soldata::SolarData{T},
-                     prof::AA{T,1}, outspec::AA{T,2}, tloop::AA{Int,2}; verbose::Bool=true,
+                     wsp::SynthWorkspace, prof::AA{T,1}, outspec::AA{T,2},
+                     tloop::AA{Int,2}; verbose::Bool=true,
                      skip_times::BitVector=falses(disk.Nt)) where T<:AF
     # set pre-allocations and make generator that will be re-used
     outspec .= zero(T)
-    wsp = SynthWorkspace()
     liter = 1:length(spec.lines); @assert length(liter) >= 1
 
-    # get the value of mu and ax codes
-    disc_ax = parse_ax_string.(getindex.(keys(soldata.len),1))
-    disc_mu = parse_mu_string.(getindex.(keys(soldata.len),2))
-
-    # get indices to sort by mus
-    inds_mu = sortperm(disc_mu)
-    disc_mu .= disc_mu[inds_mu]
-    disc_ax .= disc_ax[inds_mu]
-
-    # get indices to sort by axis within mu sort
-    for mu_val in unique(disc_mu)
-        inds1 = (disc_mu .== mu_val)
-        inds2 = sortperm(disc_ax[inds1])
-
-        disc_mu[inds1] .= disc_mu[inds1][inds2]
-        disc_ax[inds1] .= disc_ax[inds1][inds2]
-    end
+    # get sorted mu and axis values
+    disc_mu, disc_ax = sort_mu_and_ax(soldata)
 
     # get intensity-weighted disk-avereged convective blueshift
-    z_cbs_avg, sum_norm_terms = calc_disk_avg_cbs(disk, soldata, grid, disc_mu, disc_ax)
+    z_cbs_avg, sum_norm_terms = precompute_quantities(wsp, disk, soldata, disc_mu, disc_ax)
 
     # loop over grid positions
-    for i in eachindex(grid)
-        for j in eachindex(grid)
-            # get positiosns
-            x = grid[i]
-            y = grid[j]
+    for i in eachindex(disk.ϕc)
+        for j in eachindex(disk.θc)
+            # calculate mu
+            μc = calc_mu(disk.ϕc[i], disk.θc[j], R_θ=disk.R_θ, O⃗=disk.O⃗)
 
-            # move to next iteration if off grid
-            (x^2 + y^2) > one(T) && continue
+            # move to next iteration if patch element is not visible
+            μc < zero(T) && continue
 
             # get input data for place on disk
-            key = get_key_for_pos(x, y, disc_mu, disc_ax)
+            key = wsp.keys[i,j]
             len = soldata.len[key]
 
             # get total doppler shift for the line, and norm_term
             z_cbs = soldata.cbs[key]
-            z_rot = patch_velocity_los(x, y, pole=disk.pole)
-            norm_term = calc_norm_term(x, y, disk)
+
+            # get ld and projected area element
+            ld = wsp.ld[i,j]
+            dA = wsp.dA[i,j]
+            z_rot = wsp.z_rot[i,j]
 
             # loop over time
             for t in 1:disk.Nt
@@ -218,7 +130,7 @@ function disk_sim_3d(spec::SpecParams{T}, disk::DiskParams{T}, soldata::SolarDat
                 time_loop_cpu(tloop[i,j], prof, z_rot, z_cbs, z_cbs_avg, key, liter, spec, soldata, wsp)
 
                 # apply normalization term and add to outspec
-                outspec[:,t] .+= (prof .* norm_term)
+                outspec[:,t] .+= (prof .* ld * dA)
 
                 # iterate tloop
                 tloop[i,j] += 1

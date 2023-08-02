@@ -4,7 +4,6 @@
     @test isdefined(GRASS, :make_grid)
     @test isdefined(GRASS, :calc_r2)
     @test isdefined(GRASS, :calc_mu)
-    @test isdefined(GRASS, :find_nearest_mu)
     @test isdefined(GRASS, :find_nearest_ax)
 end
 
