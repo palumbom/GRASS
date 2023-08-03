@@ -91,7 +91,7 @@ end
 function get_key_for_pos(μ::T, x::T, y::T, disc_mu::AA{T,1}, disc_ax::AA{Int,1}) where T<:AF
     # make sure we are not off the disk
     if μ <= 0.0
-        return nothing
+        return (:off, :off)
     end
 
     # find the nearest mu ind and ax code
@@ -117,4 +117,16 @@ function get_key_for_pos(μ::T, x::T, y::T, disc_mu::AA{T,1}, disc_ax::AA{Int,1}
     mu_symb = mu_to_symb(disc_mu[mu_ind])
     ax_symb = ax_code_to_symbol(ax_val)
     return (ax_symb, mu_symb)
+end
+
+function key_to_code(key, disc_mu, disc_ax)
+    ax_sym = key[1]
+    mu_sym = key[2]
+
+    ax_code = parse_ax_string(ax_sym)
+    mu_code = parse_mu_string(mu_sym)
+
+    idxs1 = findall(ax_code .== disc_ax)
+    idxs2 = findall(mu_code .== disc_mu)
+    return collect(intersect(Set(idxs1), Set(idxs2)))[1]
 end

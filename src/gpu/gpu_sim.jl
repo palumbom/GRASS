@@ -98,27 +98,12 @@ function disk_sim_gpu(spec::SpecParams{T}, disk::DiskParams{T}, soldata::SolarDa
 
 
     # initialize values for dat_idx, tloop, dop_shifts, and weights
-
     @cusync @cuda threads=threads1 blocks=blocks1 precompute_quantities_gpu(vec1, vec2, vec3, ρs, ϕc, θc,
                                                                             R_θ, O⃗, μs, tloop, dat_idx,
                                                                             weights, z_rot, z_cbs,
                                                                             disc_mu_gpu, disc_ax_gpu,
                                                                             lenall_gpu, cbsall_gpu,
                                                                             A, B, C, u1, u2)
-
-    dat = copy(Array(tloop))
-    # # dat[μs .<= 0.0] .= NaN
-    # plt.pcolormesh(Array(vec1)[:,:,1], Array(vec1)[:,:,3], dat)
-    # plt.colorbar()
-
-    # # plopt = Array(dat)
-    # # cmap = mpl.cm.ScalarMappable(cmap="viridis")
-    # # clrs = cmap.to_rgba(plopt)
-    # # plt.plot_surface(Array(vec1[:,:,1]), Array(vec1[:,:,2]), Array(vec1[:,:,3]), facecolors=clrs)
-    # # plt.xlabel("x")
-    # # plt.ylabel("y")
-    # # plt.zlabel("z")
-    # plt.show()
 
     # get weighted disk average cbs
     @cusync sum_weights = CUDA.sum(weights)

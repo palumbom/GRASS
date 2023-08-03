@@ -28,7 +28,7 @@ function SynthWorkspace(; ngrid::Integer=132, ndepths::Integer=100)
     ld = zeros(ngrid, ngrid)
     dA = zeros(ngrid, ngrid)
     z_rot = zeros(ngrid, ngrid)
-    keys = repeat([(:c,:mu10)], ngrid, ngrid)
+    keys = repeat([(:off,:off)], ngrid, ngrid)
 
     return SynthWorkspace(lwavgrid, rwavgrid, allwavs,
                           allints, bist, intt, widt,

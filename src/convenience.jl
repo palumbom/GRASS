@@ -2,8 +2,9 @@ function generate_tloop!(tloop::AA{Int,2}, disk::DiskParams, soldata::SolarData{
     # make sure dimensions are correct
     @assert size(tloop) == (length(disk.ϕc), length(disk.θc))
 
-    # get sorted mu and axis values
-    disc_mu, disc_ax = sort_mu_and_ax(soldata)
+    # get the value of mu and ax codes
+    disc_ax = parse_ax_string.(getindex.(keys(soldata.len),1))
+    disc_mu = parse_mu_string.(getindex.(keys(soldata.len),2))
 
     # loop over grid
     xyz = zeros(3)
