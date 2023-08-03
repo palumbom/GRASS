@@ -29,9 +29,9 @@ function DiskParams(;N=132, Nt=NaN, inclination=90.0, u1=0.4,
                      u2=0.26, A=14.713, B=-2.396, C=-1.787)
     # assertions and warnings
     @assert !isnan(Nt)
-    if N != 132
-        @warn "N should be set to 132 for physical validity!"
-    end
+    # if N != 132
+    #     @warn "N should be set to 132 for physical validity!"
+    # end
 
     # get grid edges
     ϕe, θe = make_grid(N)
@@ -41,7 +41,8 @@ function DiskParams(;N=132, Nt=NaN, inclination=90.0, u1=0.4,
     θc = get_grid_centers(θe)
 
     # create rotation matrix
-    iₛ = rad2deg(90.0 - inclination)
+    @assert -90.0 <= inclination <= 90.0
+    iₛ = deg2rad(90.0 - inclination)
     R_θ = M = [1.0 0.0 0.0;
                0.0 cos(iₛ) sin(iₛ);
                0.0 -sin(iₛ) cos(iₛ)]
