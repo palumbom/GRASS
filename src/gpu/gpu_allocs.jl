@@ -31,7 +31,6 @@ function GPUAllocs(spec::SpecParams, disk::DiskParams; precision::DataType=Float
         R_θ_gpu = CuArray{precision}(disk.R_θ)
         O⃗_gpu = CuArray{precision}(disk.O⃗)
         λs_gpu = CuArray{precision}(spec.lambdas)
-
     end
 
     # allocate memory for synthesis on the GPU

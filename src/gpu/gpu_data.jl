@@ -70,6 +70,11 @@ function find_data_index_gpu(μ, x, y, disc_mu, disc_ax)
     mu_ind = searchsortednearest_gpu(disc_mu, μ)
     ax_val = find_nearest_ax_gpu(x, y)
 
+    # return immediately if nearest mu is disk center
+    if mu_ind == CUDA.length(disc_mu)
+        return CUDA.length(disc_mu)
+    end
+
     # find the first index of disc_mu with that discrete mu val
     i = 1
     while disc_mu[i] != disc_mu[mu_ind]
@@ -77,24 +82,18 @@ function find_data_index_gpu(μ, x, y, disc_mu, disc_ax)
     end
     mu_ind = i
 
-    # calculate the data index
-    if mu_ind == CUDA.length(disc_mu)
-        # return immediately if nearest mu is disk center
-        return CUDA.length(disc_mu)
-    else
-        # otherwise we need the right axis value
-        mu_ind_orig = mu_ind
-        mu_val_orig = disc_mu[mu_ind_orig]
-        while ((disc_ax[mu_ind] != ax_val) & (disc_mu[mu_ind] == mu_val_orig))
-            mu_ind += 1
-        end
+    # get the right axis value
+    mu_ind_orig = mu_ind
+    mu_val_orig = disc_mu[mu_ind_orig]
+    while ((disc_ax[mu_ind] != ax_val) & (disc_mu[mu_ind] == mu_val_orig))
+        mu_ind += 1
+    end
 
-        # check that we haven't overflowed into the next batch of mus
-        if disc_mu[mu_ind] == mu_val_orig
-            return mu_ind
-        else
-            return mu_ind_orig
-        end
+    # check that we haven't overflowed into the next batch of mus
+    if disc_mu[mu_ind] == mu_val_orig
+        return mu_ind
+    else
+        return mu_ind_orig
     end
     return nothing
 end
@@ -141,7 +140,7 @@ function precompute_quantities_gpu(vec1, vec2, vec3, ρs, ϕc, θc, R_θ, O⃗, 
 
     # parallelized loop over grid
     for i in idx:sdx:CUDA.length(ϕc)
-        for j in idy:sdy:CUDA.length(θc)
+        for j in idy:sdy:CUDA.length(θc')
             # take view of pre-allocated memory
             xyz = CUDA.view(vec1, i, j, :)
             abc = CUDA.view(vec2, i, j, :)
@@ -151,13 +150,13 @@ function precompute_quantities_gpu(vec1, vec2, vec3, ρs, ϕc, θc, R_θ, O⃗, 
             sphere_to_cart_gpu!(xyz, ρs, ϕc[i], θc[j])
 
             # get vector from spherical circle center to surface patch
-            @inbounds abc[1] = xyz[1]
-            @inbounds abc[2] = xyz[2]
+            @inbounds abc[1] = CUDA.copy(xyz[1])
+            @inbounds abc[2] = CUDA.copy(xyz[2])
             @inbounds abc[3] = 0.0
 
             # take cross product to get vector in direction of rotation
-            @inbounds def[1] = abc[2] * ρs
-            @inbounds def[2] = - abc[1] * ρs
+            @inbounds def[1] = CUDA.copy(abc[2] * ρs)
+            @inbounds def[2] = CUDA.copy(- abc[1] * ρs)
             @inbounds def[3] = 0.0
 
             # make it a unit vector
@@ -173,30 +172,13 @@ function precompute_quantities_gpu(vec1, vec2, vec3, ρs, ϕc, θc, R_θ, O⃗, 
 
             # rotate xyz by inclination and calculate mu
             rotate_vector_gpu!(xyz, R_θ)
-            @inbounds μs[i,j] = calc_mu_gpu(xyz, O⃗)
+            μs[i,j] = calc_mu_gpu(xyz, O⃗)
             if μs[i,j] <= 0.0
                 continue
             end
 
-            # rotate the velocity vectors by inclination
-            rotate_vector_gpu!(def, R_θ)
-
-            # get vector pointing from observer to surface patch
-            abc[1] = xyz[1] - O⃗[1]
-            abc[2] = xyz[2] - O⃗[2]
-            abc[3] = xyz[3] - O⃗[3]
-
-            # get angle between them
-            n1 = CUDA.sqrt(abc[1]^2.0 + abc[2]^2.0 + abc[3]^2.0)
-            n2 = CUDA.sqrt(def[1]^2.0 + def[2]^2.0 + def[3]^2.0)
-            angle = (abc[1] * def[1] + abc[2] * def[2] + abc[3] * def[3])
-            angle /= (n1 * n2)
-
-            # project it
-            @inbounds z_rot[i,j] = n2 * angle
-
-            # find the correct data index and
-            idx = find_data_index_gpu(μs[i,j], xyz[1], xyz[2], disc_mu, disc_ax)
+            # find the correct data index
+            idx = find_data_index_gpu(μs[i,j], xyz[1], xyz[3], disc_mu, disc_ax)
             @inbounds dat_idx[i,j] = idx
 
             # set the convective blueshift
@@ -212,43 +194,32 @@ function precompute_quantities_gpu(vec1, vec2, vec3, ρs, ϕc, θc, R_θ, O⃗, 
             # calculate the limb darkening
             ld = quad_limb_darkening(μs[i,j], u1, u2)
 
+            # rotate the velocity vectors by inclination
+            rotate_vector_gpu!(def, R_θ)
+
+            # get vector pointing from observer to surface patch
+            abc[1] = CUDA.copy(xyz[1] - O⃗[1])
+            abc[2] = CUDA.copy(xyz[2] - O⃗[2])
+            abc[3] = CUDA.copy(xyz[3] - O⃗[3])
+
+            # get angle between them
+            n1 = CUDA.sqrt(abc[1]^2.0 + abc[2]^2.0 + abc[3]^2.0)
+            n2 = CUDA.sqrt(def[1]^2.0 + def[2]^2.0 + def[3]^2.0)
+            angle = (abc[1] * def[1] + abc[2] * def[2] + abc[3] * def[3])
+            angle /= (n1 * n2)
+
+            # project velocity onto line of sight
+            @inbounds z_rot[i,j] = n2 * angle
+
             # calculate the surface element and project along line of sight
             dA = calc_dA(ρs, ϕc[i], dϕ, dθ)
-            @inbounds abc[1] = xyz[1] - O⃗[1]
-            @inbounds abc[2] = xyz[2] - O⃗[2]
-            @inbounds abc[3] = xyz[3] - O⃗[3]
+            @inbounds abc[1] = CUDA.copy(xyz[1] - O⃗[1])
+            @inbounds abc[2] = CUDA.copy(xyz[2] - O⃗[2])
+            @inbounds abc[3] = CUDA.copy(xyz[3] - O⃗[3])
             dp = CUDA.abs(abc[1] * xyz[1] + abc[2] * xyz[2] + abc[3] * xyz[3])
 
             # set norm term as product of limb darkening and projected dA
             @inbounds weights[i,j] = ld * dA * dp
-
-            # # calculate the rotational velocity along LOS
-            # # get vector pointing from star origin to spherical circle height
-            # @inbounds xyz[3] = [0]
-
-            # # set abc as pole vector in star frame
-
-
-            # # velocity magnitude at equator, in Rsol/day/c_ms
-            # v0 = 0.000168710673
-
-            # # get velocity vector direction and set magnitude
-            # vel = cross(C⃗, P⃗)
-            # vel /= norm(vel)
-            # vel *= (v0 / rotation_period(ϕ; A=disk.A, B=disk.B, C=disk.C))
-
-            # # rotate by stellar inclination
-            # xyz .= disk.R_θ * xyz
-            # vel .= disk.R_θ * vel
-
-            # # find get vector from observer to surface patch, return projection
-            # O⃗_surf = xyz .- disk.O⃗
-            # angle = dot(O⃗_surf, vel) / (norm(O⃗_surf) * norm(vel))
-            # return norm(vel) * angle
-
-            # # calculate the rotational and convective doppler shift
-            # @inbounds z_rot[i,j] = patch_velocity_los_gpu(x, y, rstar, polex, poley, polez)
-            #
         end
     end
     return nothing
