@@ -6,16 +6,20 @@ function generate_tloop!(tloop::AA{Int,2}, disk::DiskParams, soldata::SolarData{
     disc_mu, disc_ax = sort_mu_and_ax(soldata)
 
     # loop over grid
+    xyz = zeros(3)
     for i in eachindex(disk.ϕc)
         for j in eachindex(disk.θc)
+            # get cartesian coord
+            xyz .= sphere_to_cart(disk.ρs, disk.ϕc[i], disk.θc[j])
+
             # calculate mu
-            μc = calc_mu(disk.ϕc[i], disk.θc[j], R_θ=disk.R_θ, O⃗=disk.O⃗)
+            μc = calc_mu(xyz, disk.R_θ, disk.O⃗)
 
             # move to next iteration if patch element is not visible
-            μc < zero(T) && continue
+            μc <= zero(T) && continue
 
             # get input data for place on disk
-            key = get_key_for_pos(μc, disk.ϕc[i], disk.θc[j], disc_mu, disc_ax, R_θ=disk.R_θ)
+            key = get_key_for_pos(μc, xyz[1], xyz[3], disc_mu, disc_ax)
             len = soldata.len[key]
 
             # generate random index

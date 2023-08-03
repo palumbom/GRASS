@@ -47,16 +47,21 @@ function precompute_quantities(wsp::SynthWorkspace{T}, disk::DiskParams{T}, sold
     # calculate normalization terms and get convective blueshifts
     numer = 0
     denom = 0
+    xyz = zeros(3)
     for i in eachindex(disk.ϕc)
         for j in eachindex(disk.θc)
+            # get cartesian coord
+            xyz .= sphere_to_cart(disk.ρs, disk.ϕc[i], disk.θc[j])
+
             # calculate mu
-            μc = calc_mu(disk.ϕc[i], disk.θc[j], R_θ=disk.R_θ, O⃗=disk.O⃗)
+            μc = calc_mu(xyz, disk.R_θ, disk.O⃗)
+            wsp.μs[i,j] = μc
 
             # move to next iteration if patch element is not visible
-            μc < zero(T) && continue
+            μc <= zero(T) && continue
 
             # get input data for place on disk
-            key = get_key_for_pos(μc, disk.ϕc[i], disk.θc[j], disc_mu, disc_ax, R_θ=disk.R_θ)
+            key = get_key_for_pos(μc, xyz[1], xyz[3], disc_mu, disc_ax)
 
             # calc limb darkening normalization term
             ld = quad_limb_darkening(μc, disk.u1, disk.u2)
@@ -69,7 +74,6 @@ function precompute_quantities(wsp::SynthWorkspace{T}, disk::DiskParams{T}, sold
 
             # copy to workspace
             wsp.dA[i,j] = dA
-            wsp.μs[i,j] = μc
             wsp.ld[i,j] = ld
             wsp.z_rot[i,j] = z_rot
             wsp.keys[i,j] = key

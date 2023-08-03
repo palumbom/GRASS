@@ -45,20 +45,15 @@ function sphere_to_cart(ρ::T, ϕ::T, θ::T) where T
     return [x, y, z]
 end
 
-function calc_mu(ϕ::T, θ::T, R_θ::AA{T,2}, O⃗::AA{T,1}) where T<:AF
+function calc_mu(xyz::AA{T,1}, R_θ::AA{T,2}, O⃗::AA{T,1}) where T<:AF
     # get cartesian coords and rotate them
-    xyz = sphere_to_cart(one(T), ϕ, θ)
     xyz .= R_θ * xyz
     return dot(O⃗, xyz) / (norm(O⃗) * norm(xyz))
 end
 
-function calc_mu(ϕ::T, θ::T; R_θ::AA{T,2}=Matrix(1.0I,3,3), O⃗::AA{T,1}=[0.0, 220.0, 0.0]) where T<:AF
-    return calc_mu(ϕ, θ, R_θ, O⃗)
-end
-
 # Find the nearest axis to a given point on a grid
 function find_nearest_ax(x::T, y::T) where T<:AF
-    if (x^2 + y^2) > one(T)
+    if (x^2.0 + y^2.0) > one(T)
         return :off
     elseif ((y == zero(T)) & (x == zero(T))) # center
         return :c
@@ -74,7 +69,7 @@ function find_nearest_ax(x::T, y::T) where T<:AF
 end
 
 function find_nearest_ax_code(x::T, y::T) where T<:AF
-    if (x^2 + y^2) > one(T)
+    if (x^2.0 + y^2.0) > one(T)
         return nothing
     elseif ((y == zero(T)) & (x == zero(T))) # center
         return 0
@@ -93,19 +88,15 @@ function ax_code_to_symbol(code::Int)
     return [:c, :n, :s, :e, :w][code+1]
 end
 
-function get_key_for_pos(μ::T, ϕ::T, θ::T, disc_mu::AA{T,1}, disc_ax::AA{Int,1}; R_θ::AA{T,2}=Matrix(1.0I,3,3),) where T<:AF
+function get_key_for_pos(μ::T, x::T, y::T, disc_mu::AA{T,1}, disc_ax::AA{Int,1}) where T<:AF
     # make sure we are not off the disk
-    if μ < 0.0
+    if μ <= 0.0
         return nothing
     end
 
-    # get cartesian position for axis
-    xyz = sphere_to_cart(one(T), ϕ, θ)
-    xyz .= R_θ * xyz
-
     # find the nearest mu ind and ax code
     mu_ind = searchsortednearest(disc_mu, μ)
-    ax_val = find_nearest_ax_code(xyz[1], xyz[2])
+    ax_val = find_nearest_ax_code(x, y)
 
     # return early if the nearest mu is 1.0
     if disc_mu[mu_ind] == 1.0
