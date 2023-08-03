@@ -1,4 +1,4 @@
-function fill_workspaces!(line, variability, extra_z, grid, tloop, data_inds, z_rot,
+function fill_workspaces!(line, variability, extra_z, μs, tloop, data_inds, z_rot,
                           z_cbs, bisall, intall, widall, allwavs, allints)
     # get indices from GPU blocks + threads
     idx = threadIdx().x + blockDim().x * (blockIdx().x-1)
@@ -9,13 +9,10 @@ function fill_workspaces!(line, variability, extra_z, grid, tloop, data_inds, z_
     sdz = blockDim().z * gridDim().z
 
     # parallelized loop over grid
-    for i in idx:sdx:CUDA.length(grid)
-        for j in idy:sdy:CUDA.length(grid)
-            # find position on disk and move to next iter if off disk
-            x = grid[i]
-            y = grid[j]
-            r2 = calc_r2(x, y)
-            if r2 > 1.0
+    for i in idx:sdx:CUDA.size(μs,1)
+        for j in idy:sdy:CUDA.size(μs,2)
+            # move to next iter if off disk
+            if μs[i,j] <= 0.0
                 continue
             end
 
@@ -52,7 +49,7 @@ function fill_workspaces!(line, variability, extra_z, grid, tloop, data_inds, z_
 end
 
 
-function line_profile_gpu!(star_map, grid, lambdas, allwavs, allints)
+function line_profile_gpu!(star_map, μs, lambdas, allwavs, allints)
     # get indices from GPU blocks + threads
     idx = threadIdx().x + blockDim().x * (blockIdx().x-1)
     sdx = blockDim().x * gridDim().x
@@ -62,13 +59,10 @@ function line_profile_gpu!(star_map, grid, lambdas, allwavs, allints)
     sdz = blockDim().z * gridDim().z
 
     # parallelized loop over grid
-    for i in idx:sdx:CUDA.length(grid)
-        for j in idy:sdy:CUDA.length(grid)
-            # set intensity to zero and go to next iter if off grid
-            x = grid[i]
-            y = grid[j]
-            r2 = calc_r2(x, y)
-            if r2 > 1.0
+    for i in idx:sdx:CUDA.size(μs,1)
+        for j in idy:sdy:CUDA.size(μs,2)
+            # move to next iter if off disk
+            if μs[i,j] <= 0.0
                 continue
             end
 
