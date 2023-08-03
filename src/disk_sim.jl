@@ -48,6 +48,8 @@ function precompute_quantities(wsp::SynthWorkspace{T}, disk::DiskParams{T}, sold
     numer = 0
     denom = 0
     xyz = zeros(3)
+
+    # loop over disk positions
     for i in eachindex(disk.ϕc)
         for j in eachindex(disk.θc)
             # get cartesian coord
@@ -90,8 +92,9 @@ function disk_sim_3d(spec::SpecParams{T}, disk::DiskParams{T}, soldata::SolarDat
     outspec .= zero(T)
     liter = 1:length(spec.lines); @assert length(liter) >= 1
 
-    # get sorted mu and axis values
-    disc_mu, disc_ax = sort_mu_and_ax(soldata)
+    # get the value of mu and ax codes
+    disc_ax = parse_ax_string.(getindex.(keys(soldata.len),1))
+    disc_mu = parse_mu_string.(getindex.(keys(soldata.len),2))
 
     # get intensity-weighted disk-avereged convective blueshift
     z_cbs_avg, sum_norm_terms = precompute_quantities(wsp, disk, soldata, disc_mu, disc_ax)
