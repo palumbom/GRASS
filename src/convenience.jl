@@ -2,9 +2,9 @@ function generate_tloop!(tloop::AA{Int,2}, disk::DiskParams, soldata::SolarData{
     # make sure dimensions are correct
     @assert size(tloop) == (length(disk.ϕc), length(disk.θc))
 
-    # get the value of mu and ax codes
-    disc_ax = parse_ax_string.(getindex.(keys(soldata.len),1))
-    disc_mu = parse_mu_string.(getindex.(keys(soldata.len),2))
+    # get the mu and axis codes
+    disc_mu = soldata.mu
+    disc_ax = soldata.ax
 
     # loop over grid
     xyz = zeros(3)
@@ -12,9 +12,10 @@ function generate_tloop!(tloop::AA{Int,2}, disk::DiskParams, soldata::SolarData{
         for j in eachindex(disk.θc)
             # get cartesian coord
             xyz .= sphere_to_cart(disk.ρs, disk.ϕc[i], disk.θc[j])
+            rotate_vector!(xyz, disk.R_θ)
 
             # calculate mu
-            μc = calc_mu(xyz, disk.R_θ, disk.O⃗)
+            μc = calc_mu(xyz, disk.O⃗)
 
             # move to next iteration if patch element is not visible
             μc <= zero(T) && continue
