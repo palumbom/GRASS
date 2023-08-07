@@ -42,7 +42,7 @@ function time_loop_cpu(tloop::Int, prof::AA{T,1}, z_rot::T, z_cbs::T,
     return nothing
 end
 
-function precompute_quantities(wsp::SynthWorkspace{T}, disk::DiskParams{T}, soldata::SolarData{T}) where T<:AF
+function precompute_quantities_old(wsp::SynthWorkspace{T}, disk::DiskParams{T}, soldata::SolarData{T}) where T<:AF
     # calculate normalization terms and get convective blueshifts
     numer = 0
     denom = 0
@@ -83,6 +83,70 @@ function precompute_quantities(wsp::SynthWorkspace{T}, disk::DiskParams{T}, sold
             wsp.ld[i,j] = ld
             wsp.z_rot[i,j] = z_rot
             wsp.keys[i,j] = key
+        end
+    end
+    return numer/denom, denom
+end
+
+function precompute_quantities(xyz::Matrix{Vector{T}}, wsp::SynthWorkspace{T}, disk::DiskParams{T},
+                               soldata::SolarData{T}; Nsubgrid::Int=50) where T<:AF
+    # calculate normalization terms and get convective blueshifts
+    numer = 0
+    denom = 0
+    # xyz = zeros(Nsubgrid, Nsubgrid, 3)
+
+    # get discrete mu and ax values
+    disc_mu = soldata.mu
+    disc_ax = soldata.ax
+
+    # loop over disk positions
+    for i in eachindex(disk.ϕc)
+        for j in 1:disk.Nθ[i]
+            # subdivide the tile
+            ϕsub = range(disk.ϕe[i], disk.ϕe[i+1], length=Nsubgrid)
+            θsub = range(disk.θe[i,j], disk.θe[i,j+1], length=Nsubgrid)
+            subgrid = Iterators.product(ϕsub, θsub)
+
+            # get cartesian coord for each subgrid and rotate by rot. matrix
+            xyz .= map(x -> sphere_to_cart.(disk.ρs, x...), subgrid)
+            xyz .= map(x -> disk.R_θ * x, xyz)
+
+            # calculate mu at each point
+            μs = map(x -> calc_mu(x, disk.O⃗), xyz)
+
+            # move to next iteration if patch element is not visible
+            all(μs .<= zero(T)) && continue
+
+            # assign the mean mu as the mean of visible mus
+            idx = μs .> 0.0
+            wsp.μs[i,j] = mean(view(μs, idx))
+
+            # find xyz at mean value of mu
+            mean_x = mean(view(getindex.(xyz,1), idx))
+            mean_z = mean(view(getindex.(xyz,3), idx))
+
+            # get input data for place on disk
+            key = get_key_for_pos(wsp.μs[i,j], mean_x, mean_z, disc_mu, disc_ax)
+
+            # calc limb darkening
+            ld = map(x -> quad_limb_darkening(x, disk.u1, disk.u2), μs)
+
+            # get rotational velocity for location on disk
+            z_rot = map(x -> patch_velocity_los(x..., disk), subgrid)
+
+            # calculate area element of tile
+            dA = map(x -> calc_dA(disk.ρs, getindex(x,1), step(ϕsub), step(θsub)), subgrid)
+            dA .*= map(x -> abs(dot(x .- disk.O⃗, x)), xyz)
+
+            # copy to workspace
+            wsp.dA[i,j] = mean(dA[idx])
+            wsp.ld[i,j] = mean(ld[idx])
+            wsp.z_rot[i,j] = mean(z_rot[idx])
+            wsp.keys[i,j] = key
+
+            # get disk-averaged cbs
+            numer += soldata.cbs[key] * (wsp.ld[i,j] * wsp.dA[i,j])
+            denom += wsp.ld[i,j] * wsp.dA[i,j]
         end
     end
     return numer/denom, denom
