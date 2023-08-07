@@ -42,25 +42,29 @@ function time_loop_cpu(tloop::Int, prof::AA{T,1}, z_rot::T, z_cbs::T,
     return nothing
 end
 
-function precompute_quantities(wsp::SynthWorkspace{T}, disk::DiskParams{T}, soldata::SolarData{T},
-                               disc_mu::AA{T,1}, disc_ax::AA{Int,1}) where T<:AF
+function precompute_quantities(wsp::SynthWorkspace{T}, disk::DiskParams{T}, soldata::SolarData{T}) where T<:AF
     # calculate normalization terms and get convective blueshifts
     numer = 0
     denom = 0
     xyz = zeros(3)
+
+    # get discrete mu and ax values
+    disc_mu = soldata.mu
+    disc_ax = soldata.ax
 
     # loop over disk positions
     for i in eachindex(disk.ϕc)
         for j in eachindex(disk.θc)
             # get cartesian coord
             xyz .= sphere_to_cart(disk.ρs, disk.ϕc[i], disk.θc[j])
+            rotate_vector!(xyz, disk.R_θ)
 
             # calculate mu
-            μc = calc_mu(xyz, disk.R_θ, disk.O⃗)
+            μc = calc_mu(xyz, disk.O⃗)
             wsp.μs[i,j] = μc
 
             # move to next iteration if patch element is not visible
-            μc <= zero(T) && continue
+            μc <= 0.0 && continue
 
             # get input data for place on disk
             key = get_key_for_pos(μc, xyz[1], xyz[3], disc_mu, disc_ax)
@@ -92,12 +96,8 @@ function disk_sim_3d(spec::SpecParams{T}, disk::DiskParams{T}, soldata::SolarDat
     outspec .= zero(T)
     liter = 1:length(spec.lines); @assert length(liter) >= 1
 
-    # get the value of mu and ax codes
-    disc_ax = parse_ax_string.(getindex.(keys(soldata.len),1))
-    disc_mu = parse_mu_string.(getindex.(keys(soldata.len),2))
-
     # get intensity-weighted disk-avereged convective blueshift
-    z_cbs_avg, sum_norm_terms = precompute_quantities(wsp, disk, soldata, disc_mu, disc_ax)
+    z_cbs_avg, sum_norm_terms = precompute_quantities(wsp, disk, soldata)
 
     # loop over grid positions
     for i in eachindex(disk.ϕc)

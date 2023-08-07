@@ -45,9 +45,12 @@ function sphere_to_cart(ρ::T, ϕ::T, θ::T) where T
     return [x, y, z]
 end
 
-function calc_mu(xyz::AA{T,1}, R_θ::AA{T,2}, O⃗::AA{T,1}) where T<:AF
-    # get cartesian coords and rotate them
-    xyz .= R_θ * xyz
+function rotate_vector!(xyz::AA{T,1}, R_θ::AA{T,2}) where T
+    xyz .= (R_θ * xyz)
+    return nothing
+end
+
+function calc_mu(xyz::AA{T,1}, O⃗::AA{T,1}) where T<:AF
     return dot(O⃗, xyz) / (norm(O⃗) * norm(xyz))
 end
 
@@ -94,14 +97,14 @@ function get_key_for_pos(μ::T, x::T, y::T, disc_mu::AA{T,1}, disc_ax::AA{Int,1}
         return (:off, :off)
     end
 
-    # find the nearest mu ind and ax code
+    # find the nearest mu and return early if near disk center
     mu_ind = searchsortednearest(disc_mu, μ)
-    ax_val = find_nearest_ax_code(x, y)
-
-    # return early if the nearest mu is 1.0
     if disc_mu[mu_ind] == 1.0
         return (:c, :mu10)
     end
+
+    # get nearest ax code
+    ax_val = find_nearest_ax_code(x, y)
 
     # find subarray of disc_mu and disk_ax matching mu
     idxs = findall(disc_mu .== disc_mu[mu_ind])
@@ -110,7 +113,7 @@ function get_key_for_pos(μ::T, x::T, y::T, disc_mu::AA{T,1}, disc_ax::AA{Int,1}
 
     # move to new axis if it isn't present in the data
     if !(ax_val in ax_view)
-        ax_val = ax_view[1]
+        ax_val = first(ax_view)
     end
 
     # convert mu and ax codes to symbol key
@@ -120,6 +123,9 @@ function get_key_for_pos(μ::T, x::T, y::T, disc_mu::AA{T,1}, disc_ax::AA{Int,1}
 end
 
 function key_to_code(key, disc_mu, disc_ax)
+    if key == (:off, :off)
+        return 0
+    end
     ax_sym = key[1]
     mu_sym = key[2]
 
