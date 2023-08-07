@@ -13,7 +13,7 @@ struct SynthWorkspace{T<:AF}
     keys::AA{Tuple{Symbol, Symbol},2}
 end
 
-function SynthWorkspace(; ngrid::Integer=132, ndepths::Integer=100)
+function SynthWorkspace(disk::DiskParams; ndepths::Integer=100)
     # allocate the needed memory for synthesis
     lwavgrid = zeros(ndepths)
     rwavgrid = zeros(ndepths)
@@ -24,11 +24,11 @@ function SynthWorkspace(; ngrid::Integer=132, ndepths::Integer=100)
     widt     = zeros(ndepths)
 
     # allocate the memory for keys, velocities, ld, etc.
-    μs = zeros(ngrid, ngrid)
-    ld = zeros(ngrid, ngrid)
-    dA = zeros(ngrid, ngrid)
-    z_rot = zeros(ngrid, ngrid)
-    keys = repeat([(:off,:off)], ngrid, ngrid)
+    μs = zeros(size(disk.θc))
+    ld = zeros(size(disk.θc))
+    dA = zeros(size(disk.θc))
+    z_rot = zeros(size(disk.θc))
+    keys = repeat([(:off,:off)], size(disk.θc)...)
 
     return SynthWorkspace(lwavgrid, rwavgrid, allwavs,
                           allints, bist, intt, widt,

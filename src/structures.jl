@@ -2,5 +2,5 @@
 include("structures/LineProperties.jl")
 include("structures/SolarData.jl")
 include("structures/SpecParams.jl")
-include("structures/SynthWorkspace.jl")
 include("structures/DiskParams.jl")
+include("structures/SynthWorkspace.jl")

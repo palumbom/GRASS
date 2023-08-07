@@ -3,9 +3,10 @@ struct DiskParams{T<:AF}
     Nt::Int
     ρs::T
     ϕe::AA{T,1}
-    θe::AA{T,1}
     ϕc::AA{T,1}
-    θc::AA{T,1}
+    θe::AA{T,2}
+    θc::AA{T,2}
+    Nθ::AA{Int,1}
     R_θ::AA{T,2}
     O⃗::AA{T,1}
     A::T
@@ -25,7 +26,7 @@ Construct a `DiskParams` composite type instance.
 - `Nt::Integer=50`: Number of 15-second snapshots
 - `pole::Tuple{Float64, Float64, Float64}=(0.0, 1.0, 0.0)`: Unit vector specificying rotation axis direction. Default is equator-on.
 """
-function DiskParams(;N=132, Nt=NaN, inclination=90.0, u1=0.4,
+function DiskParams(;N=132, Nt=NaN, radius=1.0, inclination=90.0, u1=0.4,
                      u2=0.26, A=14.713, B=-2.396, C=-1.787)
     # assertions and warnings
     @assert !isnan(Nt)
@@ -33,12 +34,24 @@ function DiskParams(;N=132, Nt=NaN, inclination=90.0, u1=0.4,
     #     @warn "N should be set to 132 for physical validity!"
     # end
 
-    # get grid edges
-    ϕe, θe = make_grid(N)
+    # calculate tile width in fraction of stellar radius
+    w_tile = 2.0 * π * radius / N
 
-    # get grid centers
+    # set grid edges and centers for latitude grid
+    ϕe = range(deg2rad(-90.0), deg2rad(90.0), length=N)
     ϕc = get_grid_centers(ϕe)
-    θc = get_grid_centers(θe)
+
+    # number of longitudes in each latitude slice
+    Nθ = ceil.(Int, 2.0 .* π .* radius .* cos.(ϕc) ./ w_tile)
+
+    # make theta grid
+    θe = zeros(N, maximum(Nθ)+1)
+    θc = zeros(N-1, maximum(Nθ))
+    for i in eachindex(Nθ)
+        edges = range(deg2rad(0.0), deg2rad(360.0), length=Nθ[i]+1)
+        θc[i, 1:Nθ[i]] .= get_grid_centers(edges)
+        θe[i, 1:Nθ[i]+1] .= collect(edges)
+    end
 
     # create rotation matrix
     @assert -90.0 <= inclination <= 90.0
@@ -50,5 +63,5 @@ function DiskParams(;N=132, Nt=NaN, inclination=90.0, u1=0.4,
     # set observer vector to Earth-Sun distance in AU
     O⃗ = [0.0, 220.0, 0.0]
 
-    return DiskParams(N, Nt, 1.0, ϕe, θe, ϕc, θc, R_θ, O⃗, A, B, C, u1, u2)
+    return DiskParams(N, Nt, radius, ϕe, ϕc, θe, θc, Nθ, R_θ, O⃗, A, B, C, u1, u2)
 end
