@@ -88,16 +88,18 @@ function precompute_quantities_old(wsp::SynthWorkspace{T}, disk::DiskParams{T}, 
     return numer/denom, denom
 end
 
-function precompute_quantities(xyz::Matrix{Vector{T}}, wsp::SynthWorkspace{T}, disk::DiskParams{T},
-                               soldata::SolarData{T}; Nsubgrid::Int=50) where T<:AF
+function precompute_quantities(wsp::SynthWorkspace{T}, disk::DiskParams{T}, soldata::SolarData{T}) where T<:AF
     # calculate normalization terms and get convective blueshifts
     numer = 0
     denom = 0
-    # xyz = zeros(Nsubgrid, Nsubgrid, 3)
 
     # get discrete mu and ax values
     disc_mu = soldata.mu
     disc_ax = soldata.ax
+
+    # parse out composite type fields
+    xyz = wsp.xyz
+    Nsubgrid = disk.Nsubgrid
 
     # loop over disk positions
     for i in eachindex(disk.ϕc)
@@ -139,9 +141,9 @@ function precompute_quantities(xyz::Matrix{Vector{T}}, wsp::SynthWorkspace{T}, d
             dA .*= map(x -> abs(dot(x .- disk.O⃗, x)), xyz)
 
             # copy to workspace
-            wsp.dA[i,j] = mean(dA[idx])
-            wsp.ld[i,j] = mean(ld[idx])
-            wsp.z_rot[i,j] = mean(z_rot[idx])
+            wsp.dA[i,j] = mean(view(dA, idx))
+            wsp.ld[i,j] = mean(view(ld, idx))
+            wsp.z_rot[i,j] = mean(view(z_rot, idx))
             wsp.keys[i,j] = key
 
             # get disk-averaged cbs
@@ -165,7 +167,7 @@ function disk_sim_3d(spec::SpecParams{T}, disk::DiskParams{T}, soldata::SolarDat
 
     # loop over grid positions
     for i in eachindex(disk.ϕc)
-        for j in eachindex(disk.θc)
+        for j in 1:disk.Nθ[i]
             # move to next iteration if patch element is not visible
             μc = wsp.μs[i,j]
             μc <= zero(T) && continue
