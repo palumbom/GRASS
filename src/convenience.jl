@@ -64,11 +64,10 @@ function synth_cpu(spec::SpecParams{T}, disk::DiskParams{T}, seed_rng::Bool,
     tloop_init = similar(tloop)
 
     # allocate memory for spectra synthesis
-    wsp = SynthWorkspace(ngrid=length(disk.ϕc))
+    wsp = GRASS.SynthWorkspace(disk)
     prof = ones(Nλ)
     outspec = ones(Nλ, Nt)
     outspec_temp = zeros(Nλ, Nt)
-
 
     # get number of calls to disk_sim needed
     templates = unique(spec.templates)

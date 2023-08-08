@@ -7,6 +7,7 @@ struct DiskParams{T<:AF}
     θe::AA{T,2}
     θc::AA{T,2}
     Nθ::AA{Int,1}
+    Nsubgrid::Int
     R_θ::AA{T,2}
     O⃗::AA{T,1}
     A::T
@@ -27,7 +28,7 @@ Construct a `DiskParams` composite type instance.
 - `pole::Tuple{Float64, Float64, Float64}=(0.0, 1.0, 0.0)`: Unit vector specificying rotation axis direction. Default is equator-on.
 """
 function DiskParams(;N=132, Nt=NaN, radius=1.0, inclination=90.0, u1=0.4,
-                     u2=0.26, A=14.713, B=-2.396, C=-1.787)
+                     u2=0.26, A=14.713, B=-2.396, C=-1.787, Nsubgrid=50)
     # assertions and warnings
     @assert !isnan(Nt)
     # if N != 132
@@ -63,5 +64,5 @@ function DiskParams(;N=132, Nt=NaN, radius=1.0, inclination=90.0, u1=0.4,
     # set observer vector to Earth-Sun distance in AU
     O⃗ = [0.0, 220.0, 0.0]
 
-    return DiskParams(N, Nt, radius, ϕe, ϕc, θe, θc, Nθ, R_θ, O⃗, A, B, C, u1, u2)
+    return DiskParams(N, Nt, radius, ϕe, ϕc, θe, θc, Nθ, Nsubgrid, R_θ, O⃗, A, B, C, u1, u2)
 end
