@@ -42,52 +42,6 @@ function time_loop_cpu(tloop::Int, prof::AA{T,1}, z_rot::T, z_cbs::T,
     return nothing
 end
 
-function precompute_quantities_old(wsp::SynthWorkspace{T}, disk::DiskParams{T}, soldata::SolarData{T}) where T<:AF
-    # calculate normalization terms and get convective blueshifts
-    numer = 0
-    denom = 0
-    xyz = zeros(3)
-
-    # get discrete mu and ax values
-    disc_mu = soldata.mu
-    disc_ax = soldata.ax
-
-    # loop over disk positions
-    for i in eachindex(disk.ϕc)
-        for j in eachindex(disk.θc)
-            # get cartesian coord
-            xyz .= sphere_to_cart(disk.ρs, disk.ϕc[i], disk.θc[j])
-            rotate_vector!(xyz, disk.R_θ)
-
-            # calculate mu
-            μc = calc_mu(xyz, disk.O⃗)
-            wsp.μs[i,j] = μc
-
-            # move to next iteration if patch element is not visible
-            μc <= 0.0 && continue
-
-            # get input data for place on disk
-            key = get_key_for_pos(μc, xyz[1], xyz[3], disc_mu, disc_ax)
-
-            # calc limb darkening normalization term
-            ld = quad_limb_darkening(μc, disk.u1, disk.u2)
-            dA = calc_projected_dA(disk.ϕc[i], disk.θc[j], disk)
-            numer += soldata.cbs[key] * (ld * dA)
-            denom += ld * dA
-
-            # get rotational velocity for location on disk
-            z_rot = patch_velocity_los(disk.ϕc[i], disk.θc[j], disk)
-
-            # copy to workspace
-            wsp.dA[i,j] = dA
-            wsp.ld[i,j] = ld
-            wsp.z_rot[i,j] = z_rot
-            wsp.keys[i,j] = key
-        end
-    end
-    return numer/denom, denom
-end
-
 function precompute_quantities(wsp::SynthWorkspace{T}, disk::DiskParams{T}, soldata::SolarData{T}) where T<:AF
     # calculate normalization terms and get convective blueshifts
     numer = 0
