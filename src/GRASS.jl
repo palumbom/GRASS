@@ -60,6 +60,7 @@ include("bisectors.jl")
 include("trim.jl")
 include("synthesize.jl")
 include("disk_sim.jl")
+include("disk_precomps.jl")
 
 # processing spectra
 include("velocities.jl")

@@ -212,7 +212,7 @@ function compute_subgrid_gpu(vec1, vec2, vec3, μs, wts, z_rot, ρs, ϕe, θe, �
     return nothing
 end
 
-function combine_subgrid_gpu(μs, N)
+function combine_subgrid_gpu!(μs, wts, z_rot, N)
     # get indices from GPU blocks + threads
     idx = threadIdx().x + blockDim().x * (blockIdx().x-1)
     sdx = gridDim().x * blockDim().x
@@ -231,118 +231,128 @@ function combine_subgrid_gpu(μs, N)
         # get indices for input array
         i = row * k + 1
         j = col * k + 1
-        tile_sum = zero(eltype(μs))
+
+        # set up sum holders and counter
+        μ_sum = zero(eltype(μs))
+        w_sum = zero(eltype(wts))
+        v_sum = zero(eltype(z_rot))
         count = 0
 
         for ti in i:i+k-1, tj in j:j+k-1
             if μs[ti, tj] > 0
-                tile_sum += μs[ti, tj]
+                μ_sum += μs[ti, tj]
+                w_sum += wts[ti, tj]
+                v_sum += z_rot[ti, tj]
                 count += 1
             end
         end
 
         if count > 0
-            μs[row + 1, col + 1] = tile_sum / count
+            μs[row + 1, col + 1] = μ_sum / count
+            wts[row + 1, col + 1] = w_sum / count
+            z_rot[row + 1, col + 1] = v_sum / count
         else
             μs[row + 1, col + 1] = 0.0
+            wts[row + 1, col + 1] = 0.0
+            z_rot[row + 1, col + 1] = 0.0
         end
     end
     return nothing
 end
 
 
-function precompute_quantities_gpu(vec1, vec2, vec3, ρs, ϕc, θc, ϕe, θe, Nθ, R_θ, O⃗, μs,
-                                   tloop, dat_idx, weights, z_rot, z_cbs, disc_mu,
-                                   disc_ax, lenall, cbsall, A, B, C, u1, u2, Nsubgrid)
-    # get indices from GPU blocks + threads
-    idx = threadIdx().x + blockDim().x * (blockIdx().x-1)
-    sdx = blockDim().x * gridDim().x
-    idy = threadIdx().y + blockDim().y * (blockIdx().y-1)
-    sdy = blockDim().y * gridDim().y
+# function precompute_quantities_gpu(vec1, vec2, vec3, ρs, ϕc, θc, ϕe, θe, Nθ, R_θ, O⃗, μs,
+#                                    tloop, dat_idx, weights, z_rot, z_cbs, disc_mu,
+#                                    disc_ax, lenall, cbsall, A, B, C, u1, u2, Nsubgrid)
+#     # get indices from GPU blocks + threads
+#     idx = threadIdx().x + blockDim().x * (blockIdx().x-1)
+#     sdx = blockDim().x * gridDim().x
+#     idy = threadIdx().y + blockDim().y * (blockIdx().y-1)
+#     sdy = blockDim().y * gridDim().y
 
-    # parallelized loop over grid
-    for i in idx:sdx:CUDA.length(ϕc)
-        for j in idy:sdy:CUDA.length(Nθ[i])
-            # take view of pre-allocated memory
-            xyz = CUDA.view(vec1, i, j, :)
-            abc = CUDA.view(vec2, i, j, :)
-            def = CUDA.view(vec3, i, j, :)
+#     # parallelized loop over grid
+#     for i in idx:sdx:CUDA.length(ϕc)
+#         for j in idy:sdy:CUDA.length(Nθ[i])
+#             # take view of pre-allocated memory
+#             xyz = CUDA.view(vec1, i, j, :)
+#             abc = CUDA.view(vec2, i, j, :)
+#             def = CUDA.view(vec3, i, j, :)
 
-            # get cartesian coords in star frame
-            sphere_to_cart_gpu!(xyz, ρs, ϕc[i], θc[j])
+#             # get cartesian coords in star frame
+#             sphere_to_cart_gpu!(xyz, ρs, ϕc[i], θc[j])
 
-            # get vector from spherical circle center to surface patch
-            @inbounds abc[1] = CUDA.copy(xyz[1])
-            @inbounds abc[2] = CUDA.copy(xyz[2])
-            @inbounds abc[3] = 0.0
+#             # get vector from spherical circle center to surface patch
+#             @inbounds abc[1] = CUDA.copy(xyz[1])
+#             @inbounds abc[2] = CUDA.copy(xyz[2])
+#             @inbounds abc[3] = 0.0
 
-            # take cross product to get vector in direction of rotation
-            @inbounds def[1] = CUDA.copy(abc[2] * ρs)
-            @inbounds def[2] = CUDA.copy(- abc[1] * ρs)
-            @inbounds def[3] = 0.0
+#             # take cross product to get vector in direction of rotation
+#             @inbounds def[1] = CUDA.copy(abc[2] * ρs)
+#             @inbounds def[2] = CUDA.copy(- abc[1] * ρs)
+#             @inbounds def[3] = 0.0
 
-            # make it a unit vector
-            def_norm = CUDA.sqrt(def[1]^2.0 + def[2]^2.0)
-            @inbounds def[1] /= def_norm
-            @inbounds def[2] /= def_norm
+#             # make it a unit vector
+#             def_norm = CUDA.sqrt(def[1]^2.0 + def[2]^2.0)
+#             @inbounds def[1] /= def_norm
+#             @inbounds def[2] /= def_norm
 
-            # set magnitude by differential rotation
-            v0 = 0.000168710673 # Rsol/day/speed of light
-            rp = (v0 / rotation_period_gpu(ϕc[i], A, B, C))
-            @inbounds def[1] *= rp
-            @inbounds def[2] *= rp
+#             # set magnitude by differential rotation
+#             v0 = 0.000168710673 # Rsol/day/speed of light
+#             rp = (v0 / rotation_period_gpu(ϕc[i], A, B, C))
+#             @inbounds def[1] *= rp
+#             @inbounds def[2] *= rp
 
-            # rotate xyz by inclination and calculate mu
-            rotate_vector_gpu!(xyz, R_θ)
-            μs[i,j] = calc_mu_gpu(xyz, O⃗)
-            if μs[i,j] <= 0.0
-                continue
-            end
+#             # rotate xyz by inclination and calculate mu
+#             rotate_vector_gpu!(xyz, R_θ)
+#             μs[i,j] = calc_mu_gpu(xyz, O⃗)
+#             if μs[i,j] <= 0.0
+#                 continue
+#             end
 
-            # find the correct data index
-            idx = find_data_index_gpu(μs[i,j], xyz[1], xyz[3], disc_mu, disc_ax)
-            @inbounds dat_idx[i,j] = idx
+#             # find the correct data index
+#             idx = find_data_index_gpu(μs[i,j], xyz[1], xyz[3], disc_mu, disc_ax)
+#             @inbounds dat_idx[i,j] = idx
 
-            # set the convective blueshift
-            @inbounds z_cbs[i,j] = cbsall[idx]
+#             # set the convective blueshift
+#             @inbounds z_cbs[i,j] = cbsall[idx]
 
-            # initialize tloop value if not already set by CPU
-            if CUDA.iszero(tloop[i,j])
-                @inbounds tloop[i,j] = CUDA.floor(Int32, rand() * lenall[idx]) + 1
-            elseif tloop[i,j] > lenall[idx]
-                @inbounds tloop[i,j] = 1
-            end
+#             # initialize tloop value if not already set by CPU
+#             if CUDA.iszero(tloop[i,j])
+#                 @inbounds tloop[i,j] = CUDA.floor(Int32, rand() * lenall[idx]) + 1
+#             elseif tloop[i,j] > lenall[idx]
+#                 @inbounds tloop[i,j] = 1
+#             end
 
-            # calculate the limb darkening
-            ld = quad_limb_darkening(μs[i,j], u1, u2)
+#             # calculate the limb darkening
+#             ld = quad_limb_darkening(μs[i,j], u1, u2)
 
-            # rotate the velocity vectors by inclination
-            rotate_vector_gpu!(def, R_θ)
+#             # rotate the velocity vectors by inclination
+#             rotate_vector_gpu!(def, R_θ)
 
-            # get vector pointing from observer to surface patch
-            abc[1] = CUDA.copy(xyz[1] - O⃗[1])
-            abc[2] = CUDA.copy(xyz[2] - O⃗[2])
-            abc[3] = CUDA.copy(xyz[3] - O⃗[3])
+#             # get vector pointing from observer to surface patch
+#             abc[1] = CUDA.copy(xyz[1] - O⃗[1])
+#             abc[2] = CUDA.copy(xyz[2] - O⃗[2])
+#             abc[3] = CUDA.copy(xyz[3] - O⃗[3])
 
-            # get angle between them
-            n1 = CUDA.sqrt(abc[1]^2.0 + abc[2]^2.0 + abc[3]^2.0)
-            n2 = CUDA.sqrt(def[1]^2.0 + def[2]^2.0 + def[3]^2.0)
-            angle = (abc[1] * def[1] + abc[2] * def[2] + abc[3] * def[3])
-            angle /= (n1 * n2)
+#             # get angle between them
+#             n1 = CUDA.sqrt(abc[1]^2.0 + abc[2]^2.0 + abc[3]^2.0)
+#             n2 = CUDA.sqrt(def[1]^2.0 + def[2]^2.0 + def[3]^2.0)
+#             angle = (abc[1] * def[1] + abc[2] * def[2] + abc[3] * def[3])
+#             angle /= (n1 * n2)
 
-            # project velocity onto line of sight
-            @inbounds z_rot[i,j] = n2 * angle
+#             # project velocity onto line of sight
+#             @inbounds z_rot[i,j] = n2 * angle
 
-            # calculate the surface element and project along line of sight
-            dA = calc_dA(ρs, ϕc[i], dϕ, dθ)
-            @inbounds abc[1] = CUDA.copy(xyz[1] - O⃗[1])
-            @inbounds abc[2] = CUDA.copy(xyz[2] - O⃗[2])
-            @inbounds abc[3] = CUDA.copy(xyz[3] - O⃗[3])
-            dp = CUDA.abs(abc[1] * xyz[1] + abc[2] * xyz[2] + abc[3] * xyz[3])
+#             # calculate the surface element and project along line of sight
+#             dA = calc_dA(ρs, ϕc[i], dϕ, dθ)
+#             @inbounds abc[1] = CUDA.copy(xyz[1] - O⃗[1])
+#             @inbounds abc[2] = CUDA.copy(xyz[2] - O⃗[2])
+#             @inbounds abc[3] = CUDA.copy(xyz[3] - O⃗[3])
+#             dp = CUDA.abs(abc[1] * xyz[1] + abc[2] * xyz[2] + abc[3] * xyz[3])
 
-            # set norm term as product of limb darkening and projected dA
-            @inbounds weights[i,j] = ld * dA * dp
-        end
-    end
-    return nothing
-end
+#             # set norm term as product of limb darkening and projected dA
+#             @inbounds weights[i,j] = ld * dA * dp
+#         end
+#     end
+#     return nothing
+# end

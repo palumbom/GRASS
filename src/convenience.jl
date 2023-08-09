@@ -1,36 +1,3 @@
-function generate_tloop!(tloop::AA{Int,2}, disk::DiskParams, soldata::SolarData{T}) where T<:AF
-    # make sure dimensions are correct
-    @assert size(tloop) == (length(disk.ϕc), length(disk.θc))
-
-    # get the mu and axis codes
-    disc_mu = soldata.mu
-    disc_ax = soldata.ax
-
-    # loop over grid
-    xyz = zeros(3)
-    for i in eachindex(disk.ϕc)
-        for j in eachindex(disk.θc)
-            # get cartesian coord
-            xyz .= sphere_to_cart(disk.ρs, disk.ϕc[i], disk.θc[j])
-            rotate_vector!(xyz, disk.R_θ)
-
-            # calculate mu
-            μc = calc_mu(xyz, disk.O⃗)
-
-            # move to next iteration if patch element is not visible
-            μc <= zero(T) && continue
-
-            # get input data for place on disk
-            key = get_key_for_pos(μc, xyz[1], xyz[3], disc_mu, disc_ax)
-            len = soldata.len[key]
-
-            # generate random index
-            tloop[i,j] = floor(Int, rand() * len) + 1
-        end
-    end
-    return nothing
-end
-
 """
     synthesize_spectra(spec, disk; seed_rng=false, verbose=true, top=NaN)
 
@@ -72,6 +39,9 @@ function synth_cpu(spec::SpecParams{T}, disk::DiskParams{T}, seed_rng::Bool,
     # get number of calls to disk_sim needed
     templates = unique(spec.templates)
 
+    # pre-compute quantities to be re-used
+    precompute_quantities!(wsp, disk)
+
     # run the simulation (outspec modified in place)
     for (idx, file) in enumerate(templates)
         # re-seed the rng
@@ -88,11 +58,14 @@ function synth_cpu(spec::SpecParams{T}, disk::DiskParams{T}, seed_rng::Bool,
         end
         soldata = SolarData(fname=file)
 
+        # get conv. blueshift and keys from input data
+        get_keys_and_cbs!(wsp, soldata)
+
         # generate or copy tloop
         if (idx > 1) && in_same_group(templates[idx - 1], templates[idx])
             tloop .= tloop_init
         else
-            generate_tloop!(tloop_init, disk, soldata)
+            generate_tloop!(tloop_init, wsp, soldata)
             tloop .= tloop_init
         end
 
@@ -100,8 +73,8 @@ function synth_cpu(spec::SpecParams{T}, disk::DiskParams{T}, seed_rng::Bool,
         outspec_temp .= 0.0
 
         # run the simulation and multiply outspec by this spectrum
-        disk_sim_3d(spec_temp, disk, soldata, wsp, prof, outspec_temp, tloop,
-                    skip_times=skip_times, verbose=verbose)
+        disk_sim(spec_temp, disk, soldata, wsp, prof, outspec_temp,
+                 tloop, skip_times=skip_times, verbose=verbose)
         outspec .*= outspec_temp
     end
     return spec.lambdas, outspec
