@@ -18,19 +18,6 @@ function calc_dA(ρs::T, ϕc::T, dϕ::T, dθ::T) where T<:AF
     return ρs^2.0 * sin(π/2.0 - ϕc) * dϕ * dθ
 end
 
-function calc_projected_dA(ϕc::T, θc::T, disk::DiskParams{T}) where T<:AF
-    # get area element
-    dA = calc_dA(disk.ρs, ϕc, step(disk.ϕe), step(disk.θe))
-
-    # get cartesian coords and rotate them
-    xyz = sphere_to_cart(disk.ρs, ϕc, θc)
-    xyz .= disk.R_θ * xyz
-
-    # get vector from observer to surface element and return projection
-    O⃗_surf = xyz .- disk.O⃗
-    return dA * abs(dot(O⃗_surf, xyz))
-end
-
 function sphere_to_cart(ρ::T, ϕ::T, θ::T) where T
     # compute trig quantitites
     sinϕ = sin(ϕ)
@@ -45,30 +32,8 @@ function sphere_to_cart(ρ::T, ϕ::T, θ::T) where T
     return [x, y, z]
 end
 
-function rotate_vector!(xyz::AA{T,1}, R_θ::AA{T,2}) where T
-    xyz .= (R_θ * xyz)
-    return nothing
-end
-
 function calc_mu(xyz::AA{T,1}, O⃗::AA{T,1}) where T<:AF
     return dot(O⃗, xyz) / (norm(O⃗) * norm(xyz))
-end
-
-# Find the nearest axis to a given point on a grid
-function find_nearest_ax(x::T, y::T) where T<:AF
-    if (x^2.0 + y^2.0) > one(T)
-        return :off
-    elseif ((y == zero(T)) & (x == zero(T))) # center
-        return :c
-    elseif y >= abs(x) # north
-        return :n
-    elseif y <= -abs(x) # south
-        return :s
-    elseif x <= -abs(y) # east
-        return :e
-    elseif x >= abs(y) # west
-        return :w
-    end
 end
 
 function find_nearest_ax_code(x::T, y::T) where T<:AF
@@ -91,7 +56,7 @@ function ax_code_to_symbol(code::Int)
     return [:c, :n, :s, :e, :w][code+1]
 end
 
-function get_key_for_pos(μ::T, x::T, y::T, disc_mu::AA{T,1}, disc_ax::AA{Int,1}) where T<:AF
+function get_key_for_pos(μ::T, ax::Int, disc_mu::AA{T,1}, disc_ax::AA{Int,1}) where T<:AF
     # make sure we are not off the disk
     if μ <= 0.0
         return (:off, :off)
@@ -103,8 +68,8 @@ function get_key_for_pos(μ::T, x::T, y::T, disc_mu::AA{T,1}, disc_ax::AA{Int,1}
         return (:c, :mu10)
     end
 
-    # get nearest ax code
-    ax_val = find_nearest_ax_code(x, y)
+    # copy ax code so we don't mutate it in host array somehow
+    ax_val = copy(ax)
 
     # find subarray of disc_mu and disk_ax matching mu
     idxs = findall(disc_mu .== disc_mu[mu_ind])

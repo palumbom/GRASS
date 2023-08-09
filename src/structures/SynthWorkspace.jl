@@ -8,9 +8,10 @@ struct SynthWorkspace{T<:AF}
     widt::AA{T,1}
     xyz::Matrix{Vector{T}}
     μs::AA{T,2}
-    ld::AA{T,2}
-    dA::AA{T,2}
+    cbs::AA{T,2}
+    wts::AA{T,2}
     z_rot::AA{T,2}
+    ax_codes::AA{Int,2}
     keys::AA{Tuple{Symbol, Symbol},2}
 end
 
@@ -26,13 +27,14 @@ function SynthWorkspace(disk::DiskParams; ndepths::Integer=100)
 
     # allocate the memory for keys, velocities, ld, etc.
     μs = zeros(size(disk.θc))
-    ld = zeros(size(disk.θc))
-    dA = zeros(size(disk.θc))
+    cbs = zeros(size(disk.θc))
+    wts = zeros(size(disk.θc))
     z_rot = zeros(size(disk.θc))
+    ax_codes = zeros(Int, size(disk.θc))
     keys = repeat([(:off,:off)], size(disk.θc)...)
     xyz = repeat([zeros(3)], disk.Nsubgrid, disk.Nsubgrid)
 
     return SynthWorkspace(lwavgrid, rwavgrid, allwavs,
                           allints, bist, intt, widt, xyz,
-                          μs, ld, dA, z_rot, keys)
+                          μs, cbs, wts, z_rot, ax_codes, keys)
 end
