@@ -27,8 +27,8 @@ function synth_cpu(spec::SpecParams{T}, disk::DiskParams{T}, seed_rng::Bool,
     Nλ = length(spec.lambdas)
 
     # allocate memory for time indices
-    tloop = zeros(Int, length(disk.ϕc), length(disk.θc))
-    tloop_init = similar(tloop)
+    tloop = zeros(Int, size(disk.θc))
+    tloop_init = zeros(Int, size(tloop))
 
     # allocate memory for spectra synthesis
     wsp = GRASS.SynthWorkspace(disk)
@@ -44,11 +44,6 @@ function synth_cpu(spec::SpecParams{T}, disk::DiskParams{T}, seed_rng::Bool,
 
     # run the simulation (outspec modified in place)
     for (idx, file) in enumerate(templates)
-        # re-seed the rng
-        if seed_rng
-            Random.seed!(42)
-        end
-
         # get temporary specparams with lines for this run
         spec_temp = SpecParams(spec, file)
 
@@ -60,6 +55,11 @@ function synth_cpu(spec::SpecParams{T}, disk::DiskParams{T}, seed_rng::Bool,
 
         # get conv. blueshift and keys from input data
         get_keys_and_cbs!(wsp, soldata)
+
+        # re-seed the rng
+        if seed_rng
+            Random.seed!(42)
+        end
 
         # generate or copy tloop
         if (idx > 1) && in_same_group(templates[idx - 1], templates[idx])
@@ -96,7 +96,6 @@ function synth_gpu(spec::SpecParams{T}, disk::DiskParams{T}, seed_rng::Bool,
     Nλ = length(spec.lambdas)
 
     # allocate memory
-    tloop_init = zeros(Int, length(disk.ϕc), length(disk.θc))
     outspec = ones(Nλ, Nt)
 
     # get number of calls to disk_sim needed
@@ -105,13 +104,22 @@ function synth_gpu(spec::SpecParams{T}, disk::DiskParams{T}, seed_rng::Bool,
     # pre-allocate memory for gpu
     gpu_allocs = GPUAllocs(spec, disk, precision=precision)
 
+    # pre-compute quantities to be re-used
+    precompute_quantities_gpu!(disk, gpu_allocs)
+
+    # allocate additional memory if generating random numbers on the cpu
+    if seed_rng
+        tloop_init = zeros(Int, size(disk.θc))
+        keys_cpu = repeat([(:off,:off)], size(disk.θc)...)
+        μs_cpu = Array(gpu_allocs.μs)
+        cbs_cpu = Array(gpu_allocs.z_cbs)
+        ax_codes_cpu = convert.(Int64, Array(gpu_allocs.ax_codes))
+    else
+        tloop_init = gpu_allocs.tloop_init
+    end
+
     # run the simulation and return
     for (idx, file) in enumerate(templates)
-        # re-seed the rng
-        if seed_rng
-            Random.seed!(42)
-        end
-
         # get temporary specparams with lines for this run
         spec_temp = SpecParams(spec, file)
 
@@ -119,13 +127,26 @@ function synth_gpu(spec::SpecParams{T}, disk::DiskParams{T}, seed_rng::Bool,
         if verbose
             println("\t>>> " * splitdir(file)[end])
         end
-        soldata = SolarData(fname=file)
+        soldata_cpu = SolarData(fname=file)
+        soldata = GPUSolarData(soldata_cpu)
+
+        # get conv. blueshift and keys from input data
+        get_keys_and_cbs_gpu!(gpu_allocs, soldata)
 
         # generate or copy tloop
         if (idx > 1) && in_same_group(templates[idx - 1], templates[idx])
             @cusync CUDA.copyto!(gpu_allocs.tloop, tloop_init)
         else
-            generate_tloop!(tloop_init, disk, soldata)
+            # generate either seeded rngs, or don't seed them on gpu
+            if seed_rng
+                Random.seed!(42)
+                get_keys_and_cbs!(keys_cpu, μs_cpu, cbs_cpu, ax_codes_cpu, soldata_cpu)
+                generate_tloop!(tloop_init, μs_cpu, keys_cpu, soldata_cpu.len)
+            else
+                generate_tloop_gpu!(tloop_init, gpu_allocs, soldata)
+            end
+
+            # copy the random numbers to GPU
             @cusync CUDA.copyto!(gpu_allocs.tloop, tloop_init)
         end
 

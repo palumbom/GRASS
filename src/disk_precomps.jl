@@ -1,7 +1,9 @@
 function precompute_quantities!(wsp::SynthWorkspace{T}, disk::DiskParams{T}) where T<:AF
     # parse out composite type fields
-    xyz = wsp.xyz
     Nsubgrid = disk.Nsubgrid
+
+    # allocate memory that wont be needed outside this function
+    xyz = repeat([zeros(3)], Nsubgrid, Nsubgrid)
 
     # loop over disk positions
     for i in eachindex(disk.ϕc)
@@ -49,38 +51,46 @@ function precompute_quantities!(wsp::SynthWorkspace{T}, disk::DiskParams{T}) whe
 end
 
 function generate_tloop!(tloop::AA{Int,2}, wsp::SynthWorkspace{T}, soldata::SolarData{T}) where T<:AF
-    # get the mu and axis codes
-    disc_mu = soldata.mu
-    disc_ax = soldata.ax
+    generate_tloop!(tloop, wsp.μs, wsp.keys, soldata.len)
+    return nothing
+end
 
+function generate_tloop!(tloop::AA{Int,2}, μs::AA{T,2}, keys::AA{Tuple{Symbol, Symbol},2}, len::Dict{Tuple{Symbol, Symbol}, Int64}) where T<:AF
     # loop over μ positions
-    for i in CartesianIndices(wsp.μs)
+    for i in CartesianIndices(μs)
         # move on if we are off the grid
-        wsp.μs[i] <= zero(T) && continue
+        μs[i] <= zero(T) && continue
 
         # get length of input data for place on disk
-        len = soldata.len[wsp.keys[i]]
+        maxlen = len[keys[i]]
 
         # generate random index
-        tloop[i] = floor(Int, rand() * len) + 1
+        tloop[i] = floor(Int, rand() * maxlen) + 1
     end
     return nothing
 end
 
 function get_keys_and_cbs!(wsp::SynthWorkspace{T}, soldata::SolarData{T}) where T<:AF
+    get_keys_and_cbs!(wsp.keys, wsp.μs, wsp.cbs, wsp.ax_codes, soldata)
+    return nothing
+end
+
+
+function get_keys_and_cbs!(keys::AA{Tuple{Symbol, Symbol},2}, μs::AA{T,2},
+                           cbs::AA{T,2}, ax_codes::AA{Int,2}, soldata::SolarData{T}) where T<:AF
     # get the mu and axis codes
     disc_mu = soldata.mu
     disc_ax = soldata.ax
 
     # loop over μ positions
-    for i in CartesianIndices(wsp.μs)
+    for i in CartesianIndices(μs)
         # move on if we are off the grid
-        wsp.μs[i] <= zero(T) && continue
+        μs[i] <= zero(T) && continue
 
         # get input data for place on disk
-        the_key = get_key_for_pos(wsp.μs[i], wsp.ax_codes[i], disc_mu, disc_ax)
-        wsp.cbs[i] = soldata.cbs[the_key]
-        wsp.keys[i] = the_key
+        the_key = get_key_for_pos(μs[i], ax_codes[i], disc_mu, disc_ax)
+        cbs[i] = soldata.cbs[the_key]
+        keys[i] = the_key
     end
     return nothing
 end
