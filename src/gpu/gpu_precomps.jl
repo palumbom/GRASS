@@ -94,6 +94,7 @@ function precompute_quantities_gpu!(disk::DiskParams{T}, gpu_allocs::GPUAllocs{T
         CUDA.unsafe_free!(z_rot)
     end
 
+    CUDA.synchronize()
     return nothing
 end
 
@@ -280,6 +281,7 @@ function get_keys_and_cbs_gpu!(gpu_allocs::GPUAllocs{T}, soldata::GPUSolarData{T
 
     @cusync @captured @cuda threads=threads1 blocks=blocks1 get_keys_and_cbs_gpu!(dat_idx, z_cbs, μs, ax_codes,
                                                                                   cbsall, disc_mu, disc_ax)
+    CUDA.synchronize()
     return nothing
 end
 

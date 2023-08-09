@@ -87,7 +87,10 @@ function get_key_for_pos(μ::T, ax::Int, disc_mu::AA{T,1}, disc_ax::AA{Int,1}) w
     return (ax_symb, mu_symb)
 end
 
-function key_to_code(key, disc_mu, disc_ax)
+function key_to_code(key, soldata)
+    disc_mu = soldata.mu
+    disc_ax = soldata.ax
+
     if key == (:off, :off)
         return 0
     end
