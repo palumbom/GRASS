@@ -1,6 +1,9 @@
 struct GPUAllocs{T1<:AF}
+    ϕe::CuArray{T1,1}
     ϕc::CuArray{T1,1}
-    θc::CuArray{T1,1}
+    θe::CuArray{T1,2}
+    θc::CuArray{T1,2}
+    Nθ::CuArray{Int,1}
     R_θ::CuArray{T1,2}
     O⃗::CuArray{T1,1}
     λs::CuArray{T1,1}
@@ -26,8 +29,11 @@ function GPUAllocs(spec::SpecParams, disk::DiskParams; precision::DataType=Float
 
     # move disk + geometry information to gpu
     @cusync begin
-        ϕ_gpu = CuArray{precision}(disk.ϕc)
-        θ_gpu = CuArray{precision}(disk.θc)
+        ϕc_gpu = CuArray{precision}(disk.ϕc)
+        ϕe_gpu = CuArray{precision}(disk.ϕe)
+        θc_gpu = CuArray{precision}(disk.θc)
+        θe_gpu = CuArray{precision}(disk.θe)
+        Nθ_gpu = CuArray{Int}(disk.Nθ)
         R_θ_gpu = CuArray{precision}(disk.R_θ)
         O⃗_gpu = CuArray{precision}(disk.O⃗)
         λs_gpu = CuArray{precision}(spec.lambdas)
@@ -55,7 +61,7 @@ function GPUAllocs(spec::SpecParams, disk::DiskParams; precision::DataType=Float
         allwavs = CUDA.zeros(precision, length(disk.ϕc), length(disk.θc), 200)
         allints = CUDA.zeros(precision, length(disk.ϕc), length(disk.θc), 200)
     end
-    return GPUAllocs(ϕ_gpu, θ_gpu, R_θ_gpu, O⃗_gpu, λs_gpu, μs_gpu,
-                     vec1, vec2, vec3, tloop_gpu, dat_idx, weights,
-                     z_rot, z_cbs, starmap, allwavs, allints)
+    return GPUAllocs(ϕe_gpu, ϕc_gpu, θe_gpu, θc_gpu, Nθ_gpu, R_θ_gpu, O⃗_gpu,
+                     λs_gpu, μs_gpu, vec1, vec2, vec3, tloop_gpu, dat_idx,
+                     weights, z_rot, z_cbs, starmap, allwavs, allints)
 end

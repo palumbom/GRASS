@@ -59,8 +59,8 @@ function precompute_quantities(wsp::SynthWorkspace{T}, disk::DiskParams{T}, sold
     for i in eachindex(disk.ϕc)
         for j in 1:disk.Nθ[i]
             # subdivide the tile
-            ϕsub = range(disk.ϕe[i], disk.ϕe[i+1], length=Nsubgrid)
-            θsub = range(disk.θe[i,j], disk.θe[i,j+1], length=Nsubgrid)
+            ϕsub = get_grid_centers(range(disk.ϕe[i], disk.ϕe[i+1], length=Nsubgrid+1))
+            θsub = get_grid_centers(range(disk.θe[i,j], disk.θe[i,j+1], length=Nsubgrid+1))
             subgrid = Iterators.product(ϕsub, θsub)
 
             # get cartesian coord for each subgrid and rotate by rot. matrix

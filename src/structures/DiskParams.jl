@@ -35,19 +35,19 @@ function DiskParams(;N=132, Nt=NaN, radius=1.0, inclination=90.0, u1=0.4,
     #     @warn "N should be set to 132 for physical validity!"
     # end
 
-    # calculate tile width in fraction of stellar radius
-    w_tile = 2.0 * π * radius / N
-
-    # set grid edges and centers for latitude grid
-    ϕe = range(deg2rad(-90.0), deg2rad(90.0), length=N)
+    # get latitude grid edges and centers
+    ϕe = range(deg2rad(-90.0), deg2rad(90.0), length=N+1)
     ϕc = get_grid_centers(ϕe)
+
+    # calculate span of tile in latitude in fraction of stellar radius
+    w_tile = 2.0 * π * radius / N
 
     # number of longitudes in each latitude slice
     Nθ = ceil.(Int, 2.0 .* π .* radius .* cos.(ϕc) ./ w_tile)
 
-    # make theta grid
-    θe = zeros(N, maximum(Nθ)+1)
-    θc = zeros(N-1, maximum(Nθ))
+    # make longitude grid
+    θe = zeros(N+1, maximum(Nθ)+1)
+    θc = zeros(N, maximum(Nθ))
     for i in eachindex(Nθ)
         edges = range(deg2rad(0.0), deg2rad(360.0), length=Nθ[i]+1)
         θc[i, 1:Nθ[i]] .= get_grid_centers(edges)

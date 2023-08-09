@@ -18,6 +18,7 @@ function disk_sim_gpu(spec::SpecParams{T}, disk::DiskParams{T}, soldata::SolarDa
     # parse out composite type
     ϕc = gpu_allocs.ϕc
     θc = gpu_allocs.θc
+    Nθ = gpu_allocs.Nθ
     R_θ = gpu_allocs.R_θ
     O⃗ = gpu_allocs.O⃗
     λs = gpu_allocs.λs
