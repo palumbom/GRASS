@@ -6,7 +6,6 @@ struct SynthWorkspace{T<:AF}
     bist::AA{T,1}
     intt::AA{T,1}
     widt::AA{T,1}
-    xyz::Matrix{Vector{T}}
     μs::AA{T,2}
     cbs::AA{T,2}
     wts::AA{T,2}
@@ -32,9 +31,8 @@ function SynthWorkspace(disk::DiskParams; ndepths::Integer=100)
     z_rot = zeros(size(disk.θc))
     ax_codes = zeros(Int, size(disk.θc))
     keys = repeat([(:off,:off)], size(disk.θc)...)
-    xyz = repeat([zeros(3)], disk.Nsubgrid, disk.Nsubgrid)
 
     return SynthWorkspace(lwavgrid, rwavgrid, allwavs,
-                          allints, bist, intt, widt, xyz,
-                          μs, cbs, wts, z_rot, ax_codes, keys)
+                          allints, bist, intt, widt, μs,
+                          cbs, wts, z_rot, ax_codes, keys)
 end

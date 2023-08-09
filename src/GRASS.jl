@@ -42,6 +42,7 @@ include("config.jl")
 
 # ancillary functions + constants
 include("utils.jl")
+include("gpu/gpu_utils.jl")
 include("constants.jl")
 include("interpolate.jl")
 
@@ -77,10 +78,9 @@ include("observing/signaltonoise.jl")
 include("observing/ObservationPlan.jl")
 
 # gpu implementation
-include("gpu/gpu_utils.jl")
-include("gpu/gpu_allocs.jl")
 include("gpu/gpu_physics.jl")
 include("gpu/gpu_data.jl")
+include("gpu/gpu_precomps.jl")
 include("gpu/gpu_trim.jl")
 include("gpu/gpu_sim.jl")
 include("gpu/gpu_synthesis.jl")
