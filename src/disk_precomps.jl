@@ -43,7 +43,7 @@ function precompute_quantities!(wsp::SynthWorkspace{T}, disk::DiskParams{T}) whe
             dA .*= map(x -> abs(dot(x .- disk.O⃗, x)), xyz)
 
             # copy to workspace
-            wsp.wts[i,j] = mean(view(ld, idx)) * mean(view(dA, idx))
+            wsp.wts[i,j] = mean(view(ld .* dA, idx))
             wsp.z_rot[i,j] = mean(view(z_rot, idx))
         end
     end

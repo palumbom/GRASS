@@ -175,10 +175,10 @@ function precompute_quantities_gpu!(vec1, vec2, vec3, μs, wts, z_rot, ϕe, θe,
             @inbounds abc[1] = CUDA.copy(xyz[1] - O⃗[1])
             @inbounds abc[2] = CUDA.copy(xyz[2] - O⃗[2])
             @inbounds abc[3] = CUDA.copy(xyz[3] - O⃗[3])
-            dp = CUDA.abs(abc[1] * xyz[1] + abc[2] * xyz[2] + abc[3] * xyz[3])
+            dA *= CUDA.abs(abc[1] * xyz[1] + abc[2] * xyz[2] + abc[3] * xyz[3])
 
             # get weights as product of limb darkening and projected dA
-            @inbounds wts[i,j] = ld * dA * dp
+            @inbounds wts[i,j] = ld * dA
         end
     end
     return nothing
