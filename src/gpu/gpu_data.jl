@@ -73,6 +73,31 @@ function iterate_tloop_gpu!(tloop, μs, dat_idx, lenall)
     return nothing
 end
 
+function check_tloop_gpu!(tloop, μs, dat_idx, lenall)
+    # get indices from GPU blocks + threads
+    idx = threadIdx().x + blockDim().x * (blockIdx().x-1)
+    sdx = blockDim().x * gridDim().x
+    idy = threadIdx().y + blockDim().y * (blockIdx().y-1)
+    sdy = blockDim().y * gridDim().y
+
+    # parallelized loop over grid
+    for i in idx:sdx:CUDA.size(μs,1)
+        for j in idy:sdy:CUDA.size(μs,2)
+            # move to next iter if off disk
+            if μs[i,j] <= 0.0
+                continue
+            end
+
+            # check that tloop didn't overshoot the data and iterate
+            ntimes = lenall[dat_idx[i,j]]
+            if tloop[i,j] > ntimes
+                @inbounds tloop[i,j] = 1
+            end
+        end
+    end
+    return nothing
+end
+
 function generate_tloop_gpu!(tloop::AA{Int32,2}, gpu_allocs::GPUAllocs{T}, soldata::GPUSolarData{T}) where T<:AF
     μs = gpu_allocs.μs
     dat_idx = gpu_allocs.dat_idx

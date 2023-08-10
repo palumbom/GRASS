@@ -36,7 +36,6 @@ function DiskParams(;N=132, Nt=NaN, radius=1.0, inclination=90.0, u1=0.4,
     # end
 
     # get latitude grid edges and centers
-    # ϕe = range(deg2rad(-90.0), deg2rad(90.0), length=N+1)
     ϕe = range(deg2rad(-90.0), deg2rad(90.0), length=N+1)
     ϕc = get_grid_centers(ϕe)
 
@@ -62,8 +61,9 @@ function DiskParams(;N=132, Nt=NaN, radius=1.0, inclination=90.0, u1=0.4,
                0.0 cos(iₛ) sin(iₛ);
                0.0 -sin(iₛ) cos(iₛ)]
 
-    # set observer vector to Earth-Sun distance in AU
-    O⃗ = [0.0, 220.0, 0.0]
+    # set observer vector to large distance (units = stellar radius)
+    # O⃗ = [0.0, 220.0, 0.0] # 220 => 1 AU in Solar Radii
+    O⃗ = [0.0, 1e6, 0.0]
 
     return DiskParams(N, Nt, radius, ϕe, ϕc, θe, θc, Nθ, Nsubgrid, R_θ, O⃗, A, B, C, u1, u2)
 end
