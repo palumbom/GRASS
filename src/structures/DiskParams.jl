@@ -36,6 +36,7 @@ function DiskParams(;N=132, Nt=NaN, radius=1.0, inclination=90.0, u1=0.4,
     # end
 
     # get latitude grid edges and centers
+    # ϕe = range(deg2rad(-90.0), deg2rad(90.0), length=N+1)
     ϕe = range(deg2rad(-90.0), deg2rad(90.0), length=N+1)
     ϕc = get_grid_centers(ϕe)
 

@@ -1,4 +1,4 @@
-function precompute_quantities_gpu!(disk::DiskParams{T}, gpu_allocs::GPUAllocs{T}) where T<:AF
+function precompute_quantities_gpu!(disk::DiskParams{T1}, gpu_allocs::GPUAllocs{T2}) where {T1<:AF, T2<:AF}
     # get precision from GPU allocs
     precision = eltype(gpu_allocs.λs)
 
@@ -27,14 +27,20 @@ function precompute_quantities_gpu!(disk::DiskParams{T}, gpu_allocs::GPUAllocs{T
         # get number of edges needed and make grids
         num_edges = disk.Nθ[i] * disk.Nsubgrid + 1
         edges = range(deg2rad(0.0), deg2rad(360.0), length=num_edges)
-        θc_subgrid[idx, 1:num_edges-1] .= GRASS.get_grid_centers(edges)'
+        θc_subgrid[idx, 1:num_edges-1] .= get_grid_centers(edges)'
         θe_subgrid[idx, 1:num_edges] .= collect(edges)'
     end
+
+    # get number of tiles in each row of subgrid
+    Nθ_sub = map(x -> findfirst(x[2:end] .== 0.0), eachrow(θc_subgrid))
+    Nθ_sub[isnothing.(Nθ_sub)] .= size(θc_subgrid, 2)
+    Nθ_sub = Array{Int}(Nθ_sub)
 
     # copy data to GPU
     @cusync begin
         # get observer vectoir and rotation matrix
         O⃗ = CuArray{precision}(disk.O⃗)
+        Nθ = CuArray{Int32}(Nθ_sub)
         R_θ = CuArray{precision}(disk.R_θ)
 
         # move grids to GPU
@@ -55,32 +61,30 @@ function precompute_quantities_gpu!(disk::DiskParams{T}, gpu_allocs::GPUAllocs{T
     end
 
     # alias from GPU allocs
+    μs_out = gpu_allocs.μs
+    wts_out = gpu_allocs.wts
+    z_rot_out = gpu_allocs.z_rot
     ax_codes = gpu_allocs.ax_codes
 
     # compute quantities at subgrid points
     threads1 = (16,16)
-    blocks1 = cld(prod(size(θe_subgrid)), prod(threads1))
+    blocks1 = cld(disk.N^2, prod(threads1))
     @cusync @captured @cuda threads=threads1 blocks=blocks1 precompute_quantities_gpu!(vec1, vec2, vec3, μs, wts, z_rot,
                                                                                        ϕe_subgrid_gpu, θe_subgrid_gpu,
                                                                                        ϕc_subgrid_gpu, θc_subgrid_gpu,
-                                                                                       R_θ, O⃗, ρs, A, B, C, u1, u2)
+                                                                                       Nθ, R_θ, O⃗, ρs, A, B, C, u1, u2)
 
     # average quantities over subgrid
     threads1 = 256
     blocks1 = cld(disk.Nsubgrid^2, prod(threads1))
-    @cusync @captured @cuda threads=threads1 blocks=blocks1 average_subgrid_gpu!(μs, wts, z_rot, vec1, ax_codes, disk.N)
-
-    # copy over to gpu allocs
-    idx = CartesianIndices((1:disk.N, 1:disk.N))
-    @cusync begin
-        CUDA.copyto!(gpu_allocs.μs, idx, μs, idx)
-        CUDA.copyto!(gpu_allocs.wts, idx, wts, idx)
-        CUDA.copyto!(gpu_allocs.z_rot, idx, z_rot, idx)
-    end
+    @cusync @captured @cuda threads=threads1 blocks=blocks1 average_subgrid_gpu!(μs_out, μs, wts_out, wts,
+                                                                                 z_rot_out, z_rot, vec1,
+                                                                                 ax_codes, disk.N)
 
     # instruct CUDA to free up unneeded memory
     @cusync begin
         CUDA.unsafe_free!(O⃗)
+        CUDA.unsafe_free!(Nθ)
         CUDA.unsafe_free!(R_θ)
         CUDA.unsafe_free!(ϕe_subgrid_gpu)
         CUDA.unsafe_free!(ϕc_subgrid_gpu)
@@ -94,11 +98,14 @@ function precompute_quantities_gpu!(disk::DiskParams{T}, gpu_allocs::GPUAllocs{T
         CUDA.unsafe_free!(z_rot)
     end
 
+    # instruct the garbage collect to clean up GPU memory
+    GC.gc(true)
+
     CUDA.synchronize()
     return nothing
 end
 
-function precompute_quantities_gpu!(vec1, vec2, vec3, μs, wts, z_rot, ϕe, θe, ϕc, θc, R_θ, O⃗, ρs, A, B, C, u1, u2)
+function precompute_quantities_gpu!(vec1, vec2, vec3, μs, wts, z_rot, ϕe, θe, ϕc, θc, Nθ, R_θ, O⃗, ρs, A, B, C, u1, u2)
     # get indices from GPU blocks + threads
     idx = threadIdx().x + blockDim().x * (blockIdx().x-1)
     sdx = blockDim().x * gridDim().x
@@ -107,12 +114,7 @@ function precompute_quantities_gpu!(vec1, vec2, vec3, μs, wts, z_rot, ϕe, θe,
 
     # loop over subtiled grid
     for i in idx:sdx:CUDA.length(ϕc)
-        for j in idy:sdy:CUDA.size(θc,1)
-            # move on if we are done with the tiles in latitude slice
-            if j > 1 && θc[i,j] == 0.0
-                continue
-            end
-
+        for j in idy:sdy:Nθ[i]
             # take views of pre-allocated memory
             xyz = CUDA.view(vec1, i, j, :)
             abc = CUDA.view(vec2, i, j, :)
@@ -137,7 +139,7 @@ function precompute_quantities_gpu!(vec1, vec2, vec3, μs, wts, z_rot, ϕe, θe,
             @inbounds def[2] /= def_norm
 
             # set magnitude by differential rotation
-            v0 = 0.000168710673 # Rsol/day/speed of light
+            v0 = Float64(0.000168710673) # Rsol/day/speed of light
             rp = (v0 / rotation_period_gpu(ϕc[i], A, B, C))
             @inbounds def[1] *= rp
             @inbounds def[2] *= rp
@@ -185,7 +187,7 @@ function precompute_quantities_gpu!(vec1, vec2, vec3, μs, wts, z_rot, ϕe, θe,
     return nothing
 end
 
-function average_subgrid_gpu!(μs, wts, z_rot, xyz, ax_codes, N)
+function average_subgrid_gpu!(μs_out, μs, wts_out, wts, z_rot_out, z_rot, xyz, ax_codes, N)
     # get indices from GPU blocks + threads
     idx = threadIdx().x + blockDim().x * (blockIdx().x-1)
     sdx = gridDim().x * blockDim().x
@@ -196,10 +198,10 @@ function average_subgrid_gpu!(μs, wts, z_rot, xyz, ax_codes, N)
     # total number of elements output array
     num_tiles = N^2
 
-    for itr in idx:sdx:num_tiles
+    for t in idx:sdx:num_tiles
         # get index for output array
-        row = (itr - 1) ÷ N
-        col = (itr - 1) % N
+        row = (t - 1) ÷ N
+        col = (t - 1) % N
 
         # get indices for input array
         i = row * k + 1
@@ -219,7 +221,7 @@ function average_subgrid_gpu!(μs, wts, z_rot, xyz, ax_codes, N)
         count = 0
 
         for ti in i:i+k-1, tj in j:j+k-1
-            if μs[ti, tj] > 0
+            if μs[ti, tj] > 0.0
                 # sum on scalar quantities
                 μ_sum += μs[ti, tj]
                 w_sum += wts[ti, tj]
@@ -237,29 +239,26 @@ function average_subgrid_gpu!(μs, wts, z_rot, xyz, ax_codes, N)
 
         if count > 0
             # set scalar quantity elements as average
-            @inbounds μs[row + 1, col + 1] = μ_sum / count
-            @inbounds wts[row + 1, col + 1] = w_sum / count
-            @inbounds z_rot[row + 1, col + 1] = v_sum / count
+            @inbounds μs_out[row + 1, col + 1] = μ_sum / count
+            @inbounds wts_out[row + 1, col + 1] = w_sum / count
+            @inbounds z_rot_out[row + 1, col + 1] = v_sum / count
 
             # set scalar quantity elements as average
-            @inbounds xyz[row + 1, col + 1, 1] = x_sum / count
-            @inbounds xyz[row + 1, col + 1, 2] = y_sum / count
-            @inbounds xyz[row + 1, col + 1, 3] = z_sum / count
+            @inbounds xx = x_sum / count
+            @inbounds yy = y_sum / count
+            @inbounds zz = z_sum / count
+
+            # get axis code
+            @inbounds ax_codes[row + 1, col + 1] = find_nearest_ax_gpu(xx, zz)
         else
             # zero out elements if count is 0 (avoid div by 0)
-            @inbounds μs[row + 1, col + 1] = 0.0
-            @inbounds wts[row + 1, col + 1] = 0.0
-            @inbounds z_rot[row + 1, col + 1] = 0.0
+            @inbounds μs_out[row + 1, col + 1] = 0.0
+            @inbounds wts_out[row + 1, col + 1] = 0.0
+            @inbounds z_rot_out[row + 1, col + 1] = 0.0
 
-            @inbounds xyz[row + 1, col + 1, 1] = x_sum / count
-            @inbounds xyz[row + 1, col + 1, 2] = y_sum / count
-            @inbounds xyz[row + 1, col + 1, 3] = z_sum / count
+            # set axis code to 0
+            @inbounds ax_codes[row + 1, col + 1] = 0
         end
-
-        # while we are here, compute ax codes
-        x = xyz[row + 1, col + 1, 1]
-        z = xyz[row + 1, col + 1, 3]
-        @inbounds ax_codes[row + 1, col + 1] = find_nearest_ax_gpu(x, z)
     end
     return nothing
 end
