@@ -44,9 +44,7 @@ function precompute_quantities_gpu!(disk::DiskParams{T1}, gpu_allocs::GPUAllocs{
         R_θ = CuArray{precision}(disk.R_θ)
 
         # move grids to GPU
-        ϕe_subgrid_gpu = CuArray{precision}(ϕe_subgrid)
         ϕc_subgrid_gpu = CuArray{precision}(ϕc_subgrid)
-        θe_subgrid_gpu = CuArray{precision}(θe_subgrid)
         θc_subgrid_gpu = CuArray{precision}(θc_subgrid)
 
         # allocate memory for computations on subgrid
@@ -69,7 +67,6 @@ function precompute_quantities_gpu!(disk::DiskParams{T1}, gpu_allocs::GPUAllocs{
     threads1 = (16,16)
     blocks1 = cld(disk.N^2, prod(threads1))
     @cusync @captured @cuda threads=threads1 blocks=blocks1 precompute_quantities_gpu!(xyz, μs, ld, dA, z_rot,
-                                                                                       ϕe_subgrid_gpu, θe_subgrid_gpu,
                                                                                        ϕc_subgrid_gpu, θc_subgrid_gpu,
                                                                                        Nθ, R_θ, O⃗, ρs, A, B, C, u1, u2)
 
@@ -85,15 +82,13 @@ function precompute_quantities_gpu!(disk::DiskParams{T1}, gpu_allocs::GPUAllocs{
         CUDA.unsafe_free!(O⃗)
         CUDA.unsafe_free!(Nθ)
         CUDA.unsafe_free!(R_θ)
-        CUDA.unsafe_free!(ϕe_subgrid_gpu)
-        CUDA.unsafe_free!(ϕc_subgrid_gpu)
-        CUDA.unsafe_free!(θe_subgrid_gpu)
-        CUDA.unsafe_free!(θc_subgrid_gpu)
-        CUDA.unsafe_free!(xyz)
         CUDA.unsafe_free!(μs)
         CUDA.unsafe_free!(ld)
         CUDA.unsafe_free!(dA)
+        CUDA.unsafe_free!(xyz)
         CUDA.unsafe_free!(z_rot)
+        CUDA.unsafe_free!(ϕc_subgrid_gpu)
+        CUDA.unsafe_free!(θc_subgrid_gpu)
     end
 
     # instruct the garbage collect to clean up GPU memory
@@ -103,15 +98,22 @@ function precompute_quantities_gpu!(disk::DiskParams{T1}, gpu_allocs::GPUAllocs{
     return nothing
 end
 
-function precompute_quantities_gpu!(all_xyz, μs, ld, dA, z_rot, ϕe, θe, ϕc, θc, Nθ, R_θ, O⃗, ρs, A, B, C, u1, u2)
+function precompute_quantities_gpu!(all_xyz, μs, ld, dA, z_rot, ϕc, θc, Nθ, R_θ, O⃗, ρs, A, B, C, u1, u2)
     # get indices from GPU blocks + threads
     idx = threadIdx().x + blockDim().x * (blockIdx().x-1)
     sdx = blockDim().x * gridDim().x
     idy = threadIdx().y + blockDim().y * (blockIdx().y-1)
     sdy = blockDim().y * gridDim().y
 
-    # loop over subtiled grid
+    # get latitude element
+    dϕ = ϕc[2] - ϕc[1]
+
+    # loop over subtiled latitudes
     for i in idx:sdx:CUDA.length(ϕc)
+        # get longitude element
+        dθ = θc[i, 2] - θc[i, 1]
+
+        # loop over subtiled latitudes
         for j in idy:sdy:Nθ[i]
             # take views of pre-allocated memory
             xyz = CUDA.view(all_xyz, i, j, :)
@@ -163,18 +165,15 @@ function precompute_quantities_gpu!(all_xyz, μs, ld, dA, z_rot, ϕe, θe, ϕc, 
             # get angle between them
             n1 = CUDA.sqrt(a^2.0 + b^2.0 + c^2.0)
             n2 = CUDA.sqrt(d^2.0 + e^2.0 + f^2.0)
-            angle = (a * d + b * e + c * f)
-            angle /= (n1 * n2)
+            angle = (a * d + b * e + c * f) / (n1 * n2)
 
             # project velocity onto line of sight
             @inbounds z_rot[i,j] = n2 * angle
 
             # calculate the limb darkening
-            ld[i,j] = quad_limb_darkening(μs[i,j], u1, u2)
+            @inbounds ld[i,j] = quad_limb_darkening(μs[i,j], u1, u2)
 
             # get area element
-            dϕ = ϕe[i+1] - ϕe[i]
-            dθ = θe[i,j+1] - θe[i,j]
             @inbounds dA[i,j] = calc_dA(ρs, ϕc[i], dϕ, dθ)
 
             # project onto line of sight
