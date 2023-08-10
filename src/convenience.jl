@@ -139,14 +139,16 @@ function synth_gpu(spec::SpecParams{T}, disk::DiskParams{T}, seed_rng::Bool,
         else
             # generate either seeded rngs, or don't seed them on gpu
             if seed_rng
+                # seed and generate the random number on the cpu
                 Random.seed!(42)
                 get_keys_and_cbs!(keys_cpu, μs_cpu, cbs_cpu, ax_codes_cpu, soldata_cpu)
                 generate_tloop!(tloop_init, μs_cpu, keys_cpu, soldata_cpu.len)
             else
+                # generate the random numbers on the gpu
                 generate_tloop_gpu!(tloop_init, gpu_allocs, soldata)
             end
 
-            # copy the random numbers to GPU
+            # copy the random indices to GPU
             @cusync CUDA.copyto!(gpu_allocs.tloop, tloop_init)
         end
 
