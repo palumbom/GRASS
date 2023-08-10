@@ -5,6 +5,7 @@ function spec_loop(spec::SpecParams, disk::DiskParams, Nloop::T; use_gpu::Bool=f
     for j in 1:Nloop
         # synthesize spectra
         lambdas, outspec = synthesize_spectra(spec, disk, seed_rng=false, use_gpu=use_gpu, verbose=false)
+        CUDA.reclaim()
 
         # extract velocities
         v_grid, ccf = calc_ccf(lambdas, outspec, spec, normalize=true)
