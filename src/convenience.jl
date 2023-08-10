@@ -128,7 +128,7 @@ function synth_gpu(spec::SpecParams{T}, disk::DiskParams{T}, seed_rng::Bool,
             println("\t>>> " * splitdir(file)[end])
         end
         soldata_cpu = SolarData(fname=file)
-        soldata = GPUSolarData(soldata_cpu)
+        soldata = GPUSolarData(soldata_cpu, precision=precision)
 
         # get conv. blueshift and keys from input data
         get_keys_and_cbs_gpu!(gpu_allocs, soldata)
@@ -151,8 +151,8 @@ function synth_gpu(spec::SpecParams{T}, disk::DiskParams{T}, seed_rng::Bool,
         end
 
         # run the simulation and multiply outspec by this spectrum
-        disk_sim_gpu(spec_temp, disk, soldata, gpu_allocs, outspec, verbose=verbose,
-                     skip_times=skip_times, precision=precision)
+        disk_sim_gpu(spec_temp, disk, soldata, gpu_allocs, outspec,
+                     verbose=verbose, skip_times=skip_times)
     end
     return spec.lambdas, outspec
 end
