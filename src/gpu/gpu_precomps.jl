@@ -50,13 +50,12 @@ function precompute_quantities_gpu!(disk::DiskParams{T1}, gpu_allocs::GPUAllocs{
         θc_subgrid_gpu = CuArray{precision}(θc_subgrid)
 
         # allocate memory for computations on subgrid
-        vec1 = CUDA.zeros(precision, size(θc_subgrid)..., 3)
-        vec2 = CUDA.zeros(precision, size(θc_subgrid)..., 3)
-        vec3 = CUDA.zeros(precision, size(θc_subgrid)..., 3)
+        xyz = CUDA.zeros(precision, size(θc_subgrid)..., 3)
 
-        # allocat larger arrays
+        # allocate larger arrays
         μs = CUDA.zeros(precision, size(θc_subgrid))
-        wts = CUDA.zeros(precision, size(θc_subgrid))
+        ld = CUDA.zeros(precision, size(θc_subgrid))
+        dA = CUDA.zeros(precision, size(θc_subgrid))
         z_rot = CUDA.zeros(precision, size(θc_subgrid))
     end
 
@@ -69,7 +68,7 @@ function precompute_quantities_gpu!(disk::DiskParams{T1}, gpu_allocs::GPUAllocs{
     # compute quantities at subgrid points
     threads1 = (16,16)
     blocks1 = cld(disk.N^2, prod(threads1))
-    @cusync @captured @cuda threads=threads1 blocks=blocks1 precompute_quantities_gpu!(vec1, vec2, vec3, μs, wts, z_rot,
+    @cusync @captured @cuda threads=threads1 blocks=blocks1 precompute_quantities_gpu!(xyz, μs, ld, dA, z_rot,
                                                                                        ϕe_subgrid_gpu, θe_subgrid_gpu,
                                                                                        ϕc_subgrid_gpu, θc_subgrid_gpu,
                                                                                        Nθ, R_θ, O⃗, ρs, A, B, C, u1, u2)
@@ -77,8 +76,8 @@ function precompute_quantities_gpu!(disk::DiskParams{T1}, gpu_allocs::GPUAllocs{
     # average quantities over subgrid
     threads1 = 256
     blocks1 = cld(disk.Nsubgrid^2, prod(threads1))
-    @cusync @captured @cuda threads=threads1 blocks=blocks1 average_subgrid_gpu!(μs_out, μs, wts_out, wts,
-                                                                                 z_rot_out, z_rot, vec1,
+    @cusync @captured @cuda threads=threads1 blocks=blocks1 average_subgrid_gpu!(μs_out, μs, wts_out, ld, dA,
+                                                                                 z_rot_out, z_rot, xyz,
                                                                                  ax_codes, disk.N)
 
     # instruct CUDA to free up unneeded memory
@@ -90,11 +89,10 @@ function precompute_quantities_gpu!(disk::DiskParams{T1}, gpu_allocs::GPUAllocs{
         CUDA.unsafe_free!(ϕc_subgrid_gpu)
         CUDA.unsafe_free!(θe_subgrid_gpu)
         CUDA.unsafe_free!(θc_subgrid_gpu)
-        CUDA.unsafe_free!(vec1)
-        CUDA.unsafe_free!(vec2)
-        CUDA.unsafe_free!(vec3)
+        CUDA.unsafe_free!(xyz)
         CUDA.unsafe_free!(μs)
-        CUDA.unsafe_free!(wts)
+        CUDA.unsafe_free!(ld)
+        CUDA.unsafe_free!(dA)
         CUDA.unsafe_free!(z_rot)
     end
 
@@ -105,7 +103,7 @@ function precompute_quantities_gpu!(disk::DiskParams{T1}, gpu_allocs::GPUAllocs{
     return nothing
 end
 
-function precompute_quantities_gpu!(vec1, vec2, vec3, μs, wts, z_rot, ϕe, θe, ϕc, θc, Nθ, R_θ, O⃗, ρs, A, B, C, u1, u2)
+function precompute_quantities_gpu!(all_xyz, μs, ld, dA, z_rot, ϕe, θe, ϕc, θc, Nθ, R_θ, O⃗, ρs, A, B, C, u1, u2)
     # get indices from GPU blocks + threads
     idx = threadIdx().x + blockDim().x * (blockIdx().x-1)
     sdx = blockDim().x * gridDim().x
@@ -116,78 +114,77 @@ function precompute_quantities_gpu!(vec1, vec2, vec3, μs, wts, z_rot, ϕe, θe,
     for i in idx:sdx:CUDA.length(ϕc)
         for j in idy:sdy:Nθ[i]
             # take views of pre-allocated memory
-            xyz = CUDA.view(vec1, i, j, :)
-            abc = CUDA.view(vec2, i, j, :)
-            def = CUDA.view(vec3, i, j, :)
+            xyz = CUDA.view(all_xyz, i, j, :)
 
             # get cartesian coords
-            sphere_to_cart_gpu!(xyz, ρs, ϕc[i], θc[i,j])
+            x, y, z = sphere_to_cart_gpu(ρs, ϕc[i], θc[i,j])
 
             # get vector from spherical circle center to surface patch
-            @inbounds abc[1] = CUDA.copy(xyz[1])
-            @inbounds abc[2] = CUDA.copy(xyz[2])
-            @inbounds abc[3] = 0.0
+            a = x
+            b = y
+            c = 0.0
 
             # take cross product to get vector in direction of rotation
-            @inbounds def[1] = CUDA.copy(abc[2] * ρs)
-            @inbounds def[2] = CUDA.copy(- abc[1] * ρs)
-            @inbounds def[3] = 0.0
+            d = b * ρs
+            e = - a * ρs
+            f = 0.0
 
             # make it a unit vector
-            def_norm = CUDA.sqrt(def[1]^2.0 + def[2]^2.0)
-            @inbounds def[1] /= def_norm
-            @inbounds def[2] /= def_norm
+            def_norm = CUDA.sqrt(d^2.0 + e^2.0)
+            d /= def_norm
+            e /= def_norm
 
             # set magnitude by differential rotation
             v0 = Float64(0.000168710673) # Rsol/day/speed of light
             rp = (v0 / rotation_period_gpu(ϕc[i], A, B, C))
-            @inbounds def[1] *= rp
-            @inbounds def[2] *= rp
+            d *= rp
+            e *= rp
+
+            # rotate xyz by inclination, store vector for later
+            x, y, z = rotate_vector_gpu(x, y, z, R_θ)
+            @inbounds xyz[1] = x
+            @inbounds xyz[2] = y
+            @inbounds xyz[3] = z
 
             # rotate xyz by inclination and calculate mu
-            rotate_vector_gpu!(xyz, R_θ)
-            @inbounds μs[i,j] = calc_mu_gpu(xyz, O⃗)
+            @inbounds μs[i,j] = calc_mu_gpu(x, y, z, O⃗)
             if μs[i,j] <= 0.0
                 continue
             end
 
             # rotate the velocity vectors by inclination
-            rotate_vector_gpu!(def, R_θ)
+            d, e, f = rotate_vector_gpu(d, e, f, R_θ)
 
             # get vector pointing from observer to surface patch
-            abc[1] = CUDA.copy(xyz[1] - O⃗[1])
-            abc[2] = CUDA.copy(xyz[2] - O⃗[2])
-            abc[3] = CUDA.copy(xyz[3] - O⃗[3])
+            a = x - O⃗[1]
+            b = y - O⃗[2]
+            c = z - O⃗[3]
 
             # get angle between them
-            n1 = CUDA.sqrt(abc[1]^2.0 + abc[2]^2.0 + abc[3]^2.0)
-            n2 = CUDA.sqrt(def[1]^2.0 + def[2]^2.0 + def[3]^2.0)
-            angle = (abc[1] * def[1] + abc[2] * def[2] + abc[3] * def[3])
+            n1 = CUDA.sqrt(a^2.0 + b^2.0 + c^2.0)
+            n2 = CUDA.sqrt(d^2.0 + e^2.0 + f^2.0)
+            angle = (a * d + b * e + c * f)
             angle /= (n1 * n2)
 
             # project velocity onto line of sight
             @inbounds z_rot[i,j] = n2 * angle
 
             # calculate the limb darkening
-            ld = quad_limb_darkening(μs[i,j], u1, u2)
+            ld[i,j] = quad_limb_darkening(μs[i,j], u1, u2)
 
-            # get projected area element
+            # get area element
             dϕ = ϕe[i+1] - ϕe[i]
             dθ = θe[i,j+1] - θe[i,j]
-            dA = calc_dA(ρs, ϕc[i], dϕ, dθ)
-            @inbounds abc[1] = CUDA.copy(xyz[1] - O⃗[1])
-            @inbounds abc[2] = CUDA.copy(xyz[2] - O⃗[2])
-            @inbounds abc[3] = CUDA.copy(xyz[3] - O⃗[3])
-            dA *= CUDA.abs(abc[1] * xyz[1] + abc[2] * xyz[2] + abc[3] * xyz[3])
+            @inbounds dA[i,j] = calc_dA(ρs, ϕc[i], dϕ, dθ)
 
-            # get weights as product of limb darkening and projected dA
-            @inbounds wts[i,j] = ld * dA
+            # project onto line of sight
+            @inbounds dA[i,j] *= CUDA.abs(a * x + b * y + c * z)
         end
     end
     return nothing
 end
 
-function average_subgrid_gpu!(μs_out, μs, wts_out, wts, z_rot_out, z_rot, xyz, ax_codes, N)
+function average_subgrid_gpu!(μs_out, μs, wts_out, ld, dA, z_rot_out, z_rot, xyz, ax_codes, N)
     # get indices from GPU blocks + threads
     idx = threadIdx().x + blockDim().x * (blockIdx().x-1)
     sdx = gridDim().x * blockDim().x
@@ -209,8 +206,9 @@ function average_subgrid_gpu!(μs_out, μs, wts_out, wts, z_rot_out, z_rot, xyz,
 
         # set up sum holders for scalars
         μ_sum = CUDA.zero(CUDA.eltype(μs))
-        w_sum = CUDA.zero(CUDA.eltype(wts))
         v_sum = CUDA.zero(CUDA.eltype(z_rot))
+        ld_sum = CUDA.zero(CUDA.eltype(ld))
+        dA_sum = CUDA.zero(CUDA.eltype(dA))
 
         # set up sum holders for vector components
         x_sum = CUDA.zero(CUDA.eltype(xyz))
@@ -224,8 +222,9 @@ function average_subgrid_gpu!(μs_out, μs, wts_out, wts, z_rot_out, z_rot, xyz,
             if μs[ti, tj] > 0.0
                 # sum on scalar quantities
                 μ_sum += μs[ti, tj]
-                w_sum += wts[ti, tj]
                 v_sum += z_rot[ti, tj]
+                ld_sum += ld[ti, tj]
+                dA_sum += dA[ti, tj]
 
                 # sum on vector components
                 x_sum += xyz[ti, tj, 1]
@@ -240,8 +239,8 @@ function average_subgrid_gpu!(μs_out, μs, wts_out, wts, z_rot_out, z_rot, xyz,
         if count > 0
             # set scalar quantity elements as average
             @inbounds μs_out[row + 1, col + 1] = μ_sum / count
-            @inbounds wts_out[row + 1, col + 1] = w_sum / count
             @inbounds z_rot_out[row + 1, col + 1] = v_sum / count
+            @inbounds wts_out[row + 1, col + 1] = (ld_sum / count) * dA_sum
 
             # set scalar quantity elements as average
             @inbounds xx = x_sum / count
