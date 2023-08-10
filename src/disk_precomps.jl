@@ -49,8 +49,11 @@ function precompute_quantities!(wsp::SynthWorkspace{T}, disk::DiskParams{T}) whe
             dA .= map(x -> calc_dA(disk.ρs, getindex(x,1), step(ϕe_sub), step(θe_sub)), subgrid)
             dA .*= map(x -> abs(dot(x .- disk.O⃗, x)), xyz)
 
+            # get total projected, visible area of larger tile
+            dA_total = sum(view(dA, idx))
+
             # copy to workspace
-            wsp.wts[i,j] = mean(view(ld .* dA, idx))
+            wsp.wts[i,j] = mean(view(ld .* dA_total, idx))
             wsp.z_rot[i,j] = mean(view(z_rot, idx))
         end
     end
