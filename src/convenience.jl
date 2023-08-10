@@ -40,6 +40,9 @@ function synth_cpu(spec::SpecParams{T}, disk::DiskParams{T}, seed_rng::Bool,
     templates = unique(spec.templates)
 
     # pre-compute quantities to be re-used
+    if verbose
+        println("\t>>> Precomputing geometrical quantities...")
+    end
     precompute_quantities!(wsp, disk)
 
     # run the simulation (outspec modified in place)
@@ -105,6 +108,9 @@ function synth_gpu(spec::SpecParams{T}, disk::DiskParams{T}, seed_rng::Bool,
     gpu_allocs = GPUAllocs(spec, disk, precision=precision)
 
     # pre-compute quantities to be re-used
+    if verbose
+        println("\t>>> Precomputing geometrical quantities...")
+    end
     precompute_quantities_gpu!(disk, gpu_allocs)
 
     # allocate additional memory if generating random numbers on the cpu
@@ -125,7 +131,7 @@ function synth_gpu(spec::SpecParams{T}, disk::DiskParams{T}, seed_rng::Bool,
 
         # load in the appropriate input data
         if verbose
-            println("\t>>> " * splitdir(file)[end])
+            println("\t>>> Synthesizing with " * splitdir(file)[end])
         end
         soldata_cpu = SolarData(fname=file)
         soldata = GPUSolarData(soldata_cpu, precision=precision)
