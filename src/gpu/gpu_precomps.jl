@@ -10,52 +10,32 @@ function precompute_quantities_gpu!(disk::DiskParams{T1}, gpu_allocs::GPUAllocs{
     u1 = convert(precision, disk.u1)
     u2 = convert(precision, disk.u2)
 
-    # get subtile edges for subgrid'd latitude
-    N_edges_subgrid = disk.Nsubgrid * disk.N + 1
-    ϕe_subgrid = range(first(disk.ϕe), last(disk.ϕe), length=N_edges_subgrid)
-    ϕc_subgrid = get_grid_centers(ϕe_subgrid)
-
-    # allocate for longitude grid
-    θc_subgrid = zeros(length(ϕc_subgrid), maximum(disk.Nθ) * disk.Nsubgrid)
-    θe_subgrid = zeros(size(θc_subgrid) .+ 1 ...)
-
-    # loop over latitutde slices in original course grid
-    for i in eachindex(disk.Nθ)
-        # get idx for longitude subgrid slices in courser lat slice
-        idx  = (i - 1) * disk.Nsubgrid+1:(i * disk.Nsubgrid)
-
-        # get number of edges needed and make grids
-        num_edges = disk.Nθ[i] * disk.Nsubgrid + 1
-        edges = range(deg2rad(0.0), deg2rad(360.0), length=num_edges)
-        θc_subgrid[idx, 1:num_edges-1] .= get_grid_centers(edges)'
-        θe_subgrid[idx, 1:num_edges] .= collect(edges)'
-    end
-
-    # get number of tiles in each row of subgrid
-    Nθ_sub = map(x -> findfirst(x[2:end] .== 0.0), eachrow(θc_subgrid))
-    Nθ_sub[isnothing.(Nθ_sub)] .= size(θc_subgrid, 2)
-    Nθ_sub = Array{Int}(Nθ_sub)
+    # get size of sub-tiled grid
+    N = disk.N
+    Nsubgrid = disk.Nsubgrid
+    Nϕ_sub = N * Nsubgrid
+    Nθ_sub = maximum(disk.Nθ) * Nsubgrid
 
     # copy data to GPU
     @cusync begin
         # get observer vectoir and rotation matrix
         O⃗ = CuArray{precision}(disk.O⃗)
-        Nθ = CuArray{Int32}(Nθ_sub)
+        Nθ = CuArray{Int32}(disk.Nθ)
         R_θ = CuArray{precision}(disk.R_θ)
 
-        # move grids to GPU
-        ϕc_subgrid_gpu = CuArray{precision}(ϕc_subgrid)
-        θc_subgrid_gpu = CuArray{precision}(θc_subgrid)
-
         # allocate memory for computations on subgrid
-        xyz = CUDA.zeros(precision, size(θc_subgrid)..., 3)
-
-        # allocate larger arrays
-        μs = CUDA.zeros(precision, size(θc_subgrid))
-        ld = CUDA.zeros(precision, size(θc_subgrid))
-        dA = CUDA.zeros(precision, size(θc_subgrid))
-        z_rot = CUDA.zeros(precision, size(θc_subgrid))
+        μs = CUDA.zeros(precision, Nϕ_sub, Nθ_sub)
+        ld = CUDA.zeros(precision, Nϕ_sub, Nθ_sub)
+        dA = CUDA.zeros(precision, Nϕ_sub, Nθ_sub)
+        xz = CUDA.zeros(precision, Nϕ_sub, Nθ_sub, 2)
+        z_rot = CUDA.zeros(precision, Nϕ_sub, Nθ_sub)
     end
+
+    # compute quantities at subgrid points
+    threads1 = (16,16)
+    blocks1 = cld(Nsubgrid^2, prod(threads1))
+    @cusync @captured @cuda threads=threads1 blocks=blocks1 precompute_quantities_gpu!(xz, μs, ld, dA, z_rot, N, Nsubgrid,
+                                                                                       Nθ, R_θ, O⃗, ρs, A, B, C, u1, u2)
 
     # alias from GPU allocs
     μs_out = gpu_allocs.μs
@@ -63,18 +43,11 @@ function precompute_quantities_gpu!(disk::DiskParams{T1}, gpu_allocs::GPUAllocs{
     z_rot_out = gpu_allocs.z_rot
     ax_codes = gpu_allocs.ax_codes
 
-    # compute quantities at subgrid points
-    threads1 = (16,16)
-    blocks1 = cld(disk.N^2, prod(threads1))
-    @cusync @captured @cuda threads=threads1 blocks=blocks1 precompute_quantities_gpu!(xyz, μs, ld, dA, z_rot,
-                                                                                       ϕc_subgrid_gpu, θc_subgrid_gpu,
-                                                                                       Nθ, R_θ, O⃗, ρs, A, B, C, u1, u2)
-
     # average quantities over subgrid
     threads1 = 256
-    blocks1 = cld(disk.Nsubgrid^2, prod(threads1))
+    blocks1 = cld(Nsubgrid^2, prod(threads1))
     @cusync @captured @cuda threads=threads1 blocks=blocks1 average_subgrid_gpu!(μs_out, μs, wts_out, ld, dA,
-                                                                                 z_rot_out, z_rot, xyz,
+                                                                                 z_rot_out, z_rot, xz,
                                                                                  ax_codes, disk.N)
 
     # instruct CUDA to free up unneeded memory
@@ -85,10 +58,8 @@ function precompute_quantities_gpu!(disk::DiskParams{T1}, gpu_allocs::GPUAllocs{
         CUDA.unsafe_free!(μs)
         CUDA.unsafe_free!(ld)
         CUDA.unsafe_free!(dA)
-        CUDA.unsafe_free!(xyz)
+        CUDA.unsafe_free!(xz)
         CUDA.unsafe_free!(z_rot)
-        CUDA.unsafe_free!(ϕc_subgrid_gpu)
-        CUDA.unsafe_free!(θc_subgrid_gpu)
     end
 
     # instruct the garbage collect to clean up GPU memory
@@ -98,28 +69,39 @@ function precompute_quantities_gpu!(disk::DiskParams{T1}, gpu_allocs::GPUAllocs{
     return nothing
 end
 
-function precompute_quantities_gpu!(all_xyz, μs, ld, dA, z_rot, ϕc, θc, Nθ, R_θ, O⃗, ρs, A, B, C, u1, u2)
+function precompute_quantities_gpu!(all_xz, μs, ld, dA, z_rot, N, Nsubgrid, Nθ, R_θ, O⃗, ρs, A, B, C, u1, u2)
     # get indices from GPU blocks + threads
     idx = threadIdx().x + blockDim().x * (blockIdx().x-1)
     sdx = blockDim().x * gridDim().x
     idy = threadIdx().y + blockDim().y * (blockIdx().y-1)
     sdy = blockDim().y * gridDim().y
 
-    # get latitude element
-    dϕ = ϕc[2] - ϕc[1]
+    # get latitude subtile step size
+    N_ϕ_edges = N * Nsubgrid
+    dϕ = (CUDA.deg2rad(90.0) - CUDA.deg2rad(-90.0)) / (N_ϕ_edges)
 
     # loop over subtiled latitudes
-    for i in idx:sdx:CUDA.length(ϕc)
-        # get longitude element
-        dθ = θc[i, 2] - θc[i, 1]
+    for i in idx:sdx:(N_ϕ_edges)
+        # get coordinates of latitude subtile center
+        ϕc = CUDA.deg2rad(-90.0) + (dϕ/2.0) + (i - 1) * dϕ
+
+        # get number of longitude tiles in course latitude slice
+        k = div(i - 1, Nsubgrid) + 1
+        N_θ_edges = Nθ[k] * Nsubgrid
+
+        # get longitude subtile step size
+        dθ = (CUDA.deg2rad(360.0) - CUDA.deg2rad(0.0)) / (N_θ_edges)
 
         # loop over subtiled latitudes
-        for j in idy:sdy:Nθ[i]
+        for j in idy:sdy:N_θ_edges
+            # get longitude
+            θc = CUDA.deg2rad(0.0) + (dθ/2.0) + (j - 1) * dθ
+
             # take views of pre-allocated memory
-            xyz = CUDA.view(all_xyz, i, j, :)
+            xz = CUDA.view(all_xz, i, j, :)
 
             # get cartesian coords
-            x, y, z = sphere_to_cart_gpu(ρs, ϕc[i], θc[i,j])
+            x, y, z = sphere_to_cart_gpu(ρs, ϕc, θc)
 
             # get vector from spherical circle center to surface patch
             a = x
@@ -137,16 +119,13 @@ function precompute_quantities_gpu!(all_xyz, μs, ld, dA, z_rot, ϕc, θc, Nθ, 
             e /= def_norm
 
             # set magnitude by differential rotation
-            v0 = Float64(0.000168710673) # Rsol/day/speed of light
-            rp = (v0 / rotation_period_gpu(ϕc[i], A, B, C))
+            v0 = 0.000168710673 # Rsol/day/speed of light
+            rp = (v0 / rotation_period_gpu(ϕc, A, B, C))
             d *= rp
             e *= rp
 
-            # rotate xyz by inclination, store vector for later
+            # rotate xyz by inclination
             x, y, z = rotate_vector_gpu(x, y, z, R_θ)
-            @inbounds xyz[1] = x
-            @inbounds xyz[2] = y
-            @inbounds xyz[3] = z
 
             # rotate xyz by inclination and calculate mu
             @inbounds μs[i,j] = calc_mu_gpu(x, y, z, O⃗)
@@ -167,6 +146,10 @@ function precompute_quantities_gpu!(all_xyz, μs, ld, dA, z_rot, ϕc, θc, Nθ, 
             n2 = CUDA.sqrt(d^2.0 + e^2.0 + f^2.0)
             angle = (a * d + b * e + c * f) / (n1 * n2)
 
+            # save the x and z components
+            @inbounds xz[1] = x
+            @inbounds xz[2] = z
+
             # project velocity onto line of sight
             @inbounds z_rot[i,j] = n2 * angle
 
@@ -174,7 +157,7 @@ function precompute_quantities_gpu!(all_xyz, μs, ld, dA, z_rot, ϕc, θc, Nθ, 
             @inbounds ld[i,j] = quad_limb_darkening(μs[i,j], u1, u2)
 
             # get area element
-            @inbounds dA[i,j] = calc_dA(ρs, ϕc[i], dϕ, dθ)
+            @inbounds dA[i,j] = calc_dA(ρs, ϕc, dϕ, dθ)
 
             # project onto line of sight
             @inbounds dA[i,j] *= CUDA.abs(a * x + b * y + c * z)
@@ -183,7 +166,7 @@ function precompute_quantities_gpu!(all_xyz, μs, ld, dA, z_rot, ϕc, θc, Nθ, 
     return nothing
 end
 
-function average_subgrid_gpu!(μs_out, μs, wts_out, ld, dA, z_rot_out, z_rot, xyz, ax_codes, N)
+function average_subgrid_gpu!(μs_out, μs, wts_out, ld, dA, z_rot_out, z_rot, xz, ax_codes, N)
     # get indices from GPU blocks + threads
     idx = threadIdx().x + blockDim().x * (blockIdx().x-1)
     sdx = gridDim().x * blockDim().x
@@ -210,9 +193,8 @@ function average_subgrid_gpu!(μs_out, μs, wts_out, ld, dA, z_rot_out, z_rot, x
         dA_sum = CUDA.zero(CUDA.eltype(dA))
 
         # set up sum holders for vector components
-        x_sum = CUDA.zero(CUDA.eltype(xyz))
-        y_sum = CUDA.zero(CUDA.eltype(xyz))
-        z_sum = CUDA.zero(CUDA.eltype(xyz))
+        x_sum = CUDA.zero(CUDA.eltype(xz))
+        z_sum = CUDA.zero(CUDA.eltype(xz))
 
         # initiate counter
         count = 0
@@ -226,9 +208,8 @@ function average_subgrid_gpu!(μs_out, μs, wts_out, ld, dA, z_rot_out, z_rot, x
                 dA_sum += dA[ti, tj]
 
                 # sum on vector components
-                x_sum += xyz[ti, tj, 1]
-                y_sum += xyz[ti, tj, 2]
-                z_sum += xyz[ti, tj, 3]
+                x_sum += xz[ti, tj, 1]
+                z_sum += xz[ti, tj, 2]
 
                 # iterate counter
                 count += 1
@@ -243,7 +224,6 @@ function average_subgrid_gpu!(μs_out, μs, wts_out, ld, dA, z_rot_out, z_rot, x
 
             # set scalar quantity elements as average
             @inbounds xx = x_sum / count
-            @inbounds yy = y_sum / count
             @inbounds zz = z_sum / count
 
             # get axis code
