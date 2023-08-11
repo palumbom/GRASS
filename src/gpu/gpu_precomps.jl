@@ -86,7 +86,7 @@ function precompute_quantities_gpu!(all_xz, μs, ld, dA, z_rot, N, Nsubgrid, Nθ
         ϕc = CUDA.deg2rad(-90.0) + (dϕ/2.0) + (i - 1) * dϕ
 
         # get number of longitude tiles in course latitude slice
-        k = div(i - 1, Nsubgrid) + 1
+        k = CUDA.div(i - 1, Nsubgrid) + 1
         N_θ_edges = Nθ[k] * Nsubgrid
 
         # get longitude subtile step size
@@ -278,8 +278,8 @@ function get_keys_and_cbs_gpu!(dat_idx, z_cbs, μs, ax_codes, cbsall, disc_mu, d
 
             # find the data index for location on disk
             idx = find_data_index_gpu(μs[i,j], ax_codes[i,j], disc_mu, disc_ax)
-            dat_idx[i,j] = idx
-            z_cbs[i,j] = cbsall[idx]
+            @inbounds dat_idx[i,j] = idx
+            @inbounds z_cbs[i,j] = cbsall[idx]
         end
     end
     return nothing
