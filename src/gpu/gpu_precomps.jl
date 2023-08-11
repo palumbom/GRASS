@@ -106,12 +106,12 @@ function precompute_quantities_gpu!(all_xz, μs, ld, dA, z_rot, N, Nsubgrid, Nθ
             # get vector from spherical circle center to surface patch
             a = x
             b = y
-            c = 0.0
+            c = CUDA.zero(CUDA.eltype(μs))
 
             # take cross product to get vector in direction of rotation
             d = b * ρs
             e = - a * ρs
-            f = 0.0
+            f = CUDA.zero(CUDA.eltype(μs))
 
             # make it a unit vector
             def_norm = CUDA.sqrt(d^2.0 + e^2.0)
@@ -157,7 +157,7 @@ function precompute_quantities_gpu!(all_xz, μs, ld, dA, z_rot, N, Nsubgrid, Nθ
             @inbounds ld[i,j] = quad_limb_darkening(μs[i,j], u1, u2)
 
             # get area element
-            @inbounds dA[i,j] = calc_dA(ρs, ϕc, dϕ, dθ)
+            @inbounds dA[i,j] = calc_dA_gpu(ρs, ϕc, dϕ, dθ)
 
             # project onto line of sight
             @inbounds dA[i,j] *= CUDA.abs(a * x + b * y + c * z)

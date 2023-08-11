@@ -41,7 +41,7 @@ function synth_cpu(spec::SpecParams{T}, disk::DiskParams{T}, seed_rng::Bool,
 
     # pre-compute quantities to be re-used
     if verbose
-        println("\t>>> Precomputing geometrical quantities...")
+        println("\t>>> Precomputing geometric quantities...")
     end
     precompute_quantities!(wsp, disk)
 
@@ -52,7 +52,7 @@ function synth_cpu(spec::SpecParams{T}, disk::DiskParams{T}, seed_rng::Bool,
 
         # load in the appropriate input data
         if verbose
-            println("\t>>> " * splitdir(file)[end])
+            println("\t>>> Template: " * splitdir(file)[end])
         end
         soldata = SolarData(fname=file)
 
@@ -109,7 +109,7 @@ function synth_gpu(spec::SpecParams{T}, disk::DiskParams{T}, seed_rng::Bool,
 
     # pre-compute quantities to be re-used
     if verbose
-        println("\t>>> Precomputing geometrical quantities...")
+        println("\t>>> Precomputing geometric quantities...")
     end
     precompute_quantities_gpu!(disk, gpu_allocs)
 
@@ -131,7 +131,7 @@ function synth_gpu(spec::SpecParams{T}, disk::DiskParams{T}, seed_rng::Bool,
 
         # load in the appropriate input data
         if verbose
-            println("\t>>> Synthesizing with " * splitdir(file)[end])
+            println("\t>>> Template: " * splitdir(file)[end])
         end
         soldata_cpu = SolarData(fname=file)
         soldata = GPUSolarData(soldata_cpu, precision=precision)
