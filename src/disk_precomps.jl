@@ -22,7 +22,7 @@ function precompute_quantities!(wsp::SynthWorkspace{T}, disk::DiskParams{T}) whe
 
             # get cartesian coord for each subgrid and rotate by rot. matrix
             xyz .= map(x -> sphere_to_cart.(disk.ρs, x...), subgrid)
-            xyz .= map(x -> disk.R_θ * x, xyz)
+            xyz .= map(x -> disk.R_x * x, xyz)
 
             # calculate mu at each point
             μs .= map(x -> calc_mu(x, disk.O⃗), xyz)

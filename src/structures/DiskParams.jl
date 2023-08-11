@@ -8,7 +8,7 @@ struct DiskParams{T<:AF}
     θc::AA{T,2}
     Nθ::AA{Int,1}
     Nsubgrid::Int
-    R_θ::AA{T,2}
+    R_x::AA{T,2}
     O⃗::AA{T,1}
     A::T
     B::T
@@ -18,14 +18,16 @@ struct DiskParams{T<:AF}
 end
 
 """
-    DiskParams(; N=132, Nt=50, pole=(0.0, 1.0, 0.0))
+    DiskParams(; N=132, Nt=50, inclination=90.0)
 
-Construct a `DiskParams` composite type instance.
+Construct a `DiskParams` composite type instance. In the coordinate system,
+the x- and z- axes are sky-plane, and the y-axis is along the observer-to-star-
+center vector.
 
 # Arguments
-- `N::Integer=132`: Length of N*N spatial grid
-- `Nt::Integer=50`: Number of 15-second snapshots
-- `pole::Tuple{Float64, Float64, Float64}=(0.0, 1.0, 0.0)`: Unit vector specificying rotation axis direction. Default is equator-on.
+- `N::Integer=132`: Number of stellar latitude grid elements
+- `Nt::Integer=50`: Number of 15-second snapshots.
+- `Inclination::Float64`: Sky-plane inclination of stellar grid. 90.0 is equator-on.
 """
 function DiskParams(;N=132, Nt=NaN, radius=1.0, inclination=90.0, u1=0.4,
                      u2=0.26, A=14.713, B=-2.396, C=-1.787, Nsubgrid=50)
@@ -54,7 +56,7 @@ function DiskParams(;N=132, Nt=NaN, radius=1.0, inclination=90.0, u1=0.4,
     # create rotation matrix
     @assert -90.0 <= inclination <= 90.0
     iₛ = deg2rad(90.0 - inclination)
-    R_θ = M = [1.0 0.0 0.0;
+    R_x = M = [1.0 0.0 0.0;
                0.0 cos(iₛ) sin(iₛ);
                0.0 -sin(iₛ) cos(iₛ)]
 
@@ -62,5 +64,5 @@ function DiskParams(;N=132, Nt=NaN, radius=1.0, inclination=90.0, u1=0.4,
     # O⃗ = [0.0, 220.0, 0.0] # 220 => 1 AU in Solar Radii
     O⃗ = [0.0, 1e6, 0.0]
 
-    return DiskParams(N, Nt, radius, ϕe, ϕc, θe, θc, Nθ, Nsubgrid, R_θ, O⃗, A, B, C, u1, u2)
+    return DiskParams(N, Nt, radius, ϕe, ϕc, θe, θc, Nθ, Nsubgrid, R_x, O⃗, A, B, C, u1, u2)
 end
