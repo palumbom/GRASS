@@ -112,6 +112,26 @@ function disk_sim_gpu(spec::SpecParams{T1}, disk::DiskParams{T1}, soldata::GPUSo
 
     # ensure normalization
     outspec ./= sum_wts
+
+    # free up memory that cant be reused
+    @cusync begin
+        CUDA.unsafe_free!(disc_mu_gpu)
+        CUDA.unsafe_free!(disc_ax_gpu)
+        CUDA.unsafe_free!(lenall_gpu)
+        CUDA.unsafe_free!(cbsall_gpu)
+        CUDA.unsafe_free!(bisall_gpu)
+        CUDA.unsafe_free!(intall_gpu)
+        CUDA.unsafe_free!(widall_gpu)
+        CUDA.unsafe_free!(depcontrast_gpu)
+        CUDA.unsafe_free!(bisall_gpu)
+        CUDA.unsafe_free!(intall_gpu)
+        CUDA.unsafe_free!(widall_gpu)
+    end
+
+    # instruct the garbage collect to clean up GPU memory
+    GC.gc(true)
+
+    # make sure nothing is still running on GPU
     CUDA.synchronize()
     return nothing
 end
