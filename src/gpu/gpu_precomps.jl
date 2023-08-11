@@ -21,7 +21,7 @@ function precompute_quantities_gpu!(disk::DiskParams{T1}, gpu_allocs::GPUAllocs{
         # get observer vectoir and rotation matrix
         O⃗ = CuArray{precision}(disk.O⃗)
         Nθ = CuArray{Int32}(disk.Nθ)
-        R_θ = CuArray{precision}(disk.R_θ)
+        R_x = CuArray{precision}(disk.R_x)
 
         # allocate memory for computations on subgrid
         μs = CUDA.zeros(precision, Nϕ_sub, Nθ_sub)
@@ -35,7 +35,7 @@ function precompute_quantities_gpu!(disk::DiskParams{T1}, gpu_allocs::GPUAllocs{
     threads1 = (16,16)
     blocks1 = cld(Nsubgrid^2, prod(threads1))
     @cusync @captured @cuda threads=threads1 blocks=blocks1 precompute_quantities_gpu!(xz, μs, ld, dA, z_rot, N, Nsubgrid,
-                                                                                       Nθ, R_θ, O⃗, ρs, A, B, C, u1, u2)
+                                                                                       Nθ, R_x, O⃗, ρs, A, B, C, u1, u2)
 
     # alias from GPU allocs
     μs_out = gpu_allocs.μs
@@ -54,7 +54,7 @@ function precompute_quantities_gpu!(disk::DiskParams{T1}, gpu_allocs::GPUAllocs{
     @cusync begin
         CUDA.unsafe_free!(O⃗)
         CUDA.unsafe_free!(Nθ)
-        CUDA.unsafe_free!(R_θ)
+        CUDA.unsafe_free!(R_x)
         CUDA.unsafe_free!(μs)
         CUDA.unsafe_free!(ld)
         CUDA.unsafe_free!(dA)
@@ -69,7 +69,7 @@ function precompute_quantities_gpu!(disk::DiskParams{T1}, gpu_allocs::GPUAllocs{
     return nothing
 end
 
-function precompute_quantities_gpu!(all_xz, μs, ld, dA, z_rot, N, Nsubgrid, Nθ, R_θ, O⃗, ρs, A, B, C, u1, u2)
+function precompute_quantities_gpu!(all_xz, μs, ld, dA, z_rot, N, Nsubgrid, Nθ, R_x, O⃗, ρs, A, B, C, u1, u2)
     # get indices from GPU blocks + threads
     idx = threadIdx().x + blockDim().x * (blockIdx().x-1)
     sdx = blockDim().x * gridDim().x
@@ -125,7 +125,7 @@ function precompute_quantities_gpu!(all_xz, μs, ld, dA, z_rot, N, Nsubgrid, Nθ
             e *= rp
 
             # rotate xyz by inclination
-            x, y, z = rotate_vector_gpu(x, y, z, R_θ)
+            x, y, z = rotate_vector_gpu(x, y, z, R_x)
 
             # rotate xyz by inclination and calculate mu
             @inbounds μs[i,j] = calc_mu_gpu(x, y, z, O⃗)
@@ -134,7 +134,7 @@ function precompute_quantities_gpu!(all_xz, μs, ld, dA, z_rot, N, Nsubgrid, Nθ
             end
 
             # rotate the velocity vectors by inclination
-            d, e, f = rotate_vector_gpu(d, e, f, R_θ)
+            d, e, f = rotate_vector_gpu(d, e, f, R_x)
 
             # get vector pointing from observer to surface patch
             a = x - O⃗[1]

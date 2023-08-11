@@ -40,24 +40,24 @@ function sphere_to_cart_gpu(ρs, ϕ, θ)
     return x, y, z
 end
 
-function rotate_vector_gpu!(xyz, R_θ)
+function rotate_vector_gpu!(xyz, R_x)
     # parse out components
     x = xyz[1]
     y = xyz[2]
     z = xyz[3]
 
     # do dot product
-    @inbounds xyz[1] = x * R_θ[1,1] + y * R_θ[1,2] + z * R_θ[1,3]
-    @inbounds xyz[2] = x * R_θ[2,1] + y * R_θ[2,2] + z * R_θ[2,3]
-    @inbounds xyz[3] = x * R_θ[3,1] + y * R_θ[3,2] + z * R_θ[3,3]
+    @inbounds xyz[1] = x * R_x[1,1] + y * R_x[1,2] + z * R_x[1,3]
+    @inbounds xyz[2] = x * R_x[2,1] + y * R_x[2,2] + z * R_x[2,3]
+    @inbounds xyz[3] = x * R_x[3,1] + y * R_x[3,2] + z * R_x[3,3]
     return nothing
 end
 
-function rotate_vector_gpu(x0, y0, z0, R_θ)
+function rotate_vector_gpu(x0, y0, z0, R_x)
     # do dot product
-    x1 = x0 * R_θ[1,1] + y0 * R_θ[1,2] + z0 * R_θ[1,3]
-    y1 = x0 * R_θ[2,1] + y0 * R_θ[2,2] + z0 * R_θ[2,3]
-    z1 = x0 * R_θ[3,1] + y0 * R_θ[3,2] + z0 * R_θ[3,3]
+    x1 = x0 * R_x[1,1] + y0 * R_x[1,2] + z0 * R_x[1,3]
+    y1 = x0 * R_x[2,1] + y0 * R_x[2,2] + z0 * R_x[2,3]
+    z1 = x0 * R_x[3,1] + y0 * R_x[3,2] + z0 * R_x[3,3]
     return x1, y1, z1
 end
 

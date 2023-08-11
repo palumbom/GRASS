@@ -26,7 +26,7 @@ function GPUAllocs(spec::SpecParams, disk::DiskParams; precision::DataType=Float
     @cusync begin
         λs_gpu = CuArray{precision}(spec.lambdas)
         Nθ_gpu = CuArray{Int}(disk.Nθ)
-        R_θ_gpu = CuArray{precision}(disk.R_θ)
+        R_x_gpu = CuArray{precision}(disk.R_x)
         O⃗_gpu = CuArray{precision}(disk.O⃗)
     end
 

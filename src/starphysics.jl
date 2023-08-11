@@ -72,8 +72,8 @@ function patch_velocity_los(ϕ::T, θ::T, disk::DiskParams{T}; P⃗=[0.0, 0.0, d
     vel *= (v0 / rotation_period(ϕ; A=disk.A, B=disk.B, C=disk.C))
 
     # rotate by stellar inclination
-    xyz .= disk.R_θ * xyz
-    vel .= disk.R_θ * vel
+    xyz .= disk.R_x * xyz
+    vel .= disk.R_x * vel
 
     # find get vector from observer to surface patch, return projection
     O⃗_surf = xyz .- disk.O⃗
