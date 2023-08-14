@@ -329,81 +329,84 @@ function precompute_quantities_gpu_new!(μs, wts, z_rot, ax_codes, Nϕ, Nθ_max,
         count = 0
 
         # loop over subgrid
-        for ti in i:i+k-1, tj in j:j+l-1
-            # get latitude subtile step size
-            N_ϕ_edges = Nϕ * Nsubgrid
-            dϕ = (CUDA.deg2rad(90.0) - CUDA.deg2rad(-90.0)) / (N_ϕ_edges)
+        for ti in i:i+k-1
+            for tj in j:j+l-1
+                # get latitude subtile step size
+                N_ϕ_edges = Nϕ * Nsubgrid
+                dϕ = (CUDA.deg2rad(90.0) - CUDA.deg2rad(-90.0)) / (N_ϕ_edges)
 
-            # get coordinates of latitude subtile center
-            ϕc = CUDA.deg2rad(-90.0) + (dϕ/2.0) + (ti - 1) * dϕ
+                # get coordinates of latitude subtile center
+                ϕc = CUDA.deg2rad(-90.0) + (dϕ/2.0) + (ti - 1) * dϕ
 
-            # get number of longitude tiles in course latitude slice
-            m = CUDA.div(ti - 1, Nsubgrid) + 1
-            N_θ_edges = Nθ[m] * Nsubgrid
+                # get number of longitude tiles in course latitude slice
+                # m = CUDA.div(ti - 1, Nsubgrid) + 1
+                m = row + 1
+                N_θ_edges = Nθ[m] * Nsubgrid
 
-            # get longitude subtile step size
-            dθ = (CUDA.deg2rad(360.0) - CUDA.deg2rad(0.0)) / (N_θ_edges)
+                # get longitude subtile step size
+                dθ = (CUDA.deg2rad(360.0) - CUDA.deg2rad(0.0)) / (N_θ_edges)
 
-            # get longitude
-            θc = CUDA.deg2rad(0.0) + (dθ/2.0) + (tj - 1) * dθ
+                # get longitude
+                θc = CUDA.deg2rad(0.0) + (dθ/2.0) + (tj - 1) * dθ
 
-            # get cartesian coords
-            x, y, z = sphere_to_cart_gpu(ρs, ϕc, θc)
+                # get cartesian coords
+                x, y, z = sphere_to_cart_gpu(ρs, ϕc, θc)
 
-            # get vector from spherical circle center to surface patch
-            a = x
-            b = y
-            c = CUDA.zero(CUDA.eltype(μs))
+                # get vector from spherical circle center to surface patch
+                a = x
+                b = y
+                c = CUDA.zero(CUDA.eltype(μs))
 
-            # take cross product to get vector in direction of rotation
-            d = b * ρs
-            e = - a * ρs
-            f = CUDA.zero(CUDA.eltype(μs))
+                # take cross product to get vector in direction of rotation
+                d = b * ρs
+                e = - a * ρs
+                f = CUDA.zero(CUDA.eltype(μs))
 
-            # make it a unit vector
-            def_norm = CUDA.sqrt(d^2.0 + e^2.0)
-            d /= def_norm
-            e /= def_norm
+                # make it a unit vector
+                def_norm = CUDA.sqrt(d^2.0 + e^2.0)
+                d /= def_norm
+                e /= def_norm
 
-            # set magnitude by differential rotation
-            v0 = 0.000168710673 # Rsol/day/speed of light
-            rp = (v0 / rotation_period_gpu(ϕc, A, B, C))
-            d *= rp
-            e *= rp
+                # set magnitude by differential rotation
+                v0 = 0.000168710673 # Rsol/day/speed of light
+                rp = (v0 / rotation_period_gpu(ϕc, A, B, C))
+                d *= rp
+                e *= rp
 
-            # rotate xyz by inclination
-            x, y, z = rotate_vector_gpu(x, y, z, R_x)
+                # rotate xyz by inclination
+                x, y, z = rotate_vector_gpu(x, y, z, R_x)
 
-            # rotate xyz by inclination and calculate mu
-            μ_sub = calc_mu_gpu(x, y, z, O⃗)
-            if μ_sub <= 0.0
-                continue
+                # rotate xyz by inclination and calculate mu
+                μ_sub = calc_mu_gpu(x, y, z, O⃗)
+                if μ_sub <= 0.0
+                    continue
+                end
+                μ_sum += μ_sub
+
+                # get limb darkening
+                ld_sum += quad_limb_darkening(μ_sub, u1, u2)
+
+                # get vector pointing from observer to surface patch
+                a = x - O⃗[1]
+                b = y - O⃗[2]
+                c = z - O⃗[3]
+
+                # get angle between them
+                n1 = CUDA.sqrt(a^2.0 + b^2.0 + c^2.0)
+                n2 = CUDA.sqrt(d^2.0 + e^2.0 + f^2.0)
+                angle = (a * d + b * e + c * f) / (n1 * n2)
+                v_sum += n2 * angle
+
+                # get projected area element
+                dA_sum += calc_dA_gpu(ρs, ϕc, dϕ, dθ) * CUDA.abs(a * x + b * y + c * z)
+
+                # sum on vector components
+                x_sum += x
+                z_sum += z
+
+                # iterate counter
+                count += 1
             end
-            μ_sum += μ_sub
-
-            # get limb darkening
-            ld_sum += quad_limb_darkening(μ_sub, u1, u2)
-
-            # get vector pointing from observer to surface patch
-            a = x - O⃗[1]
-            b = y - O⃗[2]
-            c = z - O⃗[3]
-
-            # get angle between them
-            n1 = CUDA.sqrt(a^2.0 + b^2.0 + c^2.0)
-            n2 = CUDA.sqrt(d^2.0 + e^2.0 + f^2.0)
-            angle = (a * d + b * e + c * f) / (n1 * n2)
-            v_sum += n2 * angle
-
-            # get projected area element
-            dA_sum += calc_dA_gpu(ρs, ϕc, dϕ, dθ) * CUDA.abs(a * x + b * y + c * z)
-
-            # sum on vector components
-            x_sum += x
-            z_sum += z
-
-            # iterate counter
-            count += 1
         end
 
         if count > 0
