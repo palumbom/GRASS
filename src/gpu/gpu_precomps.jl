@@ -12,8 +12,9 @@ function precompute_quantities_gpu!(disk::DiskParams{T1}, gpu_allocs::GPUAllocs{
 
     # get size of sub-tiled grid
     Nϕ = disk.N
+    Nθ_max = maximum(disk.Nθ)
     Nsubgrid = disk.Nsubgrid
-    Nϕ_sub = N * Nsubgrid
+    Nϕ_sub = Nϕ * Nsubgrid
     Nθ_sub = maximum(disk.Nθ) * Nsubgrid
 
     # copy data to GPU
@@ -37,11 +38,11 @@ function precompute_quantities_gpu!(disk::DiskParams{T1}, gpu_allocs::GPUAllocs{
     # @cusync @captured @cuda threads=threads1 blocks=blocks1 precompute_quantities_gpu!(xz, μs, ld, dA, z_rot, Nϕ, Nsubgrid,
     #                                                                                    Nθ, R_x, O⃗, ρs, A, B, C, u1, u2)
 
-    # # alias from GPU allocs
-    # μs_out = gpu_allocs.μs
-    # wts_out = gpu_allocs.wts
-    # z_rot_out = gpu_allocs.z_rot
-    # ax_codes = gpu_allocs.ax_codes
+    # alias from GPU allocs
+    μs_out = gpu_allocs.μs
+    wts_out = gpu_allocs.wts
+    z_rot_out = gpu_allocs.z_rot
+    ax_codes = gpu_allocs.ax_codes
 
     # # average quantities over subgrid
     # threads1 = 256
@@ -54,7 +55,7 @@ function precompute_quantities_gpu!(disk::DiskParams{T1}, gpu_allocs::GPUAllocs{
     # try the new way
     threads1 = 256
     blocks1 = cld(disk.N * maximum(disk.Nθ), prod(threads1))
-    @cusync @captured @cuda threads=threads1 blocks=blocks1 precompute_quantities_gpu!(μs_out, wts_out, z_rot_out, Nϕ, Nθ, Nsubgrid, R_x, O⃗, ρs, A, B, C, u1, u2)
+    @cusync @captured @cuda threads=threads1 blocks=blocks1 precompute_quantities_gpu_new!(μs_out, wts_out, z_rot_out, ax_codes, Nϕ, Nθ_max, Nsubgrid, Nθ, R_x, O⃗, ρs, A, B, C, u1, u2)
 
     # instruct CUDA to free up unneeded memory
     @cusync begin
@@ -292,22 +293,22 @@ function get_keys_and_cbs_gpu!(dat_idx, z_cbs, μs, ax_codes, cbsall, disc_mu, d
     return nothing
 end
 
-function precompute_quantities_gpu_new!(μs, wts, z_rot, Nϕ, Nθ, Nsubgrid,  R_x, O⃗, ρs, A, B, C, u1, u2)
+function precompute_quantities_gpu_new!(μs, wts, z_rot, ax_codes, Nϕ, Nθ_max, Nsubgrid, Nθ, R_x, O⃗, ρs, A, B, C, u1, u2)
 # get indices from GPU blocks + threads
     idx = threadIdx().x + blockDim().x * (blockIdx().x-1)
     sdx = gridDim().x * blockDim().x
 
     # get number of elements along tile side
     k = Int(CUDA.size(μs,1) / Nϕ)
-    l = Int(CUDA.size(μs,2) / CUDA.maxium(Nθ))
+    l = Int(CUDA.size(μs,2) / Nθ_max)
 
     # total number of elements output array
-    num_tiles = Nϕ * CUDA.maxium(Nθ)
+    num_tiles = Nϕ * Nθ_max
 
     # linear index over course grid tiles
     for t in idx:sdx:num_tiles
         # get index for output array
-        row = (t - 1) ÷ Nθ
+        row = (t - 1) ÷ Nθ_max
         col = (t - 1) % Nϕ
 
         # get indices for input array
