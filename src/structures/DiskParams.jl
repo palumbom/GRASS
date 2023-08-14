@@ -42,7 +42,6 @@ function DiskParams(;N=275, Nt=NaN, radius=1.0, inclination=90.0, u1=0.4,
     ϕc = get_grid_centers(ϕe)
 
     # number of longitudes in each latitude slice
-    # Nθ = ceil.(Int, cos.(ϕc) .* N) .* 2
     Nθ = ceil.(Int, 2π .* cos.(ϕc) ./ step(ϕe))
 
     # make longitude grid
