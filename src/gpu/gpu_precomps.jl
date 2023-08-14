@@ -328,16 +328,17 @@ function precompute_quantities_gpu_new!(μs, wts, z_rot, ax_codes, Nϕ, Nθ_max,
         # initiate counter
         count = 0
 
-        # loop over subgrid
+        # loop over latitude sub tiles
         for ti in i:i+k-1
+            # get latitude subtile step size
+            N_ϕ_edges = Nϕ * Nsubgrid
+            dϕ = (CUDA.deg2rad(90.0) - CUDA.deg2rad(-90.0)) / (N_ϕ_edges)
+
+            # get coordinates of latitude subtile center
+            ϕc = CUDA.deg2rad(-90.0) + (dϕ/2.0) + (ti - 1) * dϕ
+
+            # loop over longitude subtiles
             for tj in j:j+l-1
-                # get latitude subtile step size
-                N_ϕ_edges = Nϕ * Nsubgrid
-                dϕ = (CUDA.deg2rad(90.0) - CUDA.deg2rad(-90.0)) / (N_ϕ_edges)
-
-                # get coordinates of latitude subtile center
-                ϕc = CUDA.deg2rad(-90.0) + (dϕ/2.0) + (ti - 1) * dϕ
-
                 # get number of longitude tiles in course latitude slice
                 # m = CUDA.div(ti - 1, Nsubgrid) + 1
                 m = row + 1
