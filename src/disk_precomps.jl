@@ -28,7 +28,7 @@ function precompute_quantities!(wsp::SynthWorkspace{T}, disk::DiskParams{T}) whe
             μs .= map(x -> calc_mu(x, disk.O⃗), xyz)
 
             # move to next iteration if patch element is not visible
-            all(μs .<= zero(T)) && continue
+            all(μs .<= 1e-16) && continue
 
             # assign the mean mu as the mean of visible mus
             idx .= μs .> 0.0
