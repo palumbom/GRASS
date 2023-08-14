@@ -180,12 +180,12 @@ function average_subgrid_gpu!(μs_out, μs, wts_out, ld, dA, z_rot_out, z_rot, x
 
     for t in idx:sdx:num_tiles
         # get index for output array
-        row = (t - 1) ÷ Nϕ
-        col = (t - 1) % Nθ
+        row = (t - 1) ÷ Nθ
+        col = (t - 1) % Nϕ
 
         # get indices for input array
         i = row * k + 1
-        j = col * k + 1
+        j = col * l + 1
 
         # set up sum holders for scalars
         μ_sum = CUDA.zero(CUDA.eltype(μs))
@@ -200,7 +200,7 @@ function average_subgrid_gpu!(μs_out, μs, wts_out, ld, dA, z_rot_out, z_rot, x
         # initiate counter
         count = 0
 
-        for ti in i:i+k-1, tj in j:j+k-1
+        for ti in i:i+k-1, tj in j:j+l-1
             if μs[ti, tj] > 0.0
                 # sum on scalar quantities
                 μ_sum += μs[ti, tj]
