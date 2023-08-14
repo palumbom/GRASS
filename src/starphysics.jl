@@ -64,7 +64,7 @@ function patch_velocity_los(ϕ::T, θ::T, disk::DiskParams{T}; P⃗=[0.0, 0.0, d
     C⃗ = xyz .- [0.0, 0.0, last(xyz)]
 
     # velocity magnitude at equator, in Rsol/day/c_ms
-    v0 = 0.000168710673
+    v0 = disk.v0
 
     # get velocity vector direction and set magnitude
     vel = cross(C⃗, P⃗)

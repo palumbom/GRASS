@@ -13,6 +13,7 @@ struct DiskParams{T<:AF}
     A::T
     B::T
     C::T
+    v0::T
     u1::T
     u2::T
 end
@@ -30,7 +31,8 @@ center vector.
 - `Inclination::Float64`: Sky-plane inclination of stellar grid. 90.0 is equator-on.
 """
 function DiskParams(;N=275, Nt=NaN, radius=1.0, inclination=90.0, u1=0.4,
-                     u2=0.26, A=14.713, B=-2.396, C=-1.787, Nsubgrid=40)
+                     u2=0.26, vsini=2067.03346686649251345, A=14.713,
+                     B=-2.396, C=-1.787, Nsubgrid=40)
     # assertions and warnings
     @assert !isnan(Nt)
     @assert Nsubgrid > 1
@@ -62,9 +64,12 @@ function DiskParams(;N=275, Nt=NaN, radius=1.0, inclination=90.0, u1=0.4,
                0.0 cos(iₛ) sin(iₛ);
                0.0 -sin(iₛ) cos(iₛ)]
 
+    # convert vsini to units of R*/day/c_ms
+    v0 = (vsini / c_ms) * (360.0 / A)
+
     # set observer vector to large distance (units = stellar radius)
     # O⃗ = [0.0, 220.0, 0.0] # 220 => 1 AU in Solar Radii
     O⃗ = [0.0, 1e6, 0.0]
 
-    return DiskParams(N, Nt, radius, ϕe, ϕc, θe, θc, Nθ, Nsubgrid, R_x, O⃗, A, B, C, u1, u2)
+    return DiskParams(N, Nt, radius, ϕe, ϕc, θe, θc, Nθ, Nsubgrid, R_x, O⃗, A, B, C, v0, u1, u2)
 end
