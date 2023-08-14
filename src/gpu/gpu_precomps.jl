@@ -305,6 +305,10 @@ function precompute_quantities_gpu_new!(μs, wts, z_rot, ax_codes, Nϕ, Nθ_max,
     # total number of elements output array
     num_tiles = Nϕ * Nθ_max
 
+    # get latitude subtile step size
+    N_ϕ_edges = Nϕ * Nsubgrid
+    dϕ = (CUDA.deg2rad(90.0) - CUDA.deg2rad(-90.0)) / (N_ϕ_edges)
+
     # linear index over course grid tiles
     for t in idx:sdx:num_tiles
         # get index for output array
@@ -328,9 +332,9 @@ function precompute_quantities_gpu_new!(μs, wts, z_rot, ax_codes, Nϕ, Nθ_max,
         # initiate counter
         count = 0
 
-        # get latitude subtile step size
-        N_ϕ_edges = Nϕ * Nsubgrid
-        dϕ = (CUDA.deg2rad(90.0) - CUDA.deg2rad(-90.0)) / (N_ϕ_edges)
+        # get number of longitude tiles in course latitude slice
+        m = row + 1
+        N_θ_edges = Nθ[m] * Nsubgrid
 
         # loop over latitude sub tiles
         for ti in i:i+k-1
@@ -339,10 +343,6 @@ function precompute_quantities_gpu_new!(μs, wts, z_rot, ax_codes, Nϕ, Nθ_max,
 
             # loop over longitude subtiles
             for tj in j:j+l-1
-                # get number of longitude tiles in course latitude slice
-                m = row + 1
-                N_θ_edges = Nθ[m] * Nsubgrid
-
                 # move on if we've looped past last longitude
                 if tj > N_θ_edges
                     continue
