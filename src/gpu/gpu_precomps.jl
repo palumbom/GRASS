@@ -339,10 +339,14 @@ function precompute_quantities_gpu_new!(μs, wts, z_rot, ax_codes, Nϕ, Nθ_max,
 
             # loop over longitude subtiles
             for tj in j:j+l-1
-                # get number of longitude tiles in course latitude slice
-                # m = CUDA.div(ti - 1, Nsubgrid) + 1
-                m = row + 1
-                N_θ_edges = Nθ[m] * Nsubgrid
+	    	# get number of longitude tiles in course latitude slice
+	    	m = row + 1
+		N_θ_edges = Nθ[m] * Nsubgrid
+
+		# move on if we've looped past last longitude
+	    	if tj > Nθ[m] * Nsubgrid
+		   continue
+		end
 
                 # get longitude subtile step size
                 dθ = (CUDA.deg2rad(360.0) - CUDA.deg2rad(0.0)) / (N_θ_edges)
