@@ -124,8 +124,11 @@ function disk_sim_gpu(spec::SpecParams{T1}, disk::DiskParams{T1}, soldata::GPUSo
         CUDA.unsafe_free!(widall_gpu)
         CUDA.unsafe_free!(depcontrast_gpu)
         CUDA.unsafe_free!(bisall_gpu)
+        CUDA.unsafe_free!(bisall_gpu)
         CUDA.unsafe_free!(intall_gpu)
-        CUDA.unsafe_free!(widall_gpu)
+        CUDA.unsafe_free!(bisall_gpu_loop)
+        CUDA.unsafe_free!(intall_gpu_loop)
+        CUDA.unsafe_free!(widall_gpu_loop)
     end
 
     # instruct the garbage collect to clean up GPU memory
