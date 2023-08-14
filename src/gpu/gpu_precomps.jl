@@ -318,12 +318,12 @@ function precompute_quantities_gpu_new!(μs, wts, z_rot, ax_codes, Nϕ, Nθ_max,
         # set up sum holders for scalars
         μ_sum = CUDA.zero(CUDA.eltype(μs))
         v_sum = CUDA.zero(CUDA.eltype(z_rot))
-        ld_sum = CUDA.zero(CUDA.eltype(ld))
-        dA_sum = CUDA.zero(CUDA.eltype(dA))
+        ld_sum = CUDA.zero(CUDA.eltype(wts))
+        dA_sum = CUDA.zero(CUDA.eltype(wts))
 
         # set up sum holders for vector components
-        x_sum = CUDA.zero(CUDA.eltype(xz))
-        z_sum = CUDA.zero(CUDA.eltype(xz))
+        x_sum = CUDA.zero(CUDA.eltype(μs))
+        z_sum = CUDA.zero(CUDA.eltype(μs))
 
         # initiate counter
         count = 0
@@ -331,7 +331,7 @@ function precompute_quantities_gpu_new!(μs, wts, z_rot, ax_codes, Nϕ, Nθ_max,
         # loop over subgrid
         for ti in i:i+k-1, tj in j:j+l-1
             # get latitude subtile step size
-            N_ϕ_edges = N * Nsubgrid
+            N_ϕ_edges = Nϕ * Nsubgrid
             dϕ = (CUDA.deg2rad(90.0) - CUDA.deg2rad(-90.0)) / (N_ϕ_edges)
 
             # get coordinates of latitude subtile center
