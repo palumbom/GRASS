@@ -48,7 +48,7 @@ function precompute_quantities_gpu!(disk::DiskParams{T1}, gpu_allocs::GPUAllocs{
     blocks1 = cld(Nsubgrid^2, prod(threads1))
     @cusync @captured @cuda threads=threads1 blocks=blocks1 average_subgrid_gpu!(μs_out, μs, wts_out, ld, dA,
                                                                                  z_rot_out, z_rot, xz,
-                                                                                 ax_codes, disk.N)
+                                                                                 ax_codes, disk.N, maximum(disk.Nθ))
 
     # instruct CUDA to free up unneeded memory
     @cusync begin
@@ -166,21 +166,22 @@ function precompute_quantities_gpu!(all_xz, μs, ld, dA, z_rot, N, Nsubgrid, Nθ
     return nothing
 end
 
-function average_subgrid_gpu!(μs_out, μs, wts_out, ld, dA, z_rot_out, z_rot, xz, ax_codes, N)
+function average_subgrid_gpu!(μs_out, μs, wts_out, ld, dA, z_rot_out, z_rot, xz, ax_codes, Nϕ, Nθ)
     # get indices from GPU blocks + threads
     idx = threadIdx().x + blockDim().x * (blockIdx().x-1)
     sdx = gridDim().x * blockDim().x
 
     # get number of elements along tile side
-    k = Int(CUDA.size(μs,1) / N)
+    k = Int(CUDA.size(μs,1) / Nϕ)
+    l = Int(CUDA.size(μs,2) / Nθ)
 
     # total number of elements output array
-    num_tiles = N^2
+    num_tiles = Nϕ *  Nθ
 
     for t in idx:sdx:num_tiles
         # get index for output array
-        row = (t - 1) ÷ N
-        col = (t - 1) % N
+        row = (t - 1) ÷ Nϕ
+        col = (t - 1) % Nθ
 
         # get indices for input array
         i = row * k + 1
