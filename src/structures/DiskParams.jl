@@ -33,6 +33,8 @@ function DiskParams(;N=275, Nt=NaN, radius=1.0, inclination=90.0, u1=0.4,
                      u2=0.26, A=14.713, B=-2.396, C=-1.787, Nsubgrid=40)
     # assertions and warnings
     @assert !isnan(Nt)
+    @assert Nsubgrid > 1
+
     if N != 275
         @warn "N should be set to 275 for physical validity!"
     end
