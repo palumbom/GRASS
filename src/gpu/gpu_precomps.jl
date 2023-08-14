@@ -299,8 +299,7 @@ function precompute_quantities_gpu_new!(μs, wts, z_rot, ax_codes, Nϕ, Nθ_max,
     sdx = gridDim().x * blockDim().x
 
     # get number of elements along tile side
-    k = Int(CUDA.size(μs,1) / Nϕ)
-    l = Int(CUDA.size(μs,2) / Nθ_max)
+    k = Nsubgrid
 
     # total number of elements output array
     num_tiles = Nϕ * Nθ_max
@@ -317,7 +316,7 @@ function precompute_quantities_gpu_new!(μs, wts, z_rot, ax_codes, Nϕ, Nθ_max,
 
         # get indices for input array
         i = row * k + 1
-        j = col * l + 1
+        j = col * k + 1
 
         # set up sum holders for scalars
         μ_sum = CUDA.zero(CUDA.eltype(μs))
@@ -342,7 +341,7 @@ function precompute_quantities_gpu_new!(μs, wts, z_rot, ax_codes, Nϕ, Nθ_max,
             ϕc = CUDA.deg2rad(-90.0) + (dϕ/2.0) + (ti - 1) * dϕ
 
             # loop over longitude subtiles
-            for tj in j:j+l-1
+            for tj in j:j+k-1
                 # move on if we've looped past last longitude
                 if tj > N_θ_edges
                     continue
