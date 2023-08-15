@@ -41,6 +41,11 @@ function DiskParams(;N=275, Nt=NaN, radius=1.0, inclination=90.0, u1=0.4,
         @warn "N should be set to 275 for physical validity!"
     end
 
+    if inclination == 0.0
+        @warn "Unresolved bug for i=0, setting i=1e-10"
+        inclination = 1e-10
+    end
+
     # get latitude grid edges and centers
     ϕe = range(deg2rad(-90.0), deg2rad(90.0), length=N+1)
     ϕc = get_grid_centers(ϕe)

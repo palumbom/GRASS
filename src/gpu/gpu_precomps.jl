@@ -34,7 +34,7 @@ function precompute_quantities_gpu!(disk::DiskParams{T1}, gpu_allocs::GPUAllocs{
 
     # compute geometric parameters, average over subtiles
     threads1 = 256
-    blocks1 = cld(disk.N * maximum(disk.Nθ), prod(threads1))
+    blocks1 = cld(Nϕ * Nθ_max, prod(threads1))
     @cusync @captured @cuda threads=threads1 blocks=blocks1 precompute_quantities_gpu!(μs_out, wts_out, z_rot_out,
                                                                                        ax_codes, Nϕ, Nθ_max, Nsubgrid,
                                                                                        Nθ, R_x, O⃗, ρs, A, B, C, v0, u1, u2)
@@ -107,7 +107,7 @@ function precompute_quantities_gpu!(μs, wts, z_rot, ax_codes, Nϕ, Nθ_max, Nsu
     for t in idx:sdx:num_tiles
         # get index for output array
         row = (t - 1) ÷ Nθ_max
-        col = (t - 1) % Nϕ
+        col = (t - 1) % Nθ_max
 
         # get indices for input array
         i = row * k + 1
@@ -184,6 +184,9 @@ function precompute_quantities_gpu!(μs, wts, z_rot, ax_codes, Nϕ, Nθ_max, Nsu
                 # get limb darkening
                 ld_sum += quad_limb_darkening(μ_sub, u1, u2)
 
+                # rotate the velocity vectors by inclination
+                d, e, f = rotate_vector_gpu(d, e, f, R_x)
+
                 # get vector pointing from observer to surface patch
                 a = x - O⃗[1]
                 b = y - O⃗[2]
@@ -193,7 +196,7 @@ function precompute_quantities_gpu!(μs, wts, z_rot, ax_codes, Nϕ, Nθ_max, Nsu
                 n1 = CUDA.sqrt(a^2.0 + b^2.0 + c^2.0)
                 n2 = CUDA.sqrt(d^2.0 + e^2.0 + f^2.0)
                 angle = (a * d + b * e + c * f) / (n1 * n2)
-                v_sum += n2 * angle
+                v_sum += (n2 * angle)
 
                 # get projected area element
                 dA_sum += (calc_dA_gpu(ρs, ϕc, dϕ, dθ) * CUDA.abs(a * x + b * y + c * z))
