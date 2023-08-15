@@ -24,18 +24,14 @@ using Interpolations
 using PrecompileTools
 
 # import specific methods
-import NaNMath: sum as nansum
 import Glob.glob
 import Dates.DateTime
+import NaNMath: sum as nansum
 import Polynomials: fit as pfit, coeffs
-import Base.Iterators: take, flatten, ProductIterator
 
 # abbreviations for commonly used types
 import Base: AbstractArray as AA
 import Base: AbstractFloat as AF
-
-# plots
-import PyPlot; plt = PyPlot; mpl = plt.matplotlib; plt.ioff()
 
 # configure directories
 include("config.jl")
