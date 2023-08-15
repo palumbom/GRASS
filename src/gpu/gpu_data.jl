@@ -1,4 +1,4 @@
-function find_nearest_ax_gpu(x::T, y::T) where T<:AbstractFloat
+function find_nearest_ax_gpu(x, y)
     if (CUDA.iszero(x) & CUDA.iszero(y))
         return 0 # center
     elseif y >= CUDA.abs(x)

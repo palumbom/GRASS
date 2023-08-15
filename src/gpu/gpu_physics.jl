@@ -27,7 +27,6 @@ function rotate_vector_gpu(x0, y0, z0, R_x)
     return x1, y1, z1
 end
 
-
 function rotation_period_gpu(ϕ, A, B, C)
     sinϕ = sin(ϕ)
     return 360.0/(A + B * sinϕ^2.0 + C * sinϕ^4.0)
@@ -35,4 +34,8 @@ end
 
 function calc_dA_gpu(ρs, ϕc, dϕ, dθ)
     return ρs^2.0 * CUDA.sin(π/2.0 - ϕc) * dϕ * dθ
+end
+
+function quad_limb_darkening_gpu(μ, u1, u2)
+    return 1.0 - u1 * (1.0 - μ) - u2 * (1.0 - μ)^2.0
 end
