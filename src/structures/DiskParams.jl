@@ -30,15 +30,19 @@ center vector.
 - `Nt::Integer=50`: Number of 15-second snapshots.
 - `Inclination::Float64`: Sky-plane inclination of stellar grid. 90.0 is equator-on.
 """
-function DiskParams(;N=275, Nt=NaN, radius=1.0, inclination=90.0, u1=0.4,
+function DiskParams(;N=197, Nt=NaN, radius=1.0, inclination=90.0, u1=0.4,
                      u2=0.26, vsini=2067.03346686649251345, A=14.713,
                      B=-2.396, C=-1.787, Nsubgrid=40)
     # assertions and warnings
     @assert !isnan(Nt)
-    @assert Nsubgrid > 1
 
-    if N != 275
-        @warn "N should be set to 275 for physical validity!"
+    if N != 197
+        @warn "N should be set to 197 for physical validity"
+    end
+
+    if Nsubgrid <= 1
+        @warn "Nsubgrid must be greater than 1"
+        @assert Nsubgrid > 1
     end
 
     if inclination == 0.0
