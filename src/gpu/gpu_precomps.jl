@@ -168,6 +168,7 @@ function precompute_quantities_gpu!(μs, wts, z_rot, ax_codes, Nϕ, Nθ_max, Nsu
 
                 # set magnitude by differential rotation
                 rp = (v0 / rotation_period_gpu(ϕc, A, B, C))
+                # rp = 33950.0/3e8 * (1.0 - A * sin(ϕc)^2.0)
                 d *= rp
                 e *= rp
 
@@ -182,7 +183,7 @@ function precompute_quantities_gpu!(μs, wts, z_rot, ax_codes, Nϕ, Nθ_max, Nsu
                 μ_sum += μ_sub
 
                 # get limb darkening
-                ld_sum += quad_limb_darkening(μ_sub, u1, u2)
+                ld_sum += quad_limb_darkening_gpu(μ_sub, u1, u2)
 
                 # rotate the velocity vectors by inclination
                 d, e, f = rotate_vector_gpu(d, e, f, R_x)
