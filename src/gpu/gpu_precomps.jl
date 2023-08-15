@@ -199,7 +199,10 @@ function precompute_quantities_gpu!(μs, wts, z_rot, ax_codes, Nϕ, Nθ_max, Nsu
                 v_sum += (n2 * angle)
 
                 # get projected area element
-                dA_sum += (calc_dA_gpu(ρs, ϕc, dϕ, dθ) * CUDA.abs(a * x + b * y + c * z))
+                dA = calc_dA_gpu(ρs, ϕc, dϕ, dθ)
+                dA *= CUDA.abs(a * x + b * y + c * z)
+                dA *= CUDA.sqrt(O⃗[1]^2.0 + O⃗[2]^2.0 + O⃗[3]^2.0)
+                dA_sum += dA
 
                 # sum on vector components
                 x_sum += x
