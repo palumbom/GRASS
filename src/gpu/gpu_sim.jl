@@ -66,11 +66,11 @@ function disk_sim_gpu(spec::SpecParams{T1}, disk::DiskParams{T1}, soldata::GPUSo
     # loop over time
     for t in 1:Nt
         # check the time indices
-        @cusync @captured @cuda threads=threads1 blocks=blocks1 check_tloop_gpu!(tloop, μs, dat_idx, lenall_gpu)
+        @cusync @captured @cuda threads=threads1 blocks=blocks1 check_tloop_gpu!(tloop, dat_idx, lenall_gpu)
 
         # don't synthesize spectrum if skip_times is true, but iterate t index
         if skip_times[t]
-            @cusync @captured @cuda threads=threads1 blocks=blocks1 iterate_tloop_gpu!(tloop, μs, dat_idx, lenall_gpu)
+            @cusync @captured @cuda threads=threads1 blocks=blocks1 iterate_tloop_gpu!(tloop, dat_idx, lenall_gpu)
             continue
         end
 
@@ -107,7 +107,7 @@ function disk_sim_gpu(spec::SpecParams{T1}, disk::DiskParams{T1}, soldata::GPUSo
         @cusync @inbounds outspec[:,t] .*= dropdims(Array(CUDA.sum(starmap, dims=(1,2))), dims=(1,2))
 
         # iterate tloop
-        @cusync @captured @cuda threads=threads1 blocks=blocks1 iterate_tloop_gpu!(tloop, μs, dat_idx, lenall_gpu)
+        @cusync @captured @cuda threads=threads1 blocks=blocks1 iterate_tloop_gpu!(tloop, dat_idx, lenall_gpu)
     end
 
     # ensure normalization

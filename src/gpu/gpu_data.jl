@@ -46,7 +46,7 @@ function find_data_index_gpu(μ, ax_val, disc_mu, disc_ax)
     return nothing
 end
 
-function iterate_tloop_gpu!(tloop, μs, dat_idx, lenall)
+function iterate_tloop_gpu!(tloop, dat_idx, lenall)
     # get indices from GPU blocks + threads
     idx = threadIdx().x + blockDim().x * (blockIdx().x-1)
     sdx = blockDim().x * gridDim().x
@@ -54,10 +54,10 @@ function iterate_tloop_gpu!(tloop, μs, dat_idx, lenall)
     sdy = blockDim().y * gridDim().y
 
     # parallelized loop over grid
-    for i in idx:sdx:CUDA.size(μs,1)
-        for j in idy:sdy:CUDA.size(μs,2)
+    for i in idx:sdx:CUDA.size(dat_idx,1)
+        for j in idy:sdy:CUDA.size(dat_idx,2)
             # move to next iter if off disk
-            if μs[i,j] <= 0.0
+            if CUDA.iszero(dat_idx[i,j])
                 continue
             end
 
@@ -73,7 +73,7 @@ function iterate_tloop_gpu!(tloop, μs, dat_idx, lenall)
     return nothing
 end
 
-function check_tloop_gpu!(tloop, μs, dat_idx, lenall)
+function check_tloop_gpu!(tloop, dat_idx, lenall)
     # get indices from GPU blocks + threads
     idx = threadIdx().x + blockDim().x * (blockIdx().x-1)
     sdx = blockDim().x * gridDim().x
@@ -81,10 +81,10 @@ function check_tloop_gpu!(tloop, μs, dat_idx, lenall)
     sdy = blockDim().y * gridDim().y
 
     # parallelized loop over grid
-    for i in idx:sdx:CUDA.size(μs,1)
-        for j in idy:sdy:CUDA.size(μs,2)
+    for i in idx:sdx:CUDA.size(dat_idx,1)
+        for j in idy:sdy:CUDA.size(dat_idx,2)
             # move to next iter if off disk
-            if μs[i,j] <= 0.0
+            if CUDA.iszero(dat_idx[i,j])
                 continue
             end
 
@@ -99,18 +99,17 @@ function check_tloop_gpu!(tloop, μs, dat_idx, lenall)
 end
 
 function generate_tloop_gpu!(tloop::AA{Int32,2}, gpu_allocs::GPUAllocs{T}, soldata::GPUSolarData{T}) where T<:AF
-    μs = gpu_allocs.μs
     dat_idx = gpu_allocs.dat_idx
     lenall = soldata.len
 
     threads1 = (16,16)
-    blocks1 = cld(prod(size(μs)), prod(threads1))
+    blocks1 = cld(prod(size(dat_idx)), prod(threads1))
 
-    @cusync @captured @cuda threads=threads1 blocks=blocks1 generate_tloop_gpu!(tloop, μs, dat_idx, lenall)
+    @cusync @captured @cuda threads=threads1 blocks=blocks1 generate_tloop_gpu!(tloop, dat_idx, lenall)
     return nothing
 end
 
-function generate_tloop_gpu!(tloop, μs, dat_idx, lenall)
+function generate_tloop_gpu!(tloop, dat_idx, lenall)
     # get indices from GPU blocks + threads
     idx = threadIdx().x + blockDim().x * (blockIdx().x-1)
     sdx = blockDim().x * gridDim().x
@@ -118,9 +117,9 @@ function generate_tloop_gpu!(tloop, μs, dat_idx, lenall)
     sdy = blockDim().y * gridDim().y
 
     # parallelized loop over grid
-    for i in idx:sdx:CUDA.size(μs,1)
-        for j in idy:sdy:CUDA.size(μs,2)
-            if μs[i,j] <= 0.0
+    for i in idx:sdx:CUDA.size(dat_idx,1)
+        for j in idy:sdy:CUDA.size(dat_idx,2)
+            if CUDA.iszero(dat_idx[i,j])
                 continue
             end
             idx = dat_idx[i,j]
