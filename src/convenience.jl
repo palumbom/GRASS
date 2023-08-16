@@ -30,20 +30,16 @@ function synth_cpu(spec::SpecParams{T}, disk::DiskParams{T}, seed_rng::Bool,
     tloop = zeros(Int, size(disk.θc))
     tloop_init = zeros(Int, size(tloop))
 
-    # allocate memory for spectra synthesis
-    wsp = GRASS.SynthWorkspace(disk)
+    # allocate memory for synthsis
     prof = ones(Nλ)
     outspec = ones(Nλ, Nt)
     outspec_temp = zeros(Nλ, Nt)
 
+    # pre-allocate memory and pre-compute geometric quantities
+    wsp = GRASS.SynthWorkspace(disk, verbose=verbose)
+
     # get number of calls to disk_sim needed
     templates = unique(spec.templates)
-
-    # pre-compute quantities to be re-used
-    if verbose
-        println("\t>>> Precomputing geometric quantities...")
-    end
-    precompute_quantities!(wsp, disk)
 
     # run the simulation (outspec modified in place)
     for (idx, file) in enumerate(templates)
@@ -104,14 +100,8 @@ function synth_gpu(spec::SpecParams{T}, disk::DiskParams{T}, seed_rng::Bool,
     # get number of calls to disk_sim needed
     templates = unique(spec.templates)
 
-    # pre-allocate memory for gpu
-    gpu_allocs = GPUAllocs(spec, disk, precision=precision)
-
-    # pre-compute quantities to be re-used
-    if verbose
-        println("\t>>> Precomputing geometric quantities...")
-    end
-    precompute_quantities_gpu!(disk, gpu_allocs)
+    # pre-allocate memory for gpu and pre-compute geometric quantities
+    gpu_allocs = GPUAllocs(spec, disk, precision=precision, verbose=verbose)
 
     # allocate additional memory if generating random numbers on the cpu
     if seed_rng

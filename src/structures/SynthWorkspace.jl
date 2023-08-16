@@ -16,7 +16,7 @@ struct SynthWorkspace{T<:AF}
     keys::AA{Tuple{Symbol, Symbol},2}
 end
 
-function SynthWorkspace(disk::DiskParams; ndepths::Integer=100)
+function SynthWorkspace(disk::DiskParams; ndepths::Integer=100, verbose::Bool=true)
     # allocate the needed memory for synthesis
     lwavgrid = zeros(ndepths)
     rwavgrid = zeros(ndepths)
@@ -35,6 +35,12 @@ function SynthWorkspace(disk::DiskParams; ndepths::Integer=100)
     z_rot = zeros(size(disk.θc))
     ax_codes = zeros(Int, size(disk.θc))
     keys = repeat([(:off,:off)], size(disk.θc)...)
+
+    # pre-compute quantities to be re-used
+    if verbose
+        println("\t>>> Precomputing geometric quantities...")
+    end
+    precompute_quantities!(disk, μs, ld, dA, wts, z_rot, ax_codes)
 
     return SynthWorkspace(lwavgrid, rwavgrid, allwavs,
                           allints, bist, intt, widt, μs,

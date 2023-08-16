@@ -1,6 +1,8 @@
-function precompute_quantities_gpu!(disk::DiskParams{T1}, gpu_allocs::GPUAllocs{T2}) where {T1<:AF, T2<:AF}
+function precompute_quantities_gpu!(disk::DiskParams{T1}, μs::CuArray{T2,2},
+                                    wts::CuArray{T2,2}, z_rot::CuArray{T2,2},
+                                    ax_codes::CuArray{Int32,2}) where {T1<:AF, T2<:AF}
     # get precision from GPU allocs
-    precision = eltype(gpu_allocs.λs)
+    precision = eltype(μs)
 
     # convert scalars from disk params to desired precision
     ρs = convert(precision, disk.ρs)
@@ -26,18 +28,12 @@ function precompute_quantities_gpu!(disk::DiskParams{T1}, gpu_allocs::GPUAllocs{
         R_x = CuArray{precision}(disk.R_x)
     end
 
-    # alias from GPU allocs
-    μs_out = gpu_allocs.μs
-    wts_out = gpu_allocs.wts
-    z_rot_out = gpu_allocs.z_rot
-    ax_codes = gpu_allocs.ax_codes
-
     # compute geometric parameters, average over subtiles
     threads1 = 256
     blocks1 = cld(Nϕ * Nθ_max, prod(threads1))
-    @cusync @captured @cuda threads=threads1 blocks=blocks1 precompute_quantities_gpu!(μs_out, wts_out, z_rot_out,
-                                                                                       ax_codes, Nϕ, Nθ_max, Nsubgrid,
-                                                                                       Nθ, R_x, O⃗, ρs, A, B, C, v0, u1, u2)
+    @cusync @captured @cuda threads=threads1 blocks=blocks1 precompute_quantities_gpu!(μs, wts, z_rot, ax_codes, Nϕ,
+                                                                                       Nθ_max, Nsubgrid, Nθ, R_x, O⃗,
+                                                                                       ρs, A, B, C, v0, u1, u2)
 
     CUDA.synchronize()
     return nothing
