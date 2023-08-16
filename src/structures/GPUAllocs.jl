@@ -16,7 +16,7 @@ struct GPUAllocs{T1<:AF}
     allints::CuArray{T1,3}
 end
 
-function GPUAllocs(spec::SpecParams, disk::DiskParams; precision::DataType=Float64)
+function GPUAllocs(spec::SpecParams, disk::DiskParams; precision::DataType=Float64, verbose::Bool=true)
     # get dimensions for memory alloc
     N = disk.N
     Nt = disk.Nt
@@ -30,15 +30,24 @@ function GPUAllocs(spec::SpecParams, disk::DiskParams; precision::DataType=Float
         O⃗_gpu = CuArray{precision}(disk.O⃗)
     end
 
-    # allocate memory for synthesis on the GPU
+    # pre-compute quantities to be re-used
+    if verbose
+        println("\t>>> Precomputing geometric quantities...")
+    end
+
+    # allocate memory for pre-computations
     @cusync begin
-        # redshifts, weights, μs
         μs = CUDA.zeros(precision, size(disk.θc))
         wts = CUDA.zeros(precision, size(disk.θc))
         z_rot = CUDA.zeros(precision, size(disk.θc))
         z_cbs = CUDA.zeros(precision, size(disk.θc))
         ax_code = CUDA.zeros(Int32, size(disk.θc))
+    end
 
+    precompute_quantities_gpu!(disk, μs, wts, z_rot, ax_code)
+
+    # allocate memory for synthesis on the GPU
+    @cusync begin
         # indices
         tloop_gpu = CUDA.zeros(Int32, size(disk.θc))
         tloop_init = CUDA.zeros(Int32, size(disk.θc))

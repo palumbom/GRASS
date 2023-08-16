@@ -1,14 +1,16 @@
-function precompute_quantities!(wsp::SynthWorkspace{T}, disk::DiskParams{T}) where T<:AF
+function precompute_quantities!(disk::DiskParams{T}, μs::AA{T,2}, ld::AA{T,2},
+                                dA::AA{T,2}, wts::AA{T,2}, z_rot::AA{T,2},
+                                ax_codes::AA{Int64, 2}) where T<:AF
     # parse out composite type fields
     Nsubgrid = disk.Nsubgrid
 
     # allocate memory that wont be needed outside this function
-    μs = zeros(Nsubgrid, Nsubgrid)
-    ld = zeros(Nsubgrid, Nsubgrid)
-    dA = zeros(Nsubgrid, Nsubgrid)
-    xyz = repeat([zeros(3)], Nsubgrid, Nsubgrid)
-    z_rot = zeros(Nsubgrid, Nsubgrid)
-    idx = BitMatrix(undef, size(μs))
+    μs_sub = zeros(Nsubgrid, Nsubgrid)
+    ld_sub = zeros(Nsubgrid, Nsubgrid)
+    dA_sub = zeros(Nsubgrid, Nsubgrid)
+    xyz_sub = repeat([zeros(3)], Nsubgrid, Nsubgrid)
+    z_rot_sub = zeros(Nsubgrid, Nsubgrid)
+    idx = BitMatrix(undef, size(μs_sub))
 
     # loop over disk positions
     for i in eachindex(disk.ϕc)
@@ -21,44 +23,44 @@ function precompute_quantities!(wsp::SynthWorkspace{T}, disk::DiskParams{T}) whe
             subgrid = Iterators.product(ϕc_sub, θc_sub)
 
             # get cartesian coord for each subgrid and rotate by rot. matrix
-            xyz .= map(x -> sphere_to_cart.(disk.ρs, x...), subgrid)
-            xyz .= map(x -> disk.R_x * x, xyz)
+            xyz_sub .= map(x -> sphere_to_cart.(disk.ρs, x...), subgrid)
+            xyz_sub .= map(x -> disk.R_x * x, xyz_sub)
 
             # calculate mu at each point
-            μs .= map(x -> calc_mu(x, disk.O⃗), xyz)
+            μs_sub .= map(x -> calc_mu(x, disk.O⃗), xyz_sub)
 
             # move to next iteration if patch element is not visible
-            all(μs .<= zero(T)) && continue
+            all(μs_sub .<= zero(T)) && continue
 
             # assign the mean mu as the mean of visible mus
-            idx .= μs .> 0.0
-            wsp.μs[i,j] = mean(view(μs, idx))
+            idx .= μs_sub .> 0.0
+            μs[i,j] = mean(view(μs_sub, idx))
 
             # find xz at mean value of mu and get axis code (i.e., N, E, S, W)
-            mean_x = mean(view(getindex.(xyz,1), idx))
-            mean_z = mean(view(getindex.(xyz,3), idx))
-            wsp.ax_codes[i,j] = find_nearest_ax_code(mean_x, mean_z)
+            mean_x = mean(view(getindex.(xyz_sub,1), idx))
+            mean_z = mean(view(getindex.(xyz_sub,3), idx))
+            ax_codes[i,j] = find_nearest_ax_code(mean_x, mean_z)
 
             # calc limb darkening
-            ld .= map(x -> quad_limb_darkening(x, disk.u1, disk.u2), μs)
+            ld_sub .= map(x -> quad_limb_darkening(x, disk.u1, disk.u2), μs_sub)
 
             # get rotational velocity for location on disk
-            z_rot .= map(x -> patch_velocity_los(x..., disk), subgrid)
+            z_rot_sub .= map(x -> patch_velocity_los(x..., disk), subgrid)
 
             # calculate area element of tile
-            dA .= map(x -> calc_dA(disk.ρs, getindex(x,1), step(ϕe_sub), step(θe_sub)), subgrid)
-            dp = map(x -> abs(dot(x .- disk.O⃗, x)), xyz) / norm(disk.O⃗)
+            dA_sub .= map(x -> calc_dA(disk.ρs, getindex(x,1), step(ϕe_sub), step(θe_sub)), subgrid)
+            dp = map(x -> abs(dot(x .- disk.O⃗, x)), xyz_sub) / norm(disk.O⃗)
 
             # get total projected, visible area of larger tile
-            dA_total = sum(view(dA, idx))
-            dA_total_proj = sum(view(dA .* dp, idx))
+            dA_total = sum(view(dA_sub, idx))
+            dA_total_proj = sum(view(dA_sub .* dp, idx))
 
             # copy to workspace
-            wsp.ld[i,j] = mean(view(ld, idx))
-            wsp.dA[i,j] = dA_total_proj
+            ld[i,j] = mean(view(ld_sub, idx))
+            dA[i,j] = dA_total_proj
 
-            wsp.wts[i,j] = mean(view(ld .* dA_total_proj, idx))
-            wsp.z_rot[i,j] = mean(view(z_rot, idx))
+            wts[i,j] = mean(view(ld_sub .* dA_total_proj, idx))
+            z_rot[i,j] = mean(view(z_rot_sub, idx))
         end
     end
     return nothing
