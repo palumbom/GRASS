@@ -44,16 +44,21 @@ function GPUAllocs(spec::SpecParams, disk::DiskParams; precision::DataType=Float
         ax_code = CUDA.zeros(Int32, size(disk.θc))
     end
 
+    # perform the pre-computations
     precompute_quantities_gpu!(disk, μs, wts, z_rot, ax_code)
 
-    # allocate memory for synthesis on the GPU
+    # get number of non-zero elements
+    # @cusync n_elements = CUDA.prod(CUDA.size(wts)) - CUDA.sum(CUDA.iszero.(wts))
+
+    # allocate memory for indices
     @cusync begin
-        # indices
         tloop_gpu = CUDA.zeros(Int32, size(disk.θc))
         tloop_init = CUDA.zeros(Int32, size(disk.θc))
         dat_idx = CUDA.zeros(Int32, size(disk.θc))
+    end
 
-        # pre-allocated memory for interpolations
+    # allocated memory for synthesis
+    @cusync begin
         starmap = CUDA.ones(precision, size(disk.θc)..., Nλ)
         allwavs = CUDA.zeros(precision, size(disk.θc)..., 200)
         allints = CUDA.zeros(precision, size(disk.θc)..., 200)

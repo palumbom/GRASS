@@ -94,7 +94,7 @@ function disk_sim_gpu(spec::SpecParams{T1}, disk::DiskParams{T1}, soldata::GPUSo
 
             # assemble line shape on even int grid
             @cusync @captured @cuda threads=threads3 blocks=blocks3 fill_workspaces!(spec.lines[l], spec.variability[l],
-                                                                                     extra_z[l], μs, tloop, dat_idx,
+                                                                                     extra_z[l], tloop, dat_idx,
                                                                                      z_rot, z_cbs, bisall_gpu_loop,
                                                                                      intall_gpu_loop, widall_gpu_loop,
                                                                                      allwavs, allints)

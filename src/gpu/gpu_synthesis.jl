@@ -1,4 +1,4 @@
-function fill_workspaces!(line, variability, extra_z, μs, tloop, data_inds, z_rot,
+function fill_workspaces!(line, variability, extra_z, tloop, dat_idx, z_rot,
                           z_cbs, bisall, intall, widall, allwavs, allints)
     # get indices from GPU blocks + threads
     idx = threadIdx().x + blockDim().x * (blockIdx().x-1)
@@ -9,12 +9,16 @@ function fill_workspaces!(line, variability, extra_z, μs, tloop, data_inds, z_r
     sdz = blockDim().z * gridDim().z
 
     # parallelized loop over grid
-    for i in idx:sdx:CUDA.size(μs,1)
-        for j in idy:sdy:CUDA.size(μs,2)
+    for i in idx:sdx:CUDA.size(dat_idx,1)
+        for j in idy:sdy:CUDA.size(dat_idx,2)
             # move to next iter if off disk
-            if μs[i,j] <= 0.0
+            d_idx = dat_idx[i,j]
+            if CUDA.iszero(d_idx)
                 continue
             end
+
+            # alias time index
+            t = tloop[i,j]
 
             # calculate shifted line center
             λΔD = line * (1.0 + z_rot[i,j]) * (1.0 + z_cbs[i,j] * variability) * (1.0 + extra_z)
@@ -27,13 +31,13 @@ function fill_workspaces!(line, variability, extra_z, μs, tloop, data_inds, z_r
                 idx2 = lent - (k - 1)
 
                 # slice out the correct views of the input data for position
-                @inbounds bis1 = bisall[idx1, tloop[i,j], data_inds[i,j]]
-                @inbounds wid1 = widall[idx1, tloop[i,j], data_inds[i,j]]
-                @inbounds int1 = intall[idx1, tloop[i,j], data_inds[i,j]]
+                @inbounds bis1 = bisall[idx1, t, d_idx]
+                @inbounds wid1 = widall[idx1, t, d_idx]
+                @inbounds int1 = intall[idx1, t, d_idx]
 
-                @inbounds bis2 = bisall[idx2, tloop[i,j], data_inds[i,j]]
-                @inbounds wid2 = widall[idx2, tloop[i,j], data_inds[i,j]]
-                @inbounds int2 = intall[idx2, tloop[i,j], data_inds[i,j]]
+                @inbounds bis2 = bisall[idx2, t, d_idx]
+                @inbounds wid2 = widall[idx2, t, d_idx]
+                @inbounds int2 = intall[idx2, t, d_idx]
 
                 # right side of line, indexing from middle left to right
                 @inbounds allwavs[i,j,k+lent] = (λΔD + (0.5 * wid1 + bis1))
