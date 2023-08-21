@@ -80,3 +80,7 @@ unzip(A) = (getfield.(A,x) for x in fieldnames(eltype(A)))
 function moving_average(a::AA{T,1}, n::Int) where T<:AF
     return imfilter(a, ones(n)/n)
 end
+
+function moving_average(a::AA{T,2}, n::Int) where T<:AF
+    return hcat(map(x -> moving_average(x, n), eachcol(a))...)
+end
