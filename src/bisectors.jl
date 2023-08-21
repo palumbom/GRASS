@@ -171,7 +171,7 @@ function calc_bisector(wavs::AA{T,1}, flux::AA{T,1}; kwargs...) where T<:Real
     # check lengths
     @assert length(wavs) == length(flux)
 
-    # define the function to calculate widths
+    # define the function to calculate bisectors
     f = (x, y) -> (y + x) / 2.0
     wav, bis = calc_line_quantity(wavs, flux, f=f; kwargs...)
     return wav, bis
