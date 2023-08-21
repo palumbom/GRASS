@@ -33,9 +33,6 @@ import Base.Iterators: take, flatten, ProductIterator
 import Base: AbstractArray as AA
 import Base: AbstractFloat as AF
 
-# plots
-import PyPlot; plt = PyPlot; mpl = plt.matplotlib; plt.ioff()
-
 # configure directories
 include("config.jl")
 
