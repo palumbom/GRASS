@@ -17,17 +17,18 @@ using StatsBase
 using DataFrames
 using Statistics
 using Polynomials
+using LinearAlgebra
 using Distributions
 using ImageFiltering
 using Interpolations
 using PrecompileTools
+using OrderedCollections
 
 # import specific methods
-import NaNMath: sum as nansum
 import Glob.glob
 import Dates.DateTime
+import NaNMath: sum as nansum
 import Polynomials: fit as pfit, coeffs
-import Base.Iterators: take, flatten, ProductIterator
 
 # abbreviations for commonly used types
 import Base: AbstractArray as AA
@@ -38,6 +39,7 @@ include("config.jl")
 
 # ancillary functions + constants
 include("utils.jl")
+include("gpu/gpu_utils.jl")
 include("constants.jl")
 include("interpolate.jl")
 
@@ -56,6 +58,7 @@ include("bisectors.jl")
 include("trim.jl")
 include("synthesize.jl")
 include("disk_sim.jl")
+include("disk_precomps.jl")
 
 # processing spectra
 include("velocities.jl")
@@ -72,10 +75,9 @@ include("observing/signaltonoise.jl")
 include("observing/ObservationPlan.jl")
 
 # gpu implementation
-include("gpu/gpu_utils.jl")
-include("gpu/gpu_allocs.jl")
 include("gpu/gpu_physics.jl")
 include("gpu/gpu_data.jl")
+include("gpu/gpu_precomps.jl")
 include("gpu/gpu_trim.jl")
 include("gpu/gpu_sim.jl")
 include("gpu/gpu_synthesis.jl")

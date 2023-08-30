@@ -1,55 +1,4 @@
-function sort_data_for_gpu(soldata::SolarData{T}) where T<:AbstractFloat
-    # collect attributes that are 1D arrays
-    len = collect(values(soldata.len))
-    cbs = collect(values(soldata.cbs))
-    dep_contrast = collect(values(soldata.dep_contrast))
-
-    # allocate memory for bisector + width data
-    npositions = length(len)
-    bis = zeros(100, maximum(len), npositions)
-    int = zeros(100, maximum(len), npositions)
-    wid = zeros(100, maximum(len), npositions)
-    for (ind,(key,val)) in enumerate(soldata.len)
-        bis[:, 1:val, ind] .= soldata.bis[key]
-        int[:, 1:val, ind] .= soldata.int[key]
-        wid[:, 1:val, ind] .= soldata.wid[key]
-    end
-
-    # get the value of mu and ax codes
-    disc_ax = parse_ax_string.(getindex.(keys(soldata.len),1))
-    disc_mu = parse_mu_string.(getindex.(keys(soldata.len),2))
-
-    # get indices to sort by mus
-    inds_mu = sortperm(disc_mu)
-    disc_mu .= disc_mu[inds_mu]
-    disc_ax .= disc_ax[inds_mu]
-
-    # get the arrays in mu sorted order
-    len .= len[inds_mu]
-    cbs .= cbs[inds_mu]
-    dep_contrast .= dep_contrast[inds_mu]
-    bis .= view(bis, :, :, inds_mu)
-    int .= view(int, :, :, inds_mu)
-    wid .= view(wid, :, :, inds_mu)
-
-    # get indices to sort by axis within mu sort
-    for mu_val in unique(disc_mu)
-        inds1 = (disc_mu .== mu_val)
-        inds2 = sortperm(disc_ax[inds1])
-        disc_mu[inds1] .= disc_mu[inds1][inds2]
-        disc_ax[inds1] .= disc_ax[inds1][inds2]
-
-        len[inds1] .= len[inds1][inds2]
-        cbs[inds1] .= cbs[inds1][inds2]
-        dep_contrast[inds1] .= dep_contrast[inds1][inds2]
-        bis[:, :, inds1] .= bis[:, :, inds1][:, :, inds2]
-        int[:, :, inds1] .= int[:, :, inds1][:, :, inds2]
-        wid[:, :, inds1] .= wid[:, :, inds1][:, :, inds2]
-    end
-    return disc_mu, disc_ax, len, cbs, dep_contrast, bis, int, wid
-end
-
-function find_nearest_ax_gpu(x::T, y::T) where T<:AbstractFloat
+function find_nearest_ax_gpu(x, y)
     if (CUDA.iszero(x) & CUDA.iszero(y))
         return 0 # center
     elseif y >= CUDA.abs(x)
@@ -65,11 +14,14 @@ function find_nearest_ax_gpu(x::T, y::T) where T<:AbstractFloat
     end
 end
 
-function find_data_index_gpu(x, y, disc_mu, disc_ax)
+function find_data_index_gpu(μ, ax_val, disc_mu, disc_ax)
     # find the nearest mu ind and ax code
-    mu = calc_mu(x,y)
-    mu_ind = searchsortednearest_gpu(disc_mu, mu)
-    ax_val = find_nearest_ax_gpu(x, y)
+    mu_ind = searchsortednearest_gpu(disc_mu, μ)
+
+    # return immediately if nearest mu is disk center
+    if mu_ind == CUDA.length(disc_mu)
+        return CUDA.length(disc_mu)
+    end
 
     # find the first index of disc_mu with that discrete mu val
     i = 1
@@ -78,29 +30,23 @@ function find_data_index_gpu(x, y, disc_mu, disc_ax)
     end
     mu_ind = i
 
-    # calculate the data index
-    if mu_ind == CUDA.length(disc_mu)
-        # return immediately if nearest mu is disk center
-        return CUDA.length(disc_mu)
-    else
-        # otherwise we need the right axis value
-        mu_ind_orig = mu_ind
-        mu_val_orig = disc_mu[mu_ind_orig]
-        while ((disc_ax[mu_ind] != ax_val) & (disc_mu[mu_ind] == mu_val_orig))
-            mu_ind += 1
-        end
+    # get the right axis value
+    mu_ind_orig = mu_ind
+    mu_val_orig = disc_mu[mu_ind_orig]
+    while ((disc_ax[mu_ind] != ax_val) & (disc_mu[mu_ind] == mu_val_orig))
+        mu_ind += 1
+    end
 
-        # check that we haven't overflowed into the next batch of mus
-        if disc_mu[mu_ind] == mu_val_orig
-            return mu_ind
-        else
-            return mu_ind_orig
-        end
+    # check that we haven't overflowed into the next batch of mus
+    if disc_mu[mu_ind] == mu_val_orig
+        return mu_ind
+    else
+        return mu_ind_orig
     end
     return nothing
 end
 
-function iterate_tloop_gpu!(tloop, data_inds, lenall, grid)
+function iterate_tloop_gpu!(tloop, dat_idx, lenall)
     # get indices from GPU blocks + threads
     idx = threadIdx().x + blockDim().x * (blockIdx().x-1)
     sdx = blockDim().x * gridDim().x
@@ -108,18 +54,15 @@ function iterate_tloop_gpu!(tloop, data_inds, lenall, grid)
     sdy = blockDim().y * gridDim().y
 
     # parallelized loop over grid
-    for i in idx:sdx:CUDA.length(grid)
-        for j in idy:sdy:CUDA.length(grid)
-            # find position on disk and move to next iter if off disk
-            x = grid[i]
-            y = grid[j]
-            r2 = calc_r2(x, y)
-            if r2 > 1.0
+    for i in idx:sdx:CUDA.size(dat_idx,1)
+        for j in idy:sdy:CUDA.size(dat_idx,2)
+            # move to next iter if off disk
+            if CUDA.iszero(dat_idx[i,j])
                 continue
             end
 
             # check that tloop didn't overshoot the data and iterate
-            ntimes = lenall[data_inds[i,j]]
+            ntimes = lenall[dat_idx[i,j]]
             if tloop[i,j] < ntimes
                 @inbounds tloop[i,j] += 1
             else
@@ -130,47 +73,57 @@ function iterate_tloop_gpu!(tloop, data_inds, lenall, grid)
     return nothing
 end
 
-function initialize_arrays_for_gpu(tloop, data_inds, norm_terms, z_rot,
-                                   z_cbs, grid, disc_mu, disc_ax, lenall,
-                                   cbsall, u1, u2, polex, poley, polez)
+function check_tloop_gpu!(tloop, dat_idx, lenall)
     # get indices from GPU blocks + threads
     idx = threadIdx().x + blockDim().x * (blockIdx().x-1)
     sdx = blockDim().x * gridDim().x
     idy = threadIdx().y + blockDim().y * (blockIdx().y-1)
     sdy = blockDim().y * gridDim().y
 
-    # make some aliases
-    Ndisk = CUDA.length(grid)
-    rstar = CUDA.one(CUDA.eltype(grid))
-
     # parallelized loop over grid
-    for i in idx:sdx:CUDA.length(grid)
-        for j in idy:sdy:CUDA.length(grid)
-            # find position on disk and move to next iter if off disk
-            x = grid[i]
-            y = grid[j]
-            r2 = calc_r2(x, y)
-            if r2 > 1.0
+    for i in idx:sdx:CUDA.size(dat_idx,1)
+        for j in idy:sdy:CUDA.size(dat_idx,2)
+            # move to next iter if off disk
+            if CUDA.iszero(dat_idx[i,j])
                 continue
             end
 
-            # find the correct data index and
-            idx = find_data_index_gpu(x, y, disc_mu, disc_ax)
-            @inbounds data_inds[i,j] = idx
-
-            # initialize tloop value if not already set by CPU
-            if CUDA.iszero(tloop[i,j])
-                @inbounds tloop[i,j] = CUDA.floor(Int32, rand() * lenall[idx]) + 1
-            elseif tloop[i,j] > lenall[idx]
+            # check that tloop didn't overshoot the data and iterate
+            ntimes = lenall[dat_idx[i,j]]
+            if tloop[i,j] > ntimes
                 @inbounds tloop[i,j] = 1
             end
+        end
+    end
+    return nothing
+end
 
-            # calculate the normalization
-            @inbounds norm_terms[i,j] = calc_norm_term(x, y, Ndisk, u1, u2)
+function generate_tloop_gpu!(tloop::AA{Int32,2}, gpu_allocs::GPUAllocs{T}, soldata::GPUSolarData{T}) where T<:AF
+    dat_idx = gpu_allocs.dat_idx
+    lenall = soldata.len
 
-            # calculate the rotational and convective doppler shift
-            @inbounds z_rot[i,j] = patch_velocity_los_gpu(x, y, rstar, polex, poley, polez)
-            @inbounds z_cbs[i,j] = cbsall[idx]
+    threads1 = (16,16)
+    blocks1 = cld(prod(size(dat_idx)), prod(threads1))
+
+    @cusync @captured @cuda threads=threads1 blocks=blocks1 generate_tloop_gpu!(tloop, dat_idx, lenall)
+    return nothing
+end
+
+function generate_tloop_gpu!(tloop, dat_idx, lenall)
+    # get indices from GPU blocks + threads
+    idx = threadIdx().x + blockDim().x * (blockIdx().x-1)
+    sdx = blockDim().x * gridDim().x
+    idy = threadIdx().y + blockDim().y * (blockIdx().y-1)
+    sdy = blockDim().y * gridDim().y
+
+    # parallelized loop over grid
+    for i in idx:sdx:CUDA.size(dat_idx,1)
+        for j in idy:sdy:CUDA.size(dat_idx,2)
+            if CUDA.iszero(dat_idx[i,j])
+                continue
+            end
+            idx = dat_idx[i,j]
+            @inbounds tloop[i,j] = CUDA.floor(Int32, rand() * lenall[idx]) + 1
         end
     end
     return nothing
