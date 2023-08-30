@@ -5,7 +5,7 @@
     @test isdefined(GRASS, :calc_mu)
     @test isdefined(GRASS, :calc_dA)
     @test isdefined(GRASS, :sphere_to_cart)
-    @test isdefined(GRASS, :find_nearest_ax)
+    @test isdefined(GRASS, :find_nearest_ax_code)
     @test isdefined(GRASS, :get_grid_centers)
     @test isdefined(GRASS, :DiskParams)
     @test isdefined(GRASS, :SynthWorkspace)
@@ -28,7 +28,7 @@ end
 end
 
 @testset "Testing off-disk coordinate" begin
-    t = (1.25, 1.25)
+    O⃗ = [0.0, 1e6, 0.0]
     @test GRASS.calc_mu([0.0, -1.0, 0.0], O⃗) == -1.0
     @test iszero(GRASS.calc_mu([1.0, 0.0, 0.0], O⃗))
     @test iszero(GRASS.calc_mu([2.0, 0.0, 0.0], O⃗))

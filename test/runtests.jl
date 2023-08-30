@@ -3,7 +3,7 @@ using CUDA
 using Test
 
 # run the CPU tests
-# include("test_geometry.jl")
+include("test_geometry.jl")
 include("test_physics.jl")
 include("test_ccf.jl")
 include("test_interpolations.jl")
