@@ -165,13 +165,13 @@ function SolarData(fname::String; relative::Bool=true, extrapolate::Bool=true,
     end
 
     # make sure the keys of all dictionaries are sorted the same way
-    bisdict = Dict(sort(bisdict, by=x -> x[2]))
-    intdict = Dict(sort(intdict, by=x -> x[2]))
-    widdict = Dict(sort(widdict, by=x -> x[2]))
-    topdict = Dict(sort(topdict, by=x -> x[2]))
-    dep_contrast = Dict(sort(dep_contrast, by=x -> x[2]))
-    cbsdict = Dict(sort(cbsdict, by=x -> x[2]))
-    lendict = Dict(sort(lendict, by=x -> x[2]))
+    bisdict = Dict(sort!(OrderedDict(bisdict), by=x -> x[2]))
+    intdict = Dict(sort!(OrderedDict(intdict), by=x -> x[2]))
+    widdict = Dict(sort!(OrderedDict(widdict), by=x -> x[2]))
+    topdict = Dict(sort!(OrderedDict(topdict), by=x -> x[2]))
+    dep_contrast = Dict(sort!(OrderedDict(dep_contrast), by=x -> x[2]))
+    cbsdict = Dict(sort!(OrderedDict(cbsdict), by=x -> x[2]))
+    lendict = Dict(sort!(OrderedDict(lendict), by=x -> x[2]))
 
     # assertion to verify keys are the same
     @assert all(keys(bisdict) .== keys(dep_contrast))
