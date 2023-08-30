@@ -12,16 +12,12 @@ end
 
 @testset "Testing limb darkening" begin
     # disk center
-    t1 = (0.0, 0.0)
     u1 = 0.4
     u2 = 0.26
-    mu = GRASS.calc_mu(t1)
-    @test GRASS.quad_limb_darkening(mu, u1, u2) == 1.0
+    @test GRASS.quad_limb_darkening(1.0, u1, u2) == 1.0
 
     # off disk
-    t2 = (1.25, 1.25)
-    mu = GRASS.calc_mu(t2)
-    @test GRASS.quad_limb_darkening(mu, u1, u2) == 0.0
+    @test GRASS.quad_limb_darkening(-0.25, u1, u2) == 0.0
 
     # no LD
     u1 = 0.0
@@ -31,16 +27,19 @@ end
 end
 
 @testset "Testing rotational velocity" begin
-    # default pole
-    @test GRASS.patch_velocity_los(0.0, 0.0) == 0.0
-    @test GRASS.patch_velocity_los(1.0, 0.0) < 0.0
-    @test GRASS.patch_velocity_los(-1.0, 0.0) > 0.0
+    # set up disk params
+    disk90 = DiskParams(N=50, Nt=10, Nsubgrid=25, inclination=90.0)
+    disk00 = DiskParams(N=50, Nt=10, Nsubgrid=25, inclination=0.0)
 
-    # pole at face
-    pole = (0.0, 0.0, 1.0)
-    @test GRASS.patch_velocity_los(0.0, 0.0, pole=pole) == 0.0
-    @test GRASS.patch_velocity_los(1.0, 0.0, pole=pole) == 0.0
-    @test GRASS.patch_velocity_los(-1.0, 0.0, pole=pole) == 0.0
+    # test equator on
+    @test isapprox(GRASS.patch_velocity_los(deg2rad(90.0), deg2rad(270.0), disk90) * 3e8, 0.0, atol=1e-8)
+    @test isapprox(GRASS.patch_velocity_los(deg2rad(0.0), deg2rad(180), disk90) * 3e8, -2068.5, atol=1e-1)
+    @test isapprox(GRASS.patch_velocity_los(deg2rad(0.0), deg2rad(0.0), disk90) * 3e8, 2068.5, atol=1e-1)
+
+    # test pole on
+    @test isapprox(GRASS.patch_velocity_los(deg2rad(90.0), deg2rad(0.0), disk00) * 3e8, 0.0, atol=1e-8)
+    @test isapprox(GRASS.patch_velocity_los(deg2rad(0.0), deg2rad(180), disk00) * 3e8, 0.0, atol=1e-8)
+    @test isapprox(GRASS.patch_velocity_los(deg2rad(0.0), deg2rad(0.0), disk00) * 3e8, 0.0, atol=1e-8)
 end
 
 @testset "Testing Gaussian line" begin

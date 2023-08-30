@@ -26,6 +26,7 @@ end
 # Quadratic limb darkening law.
 # Takes μ = cos(heliocentric angle) and LD parameters, u1 and u2.
 function quad_limb_darkening(μ::T, u1::T, u2::T) where T<:AF
+    μ < zero(T) && return 0.0
     return !iszero(μ) * (one(T) - u1*(one(T)-μ) - u2*(one(T)-μ)^2)
 end
 
