@@ -22,6 +22,7 @@ using Distributions
 using ImageFiltering
 using Interpolations
 using PrecompileTools
+using OrderedCollections
 
 # import specific methods
 import Glob.glob
