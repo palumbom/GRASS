@@ -42,111 +42,61 @@ function time_loop_cpu(tloop::Int, prof::AA{T,1}, z_rot::T, z_cbs::T,
     return nothing
 end
 
-function calc_disk_avg_cbs(disk::DiskParams{T}, soldata::SolarData{T},
-                           grid::StepRangeLen, disc_mu::AA{T,1},
-                           disc_ax::AA{Int,1}) where T<:AF
-    # calculate normalization terms and get convective blueshifts
-    numer = 0
-    denom = 0
-    for i in eachindex(grid)
-        for j in eachindex(grid)
-            # get positiosns
-            x = grid[i]
-            y = grid[j]
-
-            # move to next iteration if off grid
-            (x^2 + y^2) > one(T) && continue
-
-            # get input data for place on disk
-            key = get_key_for_pos(x, y, disc_mu, disc_ax)
-
-            # calc limb darkening and get convective blueshift
-            norm_term = calc_norm_term(x, y, disk)
-            numer += soldata.cbs[key] * norm_term
-            denom += norm_term
-        end
-    end
-    return numer/denom, denom
-end
-
 function disk_sim(spec::SpecParams{T}, disk::DiskParams{T}, soldata::SolarData{T},
-                  prof::AA{T,1}, outspec::AA{T,2}, tloop::AA{Int,2}; verbose::Bool=true,
+                  wsp::SynthWorkspace, prof::AA{T,1}, outspec::AA{T,2},
+                  tloop::AA{Int,2}; verbose::Bool=true,
                   skip_times::BitVector=falses(disk.Nt)) where T<:AF
-    # make grid
-    grid = make_grid(N=disk.N)
-
     # set pre-allocations and make generator that will be re-used
     outspec .= zero(T)
-    wsp = SynthWorkspace()
     liter = 1:length(spec.lines); @assert length(liter) >= 1
 
-    # get the value of mu and ax codes
-    disc_ax = parse_ax_string.(getindex.(keys(soldata.len),1))
-    disc_mu = parse_mu_string.(getindex.(keys(soldata.len),2))
+    # get sum of weights
+    sum_wts = sum(wsp.wts)
+    z_cbs_avg = sum(wsp.wts .* wsp.cbs) / sum_wts
 
-    # get indices to sort by mus
-    inds_mu = sortperm(disc_mu)
-    disc_mu .= disc_mu[inds_mu]
-    disc_ax .= disc_ax[inds_mu]
+    # loop over grid position
+    for i in CartesianIndices(wsp.μs)
+        # move to next iteration if patch element is not visible
+        μc = wsp.μs[i]
+        μc <= zero(T) && continue
 
-    # get indices to sort by axis within mu sort
-    for mu_val in unique(disc_mu)
-        inds1 = (disc_mu .== mu_val)
-        inds2 = sortperm(disc_ax[inds1])
+        # get input data for place on disk
+        key = wsp.keys[i]
+        len = soldata.len[key]
 
-        disc_mu[inds1] .= disc_mu[inds1][inds2]
-        disc_ax[inds1] .= disc_ax[inds1][inds2]
-    end
+        # get total desired convective blueshift for line
+        z_cbs = wsp.cbs[i]
 
-    # get intensity-weighted disk-avereged convective blueshift
-    z_cbs_avg, sum_norm_terms = calc_disk_avg_cbs(disk, soldata, grid, disc_mu, disc_ax)
+        # get rotational shift
+        z_rot = wsp.z_rot[i]
 
-    # loop over grid positions
-    for i in eachindex(grid)
-        for j in eachindex(grid)
-            # get positiosns
-            x = grid[i]
-            y = grid[j]
-
-            # move to next iteration if off grid
-            (x^2 + y^2) > one(T) && continue
-
-            # get input data for place on disk
-            key = get_key_for_pos(x, y, disc_mu, disc_ax)
-            len = soldata.len[key]
-
-            # get total doppler shift for the line, and norm_term
-            z_cbs = soldata.cbs[key]
-            z_rot = patch_velocity_los(x, y, pole=disk.pole)
-            norm_term = calc_norm_term(x, y, disk)
-
-            # loop over time
-            for t in 1:disk.Nt
-                # check that tloop hasn't exceeded number of epochs
-                if tloop[i,j] > len
-                    tloop[i,j] = 1
-                end
-
-                # if skip times is true, continue to next iter
-                if skip_times[t]
-                    tloop[i,j] += 1
-                    continue
-                end
-
-                # update profile in place
-                time_loop_cpu(tloop[i,j], prof, z_rot, z_cbs, z_cbs_avg, key, liter, spec, soldata, wsp)
-
-                # apply normalization term and add to outspec
-                outspec[:,t] .+= (prof .* norm_term)
-
-                # iterate tloop
-                tloop[i,j] += 1
+        # loop over time
+        for t in 1:disk.Nt
+            # check that tloop hasn't exceeded number of epochs
+            if tloop[i] > len
+                tloop[i] = 1
             end
+
+            # if skip times is true, continue to next iter
+            if skip_times[t]
+                tloop[i] += 1
+                continue
+            end
+
+            # update flux profile in place
+            time_loop_cpu(tloop[i], prof, z_rot, z_cbs, z_cbs_avg,
+                          key, liter, spec, soldata, wsp)
+
+            # apply normalization term and add to outspec
+            outspec[:,t] .+= (prof .* wsp.wts[i])
+
+            # iterate tloop
+            tloop[i] += 1
         end
     end
 
     # divide by sum of weights
-    outspec ./= sum_norm_terms
+    outspec ./= sum_wts
 
     # set instances of outspec where skip is true to 0 and return
     outspec[:, skip_times] .= zero(T)

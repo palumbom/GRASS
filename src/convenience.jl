@@ -1,45 +1,3 @@
-function generate_tloop!(tloop::AA{Int,2}, grid::StepRangeLen, soldata::SolarData{T}) where T<:AF
-    # make sure dimensions are correct
-    @assert size(tloop) == (length(grid), length(grid))
-
-    # get the value of mu and ax codes
-    disc_ax = parse_ax_string.(getindex.(keys(soldata.len),1))
-    disc_mu = parse_mu_string.(getindex.(keys(soldata.len),2))
-
-    # get indices to sort by mus
-    inds_mu = sortperm(disc_mu)
-    disc_mu .= disc_mu[inds_mu]
-    disc_ax .= disc_ax[inds_mu]
-
-    # get indices to sort by axis within mu sort
-    for mu_val in unique(disc_mu)
-        inds1 = (disc_mu .== mu_val)
-        inds2 = sortperm(disc_ax[inds1])
-
-        disc_mu[inds1] .= disc_mu[inds1][inds2]
-        disc_ax[inds1] .= disc_ax[inds1][inds2]
-    end
-
-    for i in eachindex(grid)
-        for j in eachindex(grid)
-            # get positiosns
-            x = grid[i]
-            y = grid[j]
-
-            # move to next iteration if off grid
-            (x^2 + y^2) > one(T) && continue
-
-            # get input data for place on disk
-            key = get_key_for_pos(x, y, disc_mu, disc_ax)
-            len = soldata.len[key]
-
-            # generate random index
-            tloop[i,j] = floor(Int, rand() * len) + 1
-        end
-    end
-    return nothing
-end
-
 """
     synthesize_spectra(spec, disk; seed_rng=false, verbose=true, top=NaN)
 
@@ -68,42 +26,45 @@ function synth_cpu(spec::SpecParams{T}, disk::DiskParams{T}, seed_rng::Bool,
     Nt = disk.Nt
     Nλ = length(spec.lambdas)
 
-    # allocate memory needed
-    tloop_init = zeros(Int, N, N)
+    # allocate memory for time indices
+    tloop = zeros(Int, size(disk.θc))
+    tloop_init = zeros(Int, size(tloop))
+
+    # allocate memory for synthsis
+    prof = ones(Nλ)
     outspec = ones(Nλ, Nt)
+    outspec_temp = zeros(Nλ, Nt)
+
+    # pre-allocate memory and pre-compute geometric quantities
+    wsp = GRASS.SynthWorkspace(disk, verbose=verbose)
 
     # get number of calls to disk_sim needed
     templates = unique(spec.templates)
 
-    # get grid
-    grid = make_grid(N=disk.N)
-
-    # allocate memory for CPU
-    prof = ones(Nλ)
-    outspec_temp = zeros(Nλ, Nt)
-    tloop = zeros(Int, N, N)
-
     # run the simulation (outspec modified in place)
     for (idx, file) in enumerate(templates)
-        # re-seed the rng
-        if seed_rng
-            Random.seed!(42)
-        end
-
         # get temporary specparams with lines for this run
         spec_temp = SpecParams(spec, file)
 
         # load in the appropriate input data
         if verbose
-            println("\t>>> " * splitdir(file)[end])
+            println("\t>>> Template: " * splitdir(file)[end])
         end
         soldata = SolarData(fname=file)
+
+        # get conv. blueshift and keys from input data
+        get_keys_and_cbs!(wsp, soldata)
+
+        # re-seed the rng
+        if seed_rng
+            Random.seed!(42)
+        end
 
         # generate or copy tloop
         if (idx > 1) && in_same_group(templates[idx - 1], templates[idx])
             tloop .= tloop_init
         else
-            generate_tloop!(tloop_init, grid, soldata)
+            generate_tloop!(tloop_init, wsp, soldata)
             tloop .= tloop_init
         end
 
@@ -111,8 +72,8 @@ function synth_cpu(spec::SpecParams{T}, disk::DiskParams{T}, seed_rng::Bool,
         outspec_temp .= 0.0
 
         # run the simulation and multiply outspec by this spectrum
-        disk_sim(spec_temp, disk, soldata, prof, outspec_temp, tloop,
-                 skip_times=skip_times, verbose=verbose)
+        disk_sim(spec_temp, disk, soldata, wsp, prof, outspec_temp,
+                 tloop, skip_times=skip_times, verbose=verbose)
         outspec .*= outspec_temp
     end
     return spec.lambdas, outspec
@@ -134,45 +95,62 @@ function synth_gpu(spec::SpecParams{T}, disk::DiskParams{T}, seed_rng::Bool,
     Nλ = length(spec.lambdas)
 
     # allocate memory
-    tloop_init = zeros(Int, N, N)
     outspec = ones(Nλ, Nt)
 
     # get number of calls to disk_sim needed
     templates = unique(spec.templates)
 
-    # get grid
-    grid = make_grid(N=disk.N)
+    # pre-allocate memory for gpu and pre-compute geometric quantities
+    gpu_allocs = GPUAllocs(spec, disk, precision=precision, verbose=verbose)
 
-    # pre-allocate memory for gpu
-    gpu_allocs = GPUAllocs(spec, disk, grid, precision=precision)
+    # allocate additional memory if generating random numbers on the cpu
+    if seed_rng
+        tloop_init = zeros(Int, size(disk.θc))
+        keys_cpu = repeat([(:off,:off)], size(disk.θc)...)
+        @cusync μs_cpu = Array(gpu_allocs.μs)
+        @cusync cbs_cpu = Array(gpu_allocs.z_cbs)
+        @cusync ax_codes_cpu = convert.(Int64, Array(gpu_allocs.ax_codes))
+    else
+        tloop_init = gpu_allocs.tloop_init
+    end
 
     # run the simulation and return
     for (idx, file) in enumerate(templates)
-        # re-seed the rng
-        if seed_rng
-            Random.seed!(42)
-        end
-
         # get temporary specparams with lines for this run
         spec_temp = SpecParams(spec, file)
 
         # load in the appropriate input data
         if verbose
-            println("\t>>> " * splitdir(file)[end])
+            println("\t>>> Template: " * splitdir(file)[end])
         end
-        soldata = SolarData(fname=file)
+        soldata_cpu = SolarData(fname=file)
+        soldata = GPUSolarData(soldata_cpu, precision=precision)
+
+        # get conv. blueshift and keys from input data
+        get_keys_and_cbs_gpu!(gpu_allocs, soldata)
 
         # generate or copy tloop
         if (idx > 1) && in_same_group(templates[idx - 1], templates[idx])
             @cusync CUDA.copyto!(gpu_allocs.tloop, tloop_init)
         else
-            generate_tloop!(tloop_init, grid, soldata)
+            # generate either seeded rngs, or don't seed them on gpu
+            if seed_rng
+                # seed and generate the random number on the cpu
+                Random.seed!(42)
+                get_keys_and_cbs!(keys_cpu, μs_cpu, cbs_cpu, ax_codes_cpu, soldata_cpu)
+                generate_tloop!(tloop_init, μs_cpu, keys_cpu, soldata_cpu.len)
+            else
+                # generate the random numbers on the gpu
+                generate_tloop_gpu!(tloop_init, gpu_allocs, soldata)
+            end
+
+            # copy the random indices to GPU
             @cusync CUDA.copyto!(gpu_allocs.tloop, tloop_init)
         end
 
         # run the simulation and multiply outspec by this spectrum
-        disk_sim_gpu(spec_temp, disk, soldata, gpu_allocs, outspec, verbose=verbose,
-                     skip_times=skip_times, precision=precision)
+        disk_sim_gpu(spec_temp, disk, soldata, gpu_allocs, outspec,
+                     verbose=verbose, skip_times=skip_times)
     end
     return spec.lambdas, outspec
 end

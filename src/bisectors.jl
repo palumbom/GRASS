@@ -27,51 +27,17 @@ function calc_bisector_inverse_slope(bis::AA{T,2}, int::AA{T,2}) where T<:AF
 end
 
 
-function calculate_bisector_span(λrest::T, wav::AA{T,1}) where T<:AF
-    minw = minimum(filter(!isnan, wav))
-    return abs(minw - wav[5])/wav[5] * (c_ms)
+function calc_bisector_span(bis::AA{T,1}, int::AA{T,1}) where T<:AF
+    blue = minimum(bis)
+    core = bis[2]
+    return blue - core
 end
 
 
-function calculate_bisector_span(λrest::T, wav::AA{T,2}) where T<:AF
-    out = zeros(size(wav,2))
-    for i in eachindex(out)
-        out[i] = calculate_bisector_span(λrest, wav[:,i])
-    end
-    return out
-end
-
-
-function calculate_bisector_extreme(λrest::T, wav::AA{T,2}, bis::AA{T,2}) where T<:AF
-    out = zeros(size(wav,2))
-    for i in eachindex(out)
-        out[i] = calculate_bisector_extreme(λrest, wav[:,i], bis[:,i])
-    end
-    return out
-end
-
-
-function calculate_bisector_extreme(λrest::T, wav::AA{T,1}, bis::AA{T,1}) where T<:AF
-    ind1 = searchsortednearest(wav, 0.4)
-    ind2 = searchsortednearest(wav, 0.8)
-    wpos = mean(wav[ind1:ind2])
-    return (λrest - wpos)/λrest * c/100.0
-end
-
-
-function calculate_bisector_lslope(λrest::T, wav::AA{T,1}, bis::AA{T,1}) where T<:AF
-    dλ = (minimum(wav[.!isnan.(wav)]) - wav[1])/λrest * c/100.0
-    ind1 = findfirst(wav .== minimum(wav[.!isnan.(wav)]))
-
-    dF = bis[ind1] - bis[1]
-    return dF/dλ
-end
-
-
-function calculate_bisector_lslope(λrest::T, wav::AA{T,2}, bis::AA{T,2}) where T<:AF
-    out = zeros(size(wav,2))
-    for i in eachindex(out)
-        out[i] = calculate_bisector_lslope(λrest, wav[:,i], bis[:,i])
+function calc_bisector_span(bis::AA{T,2}, int::AA{T,2}) where T<:AF
+    out = zeros(size(bis,2))
+    for i in 1:size(bis,2)
+        out[i] = calc_bisector_span(bis[:,i], int[:,i])
     end
     return out
 end
@@ -171,7 +137,7 @@ function calc_bisector(wavs::AA{T,1}, flux::AA{T,1}; kwargs...) where T<:Real
     # check lengths
     @assert length(wavs) == length(flux)
 
-    # define the function to calculate widths
+    # define the function to calculate bisectors
     f = (x, y) -> (y + x) / 2.0
     wav, bis = calc_line_quantity(wavs, flux, f=f; kwargs...)
     return wav, bis

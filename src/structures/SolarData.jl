@@ -6,8 +6,8 @@ struct SolarData{T1<:AF}
     dep_contrast::Dict{Tuple{Symbol,Symbol}, T1}
     cbs::Dict{Tuple{Symbol,Symbol}, T1}
     len::Dict{Tuple{Symbol,Symbol}, Int}
-    ax::Array{Symbol,1}
-    mu::Array{Symbol,1}
+    ax::Array{Int,1}
+    mu::Array{T1,1}
 end
 
 """
@@ -54,8 +54,6 @@ function SolarData(fname::String; relative::Bool=true, extrapolate::Bool=true,
     widdict = Dict{Tuple{Symbol,Symbol}, AA{Float64,2}}()
     cbsdict = Dict{Tuple{Symbol,Symbol}, Float64}()
     lendict = Dict{Tuple{Symbol,Symbol}, Int}()
-    axs = []
-    mus = []
 
     # open the file
     h5open(fname, "r") do f
@@ -154,14 +152,8 @@ function SolarData(fname::String; relative::Bool=true, extrapolate::Bool=true,
                 wid .= wid[:,1]
                 widdict[Symbol(ax), Symbol(mu)] = wid
             end
-            push!(axs, ax)
-            push!(mus, mu)
         end
     end
-
-    # get key components
-    axs = Symbol.(unique(axs))
-    mus = Symbol.(sort!(unique(mus)))
 
     # compute mean depth at disk center
     dep_dc = mean(1.0 .- view(intdict[(:c, :mu10)], 1, :))
@@ -172,18 +164,36 @@ function SolarData(fname::String; relative::Bool=true, extrapolate::Bool=true,
         dep_contrast[k] = mean(1.0 .- view(intdict[k], 1, :)) / dep_dc
     end
 
-    # make sure the keys of all dictionaries are sorted
-    bisdict = Dict(sort(bisdict, by=x -> x[2]))
-    intdict = Dict(sort(intdict, by=x -> x[2]))
-    widdict = Dict(sort(widdict, by=x -> x[2]))
-    topdict = Dict(sort(topdict, by=x -> x[2]))
-    dep_contrast = Dict(sort(dep_contrast, by=x -> x[2]))
-    cbsdict = Dict(sort(cbsdict, by=x -> x[2]))
-    lendict = Dict(sort(lendict, by=x -> x[2]))
+    # make sure the keys of all dictionaries are sorted the same way
+    bisdict = Dict(sort!(OrderedDict(bisdict), by=x -> x[2]))
+    intdict = Dict(sort!(OrderedDict(intdict), by=x -> x[2]))
+    widdict = Dict(sort!(OrderedDict(widdict), by=x -> x[2]))
+    topdict = Dict(sort!(OrderedDict(topdict), by=x -> x[2]))
+    dep_contrast = Dict(sort!(OrderedDict(dep_contrast), by=x -> x[2]))
+    cbsdict = Dict(sort!(OrderedDict(cbsdict), by=x -> x[2]))
+    lendict = Dict(sort!(OrderedDict(lendict), by=x -> x[2]))
 
     # assertion to verify keys are the same
     @assert all(keys(bisdict) .== keys(dep_contrast))
 
+    # get mu and ax codes
+    disc_ax = parse_ax_string.(getindex.(keys(lendict),1))
+    disc_mu = parse_mu_string.(getindex.(keys(lendict),2))
+
+    # get indices to sort by mus
+    inds_mu = sortperm(disc_mu)
+    disc_mu .= disc_mu[inds_mu]
+    disc_ax .= disc_ax[inds_mu]
+
+    # get indices to sort by axis within mu sort
+    for mu_val in unique(disc_mu)
+        inds1 = (disc_mu .== mu_val)
+        inds2 = sortperm(disc_ax[inds1])
+
+        disc_mu[inds1] .= disc_mu[inds1][inds2]
+        disc_ax[inds1] .= disc_ax[inds1][inds2]
+    end
+
     # construct the composite tpye
-    return SolarData(bisdict, intdict, widdict, topdict, dep_contrast, cbsdict, lendict, axs, mus)
+    return SolarData(bisdict, intdict, widdict, topdict, dep_contrast, cbsdict, lendict, disc_ax, disc_mu)
 end
