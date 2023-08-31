@@ -1,3 +1,6 @@
+"""
+From Queloz et al. 2001
+"""
 function calc_bisector_inverse_slope(bis::AA{T,1}, int::AA{T,1}) where T<:AF
     @assert maximum(int) <= 1.0
     @assert minimum(int) >= 0.0
@@ -26,11 +29,13 @@ function calc_bisector_inverse_slope(bis::AA{T,2}, int::AA{T,2}) where T<:AF
     return out
 end
 
-
+"""
+From various (TODO)
+"""
 function calc_bisector_span(bis::AA{T,1}, int::AA{T,1}) where T<:AF
     blue = minimum(bis)
     core = bis[2]
-    return blue - core
+    return core - blue
 end
 
 
