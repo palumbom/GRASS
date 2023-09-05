@@ -44,7 +44,7 @@ end
 
 function disk_sim(spec::SpecParams{T}, disk::DiskParams{T}, soldata::SolarData{T},
                   wsp::SynthWorkspace, prof::AA{T,1}, outspec::AA{T,2},
-                  tloop::AA{Int,2}; verbose::Bool=true,
+                  tloop::AA{Int,1}; verbose::Bool=true,
                   skip_times::BitVector=falses(disk.Nt)) where T<:AF
     # set pre-allocations and make generator that will be re-used
     outspec .= zero(T)
