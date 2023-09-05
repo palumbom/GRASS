@@ -40,11 +40,11 @@ function SynthWorkspace(disk::DiskParams; ndepths::Integer=100, verbose::Bool=tr
     end
     precompute_quantities!(disk, μs, ld, dA, wts, z_rot, ax_codes)
 
-    # get number of nonzero wts
-    num_nonzero = prod(size(wts)) - sum(iszero.(wts))
+    # get indices with nonzero wts
+    idx = .!iszero.(wts)
+    num_nonzero = sum(idx)
 
     # get arrays of nonzero wts
-    idx = .!iszero.(wts)
     μs = μs[idx]
     ld = ld[idx]
     dA = dA[idx]
@@ -53,8 +53,8 @@ function SynthWorkspace(disk::DiskParams; ndepths::Integer=100, verbose::Bool=tr
     ax_codes = ax_codes[idx]
 
     # allocate additional memory
-    cbs = zeros(sum(idx))
-    keys = repeat([(:off,:off)], sum(idx))
+    cbs = zeros(num_nonzero)
+    keys = repeat([(:off,:off)], num_nonzero)
 
     return SynthWorkspace(lwavgrid, rwavgrid, allwavs,
                           allints, bist, intt, widt, μs,

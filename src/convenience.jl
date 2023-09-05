@@ -26,10 +26,6 @@ function synth_cpu(spec::SpecParams{T}, disk::DiskParams{T}, seed_rng::Bool,
     Nt = disk.Nt
     Nλ = length(spec.lambdas)
 
-    # allocate memory for time indices
-    tloop = zeros(Int, size(disk.θc))
-    tloop_init = zeros(Int, size(tloop))
-
     # allocate memory for synthsis
     prof = ones(Nλ)
     outspec = ones(Nλ, Nt)
@@ -37,6 +33,10 @@ function synth_cpu(spec::SpecParams{T}, disk::DiskParams{T}, seed_rng::Bool,
 
     # pre-allocate memory and pre-compute geometric quantities
     wsp = GRASS.SynthWorkspace(disk, verbose=verbose)
+
+    # allocate memory for time indices
+    tloop = zeros(Int, size(wsp.μs))
+    tloop_init = zeros(Int, size(tloop))
 
     # get number of calls to disk_sim needed
     templates = unique(spec.templates)

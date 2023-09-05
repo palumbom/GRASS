@@ -66,15 +66,15 @@ function precompute_quantities!(disk::DiskParams{T}, μs::AA{T,2}, ld::AA{T,2},
     return nothing
 end
 
-function generate_tloop!(tloop::AA{Int,2}, wsp::SynthWorkspace{T}, soldata::SolarData{T}) where T<:AF
+function generate_tloop!(tloop::AA{Int,1}, wsp::SynthWorkspace{T}, soldata::SolarData{T}) where T<:AF
     generate_tloop!(tloop, wsp.μs, wsp.keys, soldata.len)
     return nothing
 end
 
-function generate_tloop!(tloop::AA{Int,2}, μs::AA{T,2}, keys::AA{Tuple{Symbol, Symbol},2},
+function generate_tloop!(tloop::AA{Int,1}, μs::AA{T,1}, keys::AA{Tuple{Symbol, Symbol},1},
                          len::Dict{Tuple{Symbol, Symbol}, Int64}) where T<:AF
     # loop over μ positions
-    for i in CartesianIndices(μs)
+    for i in eachindex(μs)
         # move on if we are off the grid
         μs[i] <= zero(T) && continue
 
@@ -93,8 +93,8 @@ function get_keys_and_cbs!(wsp::SynthWorkspace{T}, soldata::SolarData{T}) where 
 end
 
 
-function get_keys_and_cbs!(keys::AA{Tuple{Symbol, Symbol},2}, μs::AA{T1,2}, cbs::AA{T1,2},
-                           ax_codes::AA{Int,2}, soldata::SolarData{T2}) where  {T1<:AF, T2<:AF}
+function get_keys_and_cbs!(keys::AA{Tuple{Symbol, Symbol},1}, μs::AA{T1,1}, cbs::AA{T1,1},
+                           ax_codes::AA{Int,1}, soldata::SolarData{T2}) where  {T1<:AF, T2<:AF}
     # get the mu and axis codes
     disc_mu = soldata.mu
     disc_ax = soldata.ax
@@ -103,7 +103,7 @@ function get_keys_and_cbs!(keys::AA{Tuple{Symbol, Symbol},2}, μs::AA{T1,2}, cbs
     disc_mu = convert.(T1, disc_mu)
 
     # loop over μ positions
-    for i in CartesianIndices(μs)
+    for i in eachindex(μs)
         # move on if we are off the grid
         μs[i] <= zero(T1) && continue
 
