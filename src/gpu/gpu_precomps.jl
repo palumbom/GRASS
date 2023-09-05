@@ -39,50 +39,6 @@ function precompute_quantities_gpu!(disk::DiskParams{T1}, μs::CuArray{T2,2},
     return nothing
 end
 
-function get_keys_and_cbs_gpu!(gpu_allocs::GPUAllocs{T}, soldata::GPUSolarData{T}) where T<:AF
-    # parse out gpu allocs
-    μs = gpu_allocs.μs
-    z_cbs = gpu_allocs.z_cbs
-    dat_idx = gpu_allocs.dat_idx
-    ax_codes = gpu_allocs.ax_codes
-
-    # parse out soldata
-    cbsall = soldata.cbs
-    disc_mu = soldata.mu
-    disc_ax = soldata.ax
-
-    threads1 = (16, 16)
-    blocks1 = cld(prod(size(μs)), prod(threads1))
-
-    @cusync @captured @cuda threads=threads1 blocks=blocks1 get_keys_and_cbs_gpu!(dat_idx, z_cbs, μs, ax_codes,
-                                                                                  cbsall, disc_mu, disc_ax)
-    CUDA.synchronize()
-    return nothing
-end
-
-function get_keys_and_cbs_gpu!(dat_idx, z_cbs, μs, ax_codes, cbsall, disc_mu, disc_ax)
-    # get indices from GPU blocks + threads
-    idx = threadIdx().x + blockDim().x * (blockIdx().x-1)
-    sdx = blockDim().x * gridDim().x
-    idy = threadIdx().y + blockDim().y * (blockIdx().y-1)
-    sdy = blockDim().y * gridDim().y
-
-    for i in idx:sdx:CUDA.size(μs,1)
-        for j in idy:sdy:CUDA.size(μs,2)
-            # move to next iter if off disk
-            if μs[i,j] <= 0.0
-                continue
-            end
-
-            # find the data index for location on disk
-            idx = find_data_index_gpu(μs[i,j], ax_codes[i,j], disc_mu, disc_ax)
-            @inbounds dat_idx[i,j] = idx
-            @inbounds z_cbs[i,j] = cbsall[idx]
-        end
-    end
-    return nothing
-end
-
 function precompute_quantities_gpu!(μs, wts, z_rot, ax_codes, Nϕ, Nθ_max, Nsubgrid,
                                     Nθ, R_x, O⃗, ρs, A, B, C, v0, u1, u2)
 # get indices from GPU blocks + threads
@@ -198,7 +154,7 @@ function precompute_quantities_gpu!(μs, wts, z_rot, ax_codes, Nϕ, Nθ_max, Nsu
                 # get projected area element
                 dA = calc_dA_gpu(ρs, ϕc, dϕ, dθ)
                 dA *= CUDA.abs(a * x + b * y + c * z)
-                dA *= CUDA.sqrt(O⃗[1]^2.0 + O⃗[2]^2.0 + O⃗[3]^2.0)
+                dA /= CUDA.sqrt(O⃗[1]^2.0 + O⃗[2]^2.0 + O⃗[3]^2.0)
                 dA_sum += dA
 
                 # sum on vector components
@@ -232,5 +188,50 @@ function precompute_quantities_gpu!(μs, wts, z_rot, ax_codes, Nϕ, Nθ_max, Nsu
             @inbounds ax_codes[row + 1, col + 1] = 0
         end
     end
+    return nothing
+end
 
+
+function get_keys_and_cbs_gpu!(gpu_allocs::GPUAllocs{T}, soldata::GPUSolarData{T}) where T<:AF
+    # parse out gpu allocs
+    μs = gpu_allocs.μs
+    z_cbs = gpu_allocs.z_cbs
+    dat_idx = gpu_allocs.dat_idx
+    ax_codes = gpu_allocs.ax_codes
+
+    # parse out soldata
+    cbsall = soldata.cbs
+    disc_mu = soldata.mu
+    disc_ax = soldata.ax
+
+    threads1 = (16, 16)
+    blocks1 = cld(prod(size(μs)), prod(threads1))
+
+    @cusync @captured @cuda threads=threads1 blocks=blocks1 get_keys_and_cbs_gpu!(dat_idx, z_cbs, μs, ax_codes,
+                                                                                  cbsall, disc_mu, disc_ax)
+    CUDA.synchronize()
+    return nothing
+end
+
+function get_keys_and_cbs_gpu!(dat_idx, z_cbs, μs, ax_codes, cbsall, disc_mu, disc_ax)
+    # get indices from GPU blocks + threads
+    idx = threadIdx().x + blockDim().x * (blockIdx().x-1)
+    sdx = blockDim().x * gridDim().x
+    idy = threadIdx().y + blockDim().y * (blockIdx().y-1)
+    sdy = blockDim().y * gridDim().y
+
+    for i in idx:sdx:CUDA.size(μs,1)
+        for j in idy:sdy:CUDA.size(μs,2)
+            # move to next iter if off disk
+            if μs[i,j] <= 0.0
+                continue
+            end
+
+            # find the data index for location on disk
+            idx = find_data_index_gpu(μs[i,j], ax_codes[i,j], disc_mu, disc_ax)
+            @inbounds dat_idx[i,j] = idx
+            @inbounds z_cbs[i,j] = cbsall[idx]
+        end
+    end
+    return nothing
 end
