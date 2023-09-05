@@ -105,8 +105,8 @@ function synth_gpu(spec::SpecParams{T}, disk::DiskParams{T}, seed_rng::Bool,
 
     # allocate additional memory if generating random numbers on the cpu
     if seed_rng
-        tloop_init = zeros(Int, size(disk.θc))
-        keys_cpu = repeat([(:off,:off)], size(disk.θc)...)
+        tloop_init = zeros(Int, CUDA.length(gpu_allocs.μs))
+        keys_cpu = repeat([(:off,:off)], CUDA.length(gpu_allocs.μs))
         @cusync μs_cpu = Array(gpu_allocs.μs)
         @cusync cbs_cpu = Array(gpu_allocs.z_cbs)
         @cusync ax_codes_cpu = convert.(Int64, Array(gpu_allocs.ax_codes))

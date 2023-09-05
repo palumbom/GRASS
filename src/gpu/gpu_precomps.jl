@@ -204,8 +204,8 @@ function get_keys_and_cbs_gpu!(gpu_allocs::GPUAllocs{T}, soldata::GPUSolarData{T
     disc_mu = soldata.mu
     disc_ax = soldata.ax
 
-    threads1 = (16, 16)
-    blocks1 = cld(prod(size(μs)), prod(threads1))
+    threads1 = 256
+    blocks1 = cld(length(μs), prod(threads1))
 
     @cusync @captured @cuda threads=threads1 blocks=blocks1 get_keys_and_cbs_gpu!(dat_idx, z_cbs, μs, ax_codes,
                                                                                   cbsall, disc_mu, disc_ax)
@@ -220,18 +220,15 @@ function get_keys_and_cbs_gpu!(dat_idx, z_cbs, μs, ax_codes, cbsall, disc_mu, d
     idy = threadIdx().y + blockDim().y * (blockIdx().y-1)
     sdy = blockDim().y * gridDim().y
 
-    for i in idx:sdx:CUDA.size(μs,1)
-        for j in idy:sdy:CUDA.size(μs,2)
-            # move to next iter if off disk
-            if μs[i,j] <= 0.0
-                continue
-            end
-
-            # find the data index for location on disk
-            idx = find_data_index_gpu(μs[i,j], ax_codes[i,j], disc_mu, disc_ax)
-            @inbounds dat_idx[i,j] = idx
-            @inbounds z_cbs[i,j] = cbsall[idx]
+    for i in idx:sdx:CUDA.length(μs)
+        if μs[i] <= 0.0
+            continue
         end
+
+        # find the data index for location on disk
+        idx = find_data_index_gpu(μs[i], ax_codes[i], disc_mu, disc_ax)
+        @inbounds dat_idx[i] = idx
+        @inbounds z_cbs[i] = cbsall[idx]
     end
     return nothing
 end
