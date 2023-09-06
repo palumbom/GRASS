@@ -2,37 +2,58 @@
 
 @testset "Testing function definitions" begin
     @test isdefined(GRASS, :make_grid)
-    @test isdefined(GRASS, :calc_r2)
     @test isdefined(GRASS, :calc_mu)
-    @test isdefined(GRASS, :find_nearest_mu)
-    @test isdefined(GRASS, :find_nearest_ax)
+    @test isdefined(GRASS, :calc_dA)
+    @test isdefined(GRASS, :sphere_to_cart)
+    @test isdefined(GRASS, :find_nearest_ax_code)
+    @test isdefined(GRASS, :get_grid_centers)
+    @test isdefined(GRASS, :DiskParams)
+    @test isdefined(GRASS, :SynthWorkspace)
+    @test isdefined(GRASS, :precompute_quantities!)
 end
 
 @testset "Testing back/forth conversions" begin
-    t = (0.75, 0.5)
-    @test (0.75^2 + 0.5^2) == GRASS.calc_r2(t)
-    @test sqrt(1.0 - GRASS.calc_r2(t)) == GRASS.calc_mu(t)
-    @test GRASS.make_grid(132) == GRASS.make_grid(N=132)
-    @test GRASS.calc_mu(t) == GRASS.calc_mu(t[1], t[2])
-    @test GRASS.calc_mu((0.0, 0.0)) == 1.0
-    @test GRASS.calc_mu((1.0, 2.5)) == 0.0
+    # set vectors
+    O⃗ = [0.0, 1e6, 0.0]
+
+    @test isnan(GRASS.calc_mu([0.0, 0.0, 0.0], O⃗))
+    @test isone(GRASS.calc_mu([0.0, 1.0, 0.0], O⃗))
+
+    @test isapprox(GRASS.sphere_to_cart(1.0, 0.0, 0.0), [1.0, 0.0, 0.0])
+    @test isapprox(GRASS.sphere_to_cart(1.0, deg2rad(90), 0.0), [0.0, 0.0, 1.0])
+    @test isapprox(GRASS.sphere_to_cart(1.0, 0.0, deg2rad(90)), [0.0, 1.0, 0.0])
+
+    xyz = GRASS.sphere_to_cart(1.0, deg2rad(45.0), deg2rad(45.0))
+    @test sqrt(1.0 - (xyz[1]^2.0 + xyz[3]^2.0)) == GRASS.calc_mu(xyz, O⃗)
 end
 
 @testset "Testing off-disk coordinate" begin
-    t = (1.25, 1.25)
-    @test iszero(GRASS.calc_mu(t))
-    @test GRASS.calc_r2(t) > one(eltype(t))
+    O⃗ = [0.0, 1e6, 0.0]
+    @test GRASS.calc_mu([0.0, -1.0, 0.0], O⃗) == -1.0
+    @test iszero(GRASS.calc_mu([1.0, 0.0, 0.0], O⃗))
+    @test iszero(GRASS.calc_mu([2.0, 0.0, 0.0], O⃗))
+    @test iszero(GRASS.calc_mu([0.0, 0.0, 1.0], O⃗))
 end
 
 @testset "Testing normalization" begin
-    N = 132
+    N = 50
+    Nsubgrid = 20
+    Nt = 1
     u1 = 0.0
     u2 = 0.0
+<<<<<<< HEAD
     @test GRASS.calc_norm_term(0.0, 0.0, N, u1, u2) == pi ./ (2.0 * N^2)
 
     # test summation of normalization terms
     norm2 = sum(GRASS.calc_norm_terms(N, u1, u2))
     @test isapprox(norm2, 1.0, atol=1e-6)
+=======
+
+    disk = DiskParams(N=N, Nt=Nt, Nsubgrid=Nsubgrid, u1=u1, u2=u2)
+    wsp = GRASS.SynthWorkspace(disk)
+
+    @test isapprox(sum(wsp.wts), π, atol=1e-5)
+>>>>>>> main
 end
 
 end

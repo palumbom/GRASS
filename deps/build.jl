@@ -13,10 +13,9 @@ elseif !isempty(soldir)
     mkdir(soldir)
 end
 
-download_url = "https://g-50c10.ffdaa9.e229.data.globus.org/GRASS_Input/input.tar.gz"
+download_url = "https://zenodo.org/record/8271417/files/input_data.tar.gz?download=1"
 download_loc = abspath(joinpath(datdir, "input.tar.gz"))
 
 download(download_url, download_loc)
-
 
 Tar.extract(download_loc, soldir)

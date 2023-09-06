@@ -10,7 +10,7 @@ struct LineProperties{T<:AF}
     file::AA{String,1}
 end
 
-function LineProperties(;dir=GRASS.soldir, exclude::AA{String,1}=["CI_5380", "FeI_5382", "NaI_5896"], verbose::Bool=false)
+function LineProperties(;dir=GRASS.soldir, exclude::AA{String,1}=["CI_5380", "NaI_5896"], verbose::Bool=false)
     @assert isdir(dir)
 
     # get list of files
@@ -50,7 +50,13 @@ function LineProperties(;dir=GRASS.soldir, exclude::AA{String,1}=["CI_5380", "Fe
             push!(upper_level, read(attr["upper_level"]))
         end
     end
-    return LineProperties(species, mass, depth, λrest, geff, height, lower_level, upper_level, filename)
+
+    # sort files by wavelength
+    idx = sortperm(λrest)
+
+    return LineProperties(species[idx], mass[idx], depth[idx], λrest[idx],
+                          geff[idx], height[idx], lower_level[idx],
+                          upper_level[idx], filename[idx])
 end
 
 get_species(lp::LineProperties) = lp.species

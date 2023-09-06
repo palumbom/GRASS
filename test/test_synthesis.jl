@@ -110,19 +110,18 @@ end
 
 @testset "Testing disk-integrated spectrum synthesis" begin
     # set params
-    N = 132
     Nt = 50
     res = 7e5
 
     # simulate spectra
     spec = SpecParams(lines=[5434.5], depths=[dep], resolution=res, templates=["FeI_5434"])
-    disk = DiskParams(N=N, Nt=Nt)
+    disk = DiskParams(Nt=Nt)
     wavs, flux = synthesize_spectra(spec, disk, verbose=false)
 
     # ensure spectra have correct properties
     @test size(flux,2) == Nt
-    @test maximum(flux[:,1]) == 1.0
-    @test isapprox(minimum(flux[:,1]), 1.0 - dep, atol=1e-1)
+    @test all(isapprox.(maximum(flux, dims=1), 1.0, atol=1e-8))
+    @test all(isapprox.(minimum(flux, dims=1), 1.0 - dep[1], atol=1e-1))
 
     # get velocities
     v_grid, ccf1 = calc_ccf(wavs, flux, spec, normalize=true)
