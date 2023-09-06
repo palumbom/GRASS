@@ -58,14 +58,28 @@ function GPUAllocs(spec::SpecParams, disk::DiskParams; precision::DataType=Float
     @cusync ax_code = CUDA.reshape(ax_code, num_tiles)
 
     # get indices with nonzero wts
-    @cusync idx = wts .!= 0.0
+    @cusync idx = μs .> 0.0
     @cusync num_nonzero = CUDA.sum(idx)
 
-    # filter nonzero weights
-    μs = filter_array_gpu(μs, idx)
-    wts = filter_array_gpu(wts, idx)
-    z_rot = filter_array_gpu(z_rot, idx)
-    ax_code = filter_array_gpu(ax_code, idx)
+    @cusync begin
+        μs_new = CUDA.zeros(precision, CUDA.sum(idx))
+        wts_new = CUDA.zeros(precision, CUDA.sum(idx))
+        z_rot_new = CUDA.zeros(precision, CUDA.sum(idx))
+        ax_code_new = CUDA.zeros(Int32, CUDA.sum(idx))
+    end
+
+    # launch the kernel
+    @cusync @cuda filter_array_gpu!(μs_new, μs, idx, 0)
+    @cusync @cuda filter_array_gpu!(wts_new, wts, idx, 0)
+    @cusync @cuda filter_array_gpu!(z_rot_new, z_rot, idx, 0)
+    @cusync @cuda filter_array_gpu!(ax_code_new, ax_code, idx, 0)
+
+    @cusync begin
+        μs = μs_new
+        wts = wts_new
+        z_rot = z_rot_new
+        ax_code = ax_code_new
+    end
 
     # allocate memory for convective blueshifts
     @cusync z_cbs = CUDA.zeros(precision, num_nonzero)
@@ -86,20 +100,4 @@ function GPUAllocs(spec::SpecParams, disk::DiskParams; precision::DataType=Float
 
     return GPUAllocs(λs_gpu, μs, wts, z_rot, z_cbs, ax_code, dat_idx,
                      tloop_gpu, tloop_init, starmap, allwavs, allints)
-end
-
-function filter_array_gpu(input::CuArray{T,1}, pred::CuArray{Bool, 1}) where T
-    # initialize counter
-    counter = 0
-
-    # allocate memory for output
-    @cusync output = CUDA.zeros(T, CUDA.sum(pred))
-
-    # launch the kernel
-    @cusync @cuda filter_array_gpu!(output, input, pred, counter)
-
-    # queue CUDA to gc
-    @cusync CUDA.unsafe_free!(input)
-    GC.gc(true)
-    return output
 end
