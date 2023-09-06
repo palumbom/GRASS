@@ -8,10 +8,10 @@ using Statistics
 using EchelleCCFs
 using BenchmarkTools
 
-# plotting
-using LaTeXStrings
-import PyPlot; plt = PyPlot; mpl = plt.matplotlib; plt.ioff()
-mpl.style.use(GRASS.moddir * "fig.mplstyle")
+# # plotting
+# using LaTeXStrings
+# import PyPlot; plt = PyPlot; mpl = plt.matplotlib; plt.ioff()
+# mpl.style.use(GRASS.moddir * "fig.mplstyle")
 
 # get astropy convolution
 astroconv = pyimport("astropy.convolution")
