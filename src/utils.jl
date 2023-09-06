@@ -67,21 +67,20 @@ end
 
 unzip(A) = (getfield.(A,x) for x in fieldnames(eltype(A)))
 
-function moving_average(a, n)
-    # allocate memory
-    out = zeros(length(a) - 2n)
-    for i in eachindex(out)
-        window = view(a, i:(i+n))
-        out[i] = sum(window) / length(window)
-    end
-    return out
+# function moving_average(a::AA{T,1}, n::Int) where T<:AF
+#     # allocate memory
+#     out = zeros(length(a) - 2n)
+#     for i in eachindex(out)
+#         window = view(a, i:(i+n))
+#         out[i] = sum(window) / length(window)
+#     end
+#     return out
+# end
+
+function moving_average(a::AA{T,1}, n::Int) where T<:AF
+    return imfilter(a, ones(n)/n)
 end
 
-function collect_range(range::AA{T,1}) where T
-    if typeof(range) <: StepRangeLen
-        return collect(range)
-    else
-        return range
-    end
-    return nothing
+function moving_average(a::AA{T,2}, n::Int) where T<:AF
+    return hcat(map(x -> moving_average(x, n), eachcol(a))...)
 end

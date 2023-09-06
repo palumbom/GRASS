@@ -1,95 +1,39 @@
-function write_line_params(line_df::DataFrame; clobber::Bool=false)
-    # get the filename
-    fname = GRASS.soldir * line_df.name[1] * ".h5"
+function measure_continuum(flux::AA{T,1}) where T<:AF
+    # get initial guess
+    continuum = maximum(flux)
 
-    # create the file if it doesn't exist
-    if clobber | !isfile(fname)
-        h5open(fname, "w") do f; end
+    # iteratively remove flux measurements >std from continuum far from
+    flux_temp = copy(flux)
+    resid = continuum
+    while abs(resid) > 1.0
+        # set resi
+        resid = continuum
+
+        # get standard deviation and clip fluxes
+        std_flux = std(flux_temp)
+        idx_flux = abs.(flux_temp .- continuum) .<= 0.5 * std_flux
+        flux_temp = flux_temp[idx_flux]
+
+        # get peak of histogram
+        h1 = fit(Histogram, flux_temp, nbins=100)
+        idx1 = argmax(h1.weights)
+        continuum = h1.edges[1][idx1]
+
+        # compute condition
+        resid -= continuum
     end
 
-    # write the line properties as attributes of the file
-    h5open(fname, "r+") do f
-        # get the attrributes
-        attr = HDF5.attributes(f)
-
-        # check if the metadata already exists
-        if haskey(attr, "depth")
-            println("\t >>> " * splitdir(fname)[end] * " metadata already exists...")
-        else
-            # read in the IAG data and isolate the line
-            # TODO: line of interest may not be deepest line!!!
-            println("\t >>> Writing line properties to " * splitdir(fname)[end])
-            iag_wavs, iag_flux = read_iag_atlas(isolate=true, airwav=line_df.air_wavelength[1])
-
-            idx1 = findfirst(x -> x .<= line_df.air_wavelength[1] - 0.25, iag_wavs)
-            idx2 = findfirst(x -> x .>= line_df.air_wavelength[1] + 0.25, iag_wavs)
-            iag_depth = 1.0 - minimum(view(iag_flux, idx1:idx2))
-
-            # write the attributes to file metadata
-            for n in names(line_df)
-                if ismissing(line_df[!, n][1])
-                    attr[n] = NaN
-                else
-                    attr[n] = line_df[!, n][1]
-                end
-            end
-            attr["depth"] = iag_depth
-        end
-
-        # look for any pre-existing input data and delete it
-        if !isempty(keys(f))
-            println("\t >>> Purging old input data...")
-            for k in keys(f)
-                delete_object(f, k)
-            end
-        end
-    end
-    return nothing
+    # check if we overshot
+    # if abs(maximum(flux) - continuum) < std(flux_temp)
+        # return maximum(flux)
+    # else
+        return continuum
+    # end
+    # return nothing
 end
 
-function write_input_data(line_df::DataFrame, ax::String, mu::String, datetime::Dates.DateTime,
-                          top_ints::AA{T,1}, bis::AA{T,2}, int::AA{T,2}, wid::AA{T,2}) where T<:AF
-    # get the filename
-    fname = GRASS.soldir * line_df.name[1] * ".h5"
-
-    # create the file if it doesn't exist
-    if !isfile(fname)
-        h5open(fname, "w") do f; end
-    end
-
-    # write the data
-    h5open(fname, "r+") do f
-        # create the group for this disk position if it doesn't exists
-        if !haskey(f, ax * "_" * mu)
-            create_group(f, ax * "_" * mu)
-            pos_group = f[ax * "_" * mu]
-
-            # set attributes for this group
-            attr = HDF5.attributes(pos_group)
-            attr["mu"] = mu
-            attr["axis"] = ax
-        end
-
-        # create the sub-group for this specific datetime
-        pos_group = f[ax * "_" * mu]
-        create_group(pos_group, string(datetime))
-        g = pos_group[string(datetime)]
-
-        # set attributes
-        attr = HDF5.attributes(g)
-        attr["datetime"] = string(datetime)
-        attr["length"] = size(bis,2)
-
-        # fill out the datasets
-        g["top_ints"] = top_ints
-        g["bisectors"] = bis
-        g["intensities"] = int
-        g["widths"] = wid
-    end
-    return nothing
-end
-
-function find_wing_index(val, arr; min=argmin(arr))
+function find_wing_index(val::T, arr::AA{T,1}; min::Int=argmin(arr)) where T<:AF
+    @assert !isnothing(min)
     lidx = findfirst(x -> x .>= val, reverse(arr[1:min]))
     ridx = findfirst(x -> x .>= val, arr[min:end])
     if isnothing(lidx)
@@ -101,11 +45,26 @@ function find_wing_index(val, arr; min=argmin(arr))
 end
 
 
-function fit_line_wings(wavs_iso::AA{T,1}, flux_iso::AA{T,1}; debug::Bool=false) where T<:AF
+function fit_line_wings(wavs_iso::AA{T,1}, flux_iso::AA{T,1};
+                        nois_iso::AA{T,1}=zeros(length(flux_iso)),
+                        debug::Bool=false) where T<:AF
     # get indices and values for minimum, depth, and bottom
     min = argmin(flux_iso)
     bot = flux_iso[min]
     depth = 1.0 - bot
+
+    if all(iszero.(nois_iso))
+        println("derp")
+        wts = ones(length(flux_iso))
+    else
+        wts = 1.0 ./ (nois_iso .^ 2.0)
+    end
+
+    # do first-pass fit to get ballpark lorentzian + gaussian comps
+    p0 = [0.2, wavs_iso[min], 0.05, 0.05]
+    lb = [0.0, wavs_iso[min]- 5.0 * minimum(diff(wavs_iso)), 1e-5, 1e-5]
+    ub = [2.5, wavs_iso[min]+ 5.0 * minimum(diff(wavs_iso)), 0.15, 0.15]
+    fit1 = curve_fit(GRASS.fit_voigt, wavs_iso, flux_iso, wts, p0, lower=lb, upper=ub)
 
     # get wing indices for various percentage depths into line
     lidx10, ridx10 = find_wing_index(0.10 * depth + bot, flux_iso, min=min)
@@ -121,26 +80,39 @@ function fit_line_wings(wavs_iso::AA{T,1}, flux_iso::AA{T,1}; debug::Bool=false)
     lidx90, ridx90 = find_wing_index(0.90 * depth + bot, flux_iso, min=min)
 
     # isolate the line wings and mask area around line core for fitting
-    Δbot = 3
+    Δbot = 1
     core = min-Δbot:min+Δbot
     atol = 0.5
     if isapprox(wavs_iso[argmin(flux_iso)], 5379.6, atol=0.5)
         lidx95, ridx95 = find_wing_index(0.95 * depth + bot, flux_iso, min=min)
         lwing = lidx90:lidx20
         rwing = ridx20:ridx95
-    elseif isapprox(wavs_iso[argmin(flux_iso)], 5432.8, atol=0.5)
+    elseif isapprox(wavs_iso[argmin(flux_iso)], 5432.9, atol=0.5)
         lidx95, ridx95 = find_wing_index(0.95 * depth + bot, flux_iso, min=min)
         lwing = lidx95:lidx20
-        rwing = ridx20:ridx80
-    elseif isapprox(wavs_iso[argmin(flux_iso)], 5434.5, atol=0.5)
-        lwing = lidx50:lidx20
-        rwing = ridx20:ridx60
+        rwing = ridx20:ridx95
+    elseif isapprox(wavs_iso[argmin(flux_iso)], 5434.52, atol=0.3)
+        lidx65, ridx65 = find_wing_index(0.65 * depth + bot, flux_iso, min=min)
+        lwing = lidx65:lidx10
+        rwing = ridx10:ridx65
+    elseif isapprox(wavs_iso[argmin(flux_iso)], 5435.8, atol=0.3)
+        lwing = lidx90:lidx20
+        rwing = ridx20:ridx90
     elseif isapprox(wavs_iso[argmin(flux_iso)], 5436.3, atol=0.5)
+        lidx90, ridx90 = find_wing_index(0.90 * depth + bot, flux_iso, min=min)
+        lidx95, ridx95 = find_wing_index(0.95 * depth + bot, flux_iso, min=min)
         lwing = lidx90:lidx20
-        rwing = ridx20:ridx90
+        rwing = ridx20:ridx95
+    elseif isapprox(wavs_iso[argmin(flux_iso)], 5380.3, atol=0.5)
+        lwing = lidx70:lidx20
+        rwing = ridx20:ridx70
+    elseif isapprox(wavs_iso[argmin(flux_iso)], 5383.3, atol=0.5)
+        lidx90, ridx90 = find_wing_index(0.90 * depth + bot, flux_iso, min=min)
+        lwing = lidx90:lidx40
+        rwing = ridx40:ridx90
     elseif isapprox(wavs_iso[argmin(flux_iso)], 5578.7, atol=0.5)
-        lwing = lidx90:lidx20
-        rwing = ridx20:ridx90
+        lwing = lidx90:lidx30
+        rwing = ridx30:ridx90
     elseif isapprox(wavs_iso[argmin(flux_iso)], 5896.0, atol=0.5)
         lwing = lidx70:lidx40
         rwing = ridx40:ridx70
@@ -148,8 +120,12 @@ function fit_line_wings(wavs_iso::AA{T,1}, flux_iso::AA{T,1}; debug::Bool=false)
         lwing = lidx90:lidx20
         rwing = ridx20:length(wavs_iso)
     elseif isapprox(wavs_iso[argmin(flux_iso)], 6151.62, atol=0.5)
+        lidx98, ridx98 = find_wing_index(0.98 * depth + bot, flux_iso, min=min)
+        lwing = lidx98:lidx30
+        rwing = ridx30:ridx98
+    elseif isapprox(wavs_iso[argmin(flux_iso)], 6170.5, atol=0.5)
         lidx95, ridx95 = find_wing_index(0.95 * depth + bot, flux_iso, min=min)
-        lwing = lidx95:lidx20
+        lwing = lidx95:lidx10
         rwing = ridx20:ridx95
     elseif isapprox(wavs_iso[argmin(flux_iso)], 6173.3, atol=0.5)
         lidx95, ridx95 = find_wing_index(0.95 * depth + bot, flux_iso, min=min)
@@ -162,33 +138,67 @@ function fit_line_wings(wavs_iso::AA{T,1}, flux_iso::AA{T,1}; debug::Bool=false)
         lwing = lidx90:lidx20
         rwing = ridx20:ridx80
     else
-        lwing = lidx80:lidx10
-        rwing = ridx10:ridx80
+        lwing = lidx80:lidx30
+        rwing = ridx30:ridx80
     end
 
+    # find ones
+    idx_contl = findall(isone, flux_iso[1:min])
+    idx_contr = findall(isone, flux_iso[min+1:end]) .+ min
+
     # create arrays to fit on
-    wavs_lfit = vcat(wavs_iso[lwing], wavs_iso[core])
-    flux_lfit = vcat(flux_iso[lwing], flux_iso[core])
-    wavs_rfit = vcat(wavs_iso[core], wavs_iso[rwing])
-    flux_rfit = vcat(flux_iso[core], flux_iso[rwing])
+    wavs_lfit = vcat(wavs_iso[idx_contl], wavs_iso[lwing], wavs_iso[core])
+    flux_lfit = vcat(flux_iso[idx_contl], flux_iso[lwing], flux_iso[core])
+
+    wavs_rfit = vcat(wavs_iso[core], wavs_iso[rwing], wavs_iso[idx_contr])
+    flux_rfit = vcat(flux_iso[core], flux_iso[rwing], flux_iso[idx_contr])
+
+    # # create ararys to fit on
+    # # don't demand we fit the core, in case of weird LTE departures
+    # wavs_lfit = vcat(wavs_iso[idx_contl], wavs_iso[lwing])
+    # flux_lfit = vcat(flux_iso[idx_contl], flux_iso[lwing])
+
+    # wavs_rfit = vcat(wavs_iso[rwing], wavs_iso[idx_contr])
+    # flux_rfit = vcat(flux_iso[rwing], flux_iso[idx_contr])
+
+    if all(iszero.(nois_iso))
+        wts_lfit = ones(length(flux_lfit))
+        wts_rfit = ones(length(flux_rfit))
+    else
+        wts = 1.0 ./ (nois_iso .^ 2.0)
+        # wts_lfit = vcat(nois_iso[idx_contl], nois_iso[lwing])
+        # wts_rfit = vcat(nois_iso[rwing], nois_iso[idx_contr])
+
+        wts_lfit = vcat(nois_iso[idx_contl], nois_iso[lwing], nois_iso[core])
+        wts_rfit = vcat(nois_iso[core], nois_iso[rwing], nois_iso[idx_contr])
+    end
 
     # set boundary conditions and initial guess
-    # GOOD FOR FeI 5434 + others
+
     if isapprox(wavs_iso[argmin(flux_iso)], 5896.0, atol=1e0)
         lb = [0.5, wavs_iso[min], 0.01, 0.05]
         ub = [2.5, wavs_iso[min], 0.75, 0.75]
         p0 = [.97, wavs_iso[min], 0.05, 0.16]
+    elseif isapprox(wavs_iso[argmin(flux_iso)], 5432.546, atol=0.25)
+        lb = [0.0, wavs_iso[min]- 5.0 * minimum(diff(wavs_iso)), 1e-5, 1e-5]
+        ub = [2.5, wavs_iso[min]+ 5.0 * minimum(diff(wavs_iso)), 0.15, 0.15]
+        p0 = [0.2, wavs_iso[min], 0.05, 0.05]
+    elseif isapprox(wavs_iso[argmin(flux_iso)], 5383.368, atol=0.25)
+        lb = [0.0, wavs_iso[min]- 5.0 * minimum(diff(wavs_iso)), 1e-5, 1e-5]
+        ub = [2.5, wavs_iso[min]+ 5.0 * minimum(diff(wavs_iso)), 0.15, 0.15]
+        p0 = [0.2, wavs_iso[min], 0.05, 0.05]
     else
-        lb = [0.0, wavs_iso[min]-minimum(diff(wavs_iso)), 1e-5, 1e-5]
-        ub = [2.5, wavs_iso[min]+minimum(diff(wavs_iso)), 0.15, 0.15]
-        p0 = [0.2, wavs_iso[min], 0.02, 0.001]
+        lb = [0.0, wavs_iso[min]- 5.0 * minimum(diff(wavs_iso)), 1e-5, 1e-5]
+        ub = [2.5, wavs_iso[min]+ 5.0 * minimum(diff(wavs_iso)), 0.15, 0.15]
+        p0 = fit1.param
     end
 
     # perform the fit
-    lfit = curve_fit(GRASS.fit_voigt, wavs_lfit, flux_lfit, p0, lower=lb, upper=ub)
-    rfit = curve_fit(GRASS.fit_voigt, wavs_rfit, flux_rfit, p0, lower=lb, upper=ub)
+    lfit = curve_fit(GRASS.fit_voigt, wavs_lfit, flux_lfit, wts_lfit, p0, lower=lb, upper=ub)
+    rfit = curve_fit(GRASS.fit_voigt, wavs_rfit, flux_rfit, wts_rfit, p0, lower=lb, upper=ub)
 
     if debug
+        @show fit1.param
         @show lfit.param
         @show rfit.param
         @show lfit.converged

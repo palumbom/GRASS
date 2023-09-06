@@ -2,6 +2,7 @@
 *.gz
 *.log
 *.pdf
+*.jld2
 *.jl.cov
 *.jl.mem
 *.jl.*.cov
@@ -17,3 +18,4 @@ data/spvis.dat
 data/iag_blueshifts.dat
 sftp-config*.json
 data/input/*.h5
+LocalPreferences.toml

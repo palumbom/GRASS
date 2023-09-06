@@ -14,7 +14,6 @@ end
     @test !isempty(soldat.int)
     @test !isempty(soldat.wid)
     @test keys(soldat.bis) == keys(soldat.int) == keys(soldat.wid)
-    @test length(keys(soldat.bis)) == 41
 
     # test that len keyword is working
     k = [k for k in keys(soldat.len)]

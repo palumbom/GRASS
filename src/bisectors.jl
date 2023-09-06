@@ -1,17 +1,24 @@
+"""
+From Queloz et al. 2001
+"""
 function calc_bisector_inverse_slope(bis::AA{T,1}, int::AA{T,1}) where T<:AF
+    @assert maximum(int) <= 1.0
+    @assert minimum(int) >= 0.0
+
     # get total depth
     dep = one(T) - minimum(int)
     bot = minimum(int)
+    top = one(T)
 
     # find indices
-    idx10 = findfirst(x -> x .> 0.10 * dep + bot, int)
-    idx40 = findfirst(x -> x .> 0.40 * dep + bot, int)
-    idx55 = findfirst(x -> x .> 0.55 * dep + bot, int)
-    idx90 = findfirst(x -> x .> 0.90 * dep + bot, int)
+    idx10 = findfirst(x -> x .> top - 0.10 * dep, int)
+    idx40 = findfirst(x -> x .> top - 0.40 * dep, int)
+    idx55 = findfirst(x -> x .> top - 0.55 * dep, int)
+    idx90 = findfirst(x -> x .> top - 0.90 * dep, int)
 
     # get v_t and v_b
-    v_t = mean(bis[idx55:idx90])
-    v_b = mean(bis[idx10:idx40])
+    v_t = mean(view(bis, idx40:idx10))
+    v_b = mean(view(bis, idx90:idx55))
     return v_t - v_b
 end
 
@@ -23,54 +30,118 @@ function calc_bisector_inverse_slope(bis::AA{T,2}, int::AA{T,2}) where T<:AF
     return out
 end
 
+"""
+From various (TODO)
+"""
+function calc_bisector_span(bis::AA{T,1}, int::AA{T,1}) where T<:AF
+    @assert maximum(int) <= 1.0
+    @assert minimum(int) >= 0.0
 
-function calculate_bisector_span(λrest::T, wav::AA{T,1}) where T<:AF
-    minw = minimum(filter(!isnan, wav))
-    return abs(minw - wav[5])/wav[5] * (c_ms)
+    blue = minimum(bis)
+    core = bis[2]
+    return core - blue
 end
 
 
-function calculate_bisector_span(λrest::T, wav::AA{T,2}) where T<:AF
-    out = zeros(size(wav,2))
-    for i in eachindex(out)
-        out[i] = calculate_bisector_span(λrest, wav[:,i])
+function calc_bisector_span(bis::AA{T,2}, int::AA{T,2}) where T<:AF
+    out = zeros(size(bis,2))
+    for i in 1:size(bis,2)
+        out[i] = calc_bisector_span(bis[:,i], int[:,i])
     end
     return out
 end
 
-function calculate_bisector_extreme(λrest::T, wav::AA{T,2}, bis::AA{T,2}) where T<:AF
-    out = zeros(size(wav,2))
-    for i in eachindex(out)
-        out[i] = calculate_bisector_extreme(λrest, wav[:,i], bis[:,i])
+"""
+From Dall et al. 2006
+"""
+function calc_bisector_slope(bis::AA{T,1}, int::AA{T,1}) where T<:AF
+    @assert maximum(int) <= 1.0
+    @assert minimum(int) >= 0.0
+
+    # get total depth
+    dep = one(T) - minimum(int)
+    bot = minimum(int)
+    top = one(T)
+
+    # find indices
+    idx25 = findfirst(x -> x .> top - 0.25 * dep, int)
+    idx80 = findfirst(x -> x .> top - 0.80 * dep, int)
+
+    # get views
+    bis_view = view(bis, idx80:idx25)
+    int_view = view(int, idx80:idx25)
+
+    # linear fit
+    pfit = Polynomials.fit(bis_view, int_view, 1)
+
+    # return inverse slope
+    return -coeffs(pfit)[2]
+end
+
+function calc_bisector_slope(bis::AA{T,2}, int::AA{T,2}) where T<:AF
+    out = zeros(size(bis,2))
+    for i in 1:size(bis,2)
+        out[i] = calc_bisector_slope(bis[:,i], int[:,i])
+    end
+    return out
+end
+
+"""
+From Dall et al. 2006
+"""
+function calc_bisector_bottom(bis::AA{T,1}, int::AA{T,1}, rv::T) where T<:AF
+    @assert maximum(int) <= 1.0
+    @assert minimum(int) >= 0.0
+
+    # return inverse slope
+    return mean(view(bis, 2:5)) - rv
+end
+
+function calc_bisector_bottom(bis::AA{T,2}, int::AA{T,2}, rvs::AA{T,1}) where T<:AF
+    out = zeros(size(bis,2))
+    for i in 1:size(bis,2)
+        out[i] = calc_bisector_bottom(bis[:,i], int[:,i], rvs[i])
     end
     return out
 end
 
 
-function calculate_bisector_extreme(λrest::T, wav::AA{T,1}, bis::AA{T,1}) where T<:AF
-    ind1 = searchsortednearest(wav, 0.4)
-    ind2 = searchsortednearest(wav, 0.8)
-    wpos = mean(wav[ind1:ind2])
-    return (λrest - wpos)/λrest * c/100.0
+"""
+From Dall et al. 2006
+"""
+function calc_bisector_curvature(bis::AA{T,1}, int::AA{T,1}) where T<:AF
+    @assert maximum(int) <= 1.0
+    @assert minimum(int) >= 0.0
+
+    # get total depth
+    dep = one(T) - minimum(int)
+    bot = minimum(int)
+    top = one(T)
+
+    # find indices
+    idx20 = findfirst(x -> x .> top - 0.20 * dep, int)
+    idx30 = findfirst(x -> x .> top - 0.30 * dep, int)
+    idx40 = findfirst(x -> x .> top - 0.40 * dep, int)
+    idx55 = findfirst(x -> x .> top - 0.55 * dep, int)
+    idx75 = findfirst(x -> x .> top - 0.75 * dep, int)
+    idx100 = 1
+
+    # take views
+    v3 = mean(view(bis, idx100:idx75))
+    v2 = mean(view(bis, idx55:idx40))
+    v1 = mean(view(bis, idx30:idx20))
+
+    return (v3 - v2) - (v2 - v1)
 end
 
-
-function calculate_bisector_lslope(λrest::T, wav::AA{T,1}, bis::AA{T,1}) where T<:AF
-    dλ = (minimum(wav[.!isnan.(wav)]) - wav[1])/λrest * c/100.0
-    ind1 = findfirst(wav .== minimum(wav[.!isnan.(wav)]))
-
-    dF = bis[ind1] - bis[1]
-    return dF/dλ
-end
-
-
-function calculate_bisector_lslope(λrest::T, wav::AA{T,2}, bis::AA{T,2}) where T<:AF
-    out = zeros(size(wav,2))
-    for i in eachindex(out)
-        out[i] = calculate_bisector_lslope(λrest, wav[:,i], bis[:,i])
+function calc_bisector_curvature(bis::AA{T,2}, int::AA{T,2}) where T<:AF
+    out = zeros(size(bis,2))
+    for i in 1:size(bis,2)
+        out[i] = calc_bisector_curvature(bis[:,i], int[:,i])
     end
     return out
 end
+
 
 
 function calc_bisector_uncertainty(bis::AA{T,1}, int::AA{T,1}) where T<:AF
@@ -86,11 +157,6 @@ function calc_line_quantity(wavs::AA{T,1}, flux::AA{T,1}; continuum::T=1.0,
     # check lengths
     @assert n >= 0
     @assert length(wavs) == length(flux)
-
-    # TODO smooth until derivative shows function is monotonic
-    # perform moving average smoothing
-    flux = moving_average(flux, n)
-    wavs = moving_average(wavs, n)
 
     # get min and max flux, depth of line
     min_flux_idx = argmin(flux)
@@ -172,7 +238,7 @@ function calc_bisector(wavs::AA{T,1}, flux::AA{T,1}; kwargs...) where T<:Real
     # check lengths
     @assert length(wavs) == length(flux)
 
-    # define the function to calculate widths
+    # define the function to calculate bisectors
     f = (x, y) -> (y + x) / 2.0
     wav, bis = calc_line_quantity(wavs, flux, f=f; kwargs...)
     return wav, bis
@@ -191,7 +257,8 @@ function calc_bisector(wavs::AA{T,1}, flux::AA{T,2}; kwargs...) where T<:Real
     return cat([x[1] for x in out]..., dims=2), cat([x[2] for x in out]..., dims=2)
 end
 
-function calc_bisector_cubic(wavs::AA{T,1}, flux::AA{T,1}) where T<:Real
+function calc_bisector_cubic(wavs::AA{T,1}, flux::AA{T,1}; top::T=maximum(flux),
+                             nflux::Int=length(flux)) where T<:Real
     # find index of minimum
     idx_min = argmin(flux)
 
@@ -207,7 +274,7 @@ function calc_bisector_cubic(wavs::AA{T,1}, flux::AA{T,1}) where T<:Real
     itp2 = cubic_interp(view(flux, idx_min:idx2), view(wavs, idx_min:idx2))
 
     # get the bisector
-    flux_out = range(minimum(flux), maximum(flux) - 0.01, length=50)
+    flux_out = range(minimum(flux), top, length=nflux)
     bis_out = (itp2.(flux_out) .+ itp1.(flux_out))./2
 
     return bis_out, flux_out

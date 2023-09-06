@@ -1,11 +1,11 @@
 # get groups of lines in same osbserved spectral regions
 const line_groups = [["FeI_5250.2", "FeI_5250.6"],
-                     ["FeI_5379", "CI_5380", "TiII_5381", "FeI_5383"],
-                     ["FeI_5432", "FeI_5434", "NiI_5435", "FeI_5436.3", "FeI_5436.6"],
+                     ["FeI_5379", "CI_5380", "TiII_5381", "FeI_5382", "FeI_5383"],
+                     ["MnI_5432", "FeI_5432", "FeI_5434", "NiI_5435", "FeI_5436.3", "FeI_5436.6"],
                      ["FeI_5576", "NiI_5578"],
                      ["NaI_5896"],
                      ["FeII_6149", "FeI_6151"],
-                     ["CaI_6169.0", "FeI_6173"],
+                     ["CaI_6169.0", "CaI_6169.5", "FeI_6170", "FeI_6173"],
                      ["FeI_6301", "FeI_6302"]]
 
 function get_name_from_filename(line1::String)
@@ -59,9 +59,9 @@ struct SpecParams{T<:AF}
     geffs::AA{T,1}
     conv_blueshifts::AA{T,1}
     variability::AA{Bool,1}
+    templates::AA{String,1}
     resolution::T
     lambdas::AA{T,1}
-    templates::AA{String,1}
 end
 
 
@@ -83,7 +83,7 @@ function SpecParams(;lines=[], depths=[], geffs=[], variability=[],
     @assert !isempty(lines)
     @assert !isempty(depths)
     @assert all(depths .< 1.0) && all(depths .> 0.0)
-    @assert buffer >= 1.0
+    @assert buffer > 0.0
 
     # assign lande g factors if they haven't been
     if isempty(geffs)
@@ -126,6 +126,8 @@ function SpecParams(;lines=[], depths=[], geffs=[], variability=[],
     # assign each line to the input data to synth it from
     # TODO move this to its own function and make it more thought out
     if isempty(templates)
+        @warn "No line template specified!"
+
         # get properties of input data lines
         lp = LineProperties()
         geff_input = get_geff(lp)
@@ -158,20 +160,14 @@ function SpecParams(;lines=[], depths=[], geffs=[], variability=[],
     inds = sortperm(template_wavelengths)
 
     # collect ranges if necessary
-    lines = collect_range(lines)
-    depths = collect_range(depths)
-    geffs = collect_range(geffs)
-    blueshifts = collect_range(blueshifts)
+    lines = collect(lines)
+    depths = collect(depths)
+    geffs = collect(geffs)
+    blueshifts = collect(blueshifts)
 
-    # now do the sorting
-    lines .= lines[inds]
-    depths .= depths[inds]
-    geffs .= geffs[inds]
-    blueshifts .= blueshifts[inds]
-    variability .= variability[inds]
-    templates .= templates[inds]
-    return SpecParams(lines, depths, geffs, blueshifts, variability,
-                      resolution, lambdas, templates)
+    # now do the sorting and return
+    return SpecParams(lines[inds], depths[inds], geffs[inds], blueshifts[inds],
+                      variability[inds], templates[inds], resolution, lambdas)
 end
 
 """
@@ -188,19 +184,18 @@ function SpecParams(spec::SpecParams, template_file::String)
 
     # make sure it's an absolute path
     if !isabspath(file)
-        file = GRASS.soldir * file
+        file = joinpath(GRASS.soldir, file)
     end
     @assert isfile(file)
 
     # get indices
-    # idx = findall(spec.templates .== file)
     idx = spec.templates .== file
     return SpecParams(view(spec.lines, idx),
                       view(spec.depths, idx),
                       view(spec.geffs, idx),
                       view(spec.conv_blueshifts, idx),
                       view(spec.variability, idx),
+                      view(spec.templates, idx),
                       spec.resolution,
-                      spec.lambdas,
-                      view(spec.templates, idx))
+                      spec.lambdas)
 end
