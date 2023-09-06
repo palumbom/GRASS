@@ -1,5 +1,3 @@
-import PyPlot; plt = PyPlot
-
 # line loop function, update prof in place
 function line_loop_cpu(prof::AA{T,1}, λΔD::T, depth::T, lambdas::AA{T,1},
                        wsp::SynthWorkspace{T}) where T<:AF
