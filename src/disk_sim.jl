@@ -44,7 +44,7 @@ end
 
 function disk_sim(spec::SpecParams{T}, disk::DiskParams{T}, soldata::SolarData{T},
                   wsp::SynthWorkspace, prof::AA{T,1}, outspec::AA{T,2},
-                  tloop::AA{Int,2}; verbose::Bool=true,
+                  tloop::AA{Int,1}; verbose::Bool=true,
                   skip_times::BitVector=falses(disk.Nt)) where T<:AF
     # set pre-allocations and make generator that will be re-used
     outspec .= zero(T)
@@ -55,7 +55,7 @@ function disk_sim(spec::SpecParams{T}, disk::DiskParams{T}, soldata::SolarData{T
     z_cbs_avg = sum(wsp.wts .* wsp.cbs) / sum_wts
 
     # loop over grid position
-    for i in CartesianIndices(wsp.μs)
+    for i in eachindex(wsp.μs)
         # move to next iteration if patch element is not visible
         μc = wsp.μs[i]
         μc <= zero(T) && continue

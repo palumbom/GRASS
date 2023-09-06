@@ -34,20 +34,20 @@ function disk_sim_gpu(spec::SpecParams{T1}, disk::DiskParams{T1}, soldata::GPUSo
     depcontrast_gpu = soldata.dep_contrast
 
     # set number of threads and blocks for N*N matrix gpu functions
-    threads1 = (16,16)
-    blocks1 = cld(N^2, prod(threads1))
+    threads1 = 256
+    blocks1 = cld(CUDA.length(μs), prod(threads1))
 
     # set number of threads and blocks for trimming functions
     threads2 = (4,4,16)
     blocks2 = cld(length(lenall_gpu) * maximum(lenall_gpu) * 100, prod(threads2))
 
     # set number of threads and blocks for N*N*100 matrix gpu functions
-    threads3 = (4,4,16)
-    blocks3 = cld(N^2 * 100, prod(threads3))
+    threads3 = (16,16)
+    blocks3 = cld(CUDA.length(μs) * 100, prod(threads3))
 
     # set number of threads and blocks for N*N*Nλ matrix gpu functions
-    threads4 = (3,3,42)
-    blocks4 = cld(N^2 * Nλ, prod(threads4))
+    threads4 = (9,42)
+    blocks4 = cld(CUDA.length(μs) * Nλ, prod(threads4))
 
     # allocate arrays for fresh copy of input data to copy to each loop
     @cusync begin
@@ -104,7 +104,7 @@ function disk_sim_gpu(spec::SpecParams{T1}, disk::DiskParams{T1}, soldata::GPUSo
         end
 
         # do array reduction and move data from GPU to CPU
-        @cusync @inbounds outspec[:,t] .*= dropdims(Array(CUDA.sum(starmap, dims=(1,2))), dims=(1,2))
+        @cusync @inbounds outspec[:,t] .*= dropdims(Array(CUDA.sum(starmap, dims=1)), dims=1)
 
         # iterate tloop
         @cusync @captured @cuda threads=threads1 blocks=blocks1 iterate_tloop_gpu!(tloop, dat_idx, lenall_gpu)
