@@ -41,19 +41,11 @@ end
     Nt = 1
     u1 = 0.0
     u2 = 0.0
-<<<<<<< HEAD
-    @test GRASS.calc_norm_term(0.0, 0.0, N, u1, u2) == pi ./ (2.0 * N^2)
-
-    # test summation of normalization terms
-    norm2 = sum(GRASS.calc_norm_terms(N, u1, u2))
-    @test isapprox(norm2, 1.0, atol=1e-6)
-=======
 
     disk = DiskParams(N=N, Nt=Nt, Nsubgrid=Nsubgrid, u1=u1, u2=u2)
     wsp = GRASS.SynthWorkspace(disk)
 
     @test isapprox(sum(wsp.wts), π, atol=1e-5)
->>>>>>> main
 end
 
 end
