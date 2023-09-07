@@ -45,12 +45,12 @@ function SynthWorkspace(disk::DiskParams; ndepths::Integer=100, verbose::Bool=tr
     num_nonzero = sum(idx)
 
     # get arrays of nonzero wts
-    μs = view(μs, idx)
-    ld = view(ld, idx)
-    dA = view(dA, idx)
-    wts = view(wts, idx)
-    z_rot = view(z_rot, idx)
-    ax_codes = view(ax_codes, idx)
+    μs = μs[idx]
+    ld = ld[idx]
+    dA = dA[idx]
+    wts = wts[idx]
+    z_rot = z_rot[idx]
+    ax_codes = ax_codes[idx]
 
     # allocate additional memory
     cbs = zeros(num_nonzero)
