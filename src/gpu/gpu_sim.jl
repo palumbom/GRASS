@@ -33,20 +33,20 @@ function disk_sim_gpu(spec::SpecParams{T1}, disk::DiskParams{T1}, soldata::GPUSo
     widall_gpu = soldata.wid
     depcontrast_gpu = soldata.dep_contrast
 
-    # set number of threads and blocks for N*N matrix gpu functions
-    threads1 = 256
+    # set number of threads and blocks for len(μ) gpu kernels
+    threads1 = 1024
     blocks1 = cld(CUDA.length(μs), prod(threads1))
 
     # set number of threads and blocks for trimming functions
     threads2 = (4,4,16)
     blocks2 = cld(length(lenall_gpu) * maximum(lenall_gpu) * 100, prod(threads2))
 
-    # set number of threads and blocks for N*N*100 matrix gpu functions
+    # set number of threads and blocks for len(μ) * 100 matrix gpu functions
     threads3 = (16,16)
     blocks3 = cld(CUDA.length(μs) * 100, prod(threads3))
 
     # set number of threads and blocks for N*N*Nλ matrix gpu functions
-    threads4 = (9,42)
+    threads4 = (16,32)
     blocks4 = cld(CUDA.length(μs) * Nλ, prod(threads4))
 
     # allocate arrays for fresh copy of input data to copy to each loop
@@ -85,22 +85,25 @@ function disk_sim_gpu(spec::SpecParams{T1}, disk::DiskParams{T1}, soldata::GPUSo
                 CUDA.copyto!(widall_gpu_loop, widall_gpu)
             end
 
-            # trim all the bisector data
-            @cusync @captured @cuda threads=threads2 blocks=blocks2 trim_bisector_gpu!(spec.depths[l], spec.variability[l],
-                                                                                       depcontrast_gpu, lenall_gpu,
-                                                                                       bisall_gpu_loop, intall_gpu_loop,
-                                                                                       widall_gpu_loop, bisall_gpu,
-                                                                                       intall_gpu, widall_gpu)
+            # record execution graph
+            @captured begin
+                # trim all the bisector data
+                @cuda threads=threads2 blocks=blocks2 trim_bisector_gpu!(spec.depths[l], spec.variability[l],
+                                                                         depcontrast_gpu, lenall_gpu,
+                                                                         bisall_gpu_loop, intall_gpu_loop,
+                                                                         widall_gpu_loop, bisall_gpu,
+                                                                         intall_gpu, widall_gpu)
 
-            # assemble line shape on even int grid
-            @cusync @captured @cuda threads=threads3 blocks=blocks3 fill_workspaces!(spec.lines[l], spec.variability[l],
-                                                                                     extra_z[l], tloop, dat_idx,
-                                                                                     z_rot, z_cbs, bisall_gpu_loop,
-                                                                                     intall_gpu_loop, widall_gpu_loop,
-                                                                                     allwavs, allints)
+                # assemble line shape on even int grid
+                @cuda threads=threads3 blocks=blocks3 fill_workspaces!(spec.lines[l], spec.variability[l],
+                                                                       extra_z[l], tloop, dat_idx,
+                                                                       z_rot, z_cbs, bisall_gpu_loop,
+                                                                       intall_gpu_loop, widall_gpu_loop,
+                                                                       allwavs, allints)
 
-            # do the line synthesis, interp back onto wavelength grid
-            @cusync @captured @cuda threads=threads4 blocks=blocks4 line_profile_gpu!(starmap, μs, λs, allwavs, allints)
+                # do the line synthesis, interp back onto wavelength grid
+                @cuda threads=threads4 blocks=blocks4 line_profile_gpu!(starmap, μs, λs, allwavs, allints)
+            end
         end
 
         # do array reduction and move data from GPU to CPU
@@ -112,27 +115,6 @@ function disk_sim_gpu(spec::SpecParams{T1}, disk::DiskParams{T1}, soldata::GPUSo
 
     # ensure normalization
     outspec ./= sum_wts
-
-    # free up memory that cant be reused
-    @cusync begin
-        CUDA.unsafe_free!(disc_mu_gpu)
-        CUDA.unsafe_free!(disc_ax_gpu)
-        CUDA.unsafe_free!(lenall_gpu)
-        CUDA.unsafe_free!(cbsall_gpu)
-        CUDA.unsafe_free!(bisall_gpu)
-        CUDA.unsafe_free!(intall_gpu)
-        CUDA.unsafe_free!(widall_gpu)
-        CUDA.unsafe_free!(depcontrast_gpu)
-        CUDA.unsafe_free!(bisall_gpu)
-        CUDA.unsafe_free!(bisall_gpu)
-        CUDA.unsafe_free!(intall_gpu)
-        CUDA.unsafe_free!(bisall_gpu_loop)
-        CUDA.unsafe_free!(intall_gpu_loop)
-        CUDA.unsafe_free!(widall_gpu_loop)
-    end
-
-    # instruct the garbage collect to clean up GPU memory
-    GC.gc(true)
 
     # make sure nothing is still running on GPU
     CUDA.synchronize()

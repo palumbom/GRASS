@@ -43,11 +43,11 @@ function time_loop_cpu(tloop::Int, prof::AA{T,1}, z_rot::T, z_cbs::T,
 end
 
 function disk_sim(spec::SpecParams{T}, disk::DiskParams{T}, soldata::SolarData{T},
-                  wsp::SynthWorkspace, prof::AA{T,1}, outspec::AA{T,2},
+                  wsp::SynthWorkspace, prof::AA{T,1}, flux::AA{T,2},
                   tloop::AA{Int,1}; verbose::Bool=true,
                   skip_times::BitVector=falses(disk.Nt)) where T<:AF
     # set pre-allocations and make generator that will be re-used
-    outspec .= zero(T)
+    flux .= zero(T)
     liter = 1:length(spec.lines); @assert length(liter) >= 1
 
     # get sum of weights
@@ -87,8 +87,8 @@ function disk_sim(spec::SpecParams{T}, disk::DiskParams{T}, soldata::SolarData{T
             time_loop_cpu(tloop[i], prof, z_rot, z_cbs, z_cbs_avg,
                           key, liter, spec, soldata, wsp)
 
-            # apply normalization term and add to outspec
-            outspec[:,t] .+= (prof .* wsp.wts[i])
+            # apply normalization term and add to flux
+            flux[:,t] .+= (prof .* wsp.wts[i])
 
             # iterate tloop
             tloop[i] += 1
@@ -96,10 +96,10 @@ function disk_sim(spec::SpecParams{T}, disk::DiskParams{T}, soldata::SolarData{T
     end
 
     # divide by sum of weights
-    outspec ./= sum_wts
+    flux ./= sum_wts
 
     # set instances of outspec where skip is true to 0 and return
-    outspec[:, skip_times] .= zero(T)
+    flux[:, skip_times] .= zero(T)
     return nothing
 end
 
