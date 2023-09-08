@@ -74,7 +74,7 @@ function check_tloop_gpu!(tloop, dat_idx, lenall)
     sdx = blockDim().x * gridDim().x
 
     # parallelized loop over grid
-    for i in idx:sdx:CUDA.length(dat_idx,)
+    for i in idx:sdx:CUDA.length(dat_idx)
         if CUDA.iszero(dat_idx[i])
             continue
         end

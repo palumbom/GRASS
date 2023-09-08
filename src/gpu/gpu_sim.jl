@@ -1,9 +1,6 @@
 function disk_sim_gpu(spec::SpecParams{T1}, disk::DiskParams{T1}, soldata::GPUSolarData{T2},
-                      gpu_allocs::GPUAllocs{T2}, outspec::AA{T1,2}; verbose::Bool=false,
+                      gpu_allocs::GPUAllocs{T2}, flux::AA{T1,2}; verbose::Bool=false,
                       seed_rng::Bool=false,  skip_times::BitVector=falses(disk.Nt)) where {T1<:AF, T2<:AF}
-    # infer precision
-    precision = T2
-
     # get dimensions for memory alloc
     N = disk.N
     Nt = disk.Nt
@@ -11,6 +8,8 @@ function disk_sim_gpu(spec::SpecParams{T1}, disk::DiskParams{T1}, soldata::GPUSo
 
     # parse out composite type
     λs = gpu_allocs.λs
+    prof = gpu_allocs.prof
+
     μs = gpu_allocs.μs
     wts = gpu_allocs.wts
     z_rot = gpu_allocs.z_rot
@@ -19,7 +18,6 @@ function disk_sim_gpu(spec::SpecParams{T1}, disk::DiskParams{T1}, soldata::GPUSo
     tloop = gpu_allocs.tloop
     dat_idx = gpu_allocs.dat_idx
 
-    starmap = gpu_allocs.starmap
     allwavs = gpu_allocs.allwavs
     allints = gpu_allocs.allints
 
@@ -46,14 +44,14 @@ function disk_sim_gpu(spec::SpecParams{T1}, disk::DiskParams{T1}, soldata::GPUSo
     blocks3 = cld(CUDA.length(μs) * 100, prod(threads3))
 
     # set number of threads and blocks for N*N*Nλ matrix gpu functions
-    threads4 = (16,32)
+    threads4 = (16,16)
     blocks4 = cld(CUDA.length(μs) * Nλ, prod(threads4))
 
     # allocate arrays for fresh copy of input data to copy to each loop
     @cusync begin
-        bisall_gpu_loop = CUDA.zeros(precision, CUDA.size(bisall_gpu))
-        intall_gpu_loop = CUDA.zeros(precision, CUDA.size(intall_gpu))
-        widall_gpu_loop = CUDA.zeros(precision, CUDA.size(widall_gpu))
+        bisall_gpu_loop = CUDA.zeros(T2, CUDA.size(bisall_gpu))
+        intall_gpu_loop = CUDA.zeros(T2, CUDA.size(intall_gpu))
+        widall_gpu_loop = CUDA.zeros(T2, CUDA.size(widall_gpu))
     end
 
     # get weighted disk average cbs
@@ -74,47 +72,42 @@ function disk_sim_gpu(spec::SpecParams{T1}, disk::DiskParams{T1}, soldata::GPUSo
             continue
         end
 
-        # initialize starmap with fresh copy of weights
-        @cusync starmap .= wts
-
         # loop over lines to synthesize
         for l in eachindex(spec.lines)
+            # re-zero the line profile holder
+            @cusync prof .= zero(T2)
+
+            # get a fresh copy of the untrimmed bisector + width data
             @cusync begin
                 CUDA.copyto!(bisall_gpu_loop, bisall_gpu)
                 CUDA.copyto!(intall_gpu_loop, intall_gpu)
                 CUDA.copyto!(widall_gpu_loop, widall_gpu)
             end
 
-            # record execution graph
-            @captured begin
-                # trim all the bisector data
-                @cuda threads=threads2 blocks=blocks2 trim_bisector_gpu!(spec.depths[l], spec.variability[l],
-                                                                         depcontrast_gpu, lenall_gpu,
-                                                                         bisall_gpu_loop, intall_gpu_loop,
-                                                                         widall_gpu_loop, bisall_gpu,
-                                                                         intall_gpu, widall_gpu)
+            # trim all the bisector data
+            @cusync @cuda threads=threads2 blocks=blocks2 trim_bisector_gpu!(spec.depths[l], spec.variability[l],
+                                                                             depcontrast_gpu, lenall_gpu,
+                                                                             bisall_gpu_loop, intall_gpu_loop,
+                                                                             widall_gpu_loop, bisall_gpu,
+                                                                             intall_gpu, widall_gpu)
 
-                # assemble line shape on even int grid
-                @cuda threads=threads3 blocks=blocks3 fill_workspaces!(spec.lines[l], spec.variability[l],
-                                                                       extra_z[l], tloop, dat_idx,
-                                                                       z_rot, z_cbs, bisall_gpu_loop,
-                                                                       intall_gpu_loop, widall_gpu_loop,
-                                                                       allwavs, allints)
+            # assemble line shape on even int grid
+            @cusync @cuda threads=threads3 blocks=blocks3 fill_workspaces!(spec.lines[l], spec.variability[l],
+                                                                           extra_z[l], tloop, dat_idx,
+                                                                           z_rot, z_cbs, bisall_gpu_loop,
+                                                                           intall_gpu_loop, widall_gpu_loop,
+                                                                           allwavs, allints)
 
-                # do the line synthesis, interp back onto wavelength grid
-                @cuda threads=threads4 blocks=blocks4 line_profile_gpu!(starmap, μs, λs, allwavs, allints)
-            end
+            # do the line synthesis, interp back onto wavelength grid
+            @cusync @cuda threads=threads4 blocks=blocks4 line_profile_gpu!(prof, μs, wts, λs, allwavs, allints)
+
+            # do array reduction and move data from GPU to CPU
+            @cusync @inbounds flux[:,t] .*= Array(prof) ./ sum_wts
         end
-
-        # do array reduction and move data from GPU to CPU
-        @cusync @inbounds outspec[:,t] .*= dropdims(Array(CUDA.sum(starmap, dims=1)), dims=1)
 
         # iterate tloop
         @cusync @captured @cuda threads=threads1 blocks=blocks1 iterate_tloop_gpu!(tloop, dat_idx, lenall_gpu)
     end
-
-    # ensure normalization
-    outspec ./= sum_wts
 
     # make sure nothing is still running on GPU
     CUDA.synchronize()
