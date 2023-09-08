@@ -1,5 +1,6 @@
 struct GPUAllocs{T1<:AF}
     λs::CuArray{T1,1}
+    prof::CuArray{T1,1}
 
     μs::CuArray{T1,1}
     wts::CuArray{T1,1}
@@ -11,7 +12,6 @@ struct GPUAllocs{T1<:AF}
     tloop_init::CuArray{Int32,1}
     dat_idx::CuArray{Int32,1}
 
-    starmap::CuArray{T1,2}
     allwavs::CuArray{T1,2}
     allints::CuArray{T1,2}
 end
@@ -24,10 +24,14 @@ function GPUAllocs(spec::SpecParams, disk::DiskParams; precision::DataType=Float
 
     # move disk + geometry information to gpu
     @cusync begin
-        λs_gpu = CuArray{precision}(spec.lambdas)
         Nθ_gpu = CuArray{Int}(disk.Nθ)
         R_x_gpu = CuArray{precision}(disk.R_x)
         O⃗_gpu = CuArray{precision}(disk.O⃗)
+    end
+
+    @cusync begin
+        λs_gpu = CuArray{precision}(spec.lambdas)
+        prof_gpu = CUDA.zeros(precision, Nλ)
     end
 
     # pre-compute quantities to be re-used
@@ -93,11 +97,10 @@ function GPUAllocs(spec::SpecParams, disk::DiskParams; precision::DataType=Float
 
     # allocated memory for synthesis
     @cusync begin
-        starmap = CUDA.ones(precision, num_nonzero, Nλ)
         allwavs = CUDA.zeros(precision, num_nonzero, 200)
         allints = CUDA.zeros(precision, num_nonzero, 200)
     end
 
-    return GPUAllocs(λs_gpu, μs, wts, z_rot, z_cbs, ax_code, dat_idx,
-                     tloop_gpu, tloop_init, starmap, allwavs, allints)
+    return GPUAllocs(λs_gpu, prof_gpu, μs, wts, z_rot, z_cbs, ax_code,
+                     dat_idx, tloop_gpu, tloop_init, allwavs, allints)
 end

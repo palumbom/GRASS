@@ -22,10 +22,10 @@ function fill_workspaces!(line, variability, extra_z, tloop, dat_idx, z_rot,
 
         # get length of input data arrays to loop over
         lent = 100
-        for k in idy:sdy:lent
+        for j in idy:sdy:lent
             # get forward and reverse indices
-            idx1 = k
-            idx2 = lent - (k - 1)
+            idx1 = j
+            idx2 = lent - (j - 1)
 
             # slice out the correct views of the input data for position
             @inbounds bis1 = bisall[idx1, t, d_idx]
@@ -37,19 +37,19 @@ function fill_workspaces!(line, variability, extra_z, tloop, dat_idx, z_rot,
             @inbounds int2 = intall[idx2, t, d_idx]
 
             # right side of line, indexing from middle left to right
-            @inbounds allwavs[i, k+lent] = (λΔD + (0.5 * wid1 + bis1))
-            @inbounds allints[i, k+lent] = int1
+            @inbounds allwavs[i, j+lent] = (λΔD + (0.5 * wid1 + bis1))
+            @inbounds allints[i, j+lent] = int1
 
             # left sight of line, indexing from middle right to left
-            @inbounds allwavs[i, k] = (λΔD - (0.5 * wid2 - bis2))
-            @inbounds allints[i, k] = int2
+            @inbounds allwavs[i, j] = (λΔD - (0.5 * wid2 - bis2))
+            @inbounds allints[i, j] = int2
         end
     end
     return nothing
 end
 
 
-function line_profile_gpu!(star_map, μs, lambdas, allwavs, allints)
+function line_profile_gpu!(prof, μs, wts, λs, allwavs, allints)
     # get indices from GPU blocks + threads
     idx = threadIdx().x + blockDim().x * (blockIdx().x-1)
     sdx = blockDim().x * gridDim().x
@@ -71,11 +71,11 @@ function line_profile_gpu!(star_map, μs, lambdas, allwavs, allints)
         itp = linear_interp_gpu(allwavs_i, allints_i)
 
         # loop over wavelengths
-        for k in idy:sdy:CUDA.length(lambdas)
-            if ((lambdas[k] < CUDA.first(allwavs_i)) || (lambdas[k] > CUDA.last(allwavs_i)))
-                continue
+        for j in idy:sdy:CUDA.length(λs)
+            if ((λs[j] < CUDA.first(allwavs_i)) || (λs[j] > CUDA.last(allwavs_i)))
+                @inbounds CUDA.@atomic prof[j] += wts[i]
             else
-                @inbounds star_map[i,k] *= itp(lambdas[k])
+                @inbounds CUDA.@atomic prof[j] += itp(λs[j]) * wts[i]
             end
         end
     end
