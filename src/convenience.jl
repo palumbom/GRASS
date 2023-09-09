@@ -29,7 +29,6 @@ function synth_cpu(spec::SpecParams{T}, disk::DiskParams{T}, seed_rng::Bool,
     # allocate memory for synthsis
     prof = ones(Nλ)
     flux = ones(Nλ, Nt)
-    flux_temp = zeros(Nλ, Nt)
 
     # pre-allocate memory and pre-compute geometric quantities
     wsp = GRASS.SynthWorkspace(disk, verbose=verbose)
@@ -68,13 +67,9 @@ function synth_cpu(spec::SpecParams{T}, disk::DiskParams{T}, seed_rng::Bool,
             tloop .= tloop_init
         end
 
-        # re-set array to 0s
-        flux_temp .= 0.0
-
         # run the simulation and multiply flux by this spectrum
-        disk_sim(spec_temp, disk, soldata, wsp, prof, flux_temp,
-                 tloop, skip_times=skip_times, verbose=verbose)
-        flux .*= flux_temp
+        disk_sim(spec_temp, disk, soldata, wsp, prof, flux, tloop,
+                 skip_times=skip_times, verbose=verbose)
     end
     return spec.lambdas, flux
 end

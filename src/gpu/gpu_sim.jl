@@ -101,7 +101,7 @@ function disk_sim_gpu(spec::SpecParams{T1}, disk::DiskParams{T1}, soldata::GPUSo
             # do the line synthesis, interp back onto wavelength grid
             @cusync @cuda threads=threads4 blocks=blocks4 line_profile_gpu!(prof, μs, wts, λs, allwavs, allints)
 
-            # do array reduction and move data from GPU to CPU
+            # copy data from GPU to CPU
             @cusync @inbounds flux[:,t] .*= Array(prof) ./ sum_wts
         end
 
