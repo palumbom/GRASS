@@ -1,12 +1,12 @@
 # function to calc intensity at given x,y coord.
-function line_profile_cpu!(mid::T, lambdas::AA{T,1}, prof::AA{T,1}, wsp::SynthWorkspace{T}) where T<:AF
+function line_profile_cpu!(mid::T, weight::T, lambdas::AA{T,1}, prof::AA{T,1}, wsp::SynthWorkspace{T}) where T<:AF
     # synthesize the line profile given bisector and width input data
-    line_profile_cpu!(mid, lambdas, prof, wsp.bist, wsp.intt, wsp.widt,
+    line_profile_cpu!(mid, weight, lambdas, prof, wsp.bist, wsp.intt, wsp.widt,
                       wsp.lwavgrid, wsp.rwavgrid, wsp.allwavs, wsp.allints)
     return nothing
 end
 
-function line_profile_cpu!(mid::T, lambdas::AA{T,1}, prof::AA{T,1},
+function line_profile_cpu!(mid::T, weight, lambdas::AA{T,1}, prof::AA{T,1},
                            bism::AA{T,1}, intm::AA{T,1}, widm::AA{T,1},
                            lwavgrid::AA{T,1}, rwavgrid::AA{T,1},
                            allwavs::AA{T,1}, allints::AA{T,1}) where T<:AF
@@ -34,11 +34,11 @@ function line_profile_cpu!(mid::T, lambdas::AA{T,1}, prof::AA{T,1},
     end
 
     # get views
-    lambda_window = view(lambdas, lind:rind)
-    prof_window = view(prof, lind:rind)
+    lambda_window = lambdas#view(lambdas, lind:rind)
+    prof_window = prof#view(prof, lind:rind)
 
     # interpolate onto original lambda grid, extrapolate to continuum
     itp1 = linear_interp(allwavs, allints, bc=one(T))
-    prof_window .*= itp1.(lambda_window)
+    prof_window .+= itp1.(lambda_window) .* weight
     return nothing
 end
