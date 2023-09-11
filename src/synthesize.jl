@@ -1,12 +1,12 @@
 # function to calc intensity at given x,y coord.
-function line_profile_cpu!(mid::T, lambdas::AA{T,1}, prof::AA{T,1}, wsp::SynthWorkspace{T}) where T<:AF
+function line_profile_cpu!(mid::T, weight::T, lambdas::AA{T,1}, prof::AA{T,1}, wsp::SynthWorkspace{T}) where T<:AF
     # synthesize the line profile given bisector and width input data
-    line_profile_cpu!(mid, lambdas, prof, wsp.bist, wsp.intt, wsp.widt,
+    line_profile_cpu!(mid, weight, lambdas, prof, wsp.bist, wsp.intt, wsp.widt,
                       wsp.lwavgrid, wsp.rwavgrid, wsp.allwavs, wsp.allints)
     return nothing
 end
 
-function line_profile_cpu!(mid::T, lambdas::AA{T,1}, prof::AA{T,1},
+function line_profile_cpu!(mid::T, weight, lambdas::AA{T,1}, prof::AA{T,1},
                            bism::AA{T,1}, intm::AA{T,1}, widm::AA{T,1},
                            lwavgrid::AA{T,1}, rwavgrid::AA{T,1},
                            allwavs::AA{T,1}, allints::AA{T,1}) where T<:AF
@@ -23,15 +23,8 @@ function line_profile_cpu!(mid::T, lambdas::AA{T,1}, prof::AA{T,1},
     allints[1:len] .= view(intm, itr)
 
     # get indices for interpolation view
-    lind = findlast(x -> x <= allwavs[1], lambdas)
-    if isnothing(lind)
-        lind = firstindex(lambdas)
-    end
-
-    rind = findfirst(x -> x >= allwavs[end], lambdas)
-    if isnothing(rind)
-        rind = lastindex(lambdas)
-    end
+    lind = clamp(findlast(x -> x <= allwavs[1], lambdas), firstindex(lambdas), lastindex(lambdas))
+    rind = clamp(findfirst(x -> x >= allwavs[end], lambdas), firstindex(lambdas), lastindex(lambdas))
 
     # get views
     lambda_window = view(lambdas, lind:rind)
@@ -39,6 +32,16 @@ function line_profile_cpu!(mid::T, lambdas::AA{T,1}, prof::AA{T,1},
 
     # interpolate onto original lambda grid, extrapolate to continuum
     itp1 = linear_interp(allwavs, allints, bc=one(T))
-    prof_window .*= itp1.(lambda_window)
+    prof_window .+= itp1.(lambda_window) .* weight
+
+    # make sure other lambda values get weight
+    if lind != firstindex(lambdas)
+        prof[1:lind-1] .+= weight
+    end
+
+    if rind != lastindex(lambdas)
+        prof[rind+1:end] .+= weight
+    end
+
     return nothing
 end

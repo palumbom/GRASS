@@ -80,6 +80,7 @@ include("gpu/gpu_data.jl")
 include("gpu/gpu_precomps.jl")
 include("gpu/gpu_trim.jl")
 include("gpu/gpu_sim.jl")
+include("gpu/gpu_rm.jl")
 include("gpu/gpu_synthesis.jl")
 
 # functions for plotting figures

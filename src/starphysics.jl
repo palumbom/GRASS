@@ -1,9 +1,9 @@
-function absorption_line(x::T; mid=zero(T), width=one(T), depth=one(T)) where T<:AF
-    return one(T) - depth * exp(-((x-mid)/width)^2.0/2.0)
+function absorption_line(x::T; continuum=one(T), mid=zero(T), width=one(T), depth=one(T)) where T<:AF
+    return continuum - depth * exp(-(x-mid)^2.0/(2.0 * width^2.0))
 end
 
-function gaussian_line(x::T; mid=zero(T), width=one(T), depth=one(T)) where T<:AF
-    return absorption_line(x, mid=mid, width=width, depth=depth)
+function gaussian_line(x::T; continuum=one(T), mid=zero(T), width=one(T), depth=one(T)) where T<:AF
+    return absorption_line(x, continuum=continuum, mid=mid, width=width, depth=depth)
 end
 
 function lorentzian_line(x::T; mid=zero(T), width=one(T), depth=one(T)) where T<:AF
