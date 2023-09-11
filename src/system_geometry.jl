@@ -1,3 +1,15 @@
+"""
+Calculates cartesian state vector from orbital elements and eccentric anomaly.
+See https://farside.ph.utexas.edu/teaching/celestial/Celestialhtml/node34.html
+
+# Arguments
+- `body::Body`: an instance of the body custom type
+- `epoch::Float64`: time elapsed since periastron reference epoch
+
+# Outputs
+- `XYZ::Array{Float64,1}`: 3-vector of initial cartesian coordinates
+- `XYZ_dot::Array{Float64,1}`: 3-vector of initial cartesian velocities
+"""
 function calc_state_vector(body::Planet{T1}; epoch=0.0) where T1<:AF
     # calculate argument of periapsis and store eccentricity in memory
     ω = ω̄(body) - Ω(body)
@@ -37,7 +49,6 @@ function calc_state_vector(body::Planet{T1}; epoch=0.0) where T1<:AF
     i_mat = [1.0 0.0 0.0; 0.0 cosi -sini; 0.0 sini cosi]
     ω_mat = [cosω -sinω 0.0; sinω cosω 0.0; 0.0 0.0 1.0]
 
-    # save the multiplied rotation matrices in memory
     rot_mat = Ω_mat * i_mat * ω_mat
 
     # perform rotation into 3D vector
