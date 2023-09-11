@@ -24,8 +24,6 @@ using Interpolations
 using PrecompileTools
 using OrderedCollections
 
-import PyPlot; plt = PyPlot; mpl = plt.matplotlib; plt.ioff()
-
 # import specific methods
 import Glob.glob
 import Dates.DateTime
