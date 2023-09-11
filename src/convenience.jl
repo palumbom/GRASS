@@ -28,8 +28,7 @@ function synth_cpu(spec::SpecParams{T}, disk::DiskParams{T}, seed_rng::Bool,
 
     # allocate memory for synthsis
     prof = ones(Nλ)
-    outspec = ones(Nλ, Nt)
-    outspec_temp = zeros(Nλ, Nt)
+    flux = ones(Nλ, Nt)
 
     # pre-allocate memory and pre-compute geometric quantities
     wsp = GRASS.SynthWorkspace(disk, verbose=verbose)
@@ -41,7 +40,7 @@ function synth_cpu(spec::SpecParams{T}, disk::DiskParams{T}, seed_rng::Bool,
     # get number of calls to disk_sim needed
     templates = unique(spec.templates)
 
-    # run the simulation (outspec modified in place)
+    # run the simulation (flux modified in place)
     for (idx, file) in enumerate(templates)
         # get temporary specparams with lines for this run
         spec_temp = SpecParams(spec, file)
@@ -68,15 +67,11 @@ function synth_cpu(spec::SpecParams{T}, disk::DiskParams{T}, seed_rng::Bool,
             tloop .= tloop_init
         end
 
-        # re-set array to 0s
-        outspec_temp .= 0.0
-
-        # run the simulation and multiply outspec by this spectrum
-        disk_sim(spec_temp, disk, soldata, wsp, prof, outspec_temp,
-                 tloop, skip_times=skip_times, verbose=verbose)
-        outspec .*= outspec_temp
+        # run the simulation and multiply flux by this spectrum
+        disk_sim(spec_temp, disk, soldata, wsp, prof, flux, tloop,
+                 skip_times=skip_times, verbose=verbose)
     end
-    return spec.lambdas, outspec
+    return spec.lambdas, flux
 end
 
 function synth_gpu(spec::SpecParams{T}, disk::DiskParams{T}, seed_rng::Bool,
@@ -95,7 +90,7 @@ function synth_gpu(spec::SpecParams{T}, disk::DiskParams{T}, seed_rng::Bool,
     Nλ = length(spec.lambdas)
 
     # allocate memory
-    outspec = ones(Nλ, Nt)
+    flux = ones(Nλ, Nt)
 
     # get number of calls to disk_sim needed
     templates = unique(spec.templates)
@@ -107,9 +102,13 @@ function synth_gpu(spec::SpecParams{T}, disk::DiskParams{T}, seed_rng::Bool,
     if seed_rng
         tloop_init = zeros(Int, CUDA.length(gpu_allocs.μs))
         keys_cpu = repeat([(:off,:off)], CUDA.length(gpu_allocs.μs))
-        @cusync μs_cpu = Array(gpu_allocs.μs)
-        @cusync cbs_cpu = Array(gpu_allocs.z_cbs)
-        @cusync ax_codes_cpu = convert.(Int64, Array(gpu_allocs.ax_codes))
+
+        # copy data to CPU
+        @cusync begin
+            μs_cpu = Array(gpu_allocs.μs)
+            cbs_cpu = Array(gpu_allocs.z_cbs)
+            ax_codes_cpu = convert.(Int64, Array(gpu_allocs.ax_codes))
+        end
     else
         tloop_init = gpu_allocs.tloop_init
     end
@@ -148,9 +147,9 @@ function synth_gpu(spec::SpecParams{T}, disk::DiskParams{T}, seed_rng::Bool,
             @cusync CUDA.copyto!(gpu_allocs.tloop, tloop_init)
         end
 
-        # run the simulation and multiply outspec by this spectrum
-        disk_sim_gpu(spec_temp, disk, soldata, gpu_allocs, outspec,
+        # run the simulation and multiply flux by this spectrum
+        disk_sim_gpu(spec_temp, disk, soldata, gpu_allocs, flux,
                      verbose=verbose, skip_times=skip_times)
     end
-    return spec.lambdas, outspec
+    return spec.lambdas, flux
 end

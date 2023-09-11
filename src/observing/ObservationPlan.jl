@@ -44,9 +44,11 @@ function get_skip_times(nt_per_night, nt_per_exposure, nt_per_deadtime)
     return repeat(iter_skips, nt_per_night ÷ nt_per_iter)
 end
 
-function simulate_observations(obs::ObservationPlan, spec::SpecParams;
+function simulate_observations(obs::ObservationPlan, spec::SpecParams,
+                               planet::Vararg{Union{Nothing,Planet}}=nothing;
                                N::Int=128, snr::T=Inf, new_res::T=NaN,
-                               use_gpu::Bool=false) where T<:AF
+                               verbose::Bool=false, seed_rng::Bool=false,
+                               use_gpu::Bool=false, kwargs...) where T<:AF
     # assertions
     @assert (isnan(new_res) | (new_res < 7e5))
 
@@ -76,7 +78,6 @@ function simulate_observations(obs::ObservationPlan, spec::SpecParams;
     #     disk_sim(spec, disk, prof, outspec, skip_times=skip_times)
     #     prof = ones(Nλ)
     # end
-
 
     # allocate memory for binned spectra
     flux_binned = zeros(Nλ, obs.N_obs)
