@@ -49,7 +49,10 @@ include("structures.jl")
 # star geometry + thermal/RT physics
 include("star_geometry.jl")
 include("star_physics.jl")
+
+# geometry for orbiting bodies
 include("system_geometry.jl")
+include("kepler_equation.jl")
 
 # data read-in + calculations
 include("inputIO.jl")

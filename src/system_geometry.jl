@@ -1,7 +1,19 @@
-function calculate_state_vector(body::Planet{T}) where T<:AF
+function calc_state_vector(body::Planet{T1}; epoch=0.0) where T1<:AF
     # calculate argument of periapsis and store eccentricity in memory
-    ω = ωbar(body) - Ω(body)
+    ω = ω̄(body) - Ω(body)
     ecc = e(body)
+
+    # get mean motion
+    n = 2π / T(body)
+
+    # get mean anomaly
+    M = mod(n * (epoch), 2π) # L_t - ω̄(body)
+
+    # iteratively solve Kepler's equation for eccentric anomaly
+    E = calc_ecc_anom_iterative_laguerre(M, ecc)
+
+    # enforce that eccentric anomaly converged
+    @assert isapprox(kepler(E, ecc, M), 0.0, atol=1e-10)
 
     # store trig evals in memory
     cosE = cos(E)

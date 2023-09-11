@@ -1,24 +1,24 @@
-struct Planet{T<:AF}
-    mass::T
-    radius::T
-    period::T
-    semi_major_axis::T
-    eccentricity::T
-    inclincation::T
-    longitude_ascending_node::T
-    longitude_periapsis::T
-    mean_longitude::T
+struct Planet{T1<:AF}
+    mass::T1
+    radius::T1
+    period::T1
+    semi_major_axis::T1
+    eccentricity::T1
+    inclination::T1
+    longitude_ascending_node::T1
+    longitude_periapsis::T1
+    mean_longitude::T1
 end
 
-body_mass(B::Body) = B.mass
-T(B::Body) = B.orbital_period
-a(B::Body) = B.semi_major_axis
-b(B::Body) = B.semi_major_axis * sqrt(1.0 - B.eccentricity^2)
-e(B::Body) = B.eccentricity
-i(B::Body) = B.inclination
-Ω(B::Body) = B.longitude_ascending_node
-ωbar(B::Body) = B.longitude_periapsis
-L(B::Body) = B.mean_longitude
+body_mass(p::Planet) = p.mass
+T(p::Planet) = p.period
+a(p::Planet) = p.semi_major_axis
+b(p::Planet) = p.semi_major_axis * sqrt(1.0 - p.eccentricity^2)
+e(p::Planet) = p.eccentricity
+i(p::Planet) = p.inclination
+Ω(p::Planet) = p.longitude_ascending_node
+ω̄(p::Planet) = p.longitude_periapsis
+L(p::Planet) = p.mean_longitude
 
 """
 units:
@@ -26,11 +26,12 @@ units:
     - period: years
     - semi_major_axis: AU
 """
-function Planet(;mass=NaN, radius=NaN, period=NaN, semi_major_axis=NaN, eccentricity=NaN,
-                 longitude_ascending_node=NaN, longitude_periapsis=NaN, mean_longitude=NaN)
+function Planet(;mass=NaN, radius=NaN, period=NaN, semi_major_axis=NaN,
+                 eccentricity=NaN, inclination=NaN, longitude_ascending_node=NaN,
+                 longitude_periapsis=NaN, mean_longitude=NaN)
     @assert !isnan(radius)
     @assert !isnan(period)
-    @assert !isnan(semiaxis)
+    @assert !isnan(semi_major_axis)
     @assert 0.0 <= inclination <= 180.0
 
     return Planet(mass, radius, period, semi_major_axis, eccentricity,
