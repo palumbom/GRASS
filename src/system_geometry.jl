@@ -58,7 +58,7 @@ function calc_state_vector(body::Planet{T1}; epoch=0.0) where T1<:AF
         return XYZ, [0.0, 0.0, 0.0]
     else
         # rate of change of eccentric anomaly
-        Mdot = 1.0 / T(body) # TODO way to do this without period?
+        Mdot = 1.0 / T(body)
         Edot = Mdot / (1.0 - ecc * cosE)
 
         # calculate velocity in 2D orbital plane
