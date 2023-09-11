@@ -47,15 +47,13 @@ include("interpolate.jl")
 include("structures.jl")
 
 # star geometry + thermal/RT physics
-include("stargeometry.jl")
-include("starphysics.jl")
+include("star_geometry.jl")
+include("star_physics.jl")
+include("system_geometry.jl")
 
 # data read-in + calculations
 include("inputIO.jl")
 include("bisectors.jl")
-
-# rossiter mclaughlin
-include("rm_effect.jl")
 
 # star simulation
 include("trim.jl")
@@ -122,8 +120,8 @@ include("convenience.jl")
 # end
 
 # export some stuff
-export SpecParams, DiskParams, LineProperties, SolarData, synthesize_spectra,
-       calc_ccf, calc_rvs_from_ccf, calc_rms, parse_args, check_plot_dirs,
-       read_iag
+export SpecParams, DiskParams, LineProperties, SolarData, Planet,
+       synthesize_spectra, calc_ccf, calc_rvs_from_ccf, calc_rms,
+       parse_args, check_plot_dirs, read_iag
 
 end # module
