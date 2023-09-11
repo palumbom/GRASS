@@ -37,7 +37,7 @@ function disk_sim(spec::SpecParams{T}, disk::DiskParams{T}, soldata::SolarData{T
 
                 # check that tloop hasn't exceeded number of epochs
                 if tloop[i] > len
-                    tloop[i] = 1
+                    tloop[i] -= len
                 end
 
                 # get views needed for line synthesis
