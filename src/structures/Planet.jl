@@ -22,9 +22,15 @@ L(p::Planet) = p.mean_longitude
 
 """
 units:
-    - radius: fractional solar radius (rplanet/rstar)
-    - period: years
-    - semi_major_axis: AU
+    - mass: mass in solar masses
+    - radius: planet radius in AU
+    - period: period in years
+    - semi_major_axis: semi major axis in AU
+    - eccentricty
+    - inclination
+    - longitude_ascending_node
+    - longitude_periapsis
+    - mean_longitude
 """
 function Planet(;mass=NaN, radius=NaN, period=NaN, semi_major_axis=NaN,
                  eccentricity=NaN, inclination=NaN, longitude_ascending_node=NaN,
