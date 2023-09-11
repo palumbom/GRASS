@@ -1,5 +1,5 @@
 function fill_workspaces!(line, variability, extra_z, tloop, dat_idx, z_rot,
-                          z_cbs, bisall, intall, widall, allwavs, allints)
+                          z_cbs, lenall, bisall, intall, widall, allwavs, allints)
     # get indices from GPU blocks + threads
     idx = threadIdx().x + blockDim().x * (blockIdx().x-1)
     sdx = blockDim().x * gridDim().x
@@ -9,12 +9,16 @@ function fill_workspaces!(line, variability, extra_z, tloop, dat_idx, z_rot,
     # parallelized loop over grid
     for i in idx:sdx:CUDA.length(dat_idx)
         # move to next iter if off disk
-        d_idx = dat_idx[i]
-        if CUDA.iszero(d_idx)
+        k = dat_idx[i]
+        if CUDA.iszero(k)
             continue
         end
 
         # alias time index
+        len = lenall[dat_idx[i]]
+        if tloop[i] > len
+            @inbounds tloop[i] -= len
+        end
         t = tloop[i]
 
         # calculate shifted line center
@@ -28,13 +32,13 @@ function fill_workspaces!(line, variability, extra_z, tloop, dat_idx, z_rot,
             idx2 = lent - (j - 1)
 
             # slice out the correct views of the input data for position
-            @inbounds bis1 = bisall[idx1, t, d_idx]
-            @inbounds wid1 = widall[idx1, t, d_idx]
-            @inbounds int1 = intall[idx1, t, d_idx]
+            @inbounds bis1 = bisall[idx1, t, k]
+            @inbounds wid1 = widall[idx1, t, k]
+            @inbounds int1 = intall[idx1, t, k]
 
-            @inbounds bis2 = bisall[idx2, t, d_idx]
-            @inbounds wid2 = widall[idx2, t, d_idx]
-            @inbounds int2 = intall[idx2, t, d_idx]
+            @inbounds bis2 = bisall[idx2, t, k]
+            @inbounds wid2 = widall[idx2, t, k]
+            @inbounds int2 = intall[idx2, t, k]
 
             # right side of line, indexing from middle left to right
             @inbounds allwavs[i, j+lent] = (λΔD + (0.5 * wid1 + bis1))
