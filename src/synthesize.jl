@@ -22,10 +22,6 @@ function line_profile_cpu!(mid::T, weight::T, lambdas::AA{T,1}, prof::AA{T,1},
     allwavs[1:len] .= view(lwavgrid, itr)
     allints[1:len] .= view(intm, itr)
 
-    # # get indices for interpolation view
-    # lind = clamp(findlast(x -> x <= allwavs[1], lambdas), firstindex(lambdas), lastindex(lambdas))
-    # rind = clamp(findfirst(x -> x >= allwavs[end], lambdas), firstindex(lambdas), lastindex(lambdas))
-
     # get indices for interpolation view
     lind = findlast(x -> x <= allwavs[1], lambdas)
     if isnothing(lind)
@@ -38,21 +34,21 @@ function line_profile_cpu!(mid::T, weight::T, lambdas::AA{T,1}, prof::AA{T,1},
     end
 
     # get views
-    lambda_window = lambdas#view(lambdas, lind:rind)
-    prof_window = prof#view(prof, lind:rind)
+    lambda_window = view(lambdas, lind:rind)
+    prof_window = view(prof, lind:rind)
 
     # interpolate onto original lambda grid, extrapolate to continuum
     itp1 = linear_interp(allwavs, allints, bc=one(T))
     prof_window .+= itp1.(lambda_window) .* weight
 
-    # # make sure other lambda values get weight
-    # if lind != firstindex(lambdas)
-    #     prof[1:lind-1] .+= weight
-    # end
+    # make sure other lambda values get weight
+    if lind != firstindex(lambdas)
+        prof[1:lind-1] .+= weight
+    end
 
-    # if rind != lastindex(lambdas)
-    #     prof[rind+1:end] .+= weight
-    # end
+    if rind != lastindex(lambdas)
+        prof[rind+1:end] .+= weight
+    end
 
     return nothing
 end
