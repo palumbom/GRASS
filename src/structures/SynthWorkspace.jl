@@ -30,6 +30,7 @@ function SynthWorkspace(disk::DiskParams; ndepths::Integer=100, verbose::Bool=tr
     μs = zeros(size(disk.θc))
     ld = zeros(size(disk.θc))
     dA = zeros(size(disk.θc))
+    xyz = zeros(size(disk.θc), 3)
     wts = zeros(size(disk.θc))
     z_rot = zeros(size(disk.θc))
     ax_codes = zeros(Int, size(disk.θc))
