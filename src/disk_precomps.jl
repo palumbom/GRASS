@@ -1,6 +1,7 @@
-function precompute_quantities!(disk::DiskParams{T}, μs::AA{T,2}, ld::AA{T,2},
-                                dA::AA{T,2}, xyz::AA{T,3}, wts::AA{T,2},
-                                z_rot::AA{T,2}, ax_codes::AA{Int64, 2}) where T<:AF
+function precompute_quantities!(disk::DiskParams{T}, ϕc::AA{T,2}, θc::AA{T,2},
+                                μs::AA{T,2}, ld::AA{T,2}, dA::AA{T,2},
+                                xyz::AA{T,3}, wts::AA{T,2}, z_rot::AA{T,2},
+                                ax_codes::AA{Int64, 2}) where T<:AF
     # parse out composite type fields
     Nsubgrid = disk.Nsubgrid
 
@@ -15,6 +16,10 @@ function precompute_quantities!(disk::DiskParams{T}, μs::AA{T,2}, ld::AA{T,2},
     # loop over disk positions
     for i in eachindex(disk.ϕc)
         for j in 1:disk.Nθ[i]
+            # save the tile position
+            ϕc[i,j] = disk.ϕc[i]
+            θc[i,j] = disk.θc[i,j]
+
             # subdivide the tile
             ϕe_sub = range(disk.ϕe[i], disk.ϕe[i+1], length=Nsubgrid+1)
             θe_sub = range(disk.θe[i,j], disk.θe[i,j+1], length=Nsubgrid+1)

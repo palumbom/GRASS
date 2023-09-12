@@ -3,15 +3,20 @@ struct SynthWorkspace{T<:AF}
     rwavgrid::AA{T,1}
     allwavs::AA{T,1}
     allints::AA{T,1}
+
     bist::AA{T,1}
     intt::AA{T,1}
     widt::AA{T,1}
+
+    ϕc::AA{T,1}
+    θc::AA{T,1}
     μs::AA{T,1}
-    cbs::AA{T,1}
     ld::AA{T,1}
     dA::AA{T,1}
     wts::AA{T,1}
-    xys::AA{T,2}
+    xyz::AA{T,2}
+
+    cbs::AA{T,1}
     z_rot::AA{T,1}
     ax_codes::AA{Int,1}
     keys::AA{Tuple{Symbol, Symbol},1}
@@ -28,6 +33,8 @@ function SynthWorkspace(disk::DiskParams; ndepths::Integer=100, verbose::Bool=tr
     widt     = zeros(ndepths)
 
     # allocate the memory for keys, velocities, ld, etc.
+    ϕc = zeros(size(disk.θc)...)
+    θc = zeros(size(disk.θc)...)
     μs = zeros(size(disk.θc)...)
     ld = zeros(size(disk.θc)...)
     dA = zeros(size(disk.θc)...)
@@ -40,13 +47,15 @@ function SynthWorkspace(disk::DiskParams; ndepths::Integer=100, verbose::Bool=tr
     if verbose
         println("\t>>> Precomputing geometric quantities...")
     end
-    precompute_quantities!(disk, μs, ld, dA, xyz, wts, z_rot, ax_codes)
+    precompute_quantities!(disk, ϕc, θc, μs, ld, dA, xyz, wts, z_rot, ax_codes)
 
     # get indices with nonzero wts
     idx = μs .> 0.0
     num_nonzero = sum(idx)
 
     # get arrays of nonzero wts
+    ϕc = ϕc[idx]
+    θc = θc[idx]
     μs = μs[idx]
     ld = ld[idx]
     dA = dA[idx]
@@ -60,6 +69,6 @@ function SynthWorkspace(disk::DiskParams; ndepths::Integer=100, verbose::Bool=tr
     keys = repeat([(:off,:off)], num_nonzero)
 
     return SynthWorkspace(lwavgrid, rwavgrid, allwavs, allints,
-                          bist, intt, widt, μs, cbs, ld, dA,
-                          wts, xyz, z_rot, ax_codes, keys)
+                          bist, intt, widt, ϕc, θc, μs, ld, dA,
+                          wts, xyz, cbs, z_rot, ax_codes, keys)
 end
