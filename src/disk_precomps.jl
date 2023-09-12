@@ -56,7 +56,7 @@ function precompute_quantities!(disk::DiskParams{T}, ϕc::AA{T,2}, θc::AA{T,2},
 
             # calculate area element of tile
             dA_sub .= map(x -> calc_dA(disk.ρs, getindex(x,1), step(ϕe_sub), step(θe_sub)), subgrid)
-            dp_sub .= map(x -> abs(dot(x .- disk.O⃗, x)), xyz_sub) / norm(disk.O⃗)
+            dp_sub .= map(x -> abs(dot(x .- disk.O⃗, x)), xyz_sub) ./ norm(disk.O⃗)
 
             # get total projected, visible area of larger tile
             dA_total = sum(view(dA_sub, idx))
