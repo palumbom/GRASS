@@ -32,9 +32,9 @@ end
     disk00 = DiskParams(N=50, Nt=10, Nsubgrid=25, inclination=0.0)
 
     # test equator on
-    @test isapprox(GRASS.patch_velocity_los(deg2rad(90.0), deg2rad(270.0), disk90) * 3e8, 0.0, atol=1e-8)
-    @test isapprox(GRASS.patch_velocity_los(deg2rad(0.0), deg2rad(180), disk90) * 3e8, -2068.5, atol=1e-1)
-    @test isapprox(GRASS.patch_velocity_los(deg2rad(0.0), deg2rad(0.0), disk90) * 3e8, 2068.5, atol=1e-1)
+    @test isapprox(GRASS.patch_velocity_los(deg2rad(0.0), deg2rad(0.0), disk90) * 3e8, 0.0, atol=1e-8)
+    @test isapprox(GRASS.patch_velocity_los(deg2rad(0.0), deg2rad(-90.0), disk90) * 3e8, -2068.5, atol=1e-1)
+    @test isapprox(GRASS.patch_velocity_los(deg2rad(0.0), deg2rad(90.0), disk90) * 3e8, 2068.5, atol=1e-1)
 
     # test pole on
     @test isapprox(GRASS.patch_velocity_los(deg2rad(90.0), deg2rad(0.0), disk00) * 3e8, 0.0, atol=1e-8)

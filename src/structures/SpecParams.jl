@@ -78,7 +78,7 @@ Construct a `SpecParams` composite type instance. If `variability` is not specif
 """
 function SpecParams(;lines=[], depths=[], geffs=[], variability=[],
                     templates=[], blueshifts=[], resolution=7e5, buffer=2.0,
-                    oversampling=2.0)
+                    oversampling=1.0)
     @assert length(lines) == length(depths)
     @assert !isempty(lines)
     @assert !isempty(depths)
