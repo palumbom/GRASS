@@ -31,7 +31,7 @@ function synth_cpu(spec::SpecParams{T}, disk::DiskParams{T}, seed_rng::Bool,
     flux = ones(Nλ, Nt)
 
     # pre-allocate memory and pre-compute geometric quantities
-    wsp = GRASS.SynthWorkspace(disk, verbose=verbose)
+    wsp = SynthWorkspace(disk, verbose=verbose)
 
     # allocate memory for time indices
     tloop = zeros(Int, size(wsp.μs))

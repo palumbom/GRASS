@@ -1,5 +1,5 @@
 function disk_sim(spec::SpecParams{T}, disk::DiskParams{T}, soldata::SolarData{T},
-                  wsp::SynthWorkspace, prof::AA{T,1}, flux::AA{T,2},
+                  wsp::SynthWorkspace{T}, prof::AA{T,1}, flux::AA{T,2},
                   tloop::AA{Int,1}; verbose::Bool=true,
                   skip_times::BitVector=falses(disk.Nt)) where T<:AF
     # get sum of weights
@@ -83,8 +83,8 @@ function disk_sim(spec::SpecParams{T}, disk::DiskParams{T}, soldata::SolarData{T
     return nothing
 end
 
-function calc_rossiter_weights(xyz_planet::AA{T,1}, planet::Planet{T},
-                               disk::DiskParams{T}, wsp::SynthWorkspace{T}) where T<:AF
+function calc_rossiter_quantities(xyz_planet::AA{T,1}, planet::Planet{T},
+                                  disk::DiskParams{T}, wsp::SynthWorkspace{T}) where T<:AF
 
 
 
@@ -92,8 +92,8 @@ function calc_rossiter_weights(xyz_planet::AA{T,1}, planet::Planet{T},
 end
 
 function disk_sim_rossiter(spec::SpecParams{T}, disk::DiskParams{T}, planet::Planet{T},
-                           soldata::SolarData{T}, wsp::SynthWorkspace, prof::AA{T,1},
-                           flux::AA{T,2}, tloop::AA{Int,1}; verbose::Bool=true,
+                           soldata::SolarData{T}, wsp::SynthWorkspace{T}, ros_allocs::RossiterAllocs{T},
+                           prof::AA{T,1}, flux::AA{T,2}, tloop::AA{Int,1}; verbose::Bool=true,
                            skip_times::BitVector=falses(disk.Nt)) where T<:AF
     # get sum of weights
     sum_wts = sum(wsp.wts)
@@ -108,6 +108,7 @@ function disk_sim_rossiter(spec::SpecParams{T}, disk::DiskParams{T}, planet::Pla
         end
 
         # get the projected position of the center of the planet
+        # xyz_planet = calc_projected_planet_position()
         xyz_planet = [0.5, 0.5, 1.25]
 
         # calculate which patches are obscured
