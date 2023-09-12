@@ -26,9 +26,9 @@ function sphere_to_cart(ρ::T, ϕ::T, θ::T) where T
     cosθ = cos(θ)
 
     # now get cartesian coords
-    x = ρ * cosϕ * cosθ
-    y = ρ * cosϕ * sinθ
-    z = ρ * sinϕ
+    x = ρ * cosϕ * sinθ
+    y = ρ * sinϕ
+    z = ρ * cosϕ * cosθ
     return [x, y, z]
 end
 

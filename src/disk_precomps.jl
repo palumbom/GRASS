@@ -38,8 +38,8 @@ function precompute_quantities!(disk::DiskParams{T}, μs::AA{T,2}, ld::AA{T,2},
 
             # find xz at mean value of mu and get axis code (i.e., N, E, S, W)
             mean_x = mean(view(getindex.(xyz_sub,1), idx))
-            mean_z = mean(view(getindex.(xyz_sub,3), idx))
-            ax_codes[i,j] = find_nearest_ax_code(mean_x, mean_z)
+            mean_y = mean(view(getindex.(xyz_sub,2), idx))
+            ax_codes[i,j] = find_nearest_ax_code(mean_x, mean_y)
 
             # calc limb darkening
             ld_sub .= map(x -> quad_limb_darkening(x, disk.u1, disk.u2), μs_sub)
