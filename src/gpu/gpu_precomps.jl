@@ -1,6 +1,7 @@
-function precompute_quantities_gpu!(disk::DiskParams{T1}, μs::CuArray{T2,2},
-                                    wts::CuArray{T2,2}, z_rot::CuArray{T2,2},
-                                    ax_codes::CuArray{Int32,2}) where {T1<:AF, T2<:AF}
+function precompute_quantities_gpu!(disk::DiskParams{T1}, xx::CuArray{T2,2},
+                                    yy::CuArray{T2,2}, zz::CuArray{T2,2},
+                                    μs::CuArray{T2,2}, wts::CuArray{T2,2},
+                                    z_rot::CuArray{T2,2}, ax_codes::CuArray{Int32,2}) where {T1<:AF, T2<:AF}
     # get precision from GPU allocs
     precision = eltype(μs)
 
@@ -31,17 +32,18 @@ function precompute_quantities_gpu!(disk::DiskParams{T1}, μs::CuArray{T2,2},
     # compute geometric parameters, average over subtiles
     threads1 = 256
     blocks1 = cld(Nϕ * Nθ_max, prod(threads1))
-    @cusync @captured @cuda threads=threads1 blocks=blocks1 precompute_quantities_gpu!(μs, wts, z_rot, ax_codes, Nϕ,
-                                                                                       Nθ_max, Nsubgrid, Nθ, R_x, O⃗,
-                                                                                       ρs, A, B, C, v0, u1, u2)
+    @cusync @cuda threads=threads1 blocks=blocks1 precompute_quantities_gpu!(μs, xx, yy, zz, wts, z_rot,
+                                                                             ax_codes, Nϕ, Nθ_max, Nsubgrid,
+                                                                             Nθ, R_x, O⃗, ρs, A, B, C, v0, u1, u2)
 
     CUDA.synchronize()
     return nothing
 end
 
-function precompute_quantities_gpu!(μs, wts, z_rot, ax_codes, Nϕ, Nθ_max, Nsubgrid,
-                                    Nθ, R_x, O⃗, ρs, A, B, C, v0, u1, u2)
-# get indices from GPU blocks + threads
+function precompute_quantities_gpu!(μs, xx, yy, zz, wts, z_rot, ax_codes,
+                                    Nϕ, Nθ_max, Nsubgrid, Nθ, R_x, O⃗, ρs,
+                                    A, B, C, v0, u1, u2)
+    # get indices from GPU blocks + threads
     idx = threadIdx().x + blockDim().x * (blockIdx().x-1)
     sdx = gridDim().x * blockDim().x
 
@@ -175,11 +177,12 @@ function precompute_quantities_gpu!(μs, wts, z_rot, ax_codes, Nϕ, Nθ_max, Nsu
             @inbounds wts[row + 1, col + 1] = (ld_sum / count) * dA_sum
 
             # set scalar quantity elements as average
-            @inbounds xx = x_sum / count
-            @inbounds yy = y_sum / count
+            @inbounds xx[row + 1, col + 1] = x_sum / count
+            @inbounds yy[row + 1, col + 1] = y_sum / count
+            @inbounds zz[row + 1, col + 1] = y_sum / count
 
             # get axis code
-            @inbounds ax_codes[row + 1, col + 1] = find_nearest_ax_gpu(xx, yy)
+            @inbounds ax_codes[row + 1, col + 1] = find_nearest_ax_gpu(xx[row + 1, col + 1], yy[row + 1, col + 1])
         else
             # zero out elements if count is 0 (avoid div by 0)
             @inbounds μs[row + 1, col + 1] = 0.0

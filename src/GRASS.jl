@@ -64,9 +64,6 @@ include("synthesize.jl")
 include("disk_sim.jl")
 include("disk_precomps.jl")
 
-# simulation for rossiter
-include("rossiter.jl")
-
 # processing spectra
 include("velocities.jl")
 
@@ -93,8 +90,11 @@ include("gpu/gpu_synthesis.jl")
 include("fig_functions.jl")
 include("iag_utils.jl")
 
-# lastly include convenciece synthesis
+# include convenience functions for synthtesis
 include("convenience.jl")
+
+# convenience functions for rossiter synthesis
+include("rossiter.jl")
 
 # precompile stuff
 # if !isempty(soldir)
