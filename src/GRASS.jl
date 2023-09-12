@@ -64,6 +64,9 @@ include("synthesize.jl")
 include("disk_sim.jl")
 include("disk_precomps.jl")
 
+# simulation for rossiter
+include("rossiter.jl")
+
 # processing spectra
 include("velocities.jl")
 

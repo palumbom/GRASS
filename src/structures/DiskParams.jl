@@ -97,7 +97,7 @@ function DiskParams(;N=197, Nt=NaN, radius=1.0, inclination=90.0, u1=0.4,
     v0 = (vsini / c_ms) * (360.0 / A)
 
     # set observer vector to large distance (units = stellar radius)
-    O⃗ = [0.0, 0.0, 1e6]
+    O⃗ = [0.0, 0.0, 206265.0]
 
     return DiskParams(N, Nt, radius, ϕe, ϕc, θe, θc, Nθ, Nsubgrid,
                       R_x, R_y, R_z, O⃗, A, B, C, v0, u1, u2)

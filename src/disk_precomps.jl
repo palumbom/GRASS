@@ -1,6 +1,6 @@
 function precompute_quantities!(disk::DiskParams{T}, μs::AA{T,2}, ld::AA{T,2},
-                                dA::AA{T,2}, wts::AA{T,2}, z_rot::AA{T,2},
-                                ax_codes::AA{Int64, 2}) where T<:AF
+                                dA::AA{T,2}, xyz::AA{T,3}, wts::AA{T,2},
+                                z_rot::AA{T,2}, ax_codes::AA{Int64, 2}) where T<:AF
     # parse out composite type fields
     Nsubgrid = disk.Nsubgrid
 
@@ -37,9 +37,10 @@ function precompute_quantities!(disk::DiskParams{T}, μs::AA{T,2}, ld::AA{T,2},
             μs[i,j] = mean(view(μs_sub, idx))
 
             # find xz at mean value of mu and get axis code (i.e., N, E, S, W)
-            mean_x = mean(view(getindex.(xyz_sub,1), idx))
-            mean_y = mean(view(getindex.(xyz_sub,2), idx))
-            ax_codes[i,j] = find_nearest_ax_code(mean_x, mean_y)
+            xyz[i,j,1] = mean(view(getindex.(xyz_sub,1), idx))
+            xyz[i,j,2] = mean(view(getindex.(xyz_sub,2), idx))
+            xyz[i,j,3] = mean(view(getindex.(xyz_sub,3), idx))
+            ax_codes[i,j] = find_nearest_ax_code(xyz[i,j,1], xyz[i,j,2])
 
             # calc limb darkening
             ld_sub .= map(x -> quad_limb_darkening(x, disk.u1, disk.u2), μs_sub)
