@@ -172,7 +172,7 @@ function calc_rossiter_quantities!(xyz_planet::AA{T,1}, planet::Planet{T},
         ros_allocs.ld[i] = mean(view(ld_sub, idx))
         ros_allocs.dA[i] = dA_total_proj
 
-        ros_allocs.wts[i] = mean(view(ld_sub .* dA_total_proj, idx)) / wsp.wts[i]
+        ros_allocs.wts[i] = mean(view(ld_sub .* dA_total_proj, idx))
         ros_allocs.z_rot[i] = mean(view(z_rot_sub, idx))
     end
 
@@ -232,8 +232,8 @@ function disk_sim_rossiter(spec::SpecParams{T}, disk::DiskParams{T}, planet::Pla
                 μc <= zero(T) && continue
 
                 # move to next iteration if entire patch is occulted
-                wts = ros_allocs.wts[i] * wsp.wts[i]
-                # iszero(wts) && continue
+                wts = ros_allocs.wts[i]
+                iszero(wts) && continue
 
                 # get input data for place on disk
                 key = wsp.keys[i]
