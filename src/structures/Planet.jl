@@ -23,7 +23,7 @@ L(p::Planet) = p.mean_longitude
 """
 units:
     - mass: mass in solar masses
-    - radius: planet radius in AU
+    - radius: planet radius as fraction of stellar radius
     - period: period in years
     - semi_major_axis: semi major axis in AU
     - eccentricty
