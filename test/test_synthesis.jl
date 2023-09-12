@@ -65,11 +65,13 @@ end
     rwavgrid = zeros(100)
     allwavs = zeros(200)
     allints = zeros(200)
-    prof = ones(length(λs))
+    prof = zeros(length(λs))
+    weight = 1.0
 
     # synthesize line
     mid = 5434.5
-    GRASS.line_profile_cpu!(mid, λs, prof, bist1, intt1, widt1, lwavgrid, rwavgrid, allwavs, allints)
+    GRASS.line_profile_cpu!(mid, weight, λs, prof, bist1, intt1, widt1,
+                            lwavgrid, rwavgrid, allwavs, allints)
 
     # test it
     @test !all(prof .== 1.0)
@@ -94,11 +96,13 @@ end
     rwavgrid = zeros(100)
     allwavs = zeros(200)
     allints = zeros(200)
-    prof = ones(length(λs))
+    prof = zeros(length(λs))
+    weight = 1.0
 
     # synthesize line
     mid = 5434.5
-    GRASS.line_profile_cpu!(mid, λs, prof, bist1, intt1, widt1, lwavgrid, rwavgrid, allwavs, allints)
+    GRASS.line_profile_cpu!(mid, weight, λs, prof, bist1, intt1, widt1,
+                            lwavgrid, rwavgrid, allwavs, allints)
 
     # measure the bisector of synth line
     biso, into = GRASS.calc_bisector(λs, prof, nflux=100)

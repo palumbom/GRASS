@@ -73,7 +73,7 @@ function precompute_quantities_gpu!(μs, wts, z_rot, ax_codes, Nϕ, Nθ_max, Nsu
 
         # set up sum holders for vector components
         x_sum = CUDA.zero(CUDA.eltype(μs))
-        z_sum = CUDA.zero(CUDA.eltype(μs))
+        y_sum = CUDA.zero(CUDA.eltype(μs))
 
         # initiate counter
         count = 0
@@ -105,24 +105,26 @@ function precompute_quantities_gpu!(μs, wts, z_rot, ax_codes, Nϕ, Nθ_max, Nsu
 
                 # get vector from spherical circle center to surface patch
                 a = x
-                b = y
-                c = CUDA.zero(CUDA.eltype(μs))
+                b = CUDA.zero(CUDA.eltype(μs))
+                c = z
 
                 # take cross product to get vector in direction of rotation
-                d = b * ρs
-                e = - a * ρs
-                f = CUDA.zero(CUDA.eltype(μs))
+                d = - ρs * c
+                e = CUDA.zero(CUDA.eltype(μs))
+                f = ρs * a
 
                 # make it a unit vector
-                def_norm = CUDA.sqrt(d^2.0 + e^2.0)
+                def_norm = CUDA.sqrt(d^2.0 + e^2.0 + f^2.0)
                 d /= def_norm
                 e /= def_norm
+                f /= def_norm
 
                 # set magnitude by differential rotation
-                rp = (v0 / rotation_period_gpu(ϕc, A, B, C))
+                rp = -(v0 / rotation_period_gpu(ϕc, A, B, C))
                 # rp = 33950.0/3e8 * (1.0 - A * sin(ϕc)^2.0)
                 d *= rp
                 e *= rp
+                f *= rp
 
                 # rotate xyz by inclination
                 x, y, z = rotate_vector_gpu(x, y, z, R_x)
@@ -159,7 +161,7 @@ function precompute_quantities_gpu!(μs, wts, z_rot, ax_codes, Nϕ, Nθ_max, Nsu
 
                 # sum on vector components
                 x_sum += x
-                z_sum += z
+                y_sum += y
 
                 # iterate counter
                 count += 1
@@ -174,10 +176,10 @@ function precompute_quantities_gpu!(μs, wts, z_rot, ax_codes, Nϕ, Nθ_max, Nsu
 
             # set scalar quantity elements as average
             @inbounds xx = x_sum / count
-            @inbounds zz = z_sum / count
+            @inbounds yy = y_sum / count
 
             # get axis code
-            @inbounds ax_codes[row + 1, col + 1] = find_nearest_ax_gpu(xx, zz)
+            @inbounds ax_codes[row + 1, col + 1] = find_nearest_ax_gpu(xx, yy)
         else
             # zero out elements if count is 0 (avoid div by 0)
             @inbounds μs[row + 1, col + 1] = 0.0

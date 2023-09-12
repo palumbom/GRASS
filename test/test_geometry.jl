@@ -14,25 +14,25 @@ end
 
 @testset "Testing back/forth conversions" begin
     # set vectors
-    O⃗ = [0.0, 1e6, 0.0]
+    O⃗ = [0.0, 0.0, 1e6]
 
     @test isnan(GRASS.calc_mu([0.0, 0.0, 0.0], O⃗))
-    @test isone(GRASS.calc_mu([0.0, 1.0, 0.0], O⃗))
+    @test isone(GRASS.calc_mu([0.0, 0.0, 1.0], O⃗))
 
-    @test isapprox(GRASS.sphere_to_cart(1.0, 0.0, 0.0), [1.0, 0.0, 0.0])
-    @test isapprox(GRASS.sphere_to_cart(1.0, deg2rad(90), 0.0), [0.0, 0.0, 1.0])
-    @test isapprox(GRASS.sphere_to_cart(1.0, 0.0, deg2rad(90)), [0.0, 1.0, 0.0])
+    @test isapprox(GRASS.sphere_to_cart(1.0, 0.0, 0.0), [0.0, 0.0, 1.0])
+    @test isapprox(GRASS.sphere_to_cart(1.0, deg2rad(90), 0.0), [0.0, 1.0, 0.0])
+    @test isapprox(GRASS.sphere_to_cart(1.0, 0.0, deg2rad(90)), [1.0, 0.0, 0.0])
 
     xyz = GRASS.sphere_to_cart(1.0, deg2rad(45.0), deg2rad(45.0))
-    @test sqrt(1.0 - (xyz[1]^2.0 + xyz[3]^2.0)) == GRASS.calc_mu(xyz, O⃗)
+    @test isapprox(sqrt(1.0 - (xyz[1]^2.0 + xyz[2]^2.0)), GRASS.calc_mu(xyz, O⃗))
 end
 
 @testset "Testing off-disk coordinate" begin
-    O⃗ = [0.0, 1e6, 0.0]
-    @test GRASS.calc_mu([0.0, -1.0, 0.0], O⃗) == -1.0
+    O⃗ = [0.0, 0.0, 1e6]
+    @test GRASS.calc_mu([0.0, 0.0, -1.0], O⃗) == -1.0
     @test iszero(GRASS.calc_mu([1.0, 0.0, 0.0], O⃗))
     @test iszero(GRASS.calc_mu([2.0, 0.0, 0.0], O⃗))
-    @test iszero(GRASS.calc_mu([0.0, 0.0, 1.0], O⃗))
+    @test iszero(GRASS.calc_mu([0.0, 1.0, 0.0], O⃗))
 end
 
 @testset "Testing normalization" begin
