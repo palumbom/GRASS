@@ -21,7 +21,6 @@ function rossiter_cpu(spec::SpecParams{T}, disk::DiskParams{T},
     # allocate memory for synthsis
     prof = ones(Nλ)
     flux = ones(Nλ, Nt)
-    flux_occulted = ones(Nλ, Nt)
 
     # pre-allocate memory and pre-compute geometric quantities
     wsp = SynthWorkspace(disk, verbose=verbose)
@@ -64,16 +63,9 @@ function rossiter_cpu(spec::SpecParams{T}, disk::DiskParams{T},
         end
 
         # run the simulation and multiply flux by this spectrum
-        disk_sim(spec_temp, disk, soldata, wsp, prof, flux, tloop,
-                 skip_times=skip_times, verbose=verbose)
-
-        # re-copy the init tloop
-        tloop .= tloop_init
-
-        # # now calculate flux obstructed by the planet
-        # disk_sim_rossiter(spec_temp, disk, planet, soldata, wsp, ros_allocs,
-        #                   prof, flux_occulted, tloop, skip_times=skip_times,
-        #                   verbose=verbose)
+        disk_sim_rossiter(spec_temp, disk, planet, soldata, wsp, ros_allocs,
+                          prof, flux, tloop, skip_times=skip_times,
+                          verbose=verbose)
     end
     return spec.lambdas, flux
 end
