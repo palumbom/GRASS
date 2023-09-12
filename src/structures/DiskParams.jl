@@ -9,6 +9,8 @@ struct DiskParams{T<:AF}
     Nθ::AA{Int,1}
     Nsubgrid::Int
     R_x::AA{T,2}
+    R_y::AA{T,2}
+    R_z::AA{T,2}
     O⃗::AA{T,1}
     A::T
     B::T
@@ -66,19 +68,37 @@ function DiskParams(;N=197, Nt=NaN, radius=1.0, inclination=90.0, u1=0.4,
         θe[i, 1:Nθ[i]+1] .= collect(edges)
     end
 
-    # create rotation matrix
+    # create rotation matrix for inclination
     @assert -90.0 <= inclination <= 90.0
     iₛ = deg2rad(90.0 - inclination)
-    R_x = M = [1.0 0.0 0.0;
-               0.0 cos(iₛ) sin(iₛ);
-               0.0 -sin(iₛ) cos(iₛ)]
+    R_x = [1.0 0.0 0.0;
+           0.0 cos(iₛ) -sin(iₛ);
+           0.0 sin(iₛ) cos(iₛ)]
+
+    # create rotation matrix for stellar rotation
+    # TODO consider differential rotation?
+    # TODO check math
+    ω_eq = vsini / (4.378993e9)
+    per = 2π / ω_eq
+    v_ang = 2π / per
+    dθ = -2π / per
+    R_y = [cos(dθ) 0.0 sin(dθ);
+           0.0 1.0 0.0;
+           -sin(dθ) 0.0 cos(dθ)]
+
+
+    # create rotation matrix for sky-plane rotation (i.e., position angle)
+    pa = deg2rad(0.0)
+    R_z = [cos(pa) -sin(pa) 0.0;
+           sin(pa) cos(pa) 0.0;
+           0.0 0.0 1.0]
 
     # convert vsini to units of R*/day/c_ms
     v0 = (vsini / c_ms) * (360.0 / A)
 
     # set observer vector to large distance (units = stellar radius)
-    # O⃗ = [0.0, 220.0, 0.0] # 220 => 1 AU in Solar Radii
-    O⃗ = [0.0, 1e6, 0.0]
+    O⃗ = [0.0, 0.0, 1e6]
 
-    return DiskParams(N, Nt, radius, ϕe, ϕc, θe, θc, Nθ, Nsubgrid, R_x, O⃗, A, B, C, v0, u1, u2)
+    return DiskParams(N, Nt, radius, ϕe, ϕc, θe, θc, Nθ, Nsubgrid,
+                      R_x, R_y, R_z, O⃗, A, B, C, v0, u1, u2)
 end

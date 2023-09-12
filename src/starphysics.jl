@@ -57,12 +57,12 @@ Return value is in (Rsol/day)/speed of light (i.e., dimensionless like z = v/c)
 - `rstar::Float64=1.0`: in R_sol (affects return velocity, but not x,y)
 - `pole = (0,1,0)`: unit vector for stellar rotation axis (default is equator-on)
 """
-function patch_velocity_los(ϕ::T, θ::T, disk::DiskParams{T}; P⃗=[0.0, 0.0, disk.ρs]) where T<:AF
+function patch_velocity_los(ϕ::T, θ::T, disk::DiskParams{T}; P⃗=[0.0, disk.ρs, 0.0]) where T<:AF
     # get vector pointing from spherical circle to patch
     xyz = sphere_to_cart(disk.ρs, ϕ, θ)
 
     # get vector from spherical circle center to surface patch
-    C⃗ = xyz .- [0.0, 0.0, last(xyz)]
+    C⃗ = xyz .- [0.0, xyz[2], 0.0]
 
     # velocity magnitude at equator, in Rsol/day/c_ms
     v0 = disk.v0
@@ -70,7 +70,7 @@ function patch_velocity_los(ϕ::T, θ::T, disk::DiskParams{T}; P⃗=[0.0, 0.0, d
     # get velocity vector direction and set magnitude
     vel = cross(C⃗, P⃗)
     vel /= norm(vel)
-    vel *= (v0 / rotation_period(ϕ; A=disk.A, B=disk.B, C=disk.C))
+    vel *= (-v0 / rotation_period(ϕ; A=disk.A, B=disk.B, C=disk.C))
 
     # rotate by stellar inclination
     xyz .= disk.R_x * xyz

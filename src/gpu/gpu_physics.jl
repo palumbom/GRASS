@@ -5,7 +5,7 @@ function calc_mu_gpu(x, y, z, O⃗)
     return dp / (n1 * n2)
 end
 
-function sphere_to_cart_gpu(ρs, ϕ, θ)
+function sphere_to_cart_gpu(ρ, ϕ, θ)
     # compute trig quantities
     sinϕ = CUDA.sin(ϕ)
     sinθ = CUDA.sin(θ)
@@ -13,9 +13,9 @@ function sphere_to_cart_gpu(ρs, ϕ, θ)
     cosθ = CUDA.cos(θ)
 
     # now get cartesian coords
-    x = ρs * cosϕ * cosθ
-    y = ρs * cosϕ * sinθ
-    z = ρs * sinϕ
+    x = ρ * cosϕ * sinθ
+    y = ρ * sinϕ
+    z = ρ * cosϕ * cosθ
     return x, y, z
 end
 
