@@ -92,9 +92,7 @@ include("iag_utils.jl")
 
 # include convenience functions for synthtesis
 include("convenience.jl")
-
-# convenience functions for rossiter synthesis
-include("rossiter.jl")
+include("convenience_rossiter.jl")
 
 # precompile stuff
 # if !isempty(soldir)
@@ -126,7 +124,8 @@ include("rossiter.jl")
 
 # export some stuff
 export SpecParams, DiskParams, LineProperties, SolarData, Planet,
-       synthesize_spectra, calc_ccf, calc_rvs_from_ccf, calc_rms,
-       parse_args, check_plot_dirs, read_iag
+       synthesize_spectra, simulate_rossiter, calc_ccf,
+       calc_rvs_from_ccf, calc_rms, parse_args,
+       check_plot_dirs, read_iag
 
 end # module

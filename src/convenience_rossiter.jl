@@ -24,7 +24,10 @@ function rossiter_cpu(spec::SpecParams{T}, disk::DiskParams{T},
     flux_occulted = ones(Nλ, Nt)
 
     # pre-allocate memory and pre-compute geometric quantities
-    wsp = GRASS.SynthWorkspace(disk, verbose=verbose)
+    wsp = SynthWorkspace(disk, verbose=verbose)
+
+    # allocate memory needed for rossiter computations
+    ros_allocs = RossiterAllocs(wsp)
 
     # allocate memory for time indices
     tloop = zeros(Int, size(wsp.μs))
@@ -67,10 +70,10 @@ function rossiter_cpu(spec::SpecParams{T}, disk::DiskParams{T},
         # re-copy the init tloop
         tloop .= tloop_init
 
-        # now calculate flux obstructed by the planet
-        disk_sim_rossiter(spec_temp, disk, planet, soldata, wsp, prof,
-                          flux_occulted, tloop, skip_times=skip_times,
-                          verbose=verbose)
+        # # now calculate flux obstructed by the planet
+        # disk_sim_rossiter(spec_temp, disk, planet, soldata, wsp, ros_allocs,
+        #                   prof, flux_occulted, tloop, skip_times=skip_times,
+        #                   verbose=verbose)
     end
     return spec.lambdas, flux
 end
