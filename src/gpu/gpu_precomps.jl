@@ -151,7 +151,7 @@ function precompute_quantities_gpu!(μs, wts, z_rot, ax_codes, Nϕ, Nθ_max, Nsu
                 n1 = CUDA.sqrt(a^2.0 + b^2.0 + c^2.0)
                 n2 = CUDA.sqrt(d^2.0 + e^2.0 + f^2.0)
                 angle = (a * d + b * e + c * f) / (n1 * n2)
-                v_sum += (n2 * angle)
+                v_sum += (n2 * angle) * ld_sum
 
                 # get projected area element
                 dA = calc_dA_gpu(ρs, ϕc, dϕ, dθ)
@@ -171,7 +171,7 @@ function precompute_quantities_gpu!(μs, wts, z_rot, ax_codes, Nϕ, Nθ_max, Nsu
         if count > 0
             # set scalar quantity elements as average
             @inbounds μs[row + 1, col + 1] = μ_sum / count
-            @inbounds z_rot[row + 1, col + 1] = v_sum / count
+            @inbounds z_rot[row + 1, col + 1] = v_sum / ld_sum
             @inbounds wts[row + 1, col + 1] = (ld_sum / count) * dA_sum
 
             # set scalar quantity elements as average
