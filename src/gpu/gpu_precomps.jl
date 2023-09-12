@@ -1,4 +1,5 @@
-function precompute_quantities_gpu!(disk::DiskParams{T1}, xx::CuArray{T2,2},
+function precompute_quantities_gpu!(disk::DiskParams{T1}, ϕc::CuArray{T2,2},
+                                    θc::CuArray{T2,2}, xx::CuArray{T2,2},
                                     yy::CuArray{T2,2}, zz::CuArray{T2,2},
                                     μs::CuArray{T2,2}, wts::CuArray{T2,2},
                                     z_rot::CuArray{T2,2}, ax_codes::CuArray{Int32,2}) where {T1<:AF, T2<:AF}
@@ -32,7 +33,7 @@ function precompute_quantities_gpu!(disk::DiskParams{T1}, xx::CuArray{T2,2},
     # compute geometric parameters, average over subtiles
     threads1 = 256
     blocks1 = cld(Nϕ * Nθ_max, prod(threads1))
-    @cusync @cuda threads=threads1 blocks=blocks1 precompute_quantities_gpu!(μs, xx, yy, zz, wts, z_rot,
+    @cusync @cuda threads=threads1 blocks=blocks1 precompute_quantities_gpu!(ϕc, θc, xx, yy, zz, μs, wts, z_rot,
                                                                              ax_codes, Nϕ, Nθ_max, Nsubgrid,
                                                                              Nθ, R_x, O⃗, ρs, A, B, C, v0, u1, u2)
 
@@ -40,9 +41,9 @@ function precompute_quantities_gpu!(disk::DiskParams{T1}, xx::CuArray{T2,2},
     return nothing
 end
 
-function precompute_quantities_gpu!(μs, xx, yy, zz, wts, z_rot, ax_codes,
-                                    Nϕ, Nθ_max, Nsubgrid, Nθ, R_x, O⃗, ρs,
-                                    A, B, C, v0, u1, u2)
+function precompute_quantities_gpu!(ϕc, θc, xx, yy, zz, μs, wts, z_rot,
+                                    ax_codes, Nϕ, Nθ_max, Nsubgrid, Nθ,
+                                    R_x, O⃗, ρs, A, B, C, v0, u1, u2)
     # get indices from GPU blocks + threads
     idx = threadIdx().x + blockDim().x * (blockIdx().x-1)
     sdx = gridDim().x * blockDim().x
@@ -62,10 +63,23 @@ function precompute_quantities_gpu!(μs, xx, yy, zz, wts, z_rot, ax_codes,
         # get index for output array
         row = (t - 1) ÷ Nθ_max
         col = (t - 1) % Nθ_max
+        m = row + 1
+        n = col + 1
 
         # get indices for input array
         i = row * k + 1
         j = col * k + 1
+
+        # get number of longitude tiles in course latitude slice
+        N_θ_edges = Nθ[m] * Nsubgrid
+
+        # get dϕ and dθ for large tiles
+        dϕ_large = (CUDA.deg2rad(90.0) - CUDA.deg2rad(-90.0)) / Nϕ
+        dθ_large = (CUDA.deg2rad(360.0) - CUDA.deg2rad(0.0)) / Nθ[m]
+
+        # save spherical coordinates of tile
+        @inbounds ϕc[m, n] = CUDA.deg2rad(-90.0) + (dϕ_large/2.0) + row * dϕ_large
+        @inbounds θc[m, n] = CUDA.deg2rad(0.0) + (dθ_large/2.0) + col * dθ_large
 
         # set up sum holders for scalars
         μ_sum = CUDA.zero(CUDA.eltype(μs))
@@ -76,18 +90,15 @@ function precompute_quantities_gpu!(μs, xx, yy, zz, wts, z_rot, ax_codes,
         # set up sum holders for vector components
         x_sum = CUDA.zero(CUDA.eltype(μs))
         y_sum = CUDA.zero(CUDA.eltype(μs))
+        z_sum = CUDA.zero(CUDA.eltype(μs))
 
         # initiate counter
         count = 0
 
-        # get number of longitude tiles in course latitude slice
-        m = row + 1
-        N_θ_edges = Nθ[m] * Nsubgrid
-
         # loop over latitude sub tiles
         for ti in i:i+k-1
             # get coordinates of latitude subtile center
-            ϕc = CUDA.deg2rad(-90.0) + (dϕ/2.0) + (ti - 1) * dϕ
+            ϕsub = CUDA.deg2rad(-90.0) + (dϕ/2.0) + (ti - 1) * dϕ
 
             # loop over longitude subtiles
             for tj in j:j+k-1
@@ -100,10 +111,10 @@ function precompute_quantities_gpu!(μs, xx, yy, zz, wts, z_rot, ax_codes,
                 dθ = (CUDA.deg2rad(360.0) - CUDA.deg2rad(0.0)) / (N_θ_edges)
 
                 # get longitude
-                θc = CUDA.deg2rad(0.0) + (dθ/2.0) + (tj - 1) * dθ
+                θsub = CUDA.deg2rad(0.0) + (dθ/2.0) + (tj - 1) * dθ
 
                 # get cartesian coords
-                x, y, z = sphere_to_cart_gpu(ρs, ϕc, θc)
+                x, y, z = sphere_to_cart_gpu(ρs, ϕsub, θsub)
 
                 # get vector from spherical circle center to surface patch
                 a = x
@@ -122,8 +133,8 @@ function precompute_quantities_gpu!(μs, xx, yy, zz, wts, z_rot, ax_codes,
                 f /= def_norm
 
                 # set magnitude by differential rotation
-                rp = -(v0 / rotation_period_gpu(ϕc, A, B, C))
-                # rp = 33950.0/3e8 * (1.0 - A * sin(ϕc)^2.0)
+                rp = -(v0 / rotation_period_gpu(ϕsub, A, B, C))
+                # rp = 33950.0/3e8 * (1.0 - A * sin(ϕsub)^2.0)
                 d *= rp
                 e *= rp
                 f *= rp
@@ -156,7 +167,7 @@ function precompute_quantities_gpu!(μs, xx, yy, zz, wts, z_rot, ax_codes,
                 v_sum += (n2 * angle)
 
                 # get projected area element
-                dA = calc_dA_gpu(ρs, ϕc, dϕ, dθ)
+                dA = calc_dA_gpu(ρs, ϕsub, dϕ, dθ)
                 dA *= CUDA.abs(a * x + b * y + c * z)
                 dA /= CUDA.sqrt(O⃗[1]^2.0 + O⃗[2]^2.0 + O⃗[3]^2.0)
                 dA_sum += dA
@@ -164,6 +175,7 @@ function precompute_quantities_gpu!(μs, xx, yy, zz, wts, z_rot, ax_codes,
                 # sum on vector components
                 x_sum += x
                 y_sum += y
+                z_sum += z
 
                 # iterate counter
                 count += 1
@@ -172,25 +184,25 @@ function precompute_quantities_gpu!(μs, xx, yy, zz, wts, z_rot, ax_codes,
 
         if count > 0
             # set scalar quantity elements as average
-            @inbounds μs[row + 1, col + 1] = μ_sum / count
-            @inbounds z_rot[row + 1, col + 1] = v_sum / count
-            @inbounds wts[row + 1, col + 1] = (ld_sum / count) * dA_sum
+            @inbounds μs[m, n] = μ_sum / count
+            @inbounds z_rot[m, n] = v_sum / count
+            @inbounds wts[m, n] = (ld_sum / count) * dA_sum
 
             # set scalar quantity elements as average
-            @inbounds xx[row + 1, col + 1] = x_sum / count
-            @inbounds yy[row + 1, col + 1] = y_sum / count
-            @inbounds zz[row + 1, col + 1] = y_sum / count
+            @inbounds xx[m, n] = x_sum / count
+            @inbounds yy[m, n] = y_sum / count
+            @inbounds zz[m, n] = z_sum / count
 
             # get axis code
-            @inbounds ax_codes[row + 1, col + 1] = find_nearest_ax_gpu(xx[row + 1, col + 1], yy[row + 1, col + 1])
+            @inbounds ax_codes[m, n] = find_nearest_ax_gpu(xx[m,n], yy[m,n])
         else
             # zero out elements if count is 0 (avoid div by 0)
-            @inbounds μs[row + 1, col + 1] = 0.0
-            @inbounds wts[row + 1, col + 1] = 0.0
-            @inbounds z_rot[row + 1, col + 1] = 0.0
+            @inbounds μs[m, n] = 0.0
+            @inbounds wts[m, n] = 0.0
+            @inbounds z_rot[m, n] = 0.0
 
             # set axis code to 0
-            @inbounds ax_codes[row + 1, col + 1] = 0
+            @inbounds ax_codes[m, n] = 0
         end
     end
     return nothing

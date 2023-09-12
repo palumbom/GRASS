@@ -111,6 +111,7 @@ function disk_sim_rossiter(spec::SpecParams{T}, disk::DiskParams{T}, planet::Pla
         xyz_planet = [0.5, 0.5, 1.25]
 
         # calculate which patches are obscured
+        calc_rossiter_weights(xyz_planet, planet, disk, wsp)
 
         # loop over wavelength
         for l in 1:length(spec.lines)
