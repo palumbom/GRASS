@@ -95,6 +95,9 @@ function rossiter_gpu(spec::SpecParams{T}, disk::DiskParams{T},
     # pre-allocate memory for gpu and pre-compute geometric quantities
     gpu_allocs = GPUAllocs(spec, disk, precision=precision, verbose=verbose)
 
+    # allocate memory needed for rossiter computations
+    ros_allocs = RossiterAllocsGPU(gpu_allocs)
+
     # allocate additional memory if generating random numbers on the cpu
     if seed_rng
         tloop_init = zeros(Int, CUDA.length(gpu_allocs.μs))
@@ -145,8 +148,9 @@ function rossiter_gpu(spec::SpecParams{T}, disk::DiskParams{T},
         end
 
         # run the simulation and multiply flux by this spectrum
-        disk_sim_gpu(spec_temp, disk, soldata, gpu_allocs, flux,
-                     verbose=verbose, skip_times=skip_times)
+        disk_sim_rossiter_gpu(spec_temp, disk, planet, soldata, gpu_allocs,
+                              ros_allocs, flux, verbose=verbose,
+                              skip_times=skip_times)
     end
     return spec.lambdas, flux
 end
