@@ -62,7 +62,6 @@ function precompute_quantities!(disk::DiskParams{T}, μs::AA{T,2}, ld::AA{T,2},
 
             wts[i,j] = mean(view(ld_sub .* dA_total_proj, idx))
             z_rot[i,j] = sum(view(z_rot_sub .* ld_sub, idx)) ./ sum(view(ld_sub, idx))
-            # z_rot[i,j] = mean(view(z_rot_sub, idx))
         end
     end
     return nothing
