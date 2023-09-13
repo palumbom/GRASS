@@ -121,13 +121,10 @@ function disk_sim_rossiter_gpu(spec::SpecParams{T1}, disk::DiskParams{T1}, plane
     Nt = disk.Nt
     Nλ = length(spec.lambdas)
 
-    # parse out composite type
+    # parse out GPU allocations
     λs = gpu_allocs.λs
     prof = gpu_allocs.prof
 
-    μs = gpu_allocs.μs
-    wts = gpu_allocs.wts
-    z_rot = gpu_allocs.z_rot
     z_cbs = gpu_allocs.z_cbs
 
     tloop = gpu_allocs.tloop
@@ -135,6 +132,11 @@ function disk_sim_rossiter_gpu(spec::SpecParams{T1}, disk::DiskParams{T1}, plane
 
     allwavs = gpu_allocs.allwavs
     allints = gpu_allocs.allints
+
+    # parse out rossiter allocations
+    μs = ros_allocs.μs
+    wts = ros_allocs.wts
+    z_rot = ros_allocs.z_rot
 
     # alias the input data from GPUSolarData
     disc_mu_gpu = soldata.mu
@@ -170,8 +172,8 @@ function disk_sim_rossiter_gpu(spec::SpecParams{T1}, disk::DiskParams{T1}, plane
     end
 
     # get weighted disk average cbs
-    @cusync sum_wts = CUDA.sum(wts)
-    @cusync z_cbs_avg = CUDA.sum(z_cbs .* wts) / sum_wts
+    @cusync sum_wts_og = CUDA.sum(wts)
+    @cusync z_cbs_avg = CUDA.sum(z_cbs .* wts) / sum_wts_og
 
     # calculate how much extra shift is needed
     extra_z = spec.conv_blueshifts .- z_cbs_avg
@@ -206,7 +208,7 @@ function disk_sim_rossiter_gpu(spec::SpecParams{T1}, disk::DiskParams{T1}, plane
         # check if the planet is transiting
         if dist2 <= (disk.ρs + planet.radius)^2.0
             # re-calculate patch weights, etc. for occulted patches
-            calc_rossiter_quantities_gpu!(xyz_planet, planet, disk, wsp, ros_allocs)
+            calc_rossiter_quantities_gpu!(xyz_planet, planet, disk, gpu_allocs, ros_allocs)
         end
 
         # loop over lines to synthesize
@@ -239,7 +241,7 @@ function disk_sim_rossiter_gpu(spec::SpecParams{T1}, disk::DiskParams{T1}, plane
             @cusync @cuda threads=threads4 blocks=blocks4 line_profile_gpu!(prof, μs, wts, λs, allwavs, allints)
 
             # copy data from GPU to CPU
-            @cusync @inbounds flux[:,t] .*= Array(prof) ./ sum_wts
+            @cusync @inbounds flux[:,t] .*= Array(prof) ./ CUDA.sum(wts)
         end
 
         # iterate tloop
