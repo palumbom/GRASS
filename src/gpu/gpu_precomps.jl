@@ -60,10 +60,15 @@ function precompute_quantities_gpu!(μs, wts, z_rot, ax_codes, Nϕ, Nθ_max, Nsu
         # get index for output array
         row = (t - 1) ÷ Nθ_max
         col = (t - 1) % Nθ_max
+        m = row + 1
+        n = col + 1
 
         # get indices for input array
         i = row * k + 1
         j = col * k + 1
+
+        # get number of longitude tiles in course latitude slice
+        N_θ_edges = Nθ[m] * Nsubgrid
 
         # set up sum holders for scalars
         μ_sum = CUDA.zero(CUDA.eltype(μs))
@@ -77,10 +82,6 @@ function precompute_quantities_gpu!(μs, wts, z_rot, ax_codes, Nϕ, Nθ_max, Nsu
 
         # initiate counter
         count = 0
-
-        # get number of longitude tiles in course latitude slice
-        m = row + 1
-        N_θ_edges = Nθ[m] * Nsubgrid
 
         # loop over latitude sub tiles
         for ti in i:i+k-1
@@ -137,7 +138,8 @@ function precompute_quantities_gpu!(μs, wts, z_rot, ax_codes, Nϕ, Nθ_max, Nsu
                 μ_sum += μ_sub
 
                 # get limb darkening
-                ld_sum += quad_limb_darkening_gpu(μ_sub, u1, u2)
+                ld = quad_limb_darkening_gpu(μ_sub, u1, u2)
+                ld_sum += ld
 
                 # rotate the velocity vectors by inclination
                 d, e, f = rotate_vector_gpu(d, e, f, R_x)
@@ -151,7 +153,7 @@ function precompute_quantities_gpu!(μs, wts, z_rot, ax_codes, Nϕ, Nθ_max, Nsu
                 n1 = CUDA.sqrt(a^2.0 + b^2.0 + c^2.0)
                 n2 = CUDA.sqrt(d^2.0 + e^2.0 + f^2.0)
                 angle = (a * d + b * e + c * f) / (n1 * n2)
-                v_sum += (n2 * angle) * ld_sum
+                v_sum += (n2 * angle) * ld
 
                 # get projected area element
                 dA = calc_dA_gpu(ρs, ϕc, dϕ, dθ)
@@ -170,24 +172,24 @@ function precompute_quantities_gpu!(μs, wts, z_rot, ax_codes, Nϕ, Nθ_max, Nsu
 
         if count > 0
             # set scalar quantity elements as average
-            @inbounds μs[row + 1, col + 1] = μ_sum / count
-            @inbounds z_rot[row + 1, col + 1] = v_sum / ld_sum
-            @inbounds wts[row + 1, col + 1] = (ld_sum / count) * dA_sum
+            @inbounds μs[m, n] = μ_sum / count
+            @inbounds z_rot[m, n] = v_sum / ld_sum
+            @inbounds wts[m, n] = (ld_sum / count) * dA_sum
 
-            # set scalar quantity elements as average
+            # set vector components as average
             @inbounds xx = x_sum / count
             @inbounds yy = y_sum / count
 
             # get axis code
-            @inbounds ax_codes[row + 1, col + 1] = find_nearest_ax_gpu(xx, yy)
+            @inbounds ax_codes[m, n] = find_nearest_ax_gpu(xx, yy)
         else
             # zero out elements if count is 0 (avoid div by 0)
-            @inbounds μs[row + 1, col + 1] = 0.0
-            @inbounds wts[row + 1, col + 1] = 0.0
-            @inbounds z_rot[row + 1, col + 1] = 0.0
+            @inbounds μs[m, n] = 0.0
+            @inbounds wts[m, n] = 0.0
+            @inbounds z_rot[m, n] = 0.0
 
             # set axis code to 0
-            @inbounds ax_codes[row + 1, col + 1] = 0
+            @inbounds ax_codes[m, n] = 0
         end
     end
     return nothing
