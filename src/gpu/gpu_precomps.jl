@@ -150,7 +150,8 @@ function precompute_quantities_gpu!(ϕc, θc, xx, yy, zz, μs, wts, z_rot,
                 μ_sum += μ_sub
 
                 # get limb darkening
-                ld_sum += quad_limb_darkening_gpu(μ_sub, u1, u2)
+                ld = quad_limb_darkening_gpu(μ_sub, u1, u2)
+                ld_sum += ld
 
                 # rotate the velocity vectors by inclination
                 d, e, f = rotate_vector_gpu(d, e, f, R_x)
@@ -164,7 +165,7 @@ function precompute_quantities_gpu!(ϕc, θc, xx, yy, zz, μs, wts, z_rot,
                 n1 = CUDA.sqrt(a^2.0 + b^2.0 + c^2.0)
                 n2 = CUDA.sqrt(d^2.0 + e^2.0 + f^2.0)
                 angle = (a * d + b * e + c * f) / (n1 * n2)
-                v_sum += (n2 * angle)
+                v_sum += (n2 * angle) * ld
 
                 # get projected area element
                 dA = calc_dA_gpu(ρs, ϕsub, dϕ, dθ)
@@ -185,7 +186,7 @@ function precompute_quantities_gpu!(ϕc, θc, xx, yy, zz, μs, wts, z_rot,
         if count > 0
             # set scalar quantity elements as average
             @inbounds μs[m, n] = μ_sum / count
-            @inbounds z_rot[m, n] = v_sum / count
+            @inbounds z_rot[m, n] = v_sum / ld_sum
             @inbounds wts[m, n] = (ld_sum / count) * dA_sum
 
             # set scalar quantity elements as average
