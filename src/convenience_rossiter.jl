@@ -26,7 +26,7 @@ function rossiter_cpu(spec::SpecParams{T}, disk::DiskParams{T},
     wsp = SynthWorkspace(disk, verbose=verbose)
 
     # allocate memory needed for rossiter computations
-    ros_allocs = RossiterAllocs(wsp)
+    ros_allocs = RossiterAllocs(wsp, disk)
 
     # allocate memory for time indices
     tloop = zeros(Int, size(wsp.μs))
