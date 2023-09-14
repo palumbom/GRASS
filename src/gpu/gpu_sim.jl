@@ -137,6 +137,8 @@ function disk_sim_rossiter_gpu(spec::SpecParams{T1}, disk::DiskParams{T1}, plane
     μs = ros_allocs.μs
     wts = ros_allocs.wts
     z_rot = ros_allocs.z_rot
+    xyz_planet = ros_allocs.xyz_planet
+    xyz_star = ros_allocs.xyz_star
 
     # alias the input data from GPUSolarData
     disc_mu_gpu = soldata.mu
@@ -193,22 +195,13 @@ function disk_sim_rossiter_gpu(spec::SpecParams{T1}, disk::DiskParams{T1}, plane
             CUDA.copyto!(ros_allocs.z_rot, gpu_allocs.z_rot)
         end
 
-        # get the projected position of the center of the planet
-        # xyz_planet = calc_projected_planet_position_gpu()
-        @cusync xyz_planet = CuArray([25.0, 0.0, 1.25])
-        @cusync xyz_star = CuArray([0.0, 0.0, 0.0])
-
-        if t == 2
-            @cusync xyz_planet = CuArray([0.5, 0.0, 1.25])
-        end
-
         # calculate projected distance between planet and star centers
-        dist2 = calc_proj_dist2(Array(xyz_planet), Array(xyz_star))
+        dist2 = calc_proj_dist2(Array(xyz_planet)[:,t], Array(xyz_star)[:,t])
 
         # check if the planet is transiting
         if dist2 <= (disk.ρs + planet.radius)^2.0
             # re-calculate patch weights, etc. for occulted patches
-            calc_rossiter_quantities_gpu!(xyz_planet, planet, disk, gpu_allocs, ros_allocs)
+            calc_rossiter_quantities_gpu!(xyz_planet, t, planet, disk, gpu_allocs, ros_allocs)
         end
 
         # loop over lines to synthesize

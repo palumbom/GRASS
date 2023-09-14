@@ -10,13 +10,12 @@ See https://farside.ph.utexas.edu/teaching/celestial/Celestialhtml/node34.html
 - `XYZ::Array{Float64,1}`: 3-vector of initial cartesian coordinates
 - `XYZ_dot::Array{Float64,1}`: 3-vector of initial cartesian velocities
 """
-function calc_state_vector!(xyz::AA{T1,1}, xyz_dot::AA{T1,1}, body::Planet{T1}, epoch::T) where T1<:AF
+function calc_state_vector!(xyz::AA{T1,1}, xyz_dot::AA{T1,1}, body::Planet{T1}, epoch::T1) where T1<:AF
     # get the reduced mass of the body
-    μ = 1.0 #mass(body) / (mass(body) + 1.0)
+    μ = mass(body) / (mass(body) + 1.0)
 
     # store semi-major and -minor axes in memory
     major = a(body)
-    minor = b(body)
 
     # get mean motion
     if isnan(body.period)
@@ -42,7 +41,8 @@ function calc_state_vector!(xyz::AA{T1,1}, xyz_dot::AA{T1,1}, body::Planet{T1}, 
     @assert isapprox(kepler(E, ecc, M), 0.0, atol=1e-10)
 
     # get the true anomaly
-    ν = 2.0 * atan(sqrt(1.0 + ecc) * sin(E / 2.0), sqrt(1.0 - ecc) * cos(E / 2.0))
+    ν = 2.0 * atan(sqrt(1.0 + ecc) * sin(E / 2.0),
+                   sqrt(1.0 - ecc) * cos(E / 2.0))
 
     # get distance to central body
     rt = major * (1.0 - ecc * cos(E))
@@ -56,8 +56,8 @@ function calc_state_vector!(xyz::AA{T1,1}, xyz_dot::AA{T1,1}, body::Planet{T1}, 
     vt = sqrt(μ * major) / rt
 
     # assign velocity vector
-    xyz_dot[1] = -sin(E)
-    xyz_dot[2] = sqrt(1.0 - ecc^2.0) * cos(E)
+    xyz_dot[1] = vt * (-sin(E))
+    xyz_dot[2] = vt * (sqrt(1.0 - ecc^2.0) * cos(E))
     xyz_dot[3] = 0.0
 
     # shortcut trig evals
@@ -104,8 +104,7 @@ function calc_state_vector!(ros_allocs::RossiterAllocs{T1}, body::Planet{T1}) wh
 
     # loop over epoch
     for t in eachindex(epochs)
-        calc_state_vector!(xyz_planet[:,t], xyz_dot_planet[:,t], body, epochs[t])
+        calc_state_vector!(view(xyz_planet, :, t), view(xyz_dot_planet, :, t), body, epochs[t])
     end
-
     return nothing
 end

@@ -36,7 +36,6 @@ function Planet(;mass=NaN, radius=NaN, period=NaN, semi_major_axis=NaN,
                  eccentricity=NaN, inclination=NaN, longitude_ascending_node=NaN,
                  longitude_periapsis=NaN, mean_longitude=NaN)
     @assert !isnan(radius)
-    @assert !isnan(period)
     @assert !isnan(semi_major_axis)
     @assert 0.0 <= inclination <= 180.0
 

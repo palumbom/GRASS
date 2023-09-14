@@ -246,7 +246,7 @@ function get_keys_and_cbs_gpu!(dat_idx, z_cbs, μs, ax_codes, cbsall, disc_mu, d
     return nothing
 end
 
-function calc_rossiter_quantities_gpu!(xyz_planet::CuArray{T1,1}, planet::Planet{T2},
+function calc_rossiter_quantities_gpu!(xyz_planet::CuArray{T1,2}, t::Int, planet::Planet{T2},
                                        disk::DiskParams{T2}, gpu_allocs::GPUAllocs{T1},
                                        ros_allocs::RossiterAllocsGPU{T1}) where {T1<:AF, T2<:AF}
     # borrowed geometry from old grid
@@ -284,13 +284,13 @@ function calc_rossiter_quantities_gpu!(xyz_planet::CuArray{T1,1}, planet::Planet
     # compute geometric parameters, average over subtiles
     threads1 = 256
     blocks1 = cld(CUDA.length(μs), prod(threads1))
-    @cusync @captured @cuda threads=threads1 blocks=blocks1 calc_rossiter_quantities_gpu!(ϕc, θc, μs, wts, z_rot, xyz_planet,
+    @cusync @captured @cuda threads=threads1 blocks=blocks1 calc_rossiter_quantities_gpu!(t, ϕc, θc, μs, wts, z_rot, xyz_planet,
                                                                                           planet.radius, Nϕ, Nsubgrid, Nθ,
                                                                                           R_x, O⃗, ρs, A, B, C, v0, u1, u2)
     return nothing
 end
 
-function calc_rossiter_quantities_gpu!(ϕc, θc, μs, wts, z_rot, xyz_planet,
+function calc_rossiter_quantities_gpu!(t, ϕc, θc, μs, wts, z_rot, xyz_planet,
                                        rad_planet, Nϕ, Nsubgrid, Nθ, R_x,
                                        O⃗, ρs, A, B, C, v0, u1, u2)
     # get indices from GPU blocks + threads
@@ -300,6 +300,10 @@ function calc_rossiter_quantities_gpu!(ϕc, θc, μs, wts, z_rot, xyz_planet,
     # get latitude subtile step size
     N_ϕ_edges = Nϕ * Nsubgrid
     dϕ = (CUDA.deg2rad(90.0) - CUDA.deg2rad(-90.0)) / (N_ϕ_edges)
+
+    # parse out x and y pos of planet
+    x_planet = xyz_planet[1, t]
+    y_planet = xyz_planet[2, t]
 
     # linear index over course grid tiles
     for i in idx:sdx:CUDA.length(μs)
@@ -373,7 +377,7 @@ function calc_rossiter_quantities_gpu!(ϕc, θc, μs, wts, z_rot, xyz_planet,
                 μ_count += 1
 
                 # calculate distance between subtile center and planet
-                d2 = (x - xyz_planet[1])^2.0 + (y - xyz_planet[2])^2.0
+                d2 = (x - x_planet)^2.0 + (y - y_planet)^2.0
                 if d2 < rad_planet^2.0
                     continue
                 end
