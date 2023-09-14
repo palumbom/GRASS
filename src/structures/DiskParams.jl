@@ -32,9 +32,9 @@ center vector.
 - `Nt::Integer=50`: Number of 15-second snapshots.
 - `Inclination::Float64`: Sky-plane inclination of stellar grid. 90.0 is equator-on.
 """
-function DiskParams(;N=197, Nt=NaN, radius=1.0, inclination=90.0, u1=0.4,
-                     u2=0.26, vsini=2067.03346686649251345, A=14.713,
-                     B=-2.396, C=-1.787, Nsubgrid=40)
+function DiskParams(;N=197, Nt=NaN, radius=1.0, dist=4.4e7, inclination=90.0,
+                     u1=0.4, u2=0.26, vsini=2067.03346686649251345,
+                     A=14.713, B=-2.396, C=-1.787, Nsubgrid=40)
     # assertions and warnings
     @assert !isnan(Nt)
 
@@ -96,8 +96,8 @@ function DiskParams(;N=197, Nt=NaN, radius=1.0, inclination=90.0, u1=0.4,
     # convert vsini to units of R*/day/c_ms
     v0 = (vsini / c_ms) * (360.0 / A)
 
-    # set observer vector to large distance (units = stellar radius)
-    O⃗ = [0.0, 0.0, 4.4e7]
+    # set vector pointing from observer to star center
+    O⃗ = [0.0, 0.0, dist]
 
     return DiskParams(N, Nt, radius, ϕe, ϕc, θe, θc, Nθ, Nsubgrid,
                       R_x, R_y, R_z, O⃗, A, B, C, v0, u1, u2)
