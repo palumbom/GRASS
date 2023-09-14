@@ -256,7 +256,7 @@ function calc_rossiter_quantities_gpu!(xyz_planet::CuArray{T1,1}, planet::Planet
     # new wts, etc. to calculate
     μs = ros_allocs.μs
     wts = ros_allocs.wts
-    z_rot = ros_allocs.wts
+    z_rot = ros_allocs.z_rot
 
     # convert scalars from disk params to desired precision
     ρs = convert(T2, disk.ρs)
@@ -287,7 +287,6 @@ function calc_rossiter_quantities_gpu!(xyz_planet::CuArray{T1,1}, planet::Planet
     @cusync @captured @cuda threads=threads1 blocks=blocks1 calc_rossiter_quantities_gpu!(ϕc, θc, μs, wts, z_rot, xyz_planet,
                                                                                           planet.radius, Nϕ, Nsubgrid, Nθ,
                                                                                           R_x, O⃗, ρs, A, B, C, v0, u1, u2)
-
     return nothing
 end
 
@@ -303,7 +302,7 @@ function calc_rossiter_quantities_gpu!(ϕc, θc, μs, wts, z_rot, xyz_planet,
     dϕ = (CUDA.deg2rad(90.0) - CUDA.deg2rad(-90.0)) / (N_ϕ_edges)
 
     # linear index over course grid tiles
-    for i in idx:sdx:length(μs)
+    for i in idx:sdx:CUDA.length(μs)
         # get dϕ and dθ for large tiles
         dϕ_large = (CUDA.deg2rad(90.0) - CUDA.deg2rad(-90.0)) / Nϕ
         dθ_large = (CUDA.deg2rad(360.0) - CUDA.deg2rad(0.0)) / get_Nθ(ϕc[i], dϕ_large)
@@ -313,7 +312,7 @@ function calc_rossiter_quantities_gpu!(ϕc, θc, μs, wts, z_rot, xyz_planet,
         θl = θc[i] - dθ_large / 2.0
 
         # get number of longitude tiles in course latitude slice
-        N_θ_edges = get_Nθ(ϕc[i], dϕ)
+        N_θ_edges = get_Nθ(ϕc[i], dϕ_large)
         dθ = (CUDA.deg2rad(360.0) - CUDA.deg2rad(0.0)) / (N_θ_edges * Nsubgrid)
 
         # set up sum holders for scalars
@@ -323,6 +322,7 @@ function calc_rossiter_quantities_gpu!(ϕc, θc, μs, wts, z_rot, xyz_planet,
         dA_sum = CUDA.zero(CUDA.eltype(wts))
 
         # initiate counter
+        μ_count = 0
         count = 0
 
         # loop over ϕ subgrid
@@ -370,6 +370,7 @@ function calc_rossiter_quantities_gpu!(ϕc, θc, μs, wts, z_rot, xyz_planet,
                     continue
                 end
                 μ_sum += μ_sub
+                μ_count += 1
 
                 # calculate distance between subtile center and planet
                 d2 = (x - xyz_planet[1])^2.0 + (y - xyz_planet[2])^2.0
@@ -409,15 +410,13 @@ function calc_rossiter_quantities_gpu!(ϕc, θc, μs, wts, z_rot, xyz_planet,
         # take averages
         if count > 0
             # set scalar quantity elements as average
-            @inbounds μs[i] = μ_sum / count
+            @inbounds μs[i] = μ_sum / μ_count
             @inbounds z_rot[i] = v_sum / ld_sum
             @inbounds wts[i] = (ld_sum / count) * dA_sum
-
         else
-            # zero out elements if count is 0 (avoid div by 0)
             @inbounds μs[i] = 0.0
-            @inbounds wts[i] = 0.0
             @inbounds z_rot[i] = 0.0
+            @inbounds wts[i] = 0.0
         end
     end
     return nothing

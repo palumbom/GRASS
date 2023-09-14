@@ -132,16 +132,16 @@ function calc_rossiter_quantities!(xyz_planet::AA{T,1}, planet::Planet{T},
     Nsubgrid = disk.Nsubgrid
 
     # allocate memory that wont be needed outside this function
-    d2_sub = zeros(Nsubgrid, Nsubgrid)
-    μs_sub = zeros(Nsubgrid, Nsubgrid)
-    ld_sub = zeros(Nsubgrid, Nsubgrid)
-    dA_sub = zeros(Nsubgrid, Nsubgrid)
-    dp_sub = zeros(Nsubgrid, Nsubgrid)
+    d2_sub = ros_allocs.d2_sub
+    μs_sub = ros_allocs.μs_sub
+    ld_sub = ros_allocs.ld_sub
+    dA_sub = ros_allocs.dA_sub
+    dp_sub = ros_allocs.dp_sub
     xyz_sub = repeat([zeros(3)], Nsubgrid, Nsubgrid)
-    z_rot_sub = zeros(Nsubgrid, Nsubgrid)
-    idx = BitMatrix(undef, size(μs_sub))
-    idx1 = BitMatrix(undef, size(μs_sub))
-    idx2 = BitMatrix(undef, size(μs_sub))
+    z_rot_sub = ros_allocs.z_rot_sub
+    idx1 = ros_allocs.idx1
+    idx2 = ros_allocs.idx2
+    idx3 = ros_allocs.idx3
 
     # loop over disk positions
     for i in eachindex(wsp.ϕc)
@@ -171,6 +171,9 @@ function calc_rossiter_quantities!(xyz_planet::AA{T,1}, planet::Planet{T},
 
         # calculate mu at each point
         μs_sub .= map(x -> calc_mu(x, disk.O⃗), xyz_sub)
+        if all(μs_sub .<= zero(T))
+            continue
+        end
 
         # calculate the distance between subtile center and planet
         d2_sub .= map(x -> calc_proj_dist2(x, xyz_planet), xyz_sub)
@@ -191,12 +194,12 @@ function calc_rossiter_quantities!(xyz_planet::AA{T,1}, planet::Planet{T},
         dp_sub .= map(x -> abs(dot(x .- disk.O⃗, x)), xyz_sub) / norm(disk.O⃗)
 
         # get indices for visible patches
-        idx1 = μs_sub .> 0.0
-        idx2 = d2_sub .> planet.radius^2.0
-        idx .= (idx1 .& idx2)
+        idx1 .= μs_sub .> 0.0
+        idx2 .= d2_sub .> planet.radius^2.0
+        idx3 .= idx1 .& idx2
 
-        # if no patches are zero, set wts, etc. to zero and move on
-        if all(iszero(idx))
+        # if no patches are visible, set wts, etc. to zero and move on
+        if all(iszero(idx3))
             ros_allocs.μs[i] = 0.0
             ros_allocs.ld[i] = 0.0
             ros_allocs.dA[i] = 0.0
@@ -206,16 +209,16 @@ function calc_rossiter_quantities!(xyz_planet::AA{T,1}, planet::Planet{T},
         end
 
         # get total projected, visible area of larger tile
-        dA_total = sum(view(dA_sub, idx))
-        dA_total_proj = sum(view(dA_sub .* dp_sub, idx))
+        dA_total = sum(view(dA_sub, idx3))
+        dA_total_proj = sum(view(dA_sub .* dp_sub, idx3))
 
         # set limb darkening as mean of visible patches
-        ros_allocs.μs[i] = mean(view(μs_sub, idx))
-        ros_allocs.ld[i] = mean(view(ld_sub, idx))
+        ros_allocs.μs[i] = mean(view(μs_sub, idx1))
+        ros_allocs.ld[i] = mean(view(ld_sub, idx3))
         ros_allocs.dA[i] = dA_total_proj
 
-        ros_allocs.wts[i] = mean(view(ld_sub .* dA_total_proj, idx))
-        ros_allocs.z_rot[i] = sum(view(z_rot_sub .* ld_sub, idx)) ./ sum(view(ld_sub, idx))
+        ros_allocs.wts[i] = mean(view(ld_sub .* dA_total_proj, idx3))
+        ros_allocs.z_rot[i] = sum(view(z_rot_sub .* ld_sub, idx3)) ./ sum(view(ld_sub, idx3))
     end
     return nothing
 end
