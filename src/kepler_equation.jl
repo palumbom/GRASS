@@ -84,7 +84,9 @@ function calc_ecc_anom_iterative_laguerre(mean_anom::Float64, ecc::Float64, tol:
         E = update_ecc_anom_laguerre(E_old, M, ecc)
 
         # end loop if tolerance achieved
-        if abs(E - E_old) < tol break end
+        if abs(E - E_old) < tol
+            break
+        end
     end
 
     # toss error if convergence not achieved

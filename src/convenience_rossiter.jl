@@ -99,7 +99,7 @@ function rossiter_gpu(spec::SpecParams{T}, disk::DiskParams{T},
     gpu_allocs = GPUAllocs(spec, disk, precision=precision, verbose=verbose)
 
     # allocate memory needed for rossiter computations
-    ros_allocs = RossiterAllocsGPU(gpu_allocs)
+    ros_allocs = RossiterAllocsGPU(gpu_allocs, disk)
 
     # get the projected position of the center of the planet
     calc_state_vector!(ros_allocs, planet)
