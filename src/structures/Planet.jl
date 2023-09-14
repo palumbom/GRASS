@@ -6,18 +6,18 @@ struct Planet{T1<:AF}
     eccentricity::T1
     inclination::T1
     longitude_ascending_node::T1
-    longitude_periapsis::T1
+    argument_periapsis::T1
     mean_longitude::T1
 end
 
-body_mass(p::Planet) = p.mass
-T(p::Planet) = p.period
+mass(p::Planet) = p.mass
+period(p::Planet) = p.period
 a(p::Planet) = p.semi_major_axis
 b(p::Planet) = p.semi_major_axis * sqrt(1.0 - p.eccentricity^2)
 e(p::Planet) = p.eccentricity
 i(p::Planet) = p.inclination
 Ω(p::Planet) = p.longitude_ascending_node
-ω̄(p::Planet) = p.longitude_periapsis
+ω(p::Planet) = p.argument_periapsis
 L(p::Planet) = p.mean_longitude
 
 """

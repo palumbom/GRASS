@@ -91,6 +91,12 @@ function disk_sim_rossiter(spec::SpecParams{T}, disk::DiskParams{T}, planet::Pla
     sum_wts_og = sum(wsp.wts)
     z_cbs_avg = sum(wsp.wts .* wsp.cbs) / sum_wts_og
 
+    # alias allocations
+    xyz_planet = ros_allocs.xyz_planet
+    xyz_dot_planet = ros_allocs.xyz_dot_planet
+    xyz_star = ros_allocs.xyz_star
+    xyz_dot_star = ros_allocs.xyz_dot_star
+
     # loop over time
     for t in 1:disk.Nt
         # if skip times is true, continue to next iter
@@ -106,22 +112,13 @@ function disk_sim_rossiter(spec::SpecParams{T}, disk::DiskParams{T}, planet::Pla
         ros_allocs.wts .= wsp.wts
         ros_allocs.z_rot .= wsp.z_rot
 
-        # get the projected position of the center of the planet
-        # xyz_planet = calc_projected_planet_position()
-        xyz_planet = [25.0, 0.0, 1.25]
-        xyz_star = [0.0, 0.0, 0.0]
-
-        if t == 2
-            xyz_planet = [0.5, 0.0, 1.25]
-        end
-
         # calculate projected distance between planet and star centers
-        dist2 = calc_proj_dist2(xyz_planet, xyz_star)
+        dist2 = calc_proj_dist2(xyz_planet[:,t], xyz_star[:,t])
 
         # check if the planet is transiting
         if dist2 <= (disk.ρs + planet.radius)^2.0
             # re-calculate patch weights, etc. for occulted patches
-            calc_rossiter_quantities!(xyz_planet, planet, disk, wsp, ros_allocs)
+            calc_rossiter_quantities!(xyz_planet[:,t], planet, disk, wsp, ros_allocs)
         end
 
         # loop over wavelength

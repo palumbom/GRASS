@@ -51,7 +51,7 @@ include("star_geometry.jl")
 include("star_physics.jl")
 
 # geometry for orbiting bodies
-include("system_geometry.jl")
+include("state_vectors.jl")
 include("kepler_equation.jl")
 
 # data read-in + calculations
@@ -85,6 +85,7 @@ include("gpu/gpu_precomps.jl")
 include("gpu/gpu_trim.jl")
 include("gpu/gpu_sim.jl")
 include("gpu/gpu_synthesis.jl")
+include("gpu/gpu_state_vectors.jl")
 
 # functions for plotting figures
 include("fig_functions.jl")

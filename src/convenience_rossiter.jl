@@ -28,6 +28,9 @@ function rossiter_cpu(spec::SpecParams{T}, disk::DiskParams{T},
     # allocate memory needed for rossiter computations
     ros_allocs = RossiterAllocs(wsp, disk)
 
+    # get the projected position of the center of the planet
+    calc_state_vector!(ros_allocs, planet)
+
     # allocate memory for time indices
     tloop = zeros(Int, size(wsp.μs))
     tloop_init = zeros(Int, size(tloop))
@@ -97,6 +100,9 @@ function rossiter_gpu(spec::SpecParams{T}, disk::DiskParams{T},
 
     # allocate memory needed for rossiter computations
     ros_allocs = RossiterAllocsGPU(gpu_allocs)
+
+    # get the projected position of the center of the planet
+    calc_state_vector!(ros_allocs, planet)
 
     # allocate additional memory if generating random numbers on the cpu
     if seed_rng
