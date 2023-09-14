@@ -12,12 +12,13 @@
     dp_sub::AA{T,2}
     # xyz_sub::AA{T,2}
     z_rot_sub::AA{T,2}
-    idx1::AA{T,1}
-    idx2::AA{T,1}
-    idx3::AA{T,1}
+
+    idx1::BitArray{2}
+    idx2::BitArray{2}
+    idx3::BitArray{2}
 end
 
-function RossiterAllocs(wsp::SynthWorkspace{T}, disk::DiskParams::T) where T<:AF
+function RossiterAllocs(wsp::SynthWorkspace{T}, disk::DiskParams{T}) where T<:AF
     # get number of grid cells needed
     Nsubgrid = disk.Nsubgrid
 
