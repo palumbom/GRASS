@@ -2,5 +2,9 @@
 
 ```@eval
 using Markdown, GRASS
-Markdown.parse_file(joinpath(pkgdir(GRASS), "LICENSE.md"))
+license_file = joinpath(pkgdir(GRASS), "LICENSE.md")
+if !isfile(license_file)
+    license_file = joinpath(pkgdir(GRASS), "...", LICENSE.md")
+end
+Markdown.parse_file(license_file)
 ```
