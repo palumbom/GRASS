@@ -70,7 +70,7 @@ function patch_velocity_los(ϕ::T, θ::T, disk::DiskParams{T}; P⃗=[0.0, disk.�
     # get velocity vector direction and set magnitude
     vel = cross(C⃗, P⃗)
     vel /= norm(vel)
-    vel *= (-v0 / rotation_period(ϕ; A=disk.A, B=disk.B, C=disk.C))
+    vel *= (v0 / rotation_period(ϕ; A=disk.A, B=disk.B, C=disk.C))
 
     # rotate by stellar inclination
     xyz .= disk.R_x * xyz
