@@ -33,6 +33,7 @@ function calc_state_vector_gpu!(xyz, xyz_dot, epoch, mass_p, period_p, a_p, e_p,
 
         # get distance to central body
         rt = a_p * (1.0 - e_p * CUDA.cos(E))
+        rt *= 1.496e11/ 6.957e8
 
         # assign position in body frame
         @inbounds xyz[1, t] = rt .* CUDA.cos(ν)
@@ -40,6 +41,7 @@ function calc_state_vector_gpu!(xyz, xyz_dot, epoch, mass_p, period_p, a_p, e_p,
         @inbounds xyz[3, t] = 0.0
 
         # get velocity magnitude
+        # TODO I have no idea if this is right or what units these are
         vt = sqrt(μ * a_p) / rt
 
         # assign velocity vector

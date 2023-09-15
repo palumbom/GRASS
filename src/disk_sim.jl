@@ -116,7 +116,7 @@ function disk_sim_rossiter(spec::SpecParams{T}, disk::DiskParams{T}, planet::Pla
         dist2 = calc_proj_dist2(xyz_planet[:,t], xyz_star[:,t])
 
         # check if the planet is transiting
-        if dist2 <= (disk.ρs + planet.radius)^2.0
+        if (dist2 <= (disk.ρs + planet.radius)^2.0) & (xyz_planet[3] > 0.0)
             # re-calculate patch weights, etc. for occulted patches
             calc_rossiter_quantities!(xyz_planet[:,t], planet, disk, wsp, ros_allocs)
         end
