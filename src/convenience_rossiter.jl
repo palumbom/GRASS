@@ -22,6 +22,9 @@ function rossiter_cpu(spec::SpecParams{T}, disk::DiskParams{T},
     prof = ones(Nλ)
     flux = ones(Nλ, Nt)
 
+    # allocate memory for weighted sum of velocities
+    vels = zeros(Nt)
+
     # pre-allocate memory and pre-compute geometric quantities
     wsp = SynthWorkspace(disk, verbose=verbose)
 
@@ -67,10 +70,10 @@ function rossiter_cpu(spec::SpecParams{T}, disk::DiskParams{T},
 
         # run the simulation and multiply flux by this spectrum
         disk_sim_rossiter(spec_temp, disk, planet, soldata, wsp, ros_allocs,
-                          prof, flux, tloop, skip_times=skip_times,
+                          prof, flux, vels, tloop, skip_times=skip_times,
                           verbose=verbose)
     end
-    return spec.lambdas, flux
+    return spec.lambdas, flux, vels
 end
 
 function rossiter_gpu(spec::SpecParams{T}, disk::DiskParams{T},
@@ -91,6 +94,7 @@ function rossiter_gpu(spec::SpecParams{T}, disk::DiskParams{T},
 
     # allocate memory
     flux = ones(Nλ, Nt)
+    vels = zeros(Nt)
 
     # get number of calls to disk_sim needed
     templates = unique(spec.templates)
@@ -155,8 +159,8 @@ function rossiter_gpu(spec::SpecParams{T}, disk::DiskParams{T},
 
         # run the simulation and multiply flux by this spectrum
         disk_sim_rossiter_gpu(spec_temp, disk, planet, soldata, gpu_allocs,
-                              ros_allocs, flux, verbose=verbose,
+                              ros_allocs, flux, vels, verbose=verbose,
                               skip_times=skip_times)
     end
-    return spec.lambdas, flux
+    return spec.lambdas, flux, vels
 end

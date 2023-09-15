@@ -113,8 +113,8 @@ end
 
 function disk_sim_rossiter_gpu(spec::SpecParams{T1}, disk::DiskParams{T1}, planet::Planet{T1},
                                soldata::GPUSolarData{T2}, gpu_allocs::GPUAllocs{T2},
-                               ros_allocs::RossiterAllocsGPU{T2}, flux::AA{T1,2};
-                               verbose::Bool=false, seed_rng::Bool=false,
+                               ros_allocs::RossiterAllocsGPU{T2}, flux::AA{T1,2},
+                               vels::AA{T1,1}; verbose::Bool=false, seed_rng::Bool=false,
                                skip_times::BitVector=falses(disk.Nt)) where {T1<:AF, T2<:AF}
     # get dimensions for memory alloc
     N = disk.N
@@ -195,14 +195,15 @@ function disk_sim_rossiter_gpu(spec::SpecParams{T1}, disk::DiskParams{T1}, plane
             CUDA.copyto!(ros_allocs.z_rot, gpu_allocs.z_rot)
         end
 
-        # calculate projected distance between planet and star centers
-        dist2 = calc_proj_dist2(Array(xyz_planet)[:,t], Array(xyz_star)[:,t])
+        # TODO: this isn't needed if planet is out of transit at time step
+        # re-calculate patch weights, etc. for occulted patches
+        calc_rossiter_quantities_gpu!(xyz_planet, t, planet, disk, gpu_allocs, ros_allocs)
 
-        # check if the planet is transiting
-        if dist2 <= (disk.ρs + planet.radius)^2.0
-            # re-calculate patch weights, etc. for occulted patches
-            calc_rossiter_quantities_gpu!(xyz_planet, t, planet, disk, gpu_allocs, ros_allocs)
-        end
+        # get sum wts
+        @cusync sum_wts = CUDA.sum(wts)
+
+        # get weighted sum of velocities
+        @cusync @inbounds vels[t] = sum(Array(z_rot) .* c_ms .* Array(wts)) ./ sum_wts
 
         # loop over lines to synthesize
         for l in eachindex(spec.lines)
@@ -234,7 +235,7 @@ function disk_sim_rossiter_gpu(spec::SpecParams{T1}, disk::DiskParams{T1}, plane
             @cusync @cuda threads=threads4 blocks=blocks4 line_profile_gpu!(prof, μs, wts, λs, allwavs, allints)
 
             # copy data from GPU to CPU
-            @cusync @inbounds flux[:,t] .*= Array(prof) ./ CUDA.sum(wts)
+            @cusync @inbounds flux[:,t] .*= Array(prof) ./ sum_wts
         end
 
         # iterate tloop

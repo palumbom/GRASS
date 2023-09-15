@@ -85,7 +85,7 @@ end
 
 function disk_sim_rossiter(spec::SpecParams{T}, disk::DiskParams{T}, planet::Planet{T},
                            soldata::SolarData{T}, wsp::SynthWorkspace{T}, ros_allocs::RossiterAllocs{T},
-                           prof::AA{T,1}, flux::AA{T,2}, tloop::AA{Int,1}; verbose::Bool=true,
+                           prof::AA{T,1}, flux::AA{T,2}, vels::AA{T,1}, tloop::AA{Int,1}; verbose::Bool=true,
                            skip_times::BitVector=falses(disk.Nt)) where T<:AF
     # get sum of weights
     sum_wts_og = sum(wsp.wts)
@@ -120,6 +120,12 @@ function disk_sim_rossiter(spec::SpecParams{T}, disk::DiskParams{T}, planet::Pla
             # re-calculate patch weights, etc. for occulted patches
             calc_rossiter_quantities!(xyz_planet[:,t], planet, disk, wsp, ros_allocs)
         end
+
+        # get the sum of the weights w/ occulted pixels
+        sum_wts = sum(ros_allocs.wts)
+
+        # get weighted sum of velocities
+        vels[t] = sum(ros_allocs.z_rot .* c_ms .* ros_allocs.wts) ./ sum_wts
 
         # loop over wavelength
         for l in 1:length(spec.lines)
@@ -180,9 +186,6 @@ function disk_sim_rossiter(spec::SpecParams{T}, disk::DiskParams{T}, planet::Pla
                 # update the line profile in place
                 line_profile_cpu!(λΔD, wts, spec.lambdas, prof, wsp)
             end
-
-            # get the sum of the weights w/ occulted pixels
-            sum_wts = sum(ros_allocs.wts)
 
             # apply normalization term and add to flux
             flux[:,t] .*= prof ./ sum_wts
