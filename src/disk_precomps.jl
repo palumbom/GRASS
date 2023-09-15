@@ -179,7 +179,7 @@ function calc_rossiter_quantities!(xyz_planet::AA{T,1}, planet::Planet{T},
         d2_sub .= map(x -> calc_proj_dist2(x, xyz_planet), xyz_sub)
 
         # if entire course tile visible, use old weights and move on
-        if all(d2_sub .> planet.radius^2.0)
+        if all(d2_sub .> planet.radius^2.0) | (xyz_planet[3] < 0.0)
             continue
         end
 

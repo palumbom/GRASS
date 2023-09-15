@@ -47,12 +47,16 @@ function calc_state_vector!(xyz::AA{T1,1}, xyz_dot::AA{T1,1}, body::Planet{T1}, 
     # get distance to central body
     rt = major * (1.0 - ecc * cos(E))
 
+    # convert to solar radii
+    rt *= 1.496e11/ 6.957e8
+
     # assign position in body frame
     xyz[1] = rt .* cos(ν)
     xyz[2] = rt .* sin(ν)
     xyz[3] = 0.0
 
     # get velocity magnitude
+    # TODO I have no idea if this is right or what units these are
     vt = sqrt(μ * major) / rt
 
     # assign velocity vector
