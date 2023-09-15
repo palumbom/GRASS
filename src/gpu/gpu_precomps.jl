@@ -121,7 +121,7 @@ function precompute_quantities_gpu!(μs, wts, z_rot, ax_codes, Nϕ, Nθ_max, Nsu
                 f /= def_norm
 
                 # set magnitude by differential rotation
-                rp = -(v0 / rotation_period_gpu(ϕc, A, B, C))
+                rp = (v0 / rotation_period_gpu(ϕc, A, B, C))
                 # rp = 33950.0/3e8 * (1.0 - A * sin(ϕc)^2.0)
                 d *= rp
                 e *= rp
