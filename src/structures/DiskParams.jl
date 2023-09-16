@@ -28,13 +28,21 @@ the x- and z- axes are sky-plane, and the y-axis is along the observer-to-star-
 center vector.
 
 # Arguments
-- `N::Integer=132`: Number of stellar latitude grid elements
-- `Nt::Integer=50`: Number of 15-second snapshots.
-- `Inclination::Float64`: Sky-plane inclination of stellar grid. 90.0 is equator-on.
+- `N=197`: Number of stellar latitude grid elements. Should be set to 197 for physical validity.
+- `Nt=50`: Number of 15-second time steps.
+- `radius=1.0`: Radius of model star. Default is one solar radius.
+- `inclination=90.0`: Sky-plane inclination of model stellar disk. 90 degrees is equator on.
+- `u1=0.4`: Quadratic limb darkening law coefficient.
+- `u2=0.25`: Quadratic limb darkening law coefficient
+- `vsini=2067.03346686649251345`: Equatorial rotational velocity magnitude in units of meters per second.
+- `A=14.713`: Differential rotation coefficient. Units of deg/day.
+- `B=-2.396`: Differential rotation coefficient. Units of deg/day.
+- `C=-1.787`: Differential rotation coefficient. Units of deg/day.
 """
-function DiskParams(;N=197, Nt=NaN, radius=1.0, dist=4.4e7, inclination=90.0,
-                     u1=0.4, u2=0.26, vsini=2067.03346686649251345,
-                     A=14.713, B=-2.396, C=-1.787, Nsubgrid=40)
+function DiskParams(;N=197, Nt=NaN, Nsubgrid=40, radius=1.0,
+                     inclination=90.0, u1=0.4, u2=0.26,
+                     vsini=2067.033467, A=14.713,
+                     B=-2.396, C=-1.787)
     # assertions and warnings
     @assert !isnan(Nt)
 
