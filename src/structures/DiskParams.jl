@@ -38,11 +38,12 @@ center vector.
 - `A=14.713`: Differential rotation coefficient. Units of deg/day.
 - `B=-2.396`: Differential rotation coefficient. Units of deg/day.
 - `C=-1.787`: Differential rotation coefficient. Units of deg/day.
+- `dist=4.435e7`: Distance to observer. Default is one parsec in solar radii.
 """
 function DiskParams(;N=197, Nt=NaN, Nsubgrid=40, radius=1.0,
                      inclination=90.0, u1=0.4, u2=0.26,
                      vsini=2067.033467, A=14.713,
-                     B=-2.396, C=-1.787)
+                     B=-2.396, C=-1.787, dist=4.435e7)
     # assertions and warnings
     @assert !isnan(Nt)
 
