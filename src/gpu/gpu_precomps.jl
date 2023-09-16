@@ -379,7 +379,7 @@ function calc_rossiter_quantities_gpu!(t, ϕc, θc, μs, wts, z_rot, xyz_planet,
 
                 # calculate distance between subtile center and planet
                 d2 = (x - x_planet)^2.0 + (y - y_planet)^2.0
-                if (d2 < rad_planet^2.0) & (z_planet > 0.0)
+                if (d2 <= rad_planet^2.0) & (z_planet > 0.0)
                     continue
                 end
 
