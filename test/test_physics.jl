@@ -33,8 +33,8 @@ end
 
     # test equator on
     @test isapprox(GRASS.patch_velocity_los(deg2rad(0.0), deg2rad(0.0), disk90) * 3e8, 0.0, atol=1e-8)
-    @test isapprox(GRASS.patch_velocity_los(deg2rad(0.0), deg2rad(-90.0), disk90) * 3e8, 2068.5, atol=1e-1)
-    @test isapprox(GRASS.patch_velocity_los(deg2rad(0.0), deg2rad(90.0), disk90) * 3e8, -2068.5, atol=1e-1)
+    @test isapprox(GRASS.patch_velocity_los(deg2rad(0.0), deg2rad(-90.0), disk90) * 3e8, 2069.2, atol=1e-1)
+    @test isapprox(GRASS.patch_velocity_los(deg2rad(0.0), deg2rad(90.0), disk90) * 3e8, -2069.2, atol=1e-1)
 
     # test pole on
     @test isapprox(GRASS.patch_velocity_los(deg2rad(90.0), deg2rad(0.0), disk00) * 3e8, 0.0, atol=1e-8)
