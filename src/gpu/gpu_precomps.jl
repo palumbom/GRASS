@@ -121,10 +121,10 @@ function precompute_quantities_gpu!(μs, wts, z_rot, ax_codes, Nϕ, Nθ_max, Nsu
                 f /= def_norm
 
                 # set magnitude by differential rotation
-                rp = 2π * ρs * CUDA.cos(ϕ) / rotation_period_gpu(ϕ, A, B, C)
+                rp = 2π * ρs * CUDA.cos(ϕc) / rotation_period_gpu(ϕc, A, B, C)
 
                 # get in units of c
-                rp *= 1.242e-4
+                rp /= c_Rsun_day
 
                 # set magnitude of vector
                 d *= rp
