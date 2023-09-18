@@ -64,13 +64,16 @@ function patch_velocity_los(ϕ::T, θ::T, disk::DiskParams{T}; P⃗=[0.0, disk.�
     # get vector from spherical circle center to surface patch
     C⃗ = xyz .- [0.0, xyz[2], 0.0]
 
-    # velocity magnitude at equator, in Rsol/day/c_ms
-    v0 = disk.v0
+    # get magnitude of velocity vector
+    v0 = 2π * disk.ρ * cos(ϕ) / rotation_period(ϕ; A=disk.A, B=disk.B, C=disk.C)
+
+    # get in units of c
+    v0 *= 1.242e-4
 
     # get velocity vector direction and set magnitude
     vel = cross(C⃗, P⃗)
     vel /= norm(vel)
-    vel *= (v0 / rotation_period(ϕ; A=disk.A, B=disk.B, C=disk.C))
+    vel *= v0
 
     # rotate by stellar inclination
     xyz .= disk.R_x * xyz
