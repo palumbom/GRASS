@@ -126,8 +126,12 @@ function precompute_quantities_gpu!(ϕc, θc, xx, yy, zz, μs, wts, z_rot,
                 f /= def_norm
 
                 # set magnitude by differential rotation
-                rp = (v0 / rotation_period_gpu(ϕsub, A, B, C))
-                # rp = 33950.0/3e8 * (1.0 - A * sin(ϕsub)^2.0)
+                rp = 2π * ρs * CUDA.cos(ϕc) / rotation_period_gpu(ϕc, A, B, C)
+
+                # get in units of c
+                rp /= c_Rsun_day
+
+                # set magnitude of vector
                 d *= rp
                 e *= rp
                 f *= rp
@@ -360,8 +364,12 @@ function calc_rossiter_quantities_gpu!(t, ϕc, θc, μs, wts, z_rot, xyz_planet,
                 f /= def_norm
 
                 # set magnitude by differential rotation
-                rp = (v0 / rotation_period_gpu(ϕsub, A, B, C))
-                # rp = 33950.0/3e8 * (1.0 - A * sin(ϕsub)^2.0)
+                rp = 2π * ρs * CUDA.cos(ϕc) / rotation_period_gpu(ϕc, A, B, C)
+
+                # get in units of c
+                rp /= c_Rsun_day
+
+                # set magnitude of vector
                 d *= rp
                 e *= rp
                 f *= rp
