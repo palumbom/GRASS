@@ -62,6 +62,7 @@ include("bisectors.jl")
 include("trim.jl")
 include("synthesize.jl")
 include("disk_sim.jl")
+include("disk_sim_eclipse.jl")
 include("disk_precomps.jl")
 
 # processing spectra
@@ -94,6 +95,7 @@ include("iag_utils.jl")
 # include convenience functions for synthtesis
 include("convenience.jl")
 include("convenience_rossiter.jl")
+include("convenience_eclipse.jl")
 
 # precompile stuff
 # if !isempty(soldir)
