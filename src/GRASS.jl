@@ -64,6 +64,7 @@ include("synthesize.jl")
 include("disk_sim.jl")
 include("disk_sim_eclipse.jl")
 include("disk_precomps.jl")
+include("eclipse_comp.jl")
 
 # processing spectra
 include("velocities.jl")

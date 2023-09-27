@@ -43,6 +43,12 @@ function SynthWorkspaceEclipse(disk::DiskParams; ndepths::Integer=100, verbose::
     z_rot = zeros(size(disk.θc)...)
     ax_codes = zeros(Int, size(disk.θc))
 
+    # pre-compute quantities to be re-used
+    if verbose
+        println("\t>>> Precomputing geometric quantities...")
+    end
+    precompute_quantities!(disk, ϕc, θc, μs, ld, dA, xyz, wts, z_rot, ax_codes)
+
     # allocate additional memory
     cbs = zeros(size(disk.θc)...)
     keys = repeat([(:off,:off)], size(disk.θc)...)

@@ -14,6 +14,7 @@ function disk_sim_eclipse(spec::SpecParams{T}, disk::DiskParams{T}, soldata::Sol
     continue
     end
 
+    #1: disk.O⃗ function to get this updated for each time step 
     eclipse_compute_quantities(disk, ϕc, θc, μs, ld, dA, xyz, wts, z_rot, ax_codes)
 
     # loop over wavelength

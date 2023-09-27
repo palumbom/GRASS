@@ -105,6 +105,7 @@ function disk_sim_rossiter(spec::SpecParams{T}, disk::DiskParams{T}, planet::Pla
             continue
         end
 
+        #3. add following block to disk_sim_eclipse 
         # recopy weights, etc. from unobstructed disk
         ros_allocs.μs .= wsp.μs
         ros_allocs.ld .= wsp.ld
