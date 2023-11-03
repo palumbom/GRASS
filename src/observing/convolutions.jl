@@ -153,6 +153,8 @@ function convolve_gauss(xs::AA{T,1}, ys::AA{T,2}; new_res::T=1.17e5,
     # get kernel
     # TODO: wavelength dependent kernel width???
     σ = mean(xs) / new_res / 2.354
+
+    # TODO: sigma as argument
     g(x, n) = (one(T)/(σ * sqrt(2.0 * π))) * exp(-0.5 * ((x - n)/σ)^2)
     kernel = g.(xs, xs[Int(round(length(xs)/2))])
 
@@ -175,6 +177,7 @@ function convolve_gauss(xs::AA{T,1}, ys::AA{T,2}; new_res::T=1.17e5,
         signal[end-100:end] .= last(ys[:,t])
 
         # perform the convolution
+        # TODO: fft plan (outside loop?)
         signal .= imfilter(signal, reflect(centered(kernel./maximum(kernel))), Fill(0))
         signal ./= maximum(signal[101:end-100])
 
