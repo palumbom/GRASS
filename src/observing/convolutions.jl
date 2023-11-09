@@ -152,10 +152,10 @@ function convolve_gauss(xs::AA{T,1}, ys::AA{T,2}; new_res::T=1.17e5,
                         oversampling::T=1.0) where T<:AbstractFloat
     # get kernel
     # TODO: wavelength dependent kernel width???
-    σ = mean(xs) / new_res / 2.354
+    σ(x) = x / new_res / 2.354
 
     # TODO: sigma as argument
-    g(x, n) = (one(T)/(σ * sqrt(2.0 * π))) * exp(-0.5 * ((x - n)/σ)^2)
+    g(x, n) = (one(T)/(σ(x) * sqrt(2.0 * π))) * exp(-0.5 * ((x - n)/σ(x))^2)
     kernel = g.(xs, xs[Int(round(length(xs)/2))])
 
     # create vector to hold padded signal
