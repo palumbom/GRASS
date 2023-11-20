@@ -7,6 +7,7 @@ const mH = 1.6737236e-24     # gm
 # constants in other units
 const c_ms = 2.99782458e8    # m s^-1
 const c_kms = 2.99782458e5   # km s^-1
+const c_Rsun_day = 37230.42169210867
 
 # for unit conversions
 const rsun_au = 0.00465
