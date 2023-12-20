@@ -6,6 +6,7 @@ using Distributed
 using SharedArrays
 
 # import external modules
+using SPICE
 using CSV
 using HDF5
 using Dates
@@ -33,6 +34,14 @@ import Polynomials: fit as pfit, coeffs
 # abbreviations for commonly used types
 import Base: AbstractArray as AA
 import Base: AbstractFloat as AF
+
+#set required body paramters as global variables 
+#E,S,M radii (units:km)
+include("get_kernels.jl")
+earth_radius = bodvrd("EARTH", "RADII")[1]	
+earth_radius_pole = bodvrd("EARTH", "RADII")[3]	
+sun_radius = bodvrd("SUN","RADII")[1]
+moon_radius = bodvrd("MOON", "RADII")[1] 
 
 # configure directories
 include("config.jl")

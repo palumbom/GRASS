@@ -28,10 +28,8 @@ end
 
 function sphere_to_cart(ρ::T, ϕ::T, θ::T) where T
     # compute trig quantitites
-    sinϕ = sin(ϕ)
-    sinθ = sin(θ)
-    cosϕ = cos(ϕ)
-    cosθ = cos(θ)
+    sinϕ, cosϕ = sincos(ϕ)
+    sinθ, cosθ = sincos(θ)
 
     # now get cartesian coords
     x = ρ * cosϕ * sinθ
