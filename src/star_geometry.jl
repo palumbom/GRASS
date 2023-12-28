@@ -110,3 +110,7 @@ function key_to_code(key, soldata)
     idxs2 = findall(mu_code .== disc_mu)
     return collect(intersect(Set(idxs1), Set(idxs2)))[1]
 end
+
+function calc_proj_dist(p1, p2)
+    return acos(dot(p1, p2)/(norm(p1)*norm(p2)))
+end
