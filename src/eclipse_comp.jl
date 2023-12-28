@@ -11,15 +11,13 @@ function eclipse_compute_quantities!(disk::DiskParams{T}, epoch, obs_long, obs_l
     dA_sub = zeros(Nsubgrid, Nsubgrid)
     dp_sub = zeros(Nsubgrid, Nsubgrid)
     xyz_sub = repeat([zeros(3)], Nsubgrid, Nsubgrid)
-    z_rot_sub = zeros(Nsubgrid, Nsubgrid)
+    z_rot_sub = zeros(Nsubgrid, Nsubgrid) 
     idx = BitMatrix(undef, size(μs_sub))
 
     #query JPL horizons for E, S, M position (km) and velocities (km/s)
     earth_pv = spkssb(399,epoch,"J2000")[1:3] 
     sun_pv = spkssb(10,epoch,"J2000")[1:3] 
     moon_pv = spkssb(301,epoch,"J2000")[1:3] 
-    earth_vel = spkssb(399,epoch,"J2000")[4:6]
-    sun_vel = spkssb(10,epoch,"J2000")[4:6]
 
     # loop over disk positions
     for i in eachindex(disk.ϕc)
@@ -38,7 +36,7 @@ function eclipse_compute_quantities!(disk::DiskParams{T}, epoch, obs_long, obs_l
             # get cartesian coord for each subgrid 
             xyz_sub .= map(x -> sphere_to_cart.(disk.ρs, x...), subgrid) 
             #transform xyz stellar coordinates of grid from sun frame to ICRF
-            xyz_sub_bary .= map(x -> pxform("IAU_SUN", "J2000", epoch) * x, xyz_sub)
+            xyz_sub_bary = map(x -> pxform("IAU_SUN", "J2000", epoch) * x, xyz_sub)
     
             #determine xyz earth coordinates for lat/long of observatory
             EO_earth = pgrrec("EARTH", deg2rad(obs_long), deg2rad(obs_lat), alt, earth_radius, (earth_radius - earth_radius_pole) / earth_radius)
@@ -52,9 +50,9 @@ function eclipse_compute_quantities!(disk::DiskParams{T}, epoch, obs_long, obs_l
             #get vector from observatory on earth's surface to moon center
             OM_bary = moon_pv .- BO_bary
             #get vector from barycenter to each patch on Sun's surface
-            BP_bary .= map(x -> sun_pv + x, xyz_sub_bary)
+            BP_bary = map(x -> sun_pv + x, xyz_sub_bary)
             #vectors from observatory on Earth's surface to each patch on Sun's surface
-            OP_bary .= map(x -> x .- BO_bary, BP_bary)
+            OP_bary = map(x -> x .- BO_bary, BP_bary)
    
 
             # calculate mu at each point
@@ -63,45 +61,46 @@ function eclipse_compute_quantities!(disk::DiskParams{T}, epoch, obs_long, obs_l
             all(μs_sub .< zero(T)) && continue
 
 
-            #skip velocity calculation and go to distance - need to weight everything by visible indices
+            #determine patches that are blocked by moon 
+            #calculate the distance between tile corner and moon
+            distance = map(x -> calc_proj_dist(x, OM_bary), OP_bary)
 
-
+            #get indices for visible patches
+            idx1 = μs_sub .> 0.0
+            idx3 = (idx1) .& (distance .> atan((moon_radius)/norm(OM_bary))) 
 
             # assign the mean mu as the mean of visible mus
-            idx .= μs_sub .> 0.0
-            μs[i,j] = mean(view(μs_sub, idx))
+            μs[i,j] = mean(view(μs_sub, idx3))
 
             # find xz at mean value of mu and get axis code (i.e., N, E, S, W)
-            xyz[i,j,1] = mean(view(getindex.(xyz_sub_bary,1), idx))
-            xyz[i,j,2] = mean(view(getindex.(xyz_sub_bary,2), idx))
-            xyz[i,j,3] = mean(view(getindex.(xyz_sub_bary,3), idx))
-            ax_codes[i,j] = find_nearest_ax_code(xyz[i,j,1], xyz[i,j,2])
+            xyz[i,j,1] = mean(view(getindex.(xyz_sub_bary,1), idx3))
+            xyz[i,j,2] = mean(view(getindex.(xyz_sub_bary,2), idx3))
+            xyz[i,j,3] = mean(view(getindex.(xyz_sub_bary,3), idx3))
+            #ax_codes[i,j] = find_nearest_ax_code(xyz[i,j,1], xyz[i,j,2])
 
             # calc limb darkening
-            ld_sub .= map(x -> quad_limb_darkening(x, disk.u1, disk.u2), μs_sub) #same updates as calc_mu
-
-            # get rotational velocity for location on disk
-            z_rot_sub .= map(x -> patch_velocity_los(x..., disk), subgrid) #update 
+            # add extinction later on
+            #zenith_angle_matrix = rad2deg.(map(x -> calc_proj_dist(x, EO_bary), OP_bary))
+            ld_sub .= map(x -> quad_limb_darkening(x), μs_sub)
 
             # calculate area element of tile
             dA_sub .= map(x -> calc_dA(disk.ρs, getindex(x,1), step(ϕe_sub), step(θe_sub)), subgrid)
-            dp_sub .= map(x -> abs(dot(x .- disk.O⃗, x)), xyz_sub_bary) ./ norm(disk.O⃗) #confirm coordinates 
+            dp_sub .= map((x,y) -> abs(dot(x,y)), OP_bary, xyz_sub_bary) ./ (norm.(OP_bary) .* norm.(xyz_sub_bary))
 
             # get total projected, visible area of larger tile
-            dA_total = sum(view(dA_sub, idx))
-            dA_total_proj = sum(view(dA_sub .* dp_sub, idx))
+            dA_total_proj = dA_sub .* dp_sub
 
             # copy to workspace
-            ld[i,j] = mean(view(ld_sub, idx))
-            dA[i,j] = dA_total_proj
+            ld[i,j] = mean(view(ld_sub, idx3))
+            dA[i,j] = sum(view(dA_total_proj, idx1))
 
-            wts[i,j] = mean(view(ld_sub .* dA_total_proj, idx))
-            z_rot[i,j] = sum(view(z_rot_sub .* ld_sub, idx)) ./ sum(view(ld_sub, idx))
+
+            # get rotational velocity for location on disk
+            z_rot_sub .= map((x,y) -> patch_velocity_los(x..., disk, epoch, y), subgrid, OP_bary)
+
+            wts[i,j] = mean(view(ld_sub .* dA_total_proj, idx3))
+            z_rot[i,j] = sum(view(z_rot_sub .* ld_sub, idx3)) ./ sum(view(ld_sub, idx3))
         end
     end
     return nothing
 end
-
-
-#for no moon right now and one timestamp ()
-#keep consistent coordinate system 
