@@ -28,6 +28,7 @@ using OrderedCollections
 # import specific methods
 import Glob.glob
 import Dates.DateTime
+import NaNMath
 import NaNMath: sum as nansum
 import Polynomials: fit as pfit, coeffs
 
