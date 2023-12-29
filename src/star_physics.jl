@@ -48,7 +48,7 @@ Calculate stellar rotation period in days at given sine of latitude.
 function rotation_period(ϕ::T; A::T=14.713, B::T=-2.396, C::T=-1.787) where T<:AF
     @assert -π/2 <= ϕ <= π/2
     sinϕ = sin(ϕ)
-    return 360.0/(0.9324*(A + B * sinϕ^2.0 + C * sinϕ^4.0))
+    return 360.0/(0.9324*(14.713 - 2.396*sinϕ^2 - 1.787*sinϕ^4))
 end
 
 """
@@ -87,7 +87,7 @@ function patch_velocity_los(ϕ::T, θ::T, disk::DiskParams{T}, epoch, OP_bary; P
 
 
     # find get vector from observer to surface patch, return projection
-    vel = [velocity_vector_ICRF[4],velocity_vector_ICRF[5],velocity_vector_ICRF[6]]
-    angle = cos(π - acos(dot(OP_bary, vel) / (norm(OP_bary) * norm(vel)))) 
-    return norm(vel) * angle
+    new_vel = [velocity_vector_ICRF[4],velocity_vector_ICRF[5],velocity_vector_ICRF[6]]
+    angle = cos(π - acos(dot(OP_bary, new_vel) / (norm(OP_bary) * norm(new_vel)))) 
+    return (norm(new_vel) * angle)
 end

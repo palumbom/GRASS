@@ -14,6 +14,8 @@ function eclipse_compute_quantities!(disk::DiskParams{T}, epoch, obs_long, obs_l
     z_rot_sub = zeros(Nsubgrid, Nsubgrid) 
     idx = BitMatrix(undef, size(μs_sub))
 
+    mean_weight_v_no_cb = zeros(length(disk.ϕc), maximum(disk.Nθ))
+
     #query JPL horizons for E, S, M position (km) and velocities (km/s)
     earth_pv = spkssb(399,epoch,"J2000")[1:3] 
     sun_pv = spkssb(10,epoch,"J2000")[1:3] 
@@ -98,9 +100,23 @@ function eclipse_compute_quantities!(disk::DiskParams{T}, epoch, obs_long, obs_l
             # get rotational velocity for location on disk
             z_rot_sub .= map((x,y) -> patch_velocity_los(x..., disk, epoch, y), subgrid, OP_bary)
 
+            mean_weight_v_no_cb[i,j] = mean(view(z_rot_sub, idx3))
+
             wts[i,j] = mean(view(ld_sub .* dA_total_proj, idx3))
             z_rot[i,j] = sum(view(z_rot_sub .* ld_sub, idx3)) ./ sum(view(ld_sub, idx3))
         end
     end
-    return nothing
+
+    #index for correct lat / lon disk grid
+    idx_grid = ld .> 0.0
+
+    #determine final mean intensity for disk grid
+    final_mean_intensity = sum(view(ld .* dA, idx_grid)) / sum(dA)  
+
+    #determine final mean weighted velocity for disk grid
+    final_weight_v_no_cb = sum(view(ld .* dA .* mean_weight_v_no_cb, idx_grid)) / sum(view(ld .* dA, idx_grid))
+
+    return final_weight_v_no_cb, final_mean_intensity
 end
+
+#add extinction and Earth's rotation velocity later on 
