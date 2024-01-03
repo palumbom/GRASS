@@ -22,7 +22,7 @@ struct SynthWorkspaceEclipse{T<:AF}
     keys::AA{Tuple{Symbol, Symbol},2}
 end
 
-function SynthWorkspaceEclipse(disk::DiskParams; ndepths::Integer=100, verbose::Bool=true)
+function SynthWorkspaceEclipse(disk::DiskParamsEclipse; ndepths::Integer=100, verbose::Bool=true)
     # allocate the needed memory for synthesis
     lwavgrid = zeros(ndepths)
     rwavgrid = zeros(ndepths)
@@ -42,18 +42,10 @@ function SynthWorkspaceEclipse(disk::DiskParams; ndepths::Integer=100, verbose::
     wts = zeros(size(disk.θc)...)
     z_rot = zeros(size(disk.θc)...)
     ax_codes = zeros(Int, size(disk.θc))
-
-    # pre-compute quantities to be re-used
-    if verbose
-        println("\t>>> Precomputing geometric quantities...")
-    end
-    precompute_quantities!(disk, ϕc, θc, μs, ld, dA, xyz, wts, z_rot, ax_codes)
-
-    # allocate additional memory
     cbs = zeros(size(disk.θc)...)
     keys = repeat([(:off,:off)], size(disk.θc)...)
 
-    return SynthWorkspace(lwavgrid, rwavgrid, allwavs, allints,
+    return SynthWorkspaceEclipse(lwavgrid, rwavgrid, allwavs, allints,
                           bist, intt, widt, ϕc, θc, μs, ld, dA,
                           wts, xyz, cbs, z_rot, ax_codes, keys)
 end

@@ -7,7 +7,7 @@ Synthesize spectra given parameters in `spec` and `disk` instances.
 - `spec::SpecParams`: SpecParams instance
 - `disk::DiskParams`: DiskParams instance
 """
-function synthesize_spectra_Eclipse(spec::SpecParams{T}, disk::DiskParams{T};
+function synthesize_spectra_eclipse(spec::SpecParams{T}, disk::DiskParamsEclipse{T}, obs_long, obs_lat, alt, time_stamps;
                             seed_rng::Bool=false, verbose::Bool=true,
                             use_gpu::Bool=false, precision::DataType=Float64,
                             skip_times::BitVector=falses(disk.Nt)) where T<:AF
@@ -15,12 +15,13 @@ function synthesize_spectra_Eclipse(spec::SpecParams{T}, disk::DiskParams{T};
     if use_gpu
         return synth_Eclipse_gpu(spec, disk, seed_rng, verbose, precision, skip_times)
     else
-        return synth_Eclipse_cpu(spec, disk, seed_rng, verbose, skip_times)
+        return synth_Eclipse_cpu(spec, disk, seed_rng, verbose, skip_times, obs_long, obs_lat, alt, time_stamps)
     end
 end
 
-function synth_Eclipse_cpu(spec::SpecParams{T}, disk::DiskParams{T}, seed_rng::Bool,
-                   verbose::Bool, skip_times::BitVector) where T<:AF
+function synth_Eclipse_cpu(spec::SpecParams{T}, disk::DiskParamsEclipse{T}, seed_rng::Bool,
+                   verbose::Bool, skip_times::BitVector, obs_long, obs_lat, alt, time_stamps) where T<:AF
+
     # parse out dimensions for memory allocation
     N = disk.N
     Nt = disk.Nt
@@ -51,30 +52,19 @@ function synth_Eclipse_cpu(spec::SpecParams{T}, disk::DiskParams{T}, seed_rng::B
         end
         soldata = SolarData(fname=file)
 
-        # get conv. blueshift and keys from input data
-        get_keys_and_cbs!(wsp, soldata)
-
         # re-seed the rng
         if seed_rng
             Random.seed!(42)
         end
 
-        # generate or copy tloop
-        if (idx > 1) && in_same_group(templates[idx - 1], templates[idx])
-            tloop .= tloop_init
-        else
-            generate_tloop!(tloop_init, wsp, soldata)
-            tloop .= tloop_init
-        end
-
         # run the simulation and multiply flux by this spectrum
-        disk_sim_Eclipse(spec_temp, disk, soldata, wsp, prof, flux, tloop,
+        disk_sim_eclipse(spec_temp, disk, soldata, wsp, prof, flux, tloop, tloop_init, templates, idx, obs_long, obs_lat, alt, time_stamps,
                  skip_times=skip_times, verbose=verbose)
     end
     return spec.lambdas, flux
 end
 
-function synth_Eclipse_gpu(spec::SpecParams{T}, disk::DiskParams{T}, seed_rng::Bool,
+function synth_Eclipse_gpu(spec::SpecParams{T}, disk::DiskParamsEclipse{T}, seed_rng::Bool,
                    verbose::Bool, precision::DataType, skip_times::BitVector) where T<:AF
     # make sure there is actually a GPU to use
     @assert CUDA.functional()
@@ -136,8 +126,8 @@ function synth_Eclipse_gpu(spec::SpecParams{T}, disk::DiskParams{T}, seed_rng::B
             if seed_rng
                 # seed and generate the random number on the cpu
                 Random.seed!(42)
-                get_keys_and_cbs!(keys_cpu, μs_cpu, cbs_cpu, ax_codes_cpu, soldata_cpu)
-                generate_tloop!(tloop_init, μs_cpu, keys_cpu, soldata_cpu.len)
+                get_keys_and_cbs_eclipse!(keys_cpu, μs_cpu, cbs_cpu, ax_codes_cpu, soldata_cpu)
+                generate_tloop_eclipse!(tloop_init, μs_cpu, keys_cpu, soldata_cpu.len)
             else
                 # generate the random numbers on the gpu
                 generate_tloop_gpu!(tloop_init, gpu_allocs, soldata)
