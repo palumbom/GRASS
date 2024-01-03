@@ -72,9 +72,9 @@ include("bisectors.jl")
 include("trim.jl")
 include("synthesize.jl")
 include("disk_sim.jl")
+include("eclipse_comp.jl")
 include("disk_sim_eclipse.jl")
 include("disk_precomps.jl")
-include("eclipse_comp.jl")
 
 # processing spectra
 include("velocities.jl")
@@ -137,7 +137,7 @@ include("convenience_eclipse.jl")
 # end
 
 # export some stuff
-export SpecParams, DiskParams, LineProperties, SolarData, Planet,
+export SpecParams, DiskParams, DiskParamsEclipse, LineProperties, SolarData, Planet,
        synthesize_spectra, simulate_rossiter, calc_ccf,
        calc_rvs_from_ccf, calc_rms, parse_args,
        check_plot_dirs, read_iag

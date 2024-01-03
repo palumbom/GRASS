@@ -1,4 +1,4 @@
-function eclipse_compute_quantities!(disk::DiskParams{T}, epoch, obs_long, obs_lat, alt, ϕc::AA{T,2}, θc::AA{T,2},
+function eclipse_compute_quantities!(disk::DiskParamsEclipse{T}, epoch, obs_long, obs_lat, alt, ϕc::AA{T,2}, θc::AA{T,2},
                                      μs::AA{T,2}, ld::AA{T,2}, dA::AA{T,2},
                                      xyz::AA{T,3}, wts::AA{T,2}, z_rot::AA{T,2},
                                      ax_codes::AA{Int64, 2}) where T<:AF
@@ -36,7 +36,7 @@ function eclipse_compute_quantities!(disk::DiskParams{T}, epoch, obs_long, obs_l
             subgrid = Iterators.product(ϕc_sub, θc_sub)
 
             # get cartesian coord for each subgrid 
-            xyz_sub .= map(x -> sphere_to_cart.(disk.ρs, x...), subgrid) 
+            xyz_sub .= map(x -> sphere_to_cart_eclipse.(disk.ρs, x...), subgrid) 
             #transform xyz stellar coordinates of grid from sun frame to ICRF
             xyz_sub_bary = map(x -> pxform("IAU_SUN", "J2000", epoch) * x, xyz_sub)
     
@@ -78,12 +78,14 @@ function eclipse_compute_quantities!(disk::DiskParams{T}, epoch, obs_long, obs_l
             xyz[i,j,1] = mean(view(getindex.(xyz_sub_bary,1), idx3))
             xyz[i,j,2] = mean(view(getindex.(xyz_sub_bary,2), idx3))
             xyz[i,j,3] = mean(view(getindex.(xyz_sub_bary,3), idx3))
-            #ax_codes[i,j] = find_nearest_ax_code(xyz[i,j,1], xyz[i,j,2])
+            if xyz[i,j,2] !== NaN
+                ax_codes[i,j] = find_nearest_ax_code_eclipse(xyz[i,j,2], xyz[i,j,3])
+            end
 
             # calc limb darkening
             # add extinction later on
             #zenith_angle_matrix = rad2deg.(map(x -> calc_proj_dist(x, EO_bary), OP_bary))
-            ld_sub .= map(x -> quad_limb_darkening(x), μs_sub)
+            ld_sub .= map(x -> quad_limb_darkening_eclipse(x), μs_sub)
 
             # calculate area element of tile
             dA_sub .= map(x -> calc_dA(disk.ρs, getindex(x,1), step(ϕe_sub), step(θe_sub)), subgrid)
@@ -118,5 +120,53 @@ function eclipse_compute_quantities!(disk::DiskParams{T}, epoch, obs_long, obs_l
 
     return final_weight_v_no_cb, final_mean_intensity
 end
-
 #add extinction and Earth's rotation velocity later on 
+
+function generate_tloop_eclipse!(tloop::AA{Int}, wsp::SynthWorkspaceEclipse{T}, soldata::SolarData{T}) where T<:AF
+    generate_tloop_eclipse!(tloop, wsp.μs, wsp.keys, soldata.len)
+    return nothing
+end
+
+function generate_tloop_eclipse!(tloop::AA{Int}, μs::AA{T}, keys::AA{Tuple{Symbol, Symbol}},
+                         len::Dict{Tuple{Symbol, Symbol}, Int64}) where T<:AF
+    # loop over μ positions
+    for i in eachindex(μs)
+        # move on if we are off the grid
+        μs[i] <= zero(T) && continue
+
+        # get length of input data for place on disk
+        maxlen = len[keys[i]]
+
+        # generate random index
+        tloop[i] = floor(Int, rand() * maxlen) + 1
+    end
+    return nothing
+end
+
+function get_keys_and_cbs_eclispe!(wsp::SynthWorkspaceEclipse{T}, soldata::SolarData{T}) where T<:AF
+    get_keys_and_cbs_eclispe!(wsp.keys, wsp.μs, wsp.cbs, wsp.ax_codes, soldata)
+    return nothing
+end
+
+
+function get_keys_and_cbs_eclispe!(keys::AA{Tuple{Symbol, Symbol}}, μs::AA{T1}, cbs::AA{T1},
+                           ax_codes::AA{Int}, soldata::SolarData{T2}) where  {T1<:AF, T2<:AF}
+    # get the mu and axis codes
+    disc_mu = soldata.mu
+    disc_ax = soldata.ax
+
+    # type finagling
+    disc_mu = convert.(T1, disc_mu)
+
+    # loop over μ positions
+    for i in eachindex(μs)
+        # move on if we are off the grid
+        μs[i] <= zero(T1) && continue
+
+        # get input data for place on disk
+        the_key = get_key_for_pos(μs[i], ax_codes[i], disc_mu, disc_ax)
+        cbs[i] = convert(T1, soldata.cbs[the_key])
+        keys[i] = the_key
+    end
+    return nothing
+end
