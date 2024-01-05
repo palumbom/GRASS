@@ -27,11 +27,7 @@ end
 # Takes μ = cos(heliocentric angle) and LD parameters, u1 and u2.
 function quad_limb_darkening_eclipse(μ::T) where T<:AF
     μ < zero(T) && return 0.0    
-    I = 0.28392 + 1.36896*μ - 1.75998*μ^2 + 2.22154*μ^3 - 1.56074*μ^4 + 0.44630*μ^5
-    #add extinction later on 
-    #cell_airmass = 1/cosd(zenith_angle)
-    #ext_factor =  -(cell_airmass*ext_coef[index])/2.5 
-    return I #* 10^ext_factor
+    return 0.28392 + 1.36896*μ - 1.75998*μ^2 + 2.22154*μ^3 - 1.56074*μ^4 + 0.44630*μ^5 
 end
 
 function quad_limb_darkening(μ::T, u1::T, u2::T) where T<:AF
@@ -50,16 +46,14 @@ Calculate stellar rotation period in days at given sine of latitude.
 - `B::Float64=2.396`: Coefficient from Snodgrass & Ulrich (1990)
 - `C::Float64=1.787`: Coefficient from Snodgrass & Ulrich (1990)
 """
-function rotation_period_eclipse(ϕ::T; A::T=14.713, B::T=-2.396, C::T=-1.787) where T<:AF
-    @assert -π/2 <= ϕ <= π/2
-    sinϕ = sin(ϕ)
-    return 360.0/(0.9324*(14.713 - 2.396*sinϕ^2 - 1.787*sinϕ^4))
-end
-
 function rotation_period(ϕ::T; A::T=14.713, B::T=-2.396, C::T=-1.787) where T<:AF
     @assert -π/2 <= ϕ <= π/2
     sinϕ = sin(ϕ)
     return 360.0/(A + B * sinϕ^2.0 + C * sinϕ^4.0)
+end
+
+function v_scalar(lat, lon)
+    return (2π * sun_radius * cos(lat)) / rotation_period(lat)
 end
 
 """
@@ -72,35 +66,21 @@ Return value is in (Rsol/day)/speed of light (i.e., dimensionless like z = v/c)
 - `rstar::Float64=1.0`: in R_sol (affects return velocity, but not x,y)
 - `pole = (0,1,0)`: unit vector for stellar rotation axis (default is equator-on)
 """
-function patch_velocity_los(ϕ::T, θ::T, disk::DiskParamsEclipse{T}, epoch, OP_bary; P⃗=[0.0, 0.0, disk.ρs]) where T<:AF
-    # get vector pointing from spherical circle to patch
-    xyz = sphere_to_cart_eclipse(disk.ρs, ϕ, θ)
+function projected!(A::Matrix, B::Matrix, out_no_cb::Matrix)
+    """
+    determine projected velocity of each cell onto line of sight to observer - serial
 
-    # get vector from spherical circle center to surface patch
-    C⃗ = xyz .- [0.0, 0.0, xyz[3]]
+    A: matrix with xyz and velocity of each cell
+    B: matrix with line of sight from each cell to observer
+    out: matrix of projected velocities
+    """
+    for i in 1:length(A)
+        vel = A[i][4:6]
+        angle = dot(B[i][1:3], vel) / (norm(B[i][1:3]) * norm(vel))
 
-    # get magnitude of velocity vector
-    v0 = 2π * disk.ρs * cos(ϕ) / rotation_period_eclipse(ϕ)
-
-    # get in units of m/s
-    v0 /= 86.4
-
-    # get velocity vector direction and set magnitude
-    vel = cross(C⃗, P⃗)
-    vel /= norm(vel)
-    vel *= v0
-
-    # rotate by stellar inclination = transform into ICRF frame (?)
-    velocity_vector_ICRF = sxform("IAU_SUN", "J2000", epoch) * [xyz;vel]
-    #trying adding following lines for attempt to match Reiners?
-    # xyz .= disk.R_x * xyz
-    # vel .= disk.R_x * vel
-
-
-    # find get vector from observer to surface patch, return projection
-    new_vel = [velocity_vector_ICRF[4],velocity_vector_ICRF[5],velocity_vector_ICRF[6]]
-    angle = cos(π - acos(dot(OP_bary, new_vel) / (norm(OP_bary) * norm(new_vel)))) 
-    return (norm(new_vel) * angle)
+        out_no_cb[i] = (norm(vel) * angle)
+    end
+    return
 end
 
 function patch_velocity_los(ϕ::T, θ::T, disk::DiskParams{T}; P⃗=[0.0, disk.ρs, 0.0]) where T<:AF
