@@ -38,6 +38,37 @@ function sphere_to_cart_eclipse(ρ::T, ϕ::T, θ::T) where T
     return [x, y, z]
 end
 
+function pole_vector_grid!(A::Matrix, out::Matrix)
+    """
+    remove the z component of each cell - serial
+
+    A: matrix of xyz orientation of each cell
+    out: matrix of xyz orientation with z removed
+    """ 
+    for i in 1:length(A)
+        out[i] = A[i] - [0.0, 0.0, A[i][3]]
+    end
+    return
+end  
+
+function v_vector(A::Matrix, B::Matrix, C::Matrix, out::Matrix)
+    """
+    determine velocity vector (direction and magnitude) of each cell - serial 
+
+    A: xyz position of cell
+    B: xyz position of cell with z removed
+    C: scalar velocity of each cell
+    out: matrix with xyz and velocity of each cell
+    """
+    for i in eachindex(A)
+        cross_product = cross([0.0,0.0,sun_radius], B[i])
+        cross_product ./= norm(cross_product)
+        cross_product .*= C[i]
+        out[i] = cross_product
+    end
+    return
+end
+
 function sphere_to_cart(ρ::T, ϕ::T, θ::T) where T
     # compute trig quantitites
     sinϕ = sin(ϕ)
@@ -52,9 +83,22 @@ function sphere_to_cart(ρ::T, ϕ::T, θ::T) where T
     return [x, y, z]
 end
 
-
-function calc_mu(xyz::AA{T,1}, O⃗::AA{T,1}) where T<:AF
+function calc_mu(xyz::AA{T,1}, O⃗::AA{T,1}) where T
     return dot(O⃗, xyz) / (norm(O⃗) * norm(xyz))
+end
+
+function calc_mu_grid!(A::Matrix, B::Matrix, out::Matrix)
+    """
+    create matrix of mu values for each cell - serial
+
+    A: matrix of vectors from sun center to cell
+    B: matrix of vectors from observer to cell
+    out: mu value between A and B
+    """
+    for i in eachindex(A)
+        out[i] = calc_mu(view(A[i], 1:3), view(B[i], 1:3))
+        end
+    return
 end
 
 function find_nearest_ax_code_eclipse(y::T, z::T) where T<:AF
