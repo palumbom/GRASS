@@ -86,6 +86,7 @@ function eclipse_compute_quantities!(disk::DiskParamsEclipse{T}, epoch, obs_long
             v_scalar_grid .= map(x -> v_scalar(x...), subgrid)
             #convert v_scalar to from km/day km/s
             v_scalar_grid ./= 86400.0
+            z_rot_sub = (v_scalar_grid)./c_kms
 
             #determine pole vector for each patch
             pole_vector_grid!(SP_sun_pos, pole_vector_grid)
@@ -123,6 +124,7 @@ function eclipse_compute_quantities!(disk::DiskParamsEclipse{T}, epoch, obs_long
             end
             # convert from km/s to m/s
             v_earth_orb_proj .*= 1000.0
+            z_rot_sub .+= v_earth_orb_proj/c_ms
 
             #determine patches that are blocked by moon 
             #calculate the distance between tile corner and moon
@@ -135,15 +137,17 @@ function eclipse_compute_quantities!(disk::DiskParamsEclipse{T}, epoch, obs_long
             idx3 = (idx1) .& (distance .> atan((moon_radius)/norm(OM_bary))) 
 
             # assign the mean mu as the mean of visible mus
-            μs[i,j] = mean(view(mu_grid, idx3))
+            μs[i,j] = mean(view(mu_grid, idx1))
 
             # find xz at mean value of mu and get axis code (i.e., N, E, S, W)
-            xyz[i,j,1] = mean(view(getindex.(SP_sun_pos,1), idx3))
-            xyz[i,j,2] = mean(view(getindex.(SP_sun_pos,2), idx3))
-            xyz[i,j,3] = mean(view(getindex.(SP_sun_pos,3), idx3))
+            xyz[i,j,1] = mean(view(getindex.(SP_sun_pos,1), idx1))
+            xyz[i,j,2] = mean(view(getindex.(SP_sun_pos,2), idx1))
+            xyz[i,j,3] = mean(view(getindex.(SP_sun_pos,3), idx1))
             if xyz[i,j,2] !== NaN
                 ax_codes[i,j] = find_nearest_ax_code_eclipse(xyz[i,j,2], xyz[i,j,3])
             end
+
+            #TO DO: needs to be OP_earth or bary instead of SP_sun_pos + check if works without if statement
 
             # calc limb darkening
             ld_sub = map(x -> quad_limb_darkening_eclipse(x), mu_grid)
@@ -166,7 +170,7 @@ function eclipse_compute_quantities!(disk::DiskParamsEclipse{T}, epoch, obs_long
             mean_weight_v_earth_orb[i,j] = mean(view(v_earth_orb_proj, idx3))
 
             wts[i,j] = mean(view(ld_sub .* dA_total_proj, idx3))
-            z_rot[i,j] = sum(view(projected_velocities_no_cb .* ld_sub, idx3)) ./ sum(view(ld_sub, idx3))
+            z_rot[i,j] = sum(view(z_rot_sub .* ld_sub .* dA_total_proj, idx3)) ./ sum(view(ld_sub .* dA_total_proj, idx3))
         end
     end
 
@@ -182,7 +186,8 @@ function eclipse_compute_quantities!(disk::DiskParamsEclipse{T}, epoch, obs_long
 
     #determine final mean weighted velocity for disk grid
     final_weight_v_no_cb = sum(view(contrast .* mean_weight_v_no_cb .* brightness, idx_grid)) / cheapflux 
-    final_weight_v_no_cb += mean(view(mean_weight_v_earth_orb, idx_grid)) 
+    final_weight_v_no_cb += sum(view(contrast .* mean_weight_v_earth_orb .* brightness, idx_grid)) / cheapflux 
+    #mean(view(mean_weight_v_earth_orb, idx_grid)) 
 
     return final_weight_v_no_cb, final_mean_intensity
 end

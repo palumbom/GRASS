@@ -4,6 +4,13 @@
 #import PyPlot; plt = PyPlot; mpl = plt.matplotlib; plt.ioff()
 #mpl.style.use(GRASS.moddir * "fig.mplstyle")
 
+#TO DO:
+# eclipse_comp.jl: line 150
+# star_geometry.jl: find_nearest_ax_code_eclipse
+# above needs: (1) determine on sky angle given Conner's work (2) create rotation matrix and rotate sun according
+                # then should only have to fix eclipse_comp.jl, star_geometry.jl should be the same used by GRASS 
+# call eclipse_compute_quantities! for single timestamp and confirm that all arrays filled correctly via plots
+
 using GRASS
 using Random
 using Revise
