@@ -1,7 +1,8 @@
 """
 From Queloz et al. 2001
 """
-function calc_bisector_inverse_slope(bis::AA{T,1}, int::AA{T,1}) where T<:AF
+function calc_bisector_inverse_slope(bis::AA{T,1}, int::AA{T,1}; b1::T=0.10,
+                                     b2::T=0.4, b3::T=0.55, b4::T=0.90) where T<:AF
     @assert maximum(int) <= 1.0
     @assert minimum(int) >= 0.0
 
@@ -11,10 +12,10 @@ function calc_bisector_inverse_slope(bis::AA{T,1}, int::AA{T,1}) where T<:AF
     top = one(T)
 
     # find indices
-    idx10 = findfirst(x -> x .> top - 0.10 * dep, int)
-    idx40 = findfirst(x -> x .> top - 0.40 * dep, int)
-    idx55 = findfirst(x -> x .> top - 0.55 * dep, int)
-    idx90 = findfirst(x -> x .> top - 0.90 * dep, int)
+    idx10 = findfirst(x -> x .> top - b1 * dep, int)
+    idx40 = findfirst(x -> x .> top - b2 * dep, int)
+    idx55 = findfirst(x -> x .> top - b3 * dep, int)
+    idx90 = findfirst(x -> x .> top - b4 * dep, int)
 
     # get v_t and v_b
     v_t = mean(view(bis, idx40:idx10))
@@ -22,10 +23,11 @@ function calc_bisector_inverse_slope(bis::AA{T,1}, int::AA{T,1}) where T<:AF
     return v_t - v_b
 end
 
-function calc_bisector_inverse_slope(bis::AA{T,2}, int::AA{T,2}) where T<:AF
+function calc_bisector_inverse_slope(bis::AA{T,2}, int::AA{T,2}; b1::T=0.10,
+                                     b2::T=0.4, b3::T=0.55, b4::T=0.90) where T<:AF
     out = zeros(size(bis,2))
     for i in 1:size(bis,2)
-        out[i] = calc_bisector_inverse_slope(bis[:,i], int[:,i])
+        out[i] = calc_bisector_inverse_slope(bis[:,i], int[:,i], b1=b1, b2=b2, b3=b3, b4=b4)
     end
     return out
 end
