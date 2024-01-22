@@ -39,7 +39,7 @@ function calc_bisector_span(bis::AA{T,1}, int::AA{T,1}) where T<:AF
     @assert maximum(int) <= 1.0
     @assert minimum(int) >= 0.0
 
-    blue = minimum(bis)
+    blue = minimum(bis[2:end])
     core = mean(bis[3:5])
     return core - blue
 end
