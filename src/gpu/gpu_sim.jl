@@ -61,8 +61,18 @@ function disk_sim_gpu(spec::SpecParams{T1}, disk::DiskParams{T1}, soldata::GPUSo
     # calculate how much extra shift is needed
     extra_z = spec.conv_blueshifts .- z_cbs_avg
 
+    # HACK: ADD IN COHERENT SIGNAL
+    phase = range(0.0, 2π, length=disk.Nt)
+    # v_inject = 501.3 * sin.(phase .* 5.0)
+    # v_inject = 2.75 * sin.(phase .* 5.0)
+    v_inject = 0.10 * sin.(phase .* 5.0)
+
     # loop over time
     for t in 1:Nt
+
+        # HACK: ADD IN COHERENT SIGNAL
+        extra_z .= v_inject[t]/c_ms
+
         # don't synthesize spectrum if skip_times is true, but iterate t index
         if skip_times[t]
             @cusync @captured @cuda threads=threads1 blocks=blocks1 iterate_tloop_gpu!(tloop, dat_idx, lenall_gpu)

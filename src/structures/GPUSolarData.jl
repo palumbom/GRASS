@@ -24,6 +24,11 @@ function GPUSolarData(soldata::SolarData{T}; precision::DataType=Float64) where 
         bis[:, 1:val, ind] .= soldata.bis[key]
         int[:, 1:val, ind] .= soldata.int[key]
         wid[:, 1:val, ind] .= soldata.wid[key]
+
+        # HACK ALL VALUES TIME AVERAGE
+        bis[:, 1:val, ind] .= mean(soldata.bis[key], dims=2)
+        int[:, 1:val, ind] .= mean(soldata.int[key], dims=2)
+        wid[:, 1:val, ind] .= mean(soldata.wid[key], dims=2)
     end
 
     # get the value of mu and ax codes

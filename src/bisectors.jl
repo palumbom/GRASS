@@ -39,7 +39,7 @@ function calc_bisector_span(bis::AA{T,1}, int::AA{T,1}) where T<:AF
     @assert maximum(int) <= 1.0
     @assert minimum(int) >= 0.0
 
-    blue = minimum(bis[2:end])
+    blue = minimum(bis[3:end])
     core = mean(bis[3:5])
     return core - blue
 end
@@ -172,9 +172,13 @@ function calc_line_quantity(wavs::AA{T,1}, flux::AA{T,1}; continuum::T=1.0,
     lwavs = view(wavs, min_flux_idx:-1:1)
     rwavs = view(wavs, min_flux_idx:length(wavs))
 
+    # find next-to-minimum flux value
+    idx_sort = sortperm(flux)
+    min_meas = flux[idx_sort[5]]
+
     # allocate memory
     x_out = zeros(nflux)
-    y_out = range(minimum(flux), top, length=nflux)
+    y_out = range(min_meas, top, length=nflux)
 
     # loop over flux values and measure quantity defined by f function
     for i in eachindex(y_out)
