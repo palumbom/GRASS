@@ -10,6 +10,7 @@ Compute line formation temperature with PySME.
 #%% MODULES
 import os
 import pdb
+import glob
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -28,20 +29,31 @@ fpath, _ = os.path.split(__file__)
 dpath = os.path.abspath(os.path.join(fpath, "..", "data"))
 dfile = os.path.abspath(os.path.join(dpath, "line_info.csv"))
 data = pd.read_csv(dfile)
+line_names = data.name
 airwavs = data.air_wavelength
 avgtemp80 = np.zeros_like(airwavs)
 avgtemp50 = np.zeros_like(airwavs)
 
+spectra_files = glob.glob("/Users/michael/Desktop/mean_spec/*.csv")
+
 # loop over wavelengths in lines
 for i in range(len(airwavs)):
+    # find the right data
+    try:
+        file_idx = np.where([(line_names[i] in file) for file in spectra_files])[0][0]
+    except:
+        continue
+    the_file = spectra_files[file_idx]
+    spec_data = pd.read_csv(the_file)
+
     # get size of resolution elements
     res = 7e5
     delta_wav = (airwavs[i]/res) / 2.0
 
     # Wavelength and flux
     buff  = 0.5
-    wave  = np.arange(airwavs[i] - buff, airwavs[i] + buff, step=delta_wav)
-    flux  = np.zeros_like(wave)
+    wave  = spec_data.wavs.values # np.arange(airwavs[i] - buff, airwavs[i] + buff, step=delta_wav)
+    flux  = spec_data.flux.values # np.zeros_like(wave)
     Nwave = len(wave)
 
     #%% SYNTHESIS | WITHOUT INSTRUMENTAL RESOLUTION & ROTATIONAL BROADENING
