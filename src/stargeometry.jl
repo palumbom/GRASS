@@ -14,6 +14,10 @@ function get_grid_centers(grid::StepRangeLen)
     return range(start, stop, length=length(grid)-1)
 end
 
+function get_grid_centers(grid::AA{T,1}) where T
+    return (grid[2:end] .- grid[1:end-1])/2.0
+end
+
 function calc_dA(ρs::T, ϕc::T, dϕ::T, dθ::T) where T<:AF
     return ρs^2.0 * sin(π/2.0 - ϕc) * dϕ * dθ
 end
