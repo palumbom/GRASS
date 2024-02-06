@@ -8,7 +8,6 @@ function precompute_quantities!(disk::DiskParams{T}, μs::AA{T,2}, ld::AA{T,2},
     μs_sub = zeros(Nsubgrid, Nsubgrid)
     ld_sub = zeros(Nsubgrid, Nsubgrid)
     dA_sub = zeros(Nsubgrid, Nsubgrid)
-    dp_sub = zeros(Nsubgrid, Nsubgrid)
     xyz_sub = repeat([zeros(3)], Nsubgrid, Nsubgrid)
     z_rot_sub = zeros(Nsubgrid, Nsubgrid)
     idx = BitMatrix(undef, size(μs_sub))
@@ -50,11 +49,10 @@ function precompute_quantities!(disk::DiskParams{T}, μs::AA{T,2}, ld::AA{T,2},
 
             # calculate area element of tile
             dA_sub .= map(x -> calc_dA(disk.ρs, getindex(x,1), step(ϕe_sub), step(θe_sub)), subgrid)
-            dp_sub .= map(x -> abs(dot(x .- disk.O⃗, x)), xyz_sub) ./ norm(disk.O⃗)
 
             # get total projected, visible area of larger tile
             dA_total = sum(view(dA_sub, idx))
-            dA_total_proj = sum(view(dA_sub .* dp_sub, idx))
+            dA_total_proj = sum(view(dA_sub .* μs_sub, idx))
 
             # copy to workspace
             ld[i,j] = mean(view(ld_sub, idx))
