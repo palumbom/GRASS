@@ -15,7 +15,8 @@ function get_grid_centers(grid::StepRangeLen)
 end
 
 function get_grid_centers(grid::AA{T,1}) where T
-    return (grid[2:end] .- grid[1:end-1])/2.0
+    idx = findlast(x -> x .> 0.0, grid)
+    return grid[1:idx-1] .+ (grid[2:idx] .- grid[1:idx-1])/2.0
 end
 
 function calc_dA(ρs::T, ϕc::T, dϕ::T, dθ::T) where T<:AF
