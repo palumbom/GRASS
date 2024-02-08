@@ -1,6 +1,7 @@
 struct GPUAllocs{T1<:AF}
     λs::CuArray{T1,1}
     prof::CuArray{T1,1}
+    flux::CuArray{T1,2}
 
     μs::CuArray{T1,1}
     wts::CuArray{T1,1}
@@ -32,6 +33,7 @@ function GPUAllocs(spec::SpecParams, disk::DiskParams; precision::DataType=Float
     @cusync begin
         λs_gpu = CuArray{precision}(spec.lambdas)
         prof_gpu = CUDA.zeros(precision, Nλ)
+        flux_gpu = CUDA.ones(precision, Nλ, Nt)
     end
 
     # pre-compute quantities to be re-used
@@ -101,6 +103,6 @@ function GPUAllocs(spec::SpecParams, disk::DiskParams; precision::DataType=Float
         allints = CUDA.zeros(precision, num_nonzero, 200)
     end
 
-    return GPUAllocs(λs_gpu, prof_gpu, μs, wts, z_rot, z_cbs, ax_code,
+    return GPUAllocs(λs_gpu, prof_gpu, flux_gpu, μs, wts, z_rot, z_cbs, ax_code,
                      dat_idx, tloop_gpu, tloop_init, allwavs, allints)
 end
