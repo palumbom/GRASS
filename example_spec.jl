@@ -6,6 +6,7 @@ using SPICE
 using Statistics
 using EchelleCCFs
 using BenchmarkTools
+# using Plots
 
 GRASS.get_kernels()
 
@@ -41,6 +42,8 @@ tstart = time()
 lambdas_cpu, outspec_cpu = GRASS.synthesize_spectra_eclipse(spec, disk, obs_long, obs_lat, alt, time_stamps, verbose=true, use_gpu=false)
 tstop = time()
 @printf(">>> Synthesis time --> %.3f seconds \n", tstop - tstart)
+
+# plot(lambdas_cpu, outspec_cpu[:,1])
 
 #measure velocities
 v_grid_cpu, ccf_cpu = GRASS.calc_ccf(lambdas_cpu, outspec_cpu, spec)
