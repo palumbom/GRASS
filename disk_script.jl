@@ -2,28 +2,12 @@
 # plotting
 #using LaTeXStrings
 
-#TO DO:
-# eclipse_comp.jl: line 150
-# star_geometry.jl: find_nearest_ax_code_eclipse
-# above needs: (1) determine on sky angle given Conner's work (2) create rotation matrix and rotate sun according
-                # then should only have to fix eclipse_comp.jl, star_geometry.jl should be the same used by GRASS 
-# call eclipse_compute_quantities! for single timestamp and confirm that all arrays filled correctly via plots
-
 using GRASS
 using Random
 using Revise
 using Statistics
 using SPICE
 using Pkg
-Pkg.add("PyCall")   
-using PyCall        
-@pyimport sunpy
-@pyimport matplotlib.pyplot as plt
-#import PyPlot; plt = PyPlot; 
-mpl = plt.matplotlib; plt.ioff()
-mpl.style.use(GRASS.moddir * "fig.mplstyle")
-
-# sunpy_angle.append(sunpy.coordinates.sun.orientation(location, time = initial_epoch).degree)
 
 GRASS.get_kernels()
 
@@ -64,64 +48,62 @@ end
 println(RV_list_no_cb)
 println(intensity_list)
 
+# # disk coordinates
+# ϕe = disk.ϕe
+# ϕc = disk.ϕc
+# θe = disk.θe
+# θc = disk.θc
+# R_x = disk.R_x
+# R_y = disk.R_y
+# R_z = disk.R_z
 
-
-# disk coordinates
-ϕe = disk.ϕe
-ϕc = disk.ϕc
-θe = disk.θe
-θc = disk.θc
-R_x = disk.R_x
-R_y = disk.R_y
-R_z = disk.R_z
-
-# get color scalar mappable
-dat = wts ./ maximum(wts)
-cmap = plt.cm.afmhot
+# # get color scalar mappable
+# dat = wts ./ maximum(wts)
+# cmap = plt.cm.afmhot
 
 # dat = z_rot .* 3e8
 # cmap = plt.cm.seismic
 
-norm = mpl.colors.Normalize(vmin=minimum(dat), vmax=maximum(dat))
-smap = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
+# norm = mpl.colors.Normalize(vmin=minimum(dat), vmax=maximum(dat))
+# smap = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
 
-# initialize figure
-fig, ax = plt.subplots(1,1, figsize=(8,8))
+# # initialize figure
+# fig, ax = plt.subplots(1,1, figsize=(8,8))
 
-# loop over grid positions
-println("\t>>> Plotting!")
-for i in 1:length(ϕe)-1
-    lat = range(ϕe[i], ϕe[i+1], length=4)
-    for j in 1:disk.Nθ[i]
-        lon = range(θe[i,j], θe[i,j+1], length=4)
+# # loop over grid positions
+# println("\t>>> Plotting!")
+# for i in 1:length(ϕe)-1
+#     lat = range(ϕe[i], ϕe[i+1], length=4)
+#     for j in 1:disk.Nθ[i]
+#         lon = range(θe[i,j], θe[i,j+1], length=4)
 
-        border = (([lat[1], lat[2], lat[3], lat[4], lat[4], lat[4], lat[4], lat[3], lat[2], lat[1], lat[1], lat[1]]),
-                  ([lon[1], lon[1], lon[1], lon[1], lon[2], lon[3], lon[4], lon[4], lon[4], lon[4], lon[3], lon[2]]))
+#         border = (([lat[1], lat[2], lat[3], lat[4], lat[4], lat[4], lat[4], lat[3], lat[2], lat[1], lat[1], lat[1]]),
+#                   ([lon[1], lon[1], lon[1], lon[1], lon[2], lon[3], lon[4], lon[4], lon[4], lon[4], lon[3], lon[2]]))
 
 
-        out = GRASS.sphere_to_cart.(1.0, border...) #update coordiante system here and below rotation
-        x = getindex.(out, 1)
-        y = getindex.(out, 2)
-        z = getindex.(out, 3)
+#         out = GRASS.sphere_to_cart.(1.0, border...) #update coordiante system here and below rotation
+#         x = getindex.(out, 1)
+#         y = getindex.(out, 2)
+#         z = getindex.(out, 3)
 
-        # rotate it
-        for k in eachindex(x)
-            x0 = x[k]
-            y0 = y[k]
-            z0 = z[k]
+#         # rotate it
+#         for k in eachindex(x)
+#             x0 = x[k]
+#             y0 = y[k]
+#             z0 = z[k]
 
-            x[k] = x0 * R_x[1,1] + y0 * R_x[1,2] + z0 * R_x[1,3]
-            y[k] = x0 * R_x[2,1] + y0 * R_x[2,2] + z0 * R_x[2,3]
-            z[k] = x0 * R_x[3,1] + y0 * R_x[3,2] + z0 * R_x[3,3]
-        end
+#             x[k] = x0 * R_x[1,1] + y0 * R_x[1,2] + z0 * R_x[1,3]
+#             y[k] = x0 * R_x[2,1] + y0 * R_x[2,2] + z0 * R_x[2,3]
+#             z[k] = x0 * R_x[3,1] + y0 * R_x[3,2] + z0 * R_x[3,3]
+#         end
 
-        idx = z .>= 0
-        if any(idx)
-            # ax.plot(x[idx], y[idx], color="k", lw=1)
-            ax.fill(x[idx], y[idx], c=smap.to_rgba(dat[i,j]))
-        end
-    end
-end
+#         idx = z .>= 0
+#         if any(idx)
+#             # ax.plot(x[idx], y[idx], color="k", lw=1)
+#             ax.fill(x[idx], y[idx], c=smap.to_rgba(dat[i,j]))
+#         end
+#     end
+# end
 
 # # get equator coords
 # latitude = deg2rad(0.0)
