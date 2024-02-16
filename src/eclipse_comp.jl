@@ -43,7 +43,6 @@ function eclipse_compute_quantities!(disk::DiskParamsEclipse{T}, epoch, obs_long
     # parse out composite type fields
     Nsubgrid = disk.Nsubgrid
 
-
     # allocate memory that wont be needed outside this function
     dA_total_proj_mean = zeros(length(disk.ϕc), maximum(disk.Nθ))
     mean_intensity = zeros(length(disk.ϕc), maximum(disk.Nθ))
@@ -142,12 +141,10 @@ function eclipse_compute_quantities!(disk::DiskParamsEclipse{T}, epoch, obs_long
             # find xz at mean value of mu and get axis code (i.e., N, E, S, W)
             xyz[i,j,1] = mean(view(getindex.(SP_sun_pos,1), idx1))
             xyz[i,j,2] = mean(view(getindex.(SP_sun_pos,2), idx1))
-            xyz[i,j,3] = mean(view(getindex.(SP_sun_pos,3), idx1))
+            xyz[i,j,3] = mean(view(getindex.(SP_sun_pos,3), idx1)) 
             if xyz[i,j,2] !== NaN
-                ax_codes[i,j] = find_nearest_ax_code_eclipse(xyz[i,j,2], xyz[i,j,3])
+                ax_codes[i,j] = find_nearest_ax_code_eclipse(xyz[i,j,2]/sun_radius, xyz[i,j,3]/sun_radius) 
             end
-
-            #TO DO: needs to be OP_earth or bary instead of SP_sun_pos + check if works without if statement
 
             # calc limb darkening
             ld_sub = map(x -> quad_limb_darkening_eclipse(x), mu_grid)
@@ -187,7 +184,6 @@ function eclipse_compute_quantities!(disk::DiskParamsEclipse{T}, epoch, obs_long
     #determine final mean weighted velocity for disk grid
     final_weight_v_no_cb = sum(view(contrast .* mean_weight_v_no_cb .* brightness, idx_grid)) / cheapflux 
     final_weight_v_no_cb += sum(view(contrast .* mean_weight_v_earth_orb .* brightness, idx_grid)) / cheapflux 
-    #mean(view(mean_weight_v_earth_orb, idx_grid)) 
 
     return final_weight_v_no_cb, final_mean_intensity
 end
