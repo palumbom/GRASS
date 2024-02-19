@@ -18,7 +18,7 @@ time_stamps = utc2et.(neid_timestamps)
 # set up paramaters for spectrum
 N = 50
 Nt = length(time_stamps)
-disk = GRASS.DiskParamsEclipse(N=N, Nt=Nt, Nsubgrid=10) #Nt = number of time snapshots separated by 15 seconds in time 
+disk = GRASS.DiskParamsEclipse(N=N, Nt=Nt, Nsubgrid=5) #Nt = number of time snapshots separated by 15 seconds in time 
 
 #NEID location
 obs_lat = 31.9583 
@@ -27,7 +27,7 @@ alt = 2.097938
 
 RV_list_no_cb = Vector{Float64}(undef,size(time_stamps)...)
 intensity_list = Vector{Float64}(undef,size(time_stamps)...)
-for i in 1:length(time_stamps)
+for i in 1:1#length(time_stamps)
     # allocate the memory for keys, velocities, ld, etc.
     ϕc = zeros(size(disk.θc))
     θc = zeros(size(disk.θc))

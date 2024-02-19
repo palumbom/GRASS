@@ -1,4 +1,6 @@
-function eclipse_compute_quantities!(disk::DiskParamsEclipse{T}, epoch, obs_long, obs_lat, alt, ϕc::AA{T,2}, θc::AA{T,2},
+using PyPlot; plt=PyPlot
+function eclipse_compute_quantities!(disk::DiskParamsEclipse{T}, epoch::T, obs_long::T,
+                                    obs_lat::T, alt::T, ϕc::AA{T,2}, θc::AA{T,2},
                                      μs::AA{T,2}, ld::AA{T,2}, dA::AA{T,2},
                                      xyz::AA{T,3}, wts::AA{T,2}, z_rot::AA{T,2},
                                      ax_codes::AA{Int64, 2}) where T<:AF
@@ -63,6 +65,11 @@ function eclipse_compute_quantities!(disk::DiskParamsEclipse{T}, epoch, obs_long
     v_scalar_grid = zeros(Nsubgrid, Nsubgrid)
     v_earth_orb_proj = zeros(Nsubgrid, Nsubgrid)
 
+    ra_mean = zeros(length(disk.ϕc), maximum(disk.Nθ))
+    de_mean = zeros(length(disk.ϕc), maximum(disk.Nθ))
+
+    # set up plot
+    fig, ax1 = plt.subplots()
 
     # loop over disk positions
     for i in eachindex(disk.ϕc)
@@ -146,6 +153,21 @@ function eclipse_compute_quantities!(disk::DiskParamsEclipse{T}, epoch, obs_long
                 ax_codes[i,j] = find_nearest_ax_code_eclipse(xyz[i,j,2]/sun_radius, xyz[i,j,3]/sun_radius) 
             end
 
+
+            ax_codes_sub = map((x,y) -> find_nearest_ax_code_eclipse(x,y), getindex.(SP_sun_pos,2), getindex.(SP_sun_pos,3))
+
+            OP_earth = map(x -> sxform("J2000", "ITRF93", epoch) * x, OP_bary)
+            x_mean = mean(view(getindex.(OP_earth,1), idx3))
+            y_mean = mean(view(getindex.(OP_earth,2), idx3))
+            z_mean = mean(view(getindex.(OP_earth,3), idx3))
+            temp = recrad([x_mean, y_mean, z_mean])
+            ra_mean[i,j] = temp[2]
+            de_mean[i,j] = temp[3]
+
+            OP_ra_dec_sub = SPICE.recrad.([x[1:3] for x in OP_earth])
+            ra_sub = getindex.(OP_ra_dec_sub, 2)
+            de_sub = getindex.(OP_ra_dec_sub, 3)
+
             # calc limb darkening
             ld_sub = map(x -> quad_limb_darkening_eclipse(x), mu_grid)
 
@@ -156,6 +178,13 @@ function eclipse_compute_quantities!(disk::DiskParamsEclipse{T}, epoch, obs_long
             #get total projected, visible area of larger tile
             dA_total_proj = dA_sub .* mu_grid
             dA_total_proj_mean[i,j] = sum(view(dA_total_proj, idx1))
+
+            ra_sub_deg = rad2deg.(ra_sub) #.* (24 / 360)
+            de_sub_deg = rad2deg.(de_sub)
+            #ax1.pcolormesh(ra_sub, de_sub, z_rot_sub .* c_ms, cmap="seismic", vmin=-2000, vmax=2000, rasterized=true)
+            #ax1.pcolormesh(ra_sub_deg, de_sub_deg, ax_codes_sub, vmin=1, vmax=4, rasterized=true)
+            #ax1.pcolormesh(ra_sub_deg, de_sub_deg, mu_grid, vmin=0.0, vmax=1.0, rasterized=true)
+            ax1.pcolormesh(ra_sub_deg, de_sub_deg, dA_total_proj, vmin=0.1e7, vmax=1e7, rasterized=true)
 
             # copy to workspace
             mean_intensity[i,j] = mean(view(ld_sub, idx3)) 
@@ -170,6 +199,14 @@ function eclipse_compute_quantities!(disk::DiskParamsEclipse{T}, epoch, obs_long
             z_rot[i,j] = sum(view(z_rot_sub .* ld_sub .* dA_total_proj, idx3)) ./ sum(view(ld_sub .* dA_total_proj, idx3))
         end
     end
+
+
+    ax1.set_xlabel("RA (decimal degrees)")
+    ax1.set_ylabel("DEC (decimal degrees)")
+    ax1.set_aspect("equal")
+    fig.savefig("/Users/elizabethgonzalez/Downloads/dA.pdf", dpi=250)
+    plt.show()
+
 
     #index for correct lat / lon disk grid
     idx_grid = mean_intensity .> 0.0
