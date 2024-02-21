@@ -33,14 +33,20 @@ function eclipse_compute_quantities!(disk::DiskParamsEclipse{T}, epoch::T, obs_l
     # get modified epch
     epoch_lt = epoch - OS_lt
 
+    # get rotation matrix for sun
+    sun_rot_mat = pxform("IAU_SUN", "J2000", epoch_lt)
+
     # get vector for sun pole
     sun_lat = deg2rad(90.0)
     sun_lon = deg2rad(0.0)
-    sun_pole_sun = pgrrec("SUN", sun_lon, sun_lat, 0.0, sun_radius, 0.0)
+    sun_pole_sun = pgrrec("SUN", sun_lon, sun_lat, 0.0, sun_radius, 0.0) #SP_sun_pos
     sun_pole_bary = pxform("IAU_SUN", "J2000", epoch_lt) * sun_pole_sun
-
-    # get rotation matrix for sun
-    sun_rot_mat = pxform("IAU_SUN", "J2000", epoch_lt)
+    #ra and dec of pole vector 
+    sun_pole_sun_rotate = sun_rot_mat * sun_pole_sun #SP_bary
+    OP_bary_pole = OS_bary[1:3] + sun_pole_sun_rotate #OP_bary
+    OP_ra_dec_pole = SPICE.recrad(OP_bary_pole)
+    ra_sub_deg_pole = rad2deg.(OP_ra_dec_pole[2]) 
+    de_sub_deg_pole = rad2deg.(OP_ra_dec_pole[3])
 
     # parse out composite type fields
     Nsubgrid = disk.Nsubgrid
@@ -69,7 +75,7 @@ function eclipse_compute_quantities!(disk::DiskParamsEclipse{T}, epoch::T, obs_l
     de_mean = zeros(length(disk.ϕc), maximum(disk.Nθ))
 
     # set up plot
-    fig, ax1 = plt.subplots()
+    # fig, ax1 = plt.subplots()
 
     # loop over disk positions
     for i in eachindex(disk.ϕc)
@@ -92,7 +98,6 @@ function eclipse_compute_quantities!(disk::DiskParamsEclipse{T}, epoch::T, obs_l
             v_scalar_grid .= map(x -> v_scalar(x...), subgrid)
             #convert v_scalar to from km/day km/s
             v_scalar_grid ./= 86400.0
-            z_rot_sub = (v_scalar_grid)./c_kms
 
             #determine pole vector for each patch
             pole_vector_grid!(SP_sun_pos, pole_vector_grid)
@@ -120,6 +125,7 @@ function eclipse_compute_quantities!(disk::DiskParamsEclipse{T}, epoch::T, obs_l
             projected!(SP_bary, OP_bary, projected_velocities_no_cb)
             # convert from km/s to m/s
             projected_velocities_no_cb .*= 1000.0
+            z_rot_sub = (projected_velocities_no_cb)./c_ms
 
             #get relative orbital motion in m/s
             v_delta = OS_bary[4:6]
@@ -130,6 +136,7 @@ function eclipse_compute_quantities!(disk::DiskParamsEclipse{T}, epoch::T, obs_l
             end
             # convert from km/s to m/s
             v_earth_orb_proj .*= 1000.0
+
             z_rot_sub .+= v_earth_orb_proj/c_ms
 
             #determine patches that are blocked by moon 
@@ -152,19 +159,17 @@ function eclipse_compute_quantities!(disk::DiskParamsEclipse{T}, epoch::T, obs_l
             if xyz[i,j,2] !== NaN
                 ax_codes[i,j] = find_nearest_ax_code_eclipse(xyz[i,j,2]/sun_radius, xyz[i,j,3]/sun_radius) 
             end
-
-
             ax_codes_sub = map((x,y) -> find_nearest_ax_code_eclipse(x,y), getindex.(SP_sun_pos,2), getindex.(SP_sun_pos,3))
 
-            OP_earth = map(x -> sxform("J2000", "ITRF93", epoch) * x, OP_bary)
-            x_mean = mean(view(getindex.(OP_earth,1), idx3))
-            y_mean = mean(view(getindex.(OP_earth,2), idx3))
-            z_mean = mean(view(getindex.(OP_earth,3), idx3))
+            #OP_earth = map(x -> sxform("J2000", "ITRF93", epoch) * x, OP_bary)
+            x_mean = mean(view(getindex.(OP_bary,1), idx3))
+            y_mean = mean(view(getindex.(OP_bary,2), idx3))
+            z_mean = mean(view(getindex.(OP_bary,3), idx3))
             temp = recrad([x_mean, y_mean, z_mean])
             ra_mean[i,j] = temp[2]
             de_mean[i,j] = temp[3]
 
-            OP_ra_dec_sub = SPICE.recrad.([x[1:3] for x in OP_earth])
+            OP_ra_dec_sub = SPICE.recrad.([x[1:3] for x in OP_bary])
             ra_sub = getindex.(OP_ra_dec_sub, 2)
             de_sub = getindex.(OP_ra_dec_sub, 3)
 
@@ -179,12 +184,17 @@ function eclipse_compute_quantities!(disk::DiskParamsEclipse{T}, epoch::T, obs_l
             dA_total_proj = dA_sub .* mu_grid
             dA_total_proj_mean[i,j] = sum(view(dA_total_proj, idx1))
 
-            ra_sub_deg = rad2deg.(ra_sub) #.* (24 / 360)
+            ra_sub_deg = rad2deg.(ra_sub) 
             de_sub_deg = rad2deg.(de_sub)
-            #ax1.pcolormesh(ra_sub, de_sub, z_rot_sub .* c_ms, cmap="seismic", vmin=-2000, vmax=2000, rasterized=true)
+            # ax1.scatter(ra_sub_deg_pole, de_sub_deg_pole)
+            #ax1.pcolormesh(ra_sub_deg, de_sub_deg, z_rot_sub .* c_ms, cmap="seismic", vmin=-2000, vmax=2000, rasterized=true)
             #ax1.pcolormesh(ra_sub_deg, de_sub_deg, ax_codes_sub, vmin=1, vmax=4, rasterized=true)
             #ax1.pcolormesh(ra_sub_deg, de_sub_deg, mu_grid, vmin=0.0, vmax=1.0, rasterized=true)
-            ax1.pcolormesh(ra_sub_deg, de_sub_deg, dA_total_proj, vmin=0.1e7, vmax=1e7, rasterized=true)
+            # ax1.pcolormesh(ra_sub_deg, de_sub_deg, dA_total_proj, vmin=0.1e7, vmax=1e7, rasterized=true)
+
+                                    #  μs::AA{T,2}, ld::AA{T,2}, dA::AA{T,2},
+                                    #  xyz::AA{T,3}, wts::AA{T,2}, z_rot::AA{T,2},
+                                    #  ax_codes::AA{Int64, 2}
 
             # copy to workspace
             mean_intensity[i,j] = mean(view(ld_sub, idx3)) 
@@ -201,11 +211,11 @@ function eclipse_compute_quantities!(disk::DiskParamsEclipse{T}, epoch::T, obs_l
     end
 
 
-    ax1.set_xlabel("RA (decimal degrees)")
-    ax1.set_ylabel("DEC (decimal degrees)")
-    ax1.set_aspect("equal")
-    fig.savefig("/Users/elizabethgonzalez/Downloads/dA.pdf", dpi=250)
-    plt.show()
+#     ax1.set_xlabel("RA (decimal degrees)")
+#     ax1.set_ylabel("DEC (decimal degrees)")
+#     ax1.set_aspect("equal")
+#    # fig.savefig("/Users/elizabethgonzalez/Downloads/dA.pdf", dpi=250)
+#     plt.show()
 
 
     #index for correct lat / lon disk grid

@@ -18,9 +18,9 @@ time_stamps = utc2et.(neid_timestamps)
 # set up paramaters for spectrum
 N = 50
 Nt = length(time_stamps)
-disk = GRASS.DiskParamsEclipse(N=N, Nt=Nt, Nsubgrid=5) #Nt = number of time snapshots separated by 15 seconds in time 
+disk = GRASS.DiskParamsEclipse(N=N, Nt=Nt, Nsubgrid=10) #Nt = number of time snapshots separated by 15 seconds in time 
 
-#NEID location
+#NEID location 
 obs_lat = 31.9583 
 obs_long = -111.5967  
 alt = 2.097938 
