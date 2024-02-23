@@ -39,11 +39,11 @@ function eclipse_compute_quantities!(disk::DiskParamsEclipse{T}, epoch::T, obs_l
     # get vector for sun pole
     sun_lat = deg2rad(90.0)
     sun_lon = deg2rad(0.0)
-    sun_pole_sun = pgrrec("SUN", sun_lon, sun_lat, 0.0, sun_radius, 0.0) #SP_sun_pos
+    sun_pole_sun = pgrrec("SUN", sun_lon, sun_lat, 0.0, sun_radius, 0.0)
     sun_pole_bary = pxform("IAU_SUN", "J2000", epoch_lt) * sun_pole_sun
     #ra and dec of pole vector 
-    sun_pole_sun_rotate = sun_rot_mat * sun_pole_sun #SP_bary
-    OP_bary_pole = OS_bary[1:3] + sun_pole_sun_rotate #OP_bary
+    sun_pole_sun_rotate = sun_rot_mat * sun_pole_sun 
+    OP_bary_pole = OS_bary[1:3] + sun_pole_sun_rotate 
     OP_ra_dec_pole = SPICE.recrad(OP_bary_pole)
     ra_sub_deg_pole = rad2deg.(OP_ra_dec_pole[2]) 
     de_sub_deg_pole = rad2deg.(OP_ra_dec_pole[3])
@@ -74,7 +74,7 @@ function eclipse_compute_quantities!(disk::DiskParamsEclipse{T}, epoch::T, obs_l
     ra_mean = zeros(length(disk.ϕc), maximum(disk.Nθ))
     de_mean = zeros(length(disk.ϕc), maximum(disk.Nθ))
 
-    # set up plot
+    # #set up plot
     # fig, ax1 = plt.subplots()
 
     # loop over disk positions
@@ -149,6 +149,7 @@ function eclipse_compute_quantities!(disk::DiskParamsEclipse{T}, epoch::T, obs_l
             idx1 = mu_grid .> 0.0
             idx3 = (idx1) .& (distance .> atan((moon_radius)/norm(OM_bary))) 
 
+
             # assign the mean mu as the mean of visible mus
             μs[i,j] = mean(view(mu_grid, idx1))
 
@@ -187,14 +188,10 @@ function eclipse_compute_quantities!(disk::DiskParamsEclipse{T}, epoch::T, obs_l
             ra_sub_deg = rad2deg.(ra_sub) 
             de_sub_deg = rad2deg.(de_sub)
             # ax1.scatter(ra_sub_deg_pole, de_sub_deg_pole)
-            #ax1.pcolormesh(ra_sub_deg, de_sub_deg, z_rot_sub .* c_ms, cmap="seismic", vmin=-2000, vmax=2000, rasterized=true)
-            #ax1.pcolormesh(ra_sub_deg, de_sub_deg, ax_codes_sub, vmin=1, vmax=4, rasterized=true)
-            #ax1.pcolormesh(ra_sub_deg, de_sub_deg, mu_grid, vmin=0.0, vmax=1.0, rasterized=true)
+            # ax1.pcolormesh(ra_sub_deg, de_sub_deg, z_rot_sub .* c_ms, cmap="seismic", vmin=-2000, vmax=2000, rasterized=true)
+            # ax1.pcolormesh(ra_sub_deg, de_sub_deg, ax_codes_sub, vmin=1, vmax=4, rasterized=true)
+            # ax1.pcolormesh(ra_sub_deg, de_sub_deg, mu_grid, vmin=0.0, vmax=1.0, rasterized=true)
             # ax1.pcolormesh(ra_sub_deg, de_sub_deg, dA_total_proj, vmin=0.1e7, vmax=1e7, rasterized=true)
-
-                                    #  μs::AA{T,2}, ld::AA{T,2}, dA::AA{T,2},
-                                    #  xyz::AA{T,3}, wts::AA{T,2}, z_rot::AA{T,2},
-                                    #  ax_codes::AA{Int64, 2}
 
             # copy to workspace
             mean_intensity[i,j] = mean(view(ld_sub, idx3)) 
@@ -207,16 +204,23 @@ function eclipse_compute_quantities!(disk::DiskParamsEclipse{T}, epoch::T, obs_l
 
             wts[i,j] = mean(view(ld_sub .* dA_total_proj, idx3))
             z_rot[i,j] = sum(view(z_rot_sub .* ld_sub .* dA_total_proj, idx3)) ./ sum(view(ld_sub .* dA_total_proj, idx3))
+
+            if isnan(ld[i,j])
+                ld[i,j] = 0.0
+                mean_intensity[i,j] = 0.0
+                mean_weight_v_no_cb[i,j] = 0.0
+                mean_weight_v_earth_orb[i,j] = 0.0
+                wts[i,j] = 0.0
+                z_rot[i,j] = 0.0
+            end
         end
     end
-
 
 #     ax1.set_xlabel("RA (decimal degrees)")
 #     ax1.set_ylabel("DEC (decimal degrees)")
 #     ax1.set_aspect("equal")
 #    # fig.savefig("/Users/elizabethgonzalez/Downloads/dA.pdf", dpi=250)
 #     plt.show()
-
 
     #index for correct lat / lon disk grid
     idx_grid = mean_intensity .> 0.0
@@ -232,7 +236,7 @@ function eclipse_compute_quantities!(disk::DiskParamsEclipse{T}, epoch::T, obs_l
     final_weight_v_no_cb = sum(view(contrast .* mean_weight_v_no_cb .* brightness, idx_grid)) / cheapflux 
     final_weight_v_no_cb += sum(view(contrast .* mean_weight_v_earth_orb .* brightness, idx_grid)) / cheapflux 
 
-    return final_weight_v_no_cb, final_mean_intensity
+    return #pxform("ITRF93", "IAU_SUN", epoch)
 end
 
 function generate_tloop_eclipse!(tloop::AA{Int}, wsp::SynthWorkspaceEclipse{T}, soldata::SolarData{T}) where T<:AF
