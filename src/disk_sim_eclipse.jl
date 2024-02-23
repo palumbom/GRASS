@@ -2,9 +2,6 @@ function disk_sim_eclipse(spec::SpecParams{T}, disk::DiskParamsEclipse{T}, solda
     wsp::SynthWorkspaceEclipse{T}, prof::AA{T,1}, flux::AA{T,2},
     tloop, tloop_init, templates, idx, obs_long, obs_lat, alt, time_stamps; verbose::Bool=true,
     skip_times::BitVector=falses(disk.Nt)) where T<:AF
-    # get sum of weights
-    sum_wts = sum(wsp.wts)
-    z_cbs_avg = sum(wsp.wts .* wsp.cbs) / sum_wts
 
     # loop over time
     for t in 1:disk.Nt
@@ -17,6 +14,10 @@ function disk_sim_eclipse(spec::SpecParams{T}, disk::DiskParamsEclipse{T}, solda
             GRASS.eclipse_compute_quantities!(disk, time_stamps[t], obs_long, obs_lat, alt, wsp.ϕc, wsp.θc, wsp.μs, wsp.ld, wsp.dA, wsp.xyz, wsp.wts, wsp.z_rot, wsp.ax_codes)
             # get conv. blueshift and keys from input data
             GRASS.get_keys_and_cbs_eclispe!(wsp, soldata)
+
+            # get sum of weights
+            sum_wts = sum(wsp.wts)
+            z_cbs_avg = sum(wsp.wts .* wsp.cbs) / sum_wts
             
             # generate or copy tloop
             if (idx > 1) && GRASS.in_same_group(templates[idx - 1], templates[idx])
@@ -34,8 +35,7 @@ function disk_sim_eclipse(spec::SpecParams{T}, disk::DiskParamsEclipse{T}, solda
                 # loop over spatial patches
                 for i in eachindex(wsp.μs)
                     # move to next iteration if patch element is not visible
-                    μc = wsp.μs[i]
-                    μc <= zero(T) && continue
+                    wsp.wts[i] <= zero(T) && continue
 
                     # get input data for place on disk
                     key = wsp.keys[i]

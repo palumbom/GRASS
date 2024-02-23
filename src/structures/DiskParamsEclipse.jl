@@ -49,17 +49,12 @@ function DiskParamsEclipse(;N=197, Nt=NaN, Nsubgrid=40, radius=sun_radius,
         @assert Nsubgrid > 1
     end
 
-    # if inclination == 0.0
-    #     @warn "Unresolved bug for i=0, setting i=1e-10"
-    #     inclination = 1e-10
-    # end
-
     # get latitude grid edges and centers
     ϕe = range(deg2rad(-90.0), deg2rad(90.0), length=N+1)
     ϕc = get_grid_centers(ϕe)
 
     # number of longitudes in each latitude slice
-    Nθ = get_Nθ.(ϕc, step(ϕe)) #ceil.(Int, 2π .* cos.(ϕc) ./ step(ϕe))
+    Nθ = get_Nθ.(ϕc, step(ϕe)) 
 
     # make longitude grid
     θe = zeros(N+1, maximum(Nθ)+1)
@@ -70,39 +65,7 @@ function DiskParamsEclipse(;N=197, Nt=NaN, Nsubgrid=40, radius=sun_radius,
         θe[i, 1:Nθ[i]+1] .= collect(edges)
     end
 
-    # # create rotation matrix for inclination
-    # @assert -90.0 <= inclination <= 90.0
-    # iₛ = deg2rad(90.0 - inclination)
-    # R_x = [1.0 0.0 0.0;
-    #        0.0 cos(iₛ) -sin(iₛ);
-    #        0.0 sin(iₛ) cos(iₛ)]
 
-    # # create rotation matrix for stellar rotation
-    # # TODO consider differential rotation?
-    # # TODO check math
-    # ω_eq = vsini / (4.378993e9)
-    # per = 2π / ω_eq
-    # v_ang = 2π / per
-    # dθ = -2π / per
-    # R_y = [cos(dθ) 0.0 sin(dθ);
-    #        0.0 1.0 0.0;
-    #        -sin(dθ) 0.0 cos(dθ)]
-
-
-    # # create rotation matrix for sky-plane rotation (i.e., position angle)
-    # pa = deg2rad(0.0)
-    # R_z = [cos(pa) -sin(pa) 0.0;
-    #        sin(pa) cos(pa) 0.0;
-    #        0.0 0.0 1.0]
-
-    # # convert vsini to units of R*/day/c_ms
-    # v0 = (vsini / c_ms) * (360.0 / A)
-
-    # # set vector pointing from observer to star center
-    # O⃗ = [0.0, 0.0, dist]
-
-    # return DiskParams(N, Nt, radius, ϕe, ϕc, θe, θc, Nθ, Nsubgrid,
-    #                   R_x, R_y, R_z, O⃗, A, B, C, v0, u1, u2)
     return DiskParamsEclipse(N, Nt, radius, ϕe, ϕc, θe, θc, Nθ, Nsubgrid, A, B, C, u1, u2)
 end
 
