@@ -21,7 +21,8 @@ Construct a `SpecParams` composite type instance.
 """
 function SolarData(;fname::String="", relative::Bool=true, extrapolate::Bool=true,
                     adjust_mean::Bool=true, contiguous_only::Bool=false,
-                    fixed_width::Bool=false, fixed_bisector::Bool=false)
+                    fixed_width::Bool=false, fixed_bisector::Bool=false,
+                    strip_cols::Bool=true)
     # default
     if isempty(fname)
         fname = joinpath(soldir, "FeI_5434.h5")
@@ -38,12 +39,14 @@ function SolarData(;fname::String="", relative::Bool=true, extrapolate::Bool=tru
 
     return SolarData(fname, relative=relative, extrapolate=extrapolate,
                      adjust_mean=adjust_mean, contiguous_only=contiguous_only,
-                     fixed_width=fixed_width, fixed_bisector=fixed_bisector)
+                     fixed_width=fixed_width, fixed_bisector=fixed_bisector,
+                     strip_cols=strip_cols)
 end
 
 function SolarData(fname::String; relative::Bool=true, extrapolate::Bool=true,
                    adjust_mean::Bool=true, contiguous_only::Bool=false,
-                   fixed_width::Bool=false, fixed_bisector::Bool=false)
+                   fixed_width::Bool=false, fixed_bisector::Bool=false,
+                   strip_cols::Bool=true)
     # make sure the file exists
     @assert isfile(fname)
 
@@ -107,16 +110,18 @@ function SolarData(fname::String; relative::Bool=true, extrapolate::Bool=true,
             end
 
             # identify bad columns and strip them out
-            badcols = identify_bad_cols(bis, int1, wid, int2)
-            if sum(badcols) > 0
-                top = strip_columns(top, badcols)
-                bis = strip_columns(bis, badcols)
-                wid = strip_columns(wid, badcols)
-                int1 = strip_columns(int1, badcols)
-                int2 = strip_columns(int2, badcols)
+            if strip_cols
+                badcols = identify_bad_cols(bis, int1, wid, int2)
+                if sum(badcols) > 0
+                    top = strip_columns(top, badcols)
+                    bis = strip_columns(bis, badcols)
+                    wid = strip_columns(wid, badcols)
+                    int1 = strip_columns(int1, badcols)
+                    int2 = strip_columns(int2, badcols)
+                end
             end
 
-            if extrapolate
+            if extrapolate & (minimum(int1) < 0.75) & !(contains(fname, "FeI_5383"))
                 extrapolate_input_data(bis, int1, wid, int2, parse_mu_string(mu))
             end
 

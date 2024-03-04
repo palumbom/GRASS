@@ -101,7 +101,7 @@ function calc_ccf(λs::AA{T1,1}, flux::AA{T1,2},
         # loop over epochs of lfux
         for j in 1:size(ccf, 2)
             # compute the ccf value at the current velocity shift
-            proj_flux .= projection .* flux[:, j]
+            proj_flux .= projection .* view(flux, :, j)
             ccf[i,j] = ccf_plan.allow_nans ? nansum(proj_flux) : sum(proj_flux)
         end
     end
@@ -111,6 +111,57 @@ function calc_ccf(λs::AA{T1,1}, flux::AA{T1,2},
         ccf ./= maximum(ccf)
     end
     return v_grid, ccf
+end
+
+function calc_ccf!(v_grid::AA{T1,1}, projection::AA{T1,2}, proj_flux::AA{T1,1},
+                   ccf::AA{T1,2}, λs::AA{T1,1}, flux::AA{T1,2}, lines::AA{T1,1},
+                   depths::AA{T1,1}, resolution::T1; normalize::Bool=true,
+                   mask_width::T1=c_ms/resolution, Δv_max::T1=15e3,
+                   Δv_step::T1=100.0, mask_type::Type{T2}=TopHatMask) where {T1<:AF, T2<:MaskShape}
+    # make sure lines are sorted
+    if !issorted(lines)
+        idx = sortperm(lines)
+        lines = view(lines, idx)
+        depths = view(depths, idx)
+    end
+
+    # make a line list
+    line_list = EchelleCCFs.BasicLineList(lines, depths)
+
+    # set mask width
+    mask_shape = T2(mask_width)
+
+    # make ccf_plan
+    ccf_plan = BasicCCFPlan(line_list=line_list, mask_shape=mask_shape, step=Δv_step, max=Δv_max)
+
+    # check the size of the ccf
+    @assert size(ccf) == (length(v_grid), size(flux, 2))
+    @assert size(projection) == (length(λs), 1)
+    @assert length(proj_flux) == length(λs)
+
+    ccf .= 0.0
+    projection .= 0.0
+    proj_flux .= 0.0
+
+    # loop over velocity shift
+    for i in 1:size(ccf, 1)
+        # project shifted mask on wavelength domain
+        doppler_factor = calc_doppler_factor(v_grid[i])
+        project_mask!(projection, λs, ccf_plan, shift_factor=doppler_factor)
+
+        # loop over epochs of lfux
+        for j in 1:size(ccf, 2)
+            # compute the ccf value at the current velocity shift
+            proj_flux .= projection .* view(flux, :, j)
+            ccf[i,j] = ccf_plan.allow_nans ? nansum(proj_flux) : sum(proj_flux)
+        end
+    end
+
+    # normalize if normalize==true
+    if normalize
+        ccf ./= maximum(ccf)
+    end
+    return nothing
 end
 
 function calc_ccf(λs::AA{T,1}, flux::AA{T,1},

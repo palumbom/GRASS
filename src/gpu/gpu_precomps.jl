@@ -49,7 +49,7 @@ function precompute_quantities_gpu!(ϕc, θc, xx, yy, zz, μs, wts, z_rot,
 
     # get latitude subtile step size
     N_ϕ_edges = Nϕ * Nsubgrid
-    dϕ = (CUDA.deg2rad(90.0) - CUDA.deg2rad(-90.0)) / (N_ϕ_edges)
+    dϕ = π / (N_ϕ_edges)
 
     # linear index over course grid tiles
     for t in idx:sdx:num_tiles
@@ -91,7 +91,7 @@ function precompute_quantities_gpu!(ϕc, θc, xx, yy, zz, μs, wts, z_rot,
         # loop over latitude sub tiles
         for ti in i:i+k-1
             # get coordinates of latitude subtile center
-            ϕsub = CUDA.deg2rad(-90.0) + (dϕ/2.0) + (ti - 1) * dϕ
+            ϕc = -π/2 + (dϕ/2.0) + (ti - 1) * dϕ
 
             # loop over longitude subtiles
             for tj in j:j+k-1
@@ -101,10 +101,10 @@ function precompute_quantities_gpu!(ϕc, θc, xx, yy, zz, μs, wts, z_rot,
                 end
 
                 # get longitude subtile step size
-                dθ = (CUDA.deg2rad(360.0) - CUDA.deg2rad(0.0)) / (N_θ_edges)
+                dθ = 2π / (N_θ_edges)
 
                 # get longitude
-                θsub = CUDA.deg2rad(0.0) + (dθ/2.0) + (tj - 1) * dθ
+                θc = (dθ/2.0) + (tj - 1) * dθ
 
                 # get cartesian coords
                 x, y, z = sphere_to_cart_gpu(ρs, ϕsub, θsub)
@@ -165,9 +165,8 @@ function precompute_quantities_gpu!(ϕc, θc, xx, yy, zz, μs, wts, z_rot,
                 v_sum += (n2 * angle) * ld
 
                 # get projected area element
-                dA = calc_dA_gpu(ρs, ϕsub, dϕ, dθ)
-                dA *= CUDA.abs(a * x + b * y + c * z)
-                dA /= CUDA.sqrt(O⃗[1]^2.0 + O⃗[2]^2.0 + O⃗[3]^2.0)
+                dA = calc_dA_gpu(ρs, ϕc, dϕ, dθ)
+                dA *= μ_sub
                 dA_sum += dA
 
                 # sum on vector components

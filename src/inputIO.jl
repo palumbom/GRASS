@@ -139,6 +139,7 @@ function extrapolate_input_data(bist::AA{T,1}, intt1::AA{T,1},
     intt1 .= intt2
 
     # get indices to exclude data from fit
+    # thresh = 0.825
     thresh = 0.9
     idx1 = findfirst(x -> x .>= thresh, intt1)
     idx1 -= 1
