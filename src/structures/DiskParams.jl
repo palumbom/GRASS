@@ -43,7 +43,8 @@ center vector.
 function DiskParams(;N=197, Nt=NaN, Nsubgrid=40, radius=1.0,
                      inclination=90.0, u1=0.4, u2=0.26,
                      vsini=2067.033467, A=14.713,
-                     B=-2.396, C=-1.787, dist=4.435e7)
+                     B=-2.396, C=-1.787, dist=4.435e7,
+                     offset=false)
     # assertions and warnings
     @assert !isnan(Nt)
 
@@ -72,7 +73,18 @@ function DiskParams(;N=197, Nt=NaN, Nsubgrid=40, radius=1.0,
     θe = zeros(N+1, maximum(Nθ)+1)
     θc = zeros(N, maximum(Nθ))
     for i in eachindex(Nθ)
-        edges = range(deg2rad(0.0), deg2rad(360.0), length=Nθ[i]+1)
+        # initialize edges
+        edges = range(0.0, 2π, length=Nθ[i]+1)
+
+        # offset by plus/minus half step size
+        if offset
+            alpha = rand(Uniform(-step(edges/2), step(edges)/2),1)[1]
+        else
+            alpha = 0.0
+        end
+        edges = collect(edges) .+ alpha
+
+        # assign grid center and edges values
         θc[i, 1:Nθ[i]] .= get_grid_centers(edges)
         θe[i, 1:Nθ[i]+1] .= collect(edges)
     end
