@@ -36,7 +36,7 @@ function disk_sim(spec::SpecParams{T}, disk::DiskParams{T}, soldata::SolarData{T
                 z_rot = wsp.z_rot[i]
 
                 # check that tloop hasn't exceeded number of epochs
-                if tloop[i] > len
+                while tloop[i] > len
                     tloop[i] -= len
                 end
 
@@ -153,7 +153,7 @@ function disk_sim_rossiter(spec::SpecParams{T}, disk::DiskParams{T}, planet::Pla
                 z_rot = ros_allocs.z_rot[i]
 
                 # check that tloop hasn't exceeded number of epochs
-                if tloop[i] > len
+                while tloop[i] > len
                     tloop[i] -= len
                 end
 
