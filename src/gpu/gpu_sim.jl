@@ -1,5 +1,3 @@
-using PyPlot
-
 function disk_sim_gpu(spec::SpecParams{T1}, disk::DiskParams{T1}, soldata::GPUSolarData{T2},
                       gpu_allocs::GPUAllocs{T2}, flux_cpu::AA{T1,2}; verbose::Bool=false,
                       seed_rng::Bool=false,  skip_times::BitVector=falses(disk.Nt)) where {T1<:AF, T2<:AF}

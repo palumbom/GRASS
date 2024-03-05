@@ -1,5 +1,3 @@
-using PyPlot
-
 function precompute_quantities_gpu!(disk::DiskParams{T1}, ϕc::CuArray{T2,2},
                                     θc::CuArray{T2,2}, μs::CuArray{T2,2},
                                     wts::CuArray{T2,2}, z_rot::CuArray{T2,2},
