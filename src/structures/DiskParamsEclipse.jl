@@ -19,21 +19,18 @@ end
     DiskParams(; N=132, Nt=50, inclination=90.0)
 
 Construct a `DiskParams` composite type instance. In the coordinate system,
-the x- and z- axes are sky-plane, and the y-axis is along the observer-to-star-
+the y- and z- axes are sky-plane, and the x-axis is along the observer-to-star-
 center vector.
 
 # Arguments
 - `N=197`: Number of stellar latitude grid elements. Should be set to 197 for physical validity.
 - `Nt=50`: Number of 15-second time steps.
 - `radius=1.0`: Radius of model star. Default is one solar radius.
-- `inclination=90.0`: Sky-plane inclination of model stellar disk. 90 degrees is equator on.
 - `u1=0.4`: Quadratic limb darkening law coefficient.
 - `u2=0.25`: Quadratic limb darkening law coefficient
-- `vsini=2067.03346686649251345`: Equatorial rotational velocity magnitude in units of meters per second.
 - `A=14.713`: Differential rotation coefficient. Units of deg/day.
 - `B=-2.396`: Differential rotation coefficient. Units of deg/day.
 - `C=-1.787`: Differential rotation coefficient. Units of deg/day.
-- `dist=4.435e7`: Distance to observer. Default is one parsec in solar radii.
 """
 function DiskParamsEclipse(;N=197, Nt=NaN, Nsubgrid=40, radius=sun_radius,
                      u1=0.4, u2=0.26, A=14.713, B=-2.396, C=-1.787)
@@ -64,7 +61,6 @@ function DiskParamsEclipse(;N=197, Nt=NaN, Nsubgrid=40, radius=sun_radius,
         θc[i, 1:Nθ[i]] .= get_grid_centers(edges)
         θe[i, 1:Nθ[i]+1] .= collect(edges)
     end
-
 
     return DiskParamsEclipse(N, Nt, radius, ϕe, ϕc, θe, θc, Nθ, Nsubgrid, A, B, C, u1, u2)
 end

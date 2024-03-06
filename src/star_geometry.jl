@@ -14,16 +14,12 @@ function get_grid_centers(grid::StepRangeLen)
     return range(start, stop, length=length(grid)-1)
 end
 
-function calc_proj_dist2(p1::AA{T,1}, p2::AA{T,1}) where T<:AF
-    x1 = p1[1]
-    x2 = p2[1]
-    y1 = p1[2]
-    y2 = p2[2]
-    return (x1 - x2)^2.0 + (y1-y2)^2.0
-end
-
 function calc_dA(ρs::T, ϕc::T, dϕ::T, dθ::T) where T<:AF
     return ρs^2.0 * sin(π/2.0 - ϕc) * dϕ * dθ
+end
+
+function calc_proj_dist(p1, p2)
+    return acos(dot(p1, p2)/(norm(p1)*norm(p2)))
 end
 
 function sphere_to_cart_eclipse(ρ::T, ϕ::T, θ::T) where T
@@ -40,7 +36,7 @@ end
 
 function pole_vector_grid!(A::Matrix, out::Matrix)
     """
-    remove the z component of each cell - serial
+    remove the z component of each cell  
 
     A: matrix of xyz orientation of each cell
     out: matrix of xyz orientation with z removed
@@ -53,7 +49,7 @@ end
 
 function v_vector(A::Matrix, B::Matrix, C::Matrix, out::Matrix)
     """
-    determine velocity vector (direction and magnitude) of each cell - serial 
+    determine velocity vector (direction and magnitude) of each cell   
 
     A: xyz position of cell
     B: xyz position of cell with z removed
@@ -89,7 +85,7 @@ end
 
 function calc_mu_grid!(A::Matrix, B::Matrix, out::Matrix)
     """
-    create matrix of mu values for each cell - serial
+    create matrix of mu values for each cell  
 
     A: matrix of vectors from sun center to cell
     B: matrix of vectors from observer to cell
@@ -102,8 +98,6 @@ function calc_mu_grid!(A::Matrix, B::Matrix, out::Matrix)
 end
 
 function find_nearest_ax_code_eclipse(y::T, z::T) where T<:AF
-    # if (y^2.0 + z^2.0) > one(T) 
-    #     return nothing
     if ((z == zero(T)) & (y == zero(T))) # center
         return 0
     elseif z >= abs(y) # north
@@ -184,8 +178,4 @@ function key_to_code(key, soldata)
     idxs1 = findall(ax_code .== disc_ax)
     idxs2 = findall(mu_code .== disc_mu)
     return collect(intersect(Set(idxs1), Set(idxs2)))[1]
-end
-
-function calc_proj_dist(p1, p2)
-    return acos(dot(p1, p2)/(norm(p1)*norm(p2)))
 end

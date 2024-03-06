@@ -5,12 +5,8 @@ function disk_sim_eclipse(spec::SpecParams{T}, disk::DiskParamsEclipse{T}, solda
 
     # loop over time
     for t in 1:disk.Nt
-            # # if skip times is true, continue to next iter
-            # if skip_times[t]
-            #     tloop .+= 1
-            # continue
-            # end
 
+            #compute geometry for timestamp
             GRASS.eclipse_compute_quantities!(disk, time_stamps[t], obs_long, obs_lat, alt, wsp.ϕc, wsp.θc, wsp.μs, wsp.ld, wsp.dA, wsp.xyz, wsp.wts, wsp.z_rot, wsp.ax_codes)
             # get conv. blueshift and keys from input data
             GRASS.get_keys_and_cbs_eclispe!(wsp, soldata)
