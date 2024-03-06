@@ -6,7 +6,6 @@ using SPICE
 using Statistics
 using EchelleCCFs
 using BenchmarkTools
-# using Plots
 
 GRASS.get_kernels()
 
@@ -42,9 +41,22 @@ N = 50
 Nt = length(time_stamps)
 
 # set up parameters for spectrum
-lines = [6173.0] # array of line centers #5250.6
-depths = [0.6]   # array of line depths
-templates = ["FeI_6173"] # template data to use
+lines = [5250.2, 5250.6] # array of line centers #5250.6
+
+"""
+const line_groups = [["FeI_5250.2", "FeI_5250.6"],
+                     ["FeI_5379", "CI_5380", "TiII_5381", "FeI_5382", "FeI_5383"],
+                     ["MnI_5432", "FeI_5432", "FeI_5434", "NiI_5435", "FeI_5436.3", "FeI_5436.6"],
+                     ["FeI_5576", "NiI_5578"],
+                     ["NaI_5896"],
+                     ["FeII_6149", "FeI_6151"],
+                     ["CaI_6169.0", "CaI_6169.5", "FeI_6170", "FeI_6173"],
+                     ["FeI_6301", "FeI_6302"]]
+"""
+
+
+depths = [0.6, 0.6]   # array of line depths
+templates = ["FeI_5250.2", "FeI_5250.6"] # template data to use
 variability = trues(length(lines))  # whether or not the bisectors should "dance"
 blueshifts = zeros(length(lines))   # set convective blueshift value
 resolution = 7e5                    # spectral resolution
@@ -54,15 +66,18 @@ disk = GRASS.DiskParamsEclipse(N=N, Nt=Nt, Nsubgrid=10)
 spec = GRASS.SpecParams(lines=lines, depths=depths, variability=variability,
                    blueshifts=blueshifts, templates=templates, resolution=resolution)  
 
-# actually synthesize the spectra
-println(">>> Synthesizing on CPU...")
-tstart = time()
-lambdas_cpu, outspec_cpu = GRASS.synthesize_spectra_eclipse(spec, disk, obs_long, obs_lat, alt, time_stamps, verbose=true, use_gpu=false)
-tstop = time()
-@printf(">>> Synthesis time --> %.3f seconds \n", tstop - tstart)
+print(spec)
+print(length(spec))
 
-# plot(lambdas_cpu, outspec_cpu[:,1])
+# # actually synthesize the spectra
+# println(">>> Synthesizing on CPU...")
+# tstart = time()
+# lambdas_cpu, outspec_cpu = GRASS.synthesize_spectra_eclipse(spec, disk, obs_long, obs_lat, alt, time_stamps, verbose=true, use_gpu=false)
+# tstop = time()
+# @printf(">>> Synthesis time --> %.3f seconds \n", tstop - tstart)
 
-#measure velocities
-v_grid_cpu, ccf_cpu = GRASS.calc_ccf(lambdas_cpu, outspec_cpu, spec)
-rvs_cpu, sigs_cpu = GRASS.calc_rvs_from_ccf(v_grid_cpu, ccf_cpu)
+# # plot(lambdas_cpu, outspec_cpu[:,1])
+
+# #measure velocities
+# v_grid_cpu, ccf_cpu = GRASS.calc_ccf(lambdas_cpu, outspec_cpu, spec)
+# rvs_cpu, sigs_cpu = GRASS.calc_rvs_from_ccf(v_grid_cpu, ccf_cpu)

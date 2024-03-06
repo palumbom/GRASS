@@ -1,4 +1,3 @@
-using PyPlot; plt=PyPlot
 function eclipse_compute_quantities!(disk::DiskParamsEclipse{T}, epoch::T, obs_long::T,
                                     obs_lat::T, alt::T, ϕc::AA{T,2}, θc::AA{T,2},
                                      μs::AA{T,2}, ld::AA{T,2}, dA::AA{T,2},
@@ -24,8 +23,6 @@ function eclipse_compute_quantities!(disk::DiskParamsEclipse{T}, epoch::T, obs_l
 
     # get light travel time corrected OS vector
     OS_bary, OS_lt, OS_dlt = spkltc(10, epoch, "J2000", lt_flag, BO_bary)
-    # get light travel time corrected ES vector
-    ES_bary, ES_lt, ES_dlt = spkltc(10, epoch, "J2000", lt_flag, BE_bary)
 
     # get vector from observatory on earth's surface to moon center
     OM_bary, OM_lt, OM_dlt = spkltc(301, epoch, "J2000", lt_flag, BO_bary)
@@ -35,18 +32,6 @@ function eclipse_compute_quantities!(disk::DiskParamsEclipse{T}, epoch::T, obs_l
 
     # get rotation matrix for sun
     sun_rot_mat = pxform("IAU_SUN", "J2000", epoch_lt)
-
-    # get vector for sun pole
-    sun_lat = deg2rad(90.0)
-    sun_lon = deg2rad(0.0)
-    sun_pole_sun = pgrrec("SUN", sun_lon, sun_lat, 0.0, sun_radius, 0.0)
-    sun_pole_bary = pxform("IAU_SUN", "J2000", epoch_lt) * sun_pole_sun
-    #ra and dec of pole vector 
-    sun_pole_sun_rotate = sun_rot_mat * sun_pole_sun 
-    OP_bary_pole = OS_bary[1:3] + sun_pole_sun_rotate 
-    OP_ra_dec_pole = SPICE.recrad(OP_bary_pole)
-    ra_sub_deg_pole = rad2deg.(OP_ra_dec_pole[2]) 
-    de_sub_deg_pole = rad2deg.(OP_ra_dec_pole[3])
 
     # parse out composite type fields
     Nsubgrid = disk.Nsubgrid
@@ -70,12 +55,6 @@ function eclipse_compute_quantities!(disk::DiskParamsEclipse{T}, epoch::T, obs_l
     distance = zeros(Nsubgrid, Nsubgrid)
     v_scalar_grid = zeros(Nsubgrid, Nsubgrid)
     v_earth_orb_proj = zeros(Nsubgrid, Nsubgrid)
-
-    ra_mean = zeros(length(disk.ϕc), maximum(disk.Nθ))
-    de_mean = zeros(length(disk.ϕc), maximum(disk.Nθ))
-
-    # #set up plot
-    # fig, ax1 = plt.subplots()
 
     # loop over disk positions
     for i in eachindex(disk.ϕc)
@@ -149,7 +128,6 @@ function eclipse_compute_quantities!(disk::DiskParamsEclipse{T}, epoch::T, obs_l
             idx1 = mu_grid .> 0.0
             idx3 = (idx1) .& (distance .> atan((moon_radius)/norm(OM_bary))) 
 
-
             # assign the mean mu as the mean of visible mus
             μs[i,j] = mean(view(mu_grid, idx1))
 
@@ -160,19 +138,6 @@ function eclipse_compute_quantities!(disk::DiskParamsEclipse{T}, epoch::T, obs_l
             if xyz[i,j,2] !== NaN
                 ax_codes[i,j] = find_nearest_ax_code_eclipse(xyz[i,j,2]/sun_radius, xyz[i,j,3]/sun_radius) 
             end
-            ax_codes_sub = map((x,y) -> find_nearest_ax_code_eclipse(x,y), getindex.(SP_sun_pos,2), getindex.(SP_sun_pos,3))
-
-            #OP_earth = map(x -> sxform("J2000", "ITRF93", epoch) * x, OP_bary)
-            x_mean = mean(view(getindex.(OP_bary,1), idx3))
-            y_mean = mean(view(getindex.(OP_bary,2), idx3))
-            z_mean = mean(view(getindex.(OP_bary,3), idx3))
-            temp = recrad([x_mean, y_mean, z_mean])
-            ra_mean[i,j] = temp[2]
-            de_mean[i,j] = temp[3]
-
-            OP_ra_dec_sub = SPICE.recrad.([x[1:3] for x in OP_bary])
-            ra_sub = getindex.(OP_ra_dec_sub, 2)
-            de_sub = getindex.(OP_ra_dec_sub, 3)
 
             # calc limb darkening
             ld_sub = map(x -> quad_limb_darkening_eclipse(x), mu_grid)
@@ -185,23 +150,12 @@ function eclipse_compute_quantities!(disk::DiskParamsEclipse{T}, epoch::T, obs_l
             dA_total_proj = dA_sub .* mu_grid
             dA_total_proj_mean[i,j] = sum(view(dA_total_proj, idx1))
 
-            ra_sub_deg = rad2deg.(ra_sub) 
-            de_sub_deg = rad2deg.(de_sub)
-            # ax1.scatter(ra_sub_deg_pole, de_sub_deg_pole)
-            # ax1.pcolormesh(ra_sub_deg, de_sub_deg, z_rot_sub .* c_ms, cmap="seismic", vmin=-2000, vmax=2000, rasterized=true)
-            # ax1.pcolormesh(ra_sub_deg, de_sub_deg, ax_codes_sub, vmin=1, vmax=4, rasterized=true)
-            # ax1.pcolormesh(ra_sub_deg, de_sub_deg, mu_grid, vmin=0.0, vmax=1.0, rasterized=true)
-            # ax1.pcolormesh(ra_sub_deg, de_sub_deg, dA_total_proj, vmin=0.1e7, vmax=1e7, rasterized=true)
-
             # copy to workspace
             mean_intensity[i,j] = mean(view(ld_sub, idx3)) 
             ld[i,j] = mean(view(ld_sub, idx3))
             dA[i,j] = sum(view(dA_total_proj, idx1))
-
             mean_weight_v_no_cb[i,j] = mean(view(projected_velocities_no_cb, idx3))
-
             mean_weight_v_earth_orb[i,j] = mean(view(v_earth_orb_proj, idx3))
-
             wts[i,j] = mean(view(ld_sub .* dA_total_proj, idx3))
             z_rot[i,j] = sum(view(z_rot_sub .* ld_sub .* dA_total_proj, idx3)) ./ sum(view(ld_sub .* dA_total_proj, idx3))
 
@@ -215,28 +169,7 @@ function eclipse_compute_quantities!(disk::DiskParamsEclipse{T}, epoch::T, obs_l
             end
         end
     end
-
-#     ax1.set_xlabel("RA (decimal degrees)")
-#     ax1.set_ylabel("DEC (decimal degrees)")
-#     ax1.set_aspect("equal")
-#    # fig.savefig("/Users/elizabethgonzalez/Downloads/dA.pdf", dpi=250)
-#     plt.show()
-
-    #index for correct lat / lon disk grid
-    idx_grid = mean_intensity .> 0.0
-
-    contrast = (mean_intensity / NaNMath.maximum(mean_intensity)).^0.1
-    brightness = mean_intensity .* dA_total_proj_mean
-    cheapflux = sum(view(brightness, idx_grid))
-
-    #determine final mean intensity for disk grid
-    final_mean_intensity = cheapflux   
-
-    #determine final mean weighted velocity for disk grid
-    final_weight_v_no_cb = sum(view(contrast .* mean_weight_v_no_cb .* brightness, idx_grid)) / cheapflux 
-    final_weight_v_no_cb += sum(view(contrast .* mean_weight_v_earth_orb .* brightness, idx_grid)) / cheapflux 
-
-    return #pxform("ITRF93", "IAU_SUN", epoch)
+    return 
 end
 
 function generate_tloop_eclipse!(tloop::AA{Int}, wsp::SynthWorkspaceEclipse{T}, soldata::SolarData{T}) where T<:AF
