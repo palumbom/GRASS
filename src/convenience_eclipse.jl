@@ -14,8 +14,8 @@ function synthesize_spectra_eclipse(spec::SpecParams{T}, disk::DiskParamsEclipse
     # call appropriate simulation function on cpu or gpu
     if use_gpu
         return synth_Eclipse_gpu(spec, disk, seed_rng, verbose, precision, skip_times)
-    # else
-    #     return synth_Eclipse_cpu(spec, disk, seed_rng, verbose, skip_times, obs_long, obs_lat, alt, time_stamps)
+    else
+        return synth_Eclipse_cpu(spec, disk, seed_rng, verbose, skip_times, obs_long, obs_lat, alt, time_stamps)
     end
 end
 
