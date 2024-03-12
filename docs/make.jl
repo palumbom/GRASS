@@ -7,6 +7,8 @@ Introduction = "Introduction" => "index.md"
 
 Getting_Started = "Getting Started" => ["installation.md", "examples/basic.md", "examples/advanced.md"]
 
+Input_Data = "Input Data" => ["input_data/description.md", "input_data/manipulation.md"]
+
 License = "License" => "license.md"
 
 Index = "Index" => "longlist.md"

@@ -22,9 +22,9 @@ disk = DiskParams(Nt=25)
 wavelengths, flux = synthesize_spectra(spec, disk)
 ```
 
-## Measuring Velocities from Synthetic Spectra
+## Measuring Velocities
 
-GRASS wraps the [EchelleCCFs package]() to measure apparent Doppler velocities from spectra.
+GRASS wraps the [EchelleCCFs package](https://github.com/RvSpectML/EchelleCCFs.jl) to measure apparent Doppler velocities from spectra.
 
 ```julia
 # generate a velocity grid and compute the cross-correlation function
