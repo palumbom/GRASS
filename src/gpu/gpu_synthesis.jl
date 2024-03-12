@@ -85,3 +85,16 @@ function line_profile_gpu!(prof, μs, wts, λs, allwavs, allints)
     end
     return nothing
 end
+
+function apply_line!(t, prof, flux, sum_wts)
+    # get indices from GPU blocks + threads
+    idx = threadIdx().x + blockDim().x * (blockIdx().x-1)
+    sdx = blockDim().x * gridDim().x
+
+    # parallelized loop over grid
+    for i in idx:sdx:CUDA.length(prof)
+        @inbounds flux[i,t] *= prof[i] / sum_wts
+        @inbounds prof[i] = 0.0
+    end
+    return nothing
+end
