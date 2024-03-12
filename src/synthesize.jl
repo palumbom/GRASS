@@ -1,5 +1,5 @@
 # function to calc intensity at given x,y coord.
-function line_profile_cpu!(mid::T, weight::T, lambdas::AA{T,1}, prof::AA{T,1}, wsp::SynthWorkspace{T}) where T<:AF
+function line_profile_cpu!(mid::T, weight::T, lambdas::AA{T,1}, prof::AA{T,1}, wsp::SynthWorkspaceEclipse{T}) where T<:AF
     # synthesize the line profile given bisector and width input data
     line_profile_cpu!(mid, weight, lambdas, prof, wsp.bist, wsp.intt, wsp.widt,
                       wsp.lwavgrid, wsp.rwavgrid, wsp.allwavs, wsp.allints)

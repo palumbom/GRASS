@@ -6,6 +6,7 @@ using Distributed
 using SharedArrays
 
 # import external modules
+using SPICE
 using CSV
 using HDF5
 using Dates
@@ -27,12 +28,21 @@ using OrderedCollections
 # import specific methods
 import Glob.glob
 import Dates.DateTime
+import NaNMath
 import NaNMath: sum as nansum
 import Polynomials: fit as pfit, coeffs
 
 # abbreviations for commonly used types
 import Base: AbstractArray as AA
 import Base: AbstractFloat as AF
+
+#set required body paramters as global variables 
+#E,S,M radii (units:km)
+include("get_kernels.jl")
+earth_radius = bodvrd("EARTH", "RADII")[1]	
+earth_radius_pole = bodvrd("EARTH", "RADII")[3]	
+sun_radius = bodvrd("SUN","RADII")[1]
+moon_radius = bodvrd("MOON", "RADII")[1] 
 
 # configure directories
 include("config.jl")
@@ -62,6 +72,8 @@ include("bisectors.jl")
 include("trim.jl")
 include("synthesize.jl")
 include("disk_sim.jl")
+include("eclipse_comp.jl")
+include("disk_sim_eclipse.jl")
 include("disk_precomps.jl")
 
 # processing spectra
@@ -94,37 +106,10 @@ include("iag_utils.jl")
 # include convenience functions for synthtesis
 include("convenience.jl")
 include("convenience_rossiter.jl")
-
-# precompile stuff
-# if !isempty(soldir)
-#     @compile_workload begin
-#         # params for spectra
-#         N = 132
-#         Nt = 2
-#         lines = [5434.5]
-#         depths = [0.5]
-#         geffs = [0.0]
-#         templates = ["FeI_5434"]
-#         variability = repeat([true], length(lines))
-#         resolution = 7e5
-
-#         # make composite type instances
-#         disk = DiskParams(N=N, Nt=Nt)
-#         spec = SpecParams(lines=lines, depths=depths, variability=variability,
-#                            geffs=geffs, templates=templates, resolution=resolution)
-
-#         if CUDA.functional()
-#             # TODO figure out what's going wrong with GPU precompilation caching
-#             # lambdas1, outspec = synthesize_spectra(spec, disk, seed_rng=true, verbose=false, use_gpu=true)
-#             lambdas1, outspec = synthesize_spectra(spec, disk, seed_rng=true, verbose=false, use_gpu=false)
-#         else
-#             lambdas1, outspec = synthesize_spectra(spec, disk, seed_rng=true, verbose=false, use_gpu=false)
-#         end
-#     end
-# end
+include("convenience_eclipse.jl")
 
 # export some stuff
-export SpecParams, DiskParams, LineProperties, SolarData, Planet,
+export SpecParams, DiskParams, DiskParamsEclipse, LineProperties, SolarData, Planet,
        synthesize_spectra, simulate_rossiter, calc_ccf,
        calc_rvs_from_ccf, calc_rms, parse_args,
        check_plot_dirs, read_iag

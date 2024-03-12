@@ -23,8 +23,11 @@ function width_thermal(; λ::T1=1.0, M::T1=1.0, T::T1=5778.0, v_turb::T1=0.0) wh
     return sqrt((2.0*kB/mH) * (T/M) + v_turb^2) * (λ/c)
 end
 
-# Quadratic limb darkening law.
-# Takes μ = cos(heliocentric angle) and LD parameters, u1 and u2.
+function quad_limb_darkening_eclipse(μ::T) where T<:AF
+    μ < zero(T) && return 0.0    
+    return 0.28392 + 1.36896*μ - 1.75998*μ^2 + 2.22154*μ^3 - 1.56074*μ^4 + 0.44630*μ^5 
+end
+
 function quad_limb_darkening(μ::T, u1::T, u2::T) where T<:AF
     μ < zero(T) && return 0.0
     return !iszero(μ) * (one(T) - u1*(one(T)-μ) - u2*(one(T)-μ)^2)
@@ -46,6 +49,28 @@ function rotation_period(ϕ::T; A::T=14.713, B::T=-2.396, C::T=-1.787) where T<:
     sinϕ = sin(ϕ)
     return 360.0/(A + B * sinϕ^2.0 + C * sinϕ^4.0)
 end
+
+function v_scalar(lat, lon)
+    return (2π * sun_radius * cos(lat)) / rotation_period(lat)
+end
+
+function projected!(A::Matrix, B::Matrix, out_no_cb::Matrix)
+    """
+    determine projected velocity of each cell onto line of sight to observer - serial
+
+    A: matrix with xyz and velocity of each cell
+    B: matrix with line of sight from each cell to observer
+    out: matrix of projected velocities
+    """
+    for i in 1:length(A)
+        vel = A[i][4:6]
+        angle = dot(B[i][1:3], vel) / (norm(B[i][1:3]) * norm(vel))
+
+        out_no_cb[i] = (norm(vel) * angle)
+    end
+    return
+end
+
 
 """
     patch_velocity_los(x, y; rstar, pole)
