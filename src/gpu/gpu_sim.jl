@@ -1,5 +1,5 @@
 function disk_sim_gpu(spec::SpecParams{T1}, disk::DiskParams{T1}, soldata::GPUSolarData{T2},
-                      gpu_allocs::GPUAllocs{T2}, flux::AA{T1,2}; verbose::Bool=false,
+                      gpu_allocs::GPUAllocs{T2}, flux_cpu::AA{T1,2}; verbose::Bool=false,
                       seed_rng::Bool=false,  skip_times::BitVector=falses(disk.Nt)) where {T1<:AF, T2<:AF}
     # get dimensions for memory alloc
     N = disk.N
@@ -9,6 +9,7 @@ function disk_sim_gpu(spec::SpecParams{T1}, disk::DiskParams{T1}, soldata::GPUSo
     # parse out composite type
     λs = gpu_allocs.λs
     prof = gpu_allocs.prof
+    flux = gpu_allocs.flux
 
     μs = gpu_allocs.μs
     wts = gpu_allocs.wts
@@ -47,6 +48,9 @@ function disk_sim_gpu(spec::SpecParams{T1}, disk::DiskParams{T1}, soldata::GPUSo
     threads4 = (16,32)
     blocks4 = cld(CUDA.length(μs) * Nλ, prod(threads4))
 
+    threads5 = 1024
+    blocks5 = cld(CUDA.length(prof), prod(threads5))
+
     # allocate arrays for fresh copy of input data to copy to each loop
     @cusync begin
         bisall_gpu_loop = CUDA.zeros(T2, CUDA.size(bisall_gpu))
@@ -71,9 +75,6 @@ function disk_sim_gpu(spec::SpecParams{T1}, disk::DiskParams{T1}, soldata::GPUSo
 
         # loop over lines to synthesize
         for l in eachindex(spec.lines)
-            # re-zero the line profile holder
-            @cusync prof .= zero(T2)
-
             # get a fresh copy of the untrimmed bisector + width data
             @cusync begin
                 CUDA.copyto!(bisall_gpu_loop, bisall_gpu)
@@ -99,12 +100,15 @@ function disk_sim_gpu(spec::SpecParams{T1}, disk::DiskParams{T1}, soldata::GPUSo
             @cusync @cuda threads=threads4 blocks=blocks4 line_profile_gpu!(prof, μs, wts, λs, allwavs, allints)
 
             # copy data from GPU to CPU
-            @cusync @inbounds flux[:,t] .*= Array(prof) ./ sum_wts
+            @cusync @cuda threads=threads5 blocks=blocks5 apply_line!(t, prof, flux, sum_wts)
         end
 
         # iterate tloop
         @cusync @captured @cuda threads=threads1 blocks=blocks1 iterate_tloop_gpu!(tloop, dat_idx, lenall_gpu)
     end
+
+    # copy over flux
+    @cusync flux_cpu .= Array(flux)
 
     # make sure nothing is still running on GPU
     CUDA.synchronize()
@@ -113,7 +117,7 @@ end
 
 function disk_sim_rossiter_gpu(spec::SpecParams{T1}, disk::DiskParams{T1}, planet::Planet{T1},
                                soldata::GPUSolarData{T2}, gpu_allocs::GPUAllocs{T2},
-                               ros_allocs::RossiterAllocsGPU{T2}, flux::AA{T1,2},
+                               ros_allocs::RossiterAllocsGPU{T2}, flux_cpu::AA{T1,2},
                                vels::AA{T1,1}; verbose::Bool=false, seed_rng::Bool=false,
                                skip_times::BitVector=falses(disk.Nt)) where {T1<:AF, T2<:AF}
     # get dimensions for memory alloc
@@ -124,12 +128,10 @@ function disk_sim_rossiter_gpu(spec::SpecParams{T1}, disk::DiskParams{T1}, plane
     # parse out GPU allocations
     λs = gpu_allocs.λs
     prof = gpu_allocs.prof
-
+    flux = gpu_allocs.flux
     z_cbs = gpu_allocs.z_cbs
-
     tloop = gpu_allocs.tloop
     dat_idx = gpu_allocs.dat_idx
-
     allwavs = gpu_allocs.allwavs
     allints = gpu_allocs.allints
 
@@ -165,6 +167,9 @@ function disk_sim_rossiter_gpu(spec::SpecParams{T1}, disk::DiskParams{T1}, plane
     # set number of threads and blocks for N*N*Nλ matrix gpu functions
     threads4 = (16,32)
     blocks4 = cld(CUDA.length(μs) * Nλ, prod(threads4))
+
+    threads5 = 1024
+    blocks5 = cld(CUDA.length(prof), prod(threads5))
 
     # allocate arrays for fresh copy of input data to copy to each loop
     @cusync begin
@@ -207,9 +212,6 @@ function disk_sim_rossiter_gpu(spec::SpecParams{T1}, disk::DiskParams{T1}, plane
 
         # loop over lines to synthesize
         for l in eachindex(spec.lines)
-            # re-zero the line profile holder
-            @cusync prof .= zero(T2)
-
             # get a fresh copy of the untrimmed bisector + width data
             @cusync begin
                 CUDA.copyto!(bisall_gpu_loop, bisall_gpu)
@@ -235,12 +237,15 @@ function disk_sim_rossiter_gpu(spec::SpecParams{T1}, disk::DiskParams{T1}, plane
             @cusync @cuda threads=threads4 blocks=blocks4 line_profile_gpu!(prof, μs, wts, λs, allwavs, allints)
 
             # copy data from GPU to CPU
-            @cusync @inbounds flux[:,t] .*= Array(prof) ./ sum_wts
+            @cusync @cuda threads=threads5 blocks=blocks5 apply_line!(t, prof, flux, sum_wts)
         end
 
         # iterate tloop
         @cusync @captured @cuda threads=threads1 blocks=blocks1 iterate_tloop_gpu!(tloop, dat_idx, lenall_gpu)
     end
+
+    # copy over flux
+    @cusync flux_cpu .= Array(flux)
 
     # make sure nothing is still running on GPU
     CUDA.synchronize()

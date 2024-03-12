@@ -1,7 +1,8 @@
 """
 From Queloz et al. 2001
 """
-function calc_bisector_inverse_slope(bis::AA{T,1}, int::AA{T,1}) where T<:AF
+function calc_bisector_inverse_slope(bis::AA{T,1}, int::AA{T,1}; b1::T=0.10,
+                                     b2::T=0.4, b3::T=0.55, b4::T=0.90) where T<:AF
     @assert maximum(int) <= 1.0
     @assert minimum(int) >= 0.0
 
@@ -11,10 +12,10 @@ function calc_bisector_inverse_slope(bis::AA{T,1}, int::AA{T,1}) where T<:AF
     top = one(T)
 
     # find indices
-    idx10 = findfirst(x -> x .> top - 0.10 * dep, int)
-    idx40 = findfirst(x -> x .> top - 0.40 * dep, int)
-    idx55 = findfirst(x -> x .> top - 0.55 * dep, int)
-    idx90 = findfirst(x -> x .> top - 0.90 * dep, int)
+    idx10 = findfirst(x -> x .>= top - b1 * dep, int)
+    idx40 = findfirst(x -> x .>= top - b2 * dep, int)
+    idx55 = findfirst(x -> x .> top - b3 * dep, int)
+    idx90 = findfirst(x -> x .>= top - b4 * dep, int)
 
     # get v_t and v_b
     v_t = mean(view(bis, idx40:idx10))
@@ -22,10 +23,11 @@ function calc_bisector_inverse_slope(bis::AA{T,1}, int::AA{T,1}) where T<:AF
     return v_t - v_b
 end
 
-function calc_bisector_inverse_slope(bis::AA{T,2}, int::AA{T,2}) where T<:AF
+function calc_bisector_inverse_slope(bis::AA{T,2}, int::AA{T,2}; b1::T=0.10,
+                                     b2::T=0.4, b3::T=0.55, b4::T=0.90) where T<:AF
     out = zeros(size(bis,2))
     for i in 1:size(bis,2)
-        out[i] = calc_bisector_inverse_slope(bis[:,i], int[:,i])
+        out[i] = calc_bisector_inverse_slope(bis[:,i], int[:,i], b1=b1, b2=b2, b3=b3, b4=b4)
     end
     return out
 end
@@ -37,8 +39,11 @@ function calc_bisector_span(bis::AA{T,1}, int::AA{T,1}) where T<:AF
     @assert maximum(int) <= 1.0
     @assert minimum(int) >= 0.0
 
-    blue = minimum(bis)
-    core = bis[2]
+    # take the average on either side of minimum
+    idx0 = 5
+    i = argmin(bis[idx0:end-2]) + idx0
+    blue = mean(bis[i-1:i+1])
+    core = mean(bis[idx0:idx0+2])
     return core - blue
 end
 
@@ -109,7 +114,8 @@ end
 """
 From Dall et al. 2006
 """
-function calc_bisector_curvature(bis::AA{T,1}, int::AA{T,1}) where T<:AF
+function calc_bisector_curvature(bis::AA{T,1}, int::AA{T,1}; c1=0.20, c2=0.30,
+                                 c3=0.40, c4=0.55, c5=0.75, c6=0.95) where T<:AF
     @assert maximum(int) <= 1.0
     @assert minimum(int) >= 0.0
 
@@ -119,12 +125,12 @@ function calc_bisector_curvature(bis::AA{T,1}, int::AA{T,1}) where T<:AF
     top = one(T)
 
     # find indices
-    idx20 = findfirst(x -> x .> top - 0.20 * dep, int)
-    idx30 = findfirst(x -> x .> top - 0.30 * dep, int)
-    idx40 = findfirst(x -> x .> top - 0.40 * dep, int)
-    idx55 = findfirst(x -> x .> top - 0.55 * dep, int)
-    idx75 = findfirst(x -> x .> top - 0.75 * dep, int)
-    idx100 = 1
+    idx20 = findfirst(x -> x .>= top - c1 * dep, int)
+    idx30 = findfirst(x -> x .>= top - c2 * dep, int)
+    idx40 = findfirst(x -> x .>= top - c3 * dep, int)
+    idx55 = findfirst(x -> x .>= top - c4 * dep, int)
+    idx75 = findfirst(x -> x .>= top - c5 * dep, int)
+    idx100 = findfirst(x -> x .>= top - c6 * dep, int)
 
     # take views
     v3 = mean(view(bis, idx100:idx75))
@@ -134,10 +140,11 @@ function calc_bisector_curvature(bis::AA{T,1}, int::AA{T,1}) where T<:AF
     return (v3 - v2) - (v2 - v1)
 end
 
-function calc_bisector_curvature(bis::AA{T,2}, int::AA{T,2}) where T<:AF
+function calc_bisector_curvature(bis::AA{T,2}, int::AA{T,2}; c1=0.20, c2=0.30,
+                                 c3=0.40, c4=0.55, c5=0.75, c6=0.95) where T<:AF
     out = zeros(size(bis,2))
     for i in 1:size(bis,2)
-        out[i] = calc_bisector_curvature(bis[:,i], int[:,i])
+        out[i] = calc_bisector_curvature(bis[:,i], int[:,i], c1=c1, c2=c2, c3=c3, c4=c4, c5=c5, c6=c6)
     end
     return out
 end
