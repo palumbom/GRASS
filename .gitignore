@@ -9,6 +9,10 @@
 *.DS_Store
 *.sublime-workspace
 *.ipynb_checkpoints
+*.bsp
+*.tls
+*.tpc
+*.bpc
 
 # specific files/directories
 data/input/
