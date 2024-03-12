@@ -13,7 +13,7 @@ License = "License" => "license.md"
 
 Index = "Index" => "longlist.md"
 
-pages = [Introduction, Getting_Started, License, Index]
+pages = [Introduction, Getting_Started, Input_Data, License, Index]
 
 makedocs(;
     modules=[GRASS],
