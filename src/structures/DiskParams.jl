@@ -38,13 +38,13 @@ center vector.
 - `A=14.713`: Differential rotation coefficient. Units of deg/day.
 - `B=-2.396`: Differential rotation coefficient. Units of deg/day.
 - `C=-1.787`: Differential rotation coefficient. Units of deg/day.
-- `dist=4.435e7`: Distance to observer. Default is one parsec in solar radii.
 """
 function DiskParams(;N=197, Nt=NaN, Nsubgrid=40, radius=1.0,
                      inclination=90.0, u1=0.4, u2=0.26,
                      vsini=2067.033467, A=14.713,
                      B=-2.396, C=-1.787, dist=4.435e7,
                      offset=false)
+
     # assertions and warnings
     @assert !isnan(Nt)
 
@@ -67,7 +67,7 @@ function DiskParams(;N=197, Nt=NaN, Nsubgrid=40, radius=1.0,
     ϕc = get_grid_centers(ϕe)
 
     # number of longitudes in each latitude slice
-    Nθ = get_Nθ.(ϕc, step(ϕe)) #ceil.(Int, 2π .* cos.(ϕc) ./ step(ϕe))
+    Nθ = ceil.(Int, 2π .* cos.(ϕc) ./ step(ϕe))
 
     # make longitude grid
     θe = zeros(N+1, maximum(Nθ)+1)
@@ -117,13 +117,9 @@ function DiskParams(;N=197, Nt=NaN, Nsubgrid=40, radius=1.0,
     # convert vsini to units of R*/day/c_ms
     v0 = (vsini / c_ms) * (360.0 / A)
 
-    # set vector pointing from observer to star center
-    O⃗ = [0.0, 0.0, dist]
+    # set observer vector to large distance (units = stellar radius)
+    O⃗ = [0.0, 0.0, 1e6]
 
     return DiskParams(N, Nt, radius, ϕe, ϕc, θe, θc, Nθ, Nsubgrid,
                       R_x, R_y, R_z, O⃗, A, B, C, v0, u1, u2)
-end
-
-function get_Nθ(ϕc, dϕ)
-    return ceil(Int, 2π * cos(ϕc) / dϕ)
 end
