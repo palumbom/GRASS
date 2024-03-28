@@ -1,5 +1,5 @@
 function eclipse_compute_quantities!(disk::DiskParamsEclipse{T}, epoch::T, obs_long::T,
-                                    obs_lat::T, alt::T, ϕc::AA{T,2}, θc::AA{T,2},
+                                    obs_lat::T, alt::T, wavelength::T, ϕc::AA{T,2}, θc::AA{T,2},
                                      μs::AA{T,2}, ld::AA{T,2}, dA::AA{T,2},
                                      xyz::AA{T,3}, wts::AA{T,2}, z_rot::AA{T,2},
                                      ax_codes::AA{Int64, 2}) where T<:AF
@@ -142,7 +142,7 @@ function eclipse_compute_quantities!(disk::DiskParamsEclipse{T}, epoch::T, obs_l
             end
 
             # calc limb darkening
-            ld_sub = map(x -> quad_limb_darkening_eclipse(x), mu_grid)
+            ld_sub = map(x -> quad_limb_darkening_eclipse(x, wavelength), mu_grid)
 
             # calculate area element of tile
             dϕ = step(ϕe_sub) 

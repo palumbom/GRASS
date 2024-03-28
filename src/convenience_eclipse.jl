@@ -7,7 +7,7 @@ Synthesize spectra given parameters in `spec` and `disk` instances.
 - `spec::SpecParams`: SpecParams instance
 - `disk::DiskParams`: DiskParams instance
 """
-function synthesize_spectra_eclipse(spec::SpecParams{T}, disk::DiskParamsEclipse{T}, obs_long, obs_lat, alt, time_stamps;
+function synthesize_spectra_eclipse(spec::SpecParams{T}, disk::DiskParamsEclipse{T}, obs_long, obs_lat, alt, wavelength, time_stamps;
                             seed_rng::Bool=false, verbose::Bool=true,
                             use_gpu::Bool=false, precision::DataType=Float64,
                             skip_times::BitVector=falses(disk.Nt)) where T<:AF
@@ -15,12 +15,12 @@ function synthesize_spectra_eclipse(spec::SpecParams{T}, disk::DiskParamsEclipse
     if use_gpu
         return synth_Eclipse_gpu(spec, disk, seed_rng, verbose, precision, skip_times)
     else
-        return synth_Eclipse_cpu(spec, disk, seed_rng, verbose, skip_times, obs_long, obs_lat, alt, time_stamps)
+        return synth_Eclipse_cpu(spec, disk, seed_rng, verbose, skip_times, obs_long, obs_lat, alt, time_stamps, wavelength)
     end
 end
 
 function synth_Eclipse_cpu(spec::SpecParams{T}, disk::DiskParamsEclipse{T}, seed_rng::Bool,
-                   verbose::Bool, skip_times::BitVector, obs_long, obs_lat, alt, time_stamps) where T<:AF
+                   verbose::Bool, skip_times::BitVector, obs_long, obs_lat, alt, time_stamps, wavelength) where T<:AF
 
     # parse out dimensions for memory allocation
     N = disk.N
@@ -58,7 +58,7 @@ function synth_Eclipse_cpu(spec::SpecParams{T}, disk::DiskParamsEclipse{T}, seed
         end
 
         # run the simulation and multiply flux by this spectrum
-        disk_sim_eclipse(spec_temp, disk, soldata, wsp, prof, flux, tloop, tloop_init, templates, idx, obs_long, obs_lat, alt, time_stamps,
+        disk_sim_eclipse(spec_temp, disk, soldata, wsp, prof, flux, tloop, tloop_init, templates, idx, obs_long, obs_lat, alt, time_stamps, wavelength,
                  skip_times=skip_times, verbose=verbose)
     end
     return spec.lambdas, flux
