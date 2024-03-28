@@ -1,13 +1,13 @@
 function disk_sim_eclipse(spec::SpecParams{T}, disk::DiskParamsEclipse{T}, soldata::SolarData{T},
     wsp::SynthWorkspaceEclipse{T}, prof::AA{T,1}, flux::AA{T,2},
-    tloop, tloop_init, templates, idx, obs_long, obs_lat, alt, time_stamps; verbose::Bool=true,
+    tloop, tloop_init, templates, idx, obs_long, obs_lat, alt, time_stamps, wavelength; verbose::Bool=true,
     skip_times::BitVector=falses(disk.Nt)) where T<:AF
 
     # loop over time
     for t in 1:disk.Nt
 
             #compute geometry for timestamp
-            GRASS.eclipse_compute_quantities!(disk, time_stamps[t], obs_long, obs_lat, alt, wsp.ϕc, wsp.θc, wsp.μs, wsp.ld, wsp.dA, wsp.xyz, wsp.wts, wsp.z_rot, wsp.ax_codes)
+            GRASS.eclipse_compute_quantities!(disk, time_stamps[t], obs_long, obs_lat, alt, wavelength, wsp.ϕc, wsp.θc, wsp.μs, wsp.ld, wsp.dA, wsp.xyz, wsp.wts, wsp.z_rot, wsp.ax_codes)
             # get conv. blueshift and keys from input data
             GRASS.get_keys_and_cbs_eclispe!(wsp, soldata)
 
