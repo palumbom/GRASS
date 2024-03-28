@@ -28,8 +28,7 @@ function quad_limb_darkening_eclipse(μ::T, wavelength::T) where T<:AF
 
     index = findmin(x->abs(x-wavelength), lambda_nm)[2]
 
-    return a0[index] + a1[index]*μ - a2[index]*μ^2 + a3[index]*μ^3 - a4[index]*μ^4 + a5[index]*μ^5
-    #return 0.28392 + 1.36896*μ - 1.75998*μ^2 + 2.22154*μ^3 - 1.56074*μ^4 + 0.44630*μ^5 
+    return a0[index] + a1[index]*μ + a2[index]*μ^2 + a3[index]*μ^3 + a4[index]*μ^4 + a5[index]*μ^5
 end
 
 function quad_limb_darkening(μ::T, u1::T, u2::T) where T<:AF
