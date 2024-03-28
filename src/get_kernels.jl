@@ -2,6 +2,7 @@
 const KERNELS = "https://naif.jpl.nasa.gov/pub/naif/generic_kernels/"
 const LSK = "https://naif.jpl.nasa.gov/pub/naif/generic_kernels/lsk/naif0012.tls"
 const SPK = "https://naif.jpl.nasa.gov/pub/naif/generic_kernels/spk/planets/de440.bsp"
+const SPK_JUP = "https://naif.jpl.nasa.gov/pub/naif/generic_kernels/spk/satellites/jup365.bsp"
 const BPC = "https://naif.jpl.nasa.gov/pub/naif/generic_kernels/pck/moon_pa_de440_200625.bpc"
 const EARTH_BPC = "https://naif.jpl.nasa.gov/pub/naif/generic_kernels/pck/earth_latest_high_prec.bpc"
 const EARTH_default = "https://naif.jpl.nasa.gov/pub/naif/generic_kernels/fk/planets/earth_assoc_itrf93.tf"
@@ -19,6 +20,7 @@ function get_kernels()
     if !isfile(joinpath(datdir, "de440.bsp")); download(SPK, datdir * "de440.bsp"); end
     if !isfile(datdir * "naif0012.tls"); download(LSK, datdir * "naif0012.tls"); end
     if !isfile(datdir * "pck00010.tpc"); download(TPC, datdir * "pck00010.tpc"); end
+    if !isfile(datdir * "jup365.bsp"); download(SPK_JUP, datdir * "jup365.bsp"); end
     if !isfile(datdir * "moon_pa_de440_200625.bpc"); download(BPC, datdir * "moon_pa_de440_200625.bpc"); end
     if !isfile(datdir * "earth_latest_high_prec.bpc"); download(EARTH_BPC, datdir * "earth_latest_high_prec.bpc"); end
     if !isfile(datdir * "earth_assoc_itrf93.tf"); download(EARTH_default, datdir * "earth_assoc_itrf93.tf"); end
@@ -31,6 +33,7 @@ function get_kernels()
     furnsh(datdir * "pck00010.tpc")
     furnsh(datdir * "earth_latest_high_prec.bpc")
     furnsh(datdir * "earth_assoc_itrf93.tf")
+    furnsh(datdir * "jup365.bsp")
     return nothing
 end
 
