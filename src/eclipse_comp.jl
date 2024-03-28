@@ -128,7 +128,7 @@ function eclipse_compute_quantities!(disk::DiskParamsEclipse{T}, epoch::T, obs_l
             idx1 = mu_grid .> 0.0
 
             # TODO should it be norm(OM_bary[1:3])????
-            idx3 = (idx1) .& (distance .> atan((moon_radius)/norm(OM_bary))) 
+            idx3 = (idx1) .& (distance .> atan((moon_radius)/norm(OM_bary[1:3])))
 
             # assign the mean mu as the mean of visible mus
             μs[i,j] = mean(view(mu_grid, idx1))
