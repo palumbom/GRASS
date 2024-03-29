@@ -131,6 +131,7 @@ function convolve_gauss(xs::AA{T,1}, ys::AA{T,1}; new_res::T=1.17e5,
     # pad the signal
     signal = vcat(zeros(100), ys[:,1], zeros(100))
     signal[1:100] .= first(ys[:,1])
+    signal[101:end-100] .= ys[:,t]
     signal[end-100:end] .= last(ys[:,1])
 
     # do the convolution

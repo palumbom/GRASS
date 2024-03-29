@@ -13,6 +13,7 @@
 *.tls
 *.tpc
 *.bpc
+*.tf
 
 # specific files/directories
 data/input/
