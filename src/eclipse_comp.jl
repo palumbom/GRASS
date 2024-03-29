@@ -126,7 +126,9 @@ function eclipse_compute_quantities!(disk::DiskParamsEclipse{T}, epoch::T, obs_l
 
             #get indices for visible patches
             idx1 = mu_grid .> 0.0
-            idx3 = (idx1) .& (distance .> atan((moon_radius)/norm(OM_bary))) 
+
+            # TODO should it be norm(OM_bary[1:3])????
+            idx3 = (idx1) .& (distance .> atan((moon_radius)/norm(OM_bary[1:3])))
 
             # assign the mean mu as the mean of visible mus
             μs[i,j] = mean(view(mu_grid, idx1))
@@ -151,7 +153,7 @@ function eclipse_compute_quantities!(disk::DiskParamsEclipse{T}, epoch::T, obs_l
             dA_total_proj_mean[i,j] = sum(view(dA_total_proj, idx1))
 
             # copy to workspace
-            mean_intensity[i,j] = mean(view(ld_sub, idx3)) 
+            mean_intensity[i,j] = mean(view(ld_sub, idx3))
             ld[i,j] = mean(view(ld_sub, idx3))
             dA[i,j] = sum(view(dA_total_proj, idx1))
             mean_weight_v_no_cb[i,j] = mean(view(projected_velocities_no_cb, idx3))
