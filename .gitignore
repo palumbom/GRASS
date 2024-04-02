@@ -1,7 +1,7 @@
 # file endings
 *.gz
 *.log
-*.pdf
+.pdf
 *.jld2
 *.jl.cov
 *.jl.mem
