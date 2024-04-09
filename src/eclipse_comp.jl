@@ -2,7 +2,12 @@ function eclipse_compute_quantities!(disk::DiskParamsEclipse{T}, epoch::T, obs_l
                                     obs_lat::T, alt::T, wavelength::T, ϕc::AA{T,2}, θc::AA{T,2},
                                      μs::AA{T,2}, ld::AA{T,2}, dA::AA{T,2},
                                      xyz::AA{T,3}, wts::AA{T,2}, z_rot::AA{T,2},
-                                     ax_codes::AA{Int64, 2}) where T<:AF
+                                     ax_codes::AA{Int64, 2}, 
+                                     dA_total_proj_mean::AA{T,2}, mean_intensity::AA{T,2}, mean_weight_v_no_cb::AA{T,2},
+                                     mean_weight_v_earth_orb::AA{T,2}, pole_vector_grid::Matrix{Vector{Float64}},
+                                     SP_sun_pos::Matrix{Vector{Float64}}, SP_sun_vel::Matrix{Vector{Float64}}, SP_bary::Matrix{Vector{Float64}}, SP_bary_pos::Matrix{Vector{Float64}},
+                                     SP_bary_vel::Matrix{Vector{Float64}}, OP_bary::Matrix{Vector{Float64}}, mu_grid::AA{T,2}, projected_velocities_no_cb::AA{T,2}, 
+                                     distance::AA{T,2}, v_scalar_grid::AA{T,2}, v_earth_orb_proj::Matrix{Float64}) where T<:AF
 
     #query JPL horizons for E, S, M position (km) and velocities (km/s)
     BE_bary = spkssb(399,epoch,"J2000")
@@ -35,26 +40,6 @@ function eclipse_compute_quantities!(disk::DiskParamsEclipse{T}, epoch::T, obs_l
 
     # parse out composite type fields
     Nsubgrid = disk.Nsubgrid
-
-    # allocate memory that wont be needed outside this function
-    dA_total_proj_mean = zeros(length(disk.ϕc), maximum(disk.Nθ))
-    mean_intensity = zeros(length(disk.ϕc), maximum(disk.Nθ))
-    mean_weight_v_no_cb = zeros(length(disk.ϕc), maximum(disk.Nθ))
-    mean_weight_v_earth_orb = zeros(length(disk.ϕc), maximum(disk.Nθ))
-    # vectors
-    pole_vector_grid = fill(Vector{Float64}(undef, 3), Nsubgrid, Nsubgrid)
-    SP_sun_pos = fill(Vector{Float64}(undef, 3), Nsubgrid, Nsubgrid)
-    SP_sun_vel = fill(Vector{Float64}(undef, 3), Nsubgrid, Nsubgrid)
-    SP_bary = fill(Vector{Float64}(undef, 6), Nsubgrid, Nsubgrid)
-    SP_bary_pos = fill(Vector{Float64}(undef, 3), Nsubgrid, Nsubgrid)
-    SP_bary_vel = fill(Vector{Float64}(undef, 3), Nsubgrid, Nsubgrid)
-    OP_bary = fill(Vector{Float64}(undef, 6), Nsubgrid, Nsubgrid)
-    # scalars
-    mu_grid = zeros(Nsubgrid, Nsubgrid)
-    projected_velocities_no_cb = zeros(Nsubgrid, Nsubgrid)
-    distance = zeros(Nsubgrid, Nsubgrid)
-    v_scalar_grid = zeros(Nsubgrid, Nsubgrid)
-    v_earth_orb_proj = zeros(Nsubgrid, Nsubgrid)
 
     # loop over disk positions
     for i in eachindex(disk.ϕc)
@@ -127,7 +112,6 @@ function eclipse_compute_quantities!(disk::DiskParamsEclipse{T}, epoch::T, obs_l
             #get indices for visible patches
             idx1 = mu_grid .> 0.0
 
-            # TODO should it be norm(OM_bary[1:3])????
             idx3 = (idx1) .& (distance .> atan((moon_radius)/norm(OM_bary[1:3])))
 
             # assign the mean mu as the mean of visible mus
