@@ -33,6 +33,7 @@ function synth_Eclipse_cpu(spec::SpecParams{T}, disk::DiskParamsEclipse{T}, seed
 
     # pre-allocate memory and pre-compute geometric quantities
     wsp = SynthWorkspaceEclipse(disk, verbose=verbose)
+    mem = GeoWorkspaceEclipse(disk)
 
     # allocate memory for time indices
     tloop = zeros(Int, size(wsp.μs))
@@ -58,7 +59,7 @@ function synth_Eclipse_cpu(spec::SpecParams{T}, disk::DiskParamsEclipse{T}, seed
         end
 
         # run the simulation and multiply flux by this spectrum
-        disk_sim_eclipse(spec_temp, disk, soldata, wsp, prof, flux, tloop, tloop_init, templates, idx, obs_long, obs_lat, alt, time_stamps, wavelength,
+        disk_sim_eclipse(spec_temp, disk, soldata, wsp, mem, prof, flux, tloop, tloop_init, templates, idx, obs_long, obs_lat, alt, time_stamps, wavelength,
                  skip_times=skip_times, verbose=verbose)
     end
     return spec.lambdas, flux
