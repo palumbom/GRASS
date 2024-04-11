@@ -121,7 +121,7 @@ function SolarData(fname::String; relative::Bool=true, extrapolate::Bool=true,
                 end
             end
 
-            if extrapolate & (minimum(int1) < 0.75) & !(contains(fname, "FeI_5383"))
+            if extrapolate & (minimum(int1) < 0.75)# & !(contains(fname, "FeI_5383"))
                 extrapolate_input_data(bis, int1, wid, int2, parse_mu_string(mu))
             end
 
