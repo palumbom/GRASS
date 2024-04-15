@@ -111,6 +111,6 @@ function disk_sim_gpu(spec::SpecParams{T1}, disk::DiskParams{T1}, soldata::GPUSo
     @cusync flux_cpu .= Array(flux)
 
     # make sure nothing is still running on GPU
-    CUDA.synchronize()
+    # CUDA.synchronize()
     return nothing
 end

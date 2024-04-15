@@ -10,17 +10,18 @@ Synthesize spectra given parameters in `spec` and `disk` instances.
 function synthesize_spectra(spec::SpecParams{T}, disk::DiskParams{T};
                             seed_rng::Bool=false, verbose::Bool=true,
                             use_gpu::Bool=false, precision::DataType=Float64,
-                            skip_times::BitVector=falses(disk.Nt)) where T<:AF
+                            skip_times::BitVector=falses(disk.Nt),
+                            contiguous_only::Bool=false) where T<:AF
     # call appropriate simulation function on cpu or gpu
     if use_gpu
-        return synth_gpu(spec, disk, seed_rng, verbose, precision, skip_times)
+        return synth_gpu(spec, disk, seed_rng, verbose, precision, skip_times, contiguous_only)
     else
-        return synth_cpu(spec, disk, seed_rng, verbose, skip_times)
+        return synth_cpu(spec, disk, seed_rng, verbose, skip_times, contiguous_only)
     end
 end
 
 function synth_cpu(spec::SpecParams{T}, disk::DiskParams{T}, seed_rng::Bool,
-                   verbose::Bool, skip_times::BitVector) where T<:AF
+                   verbose::Bool, skip_times::BitVector, contiguous_only::Bool) where T<:AF
     # parse out dimensions for memory allocation
     N = disk.N
     Nt = disk.Nt
@@ -49,7 +50,7 @@ function synth_cpu(spec::SpecParams{T}, disk::DiskParams{T}, seed_rng::Bool,
         if verbose
             println("\t>>> Template: " * splitdir(file)[end])
         end
-        soldata = SolarData(fname=file)
+        soldata = SolarData(fname=file, contiguous_only=contiguous_only)
 
         # get conv. blueshift and keys from input data
         get_keys_and_cbs!(wsp, soldata)
@@ -75,7 +76,8 @@ function synth_cpu(spec::SpecParams{T}, disk::DiskParams{T}, seed_rng::Bool,
 end
 
 function synth_gpu(spec::SpecParams{T}, disk::DiskParams{T}, seed_rng::Bool,
-                   verbose::Bool, precision::DataType, skip_times::BitVector) where T<:AF
+                   verbose::Bool, precision::DataType, skip_times::BitVector,
+                   contiguous_only::Bool) where T<:AF
     # make sure there is actually a GPU to use
     @assert CUDA.functional()
 
@@ -122,7 +124,7 @@ function synth_gpu(spec::SpecParams{T}, disk::DiskParams{T}, seed_rng::Bool,
         if verbose
             println("\t>>> Template: " * splitdir(file)[end])
         end
-        soldata_cpu = SolarData(fname=file)
+        soldata_cpu = SolarData(fname=file, contiguous_only=contiguous_only)
         soldata = GPUSolarData(soldata_cpu, precision=precision)
 
         # get conv. blueshift and keys from input data
