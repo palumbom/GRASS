@@ -8,7 +8,7 @@ function disk_sim_eclipse(spec::SpecParams{T}, disk::DiskParamsEclipse{T}, solda
 
             #compute geometry for timestamp
             GRASS.eclipse_compute_quantities!(disk, time_stamps[t], obs_long, obs_lat, alt, wavelength, wsp.ϕc, wsp.θc, 
-                                                wsp.μs, wsp.ld, wsp.dA, wsp.xyz, wsp.wts, wsp.z_rot, wsp.ax_codes,
+                                                wsp.μs, wsp.ld, wsp.ext, wsp.dA, wsp.xyz, wsp.wts, wsp.z_rot, wsp.ax_codes,
                                                 mem.dA_total_proj_mean, mem.mean_intensity, mem.mean_weight_v_no_cb,
                                                 mem.mean_weight_v_earth_orb, mem.pole_vector_grid,
                                                 mem.SP_sun_pos, mem.SP_sun_vel, mem.SP_bary, mem.SP_bary_pos,
@@ -16,10 +16,6 @@ function disk_sim_eclipse(spec::SpecParams{T}, disk::DiskParamsEclipse{T}, solda
                                                 mem.distance, mem.v_scalar_grid, mem.v_earth_orb_proj)
             # get conv. blueshift and keys from input data
             GRASS.get_keys_and_cbs_eclispe!(wsp, soldata)
-
-            # get sum of weights
-            sum_wts = sum(wsp.wts)
-            z_cbs_avg = sum(wsp.wts .* wsp.cbs) / sum_wts
             
             # generate or copy tloop
             if (idx > 1) && GRASS.in_same_group(templates[idx - 1], templates[idx])
@@ -34,30 +30,38 @@ function disk_sim_eclipse(spec::SpecParams{T}, disk::DiskParamsEclipse{T}, solda
                 # reset prof
                 prof .= zero(T)
 
+                # get sum of weights
+                sum_wts = sum(wsp.ld[:, :, l] .* wsp.dA) #.*wsp.ext
+                z_cbs_avg = sum(wsp.ld[:, :, l] .* wsp.dA .* wsp.cbs) / sum_wts
+
+                contrast = (wsp.ld[:, :, l] / NaNMath.maximum(wsp.ld[:, :, l])).^0.1
+
                 # loop over spatial patches
-                for i in eachindex(wsp.μs)
+                for i in eachindex(disk.ϕc)
+                    for j in 1:disk.Nθ[i]
+
                     # move to next iteration if patch element is not visible
-                    wsp.wts[i] <= zero(T) && continue
+                    (wsp.ld[i,j,l] .* wsp.dA[i,j]) <= zero(T) && continue
 
                     # get input data for place on disk
-                    key = wsp.keys[i]
+                    key = wsp.keys[i,j]
                     len = soldata.len[key]
 
                     # get total desired convective blueshift for line
-                    z_cbs = wsp.cbs[i]
+                    z_cbs = wsp.cbs[i,j]
 
                     # get rotational shift
-                    z_rot = wsp.z_rot[i]
+                    z_rot = wsp.z_rot[i,j,l]
 
                     # check that tloop hasn't exceeded number of epochs
-                    if tloop[i] > len
-                        tloop[i] -= len
+                    if tloop[i,j] > len
+                        tloop[i,j] -= len
                     end
 
                     # get views needed for line synthesis
-                    wsp.bist .= copy(view(soldata.bis[key], :, tloop[i]))
-                    wsp.intt .= copy(view(soldata.int[key], :, tloop[i]))
-                    wsp.widt .= copy(view(soldata.wid[key], :, tloop[i]))
+                    wsp.bist .= copy(view(soldata.bis[key], :, tloop[i,j]))
+                    wsp.intt .= copy(view(soldata.int[key], :, tloop[i,j]))
+                    wsp.widt .= copy(view(soldata.wid[key], :, tloop[i,j]))
 
                     # get amount of convective blueshift needed
                     extra_z = spec.conv_blueshifts[l] - z_cbs_avg
@@ -81,7 +85,9 @@ function disk_sim_eclipse(spec::SpecParams{T}, disk::DiskParamsEclipse{T}, solda
                     trim_bisector!(dtrim, wsp.bist, wsp.intt)
 
                     # update the line profile in place
-                    line_profile_cpu!(λΔD, wsp.wts[i], spec.lambdas, prof, wsp)
+                    #line_profile_cpu!(λΔD, wsp.wts[i,j,l], spec.lambdas, prof, wsp)s
+                    line_profile_cpu!(λΔD, wsp.dA[i,j], wsp.ld[i,j,l], wsp.ext[i,j,l], contrast[i,j], spec.lambdas, prof, wsp)
+                    end
                 end
 
                 # apply normalization term and add to flux
