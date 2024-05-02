@@ -58,7 +58,7 @@ function precompute_quantities_gpu!(ϕc, θc, μs, wts, z_rot, ax_codes, Nϕ, N�
 
     # linear index over course grid tiles
     for t in idx:sdx:num_tiles
-        # get index for output array
+        # get index for output array - subgridding
         row = (t - 1) ÷ Nθ_max
         col = (t - 1) % Nθ_max
         m = row + 1
@@ -118,7 +118,7 @@ function precompute_quantities_gpu!(ϕc, θc, μs, wts, z_rot, ax_codes, Nϕ, N�
                 b = CUDA.zero(CUDA.eltype(μs))
                 c = z
 
-                # take cross product to get vector in direction of rotation
+                # take expanded product to get vector in direction of rotation
                 d = - ρs * c
                 e = CUDA.zero(CUDA.eltype(μs))
                 f = ρs * a

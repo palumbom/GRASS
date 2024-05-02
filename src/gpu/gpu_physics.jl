@@ -19,6 +19,20 @@ function sphere_to_cart_gpu(ρ, ϕ, θ)
     return x, y, z
 end
 
+function sphere_to_cart_gpu_eclipse(ρ, ϕ, θ)
+    # compute trig quantities
+    sinϕ = CUDA.sin(ϕ)
+    sinθ = CUDA.sin(θ)
+    cosϕ = CUDA.cos(ϕ)
+    cosθ = CUDA.cos(θ)
+
+    # now get cartesian coords
+    x = ρ * cosϕ * cosθ
+    y = ρ * cosϕ * sinθ
+    z = ρ * sinϕ
+    return x, y, z
+end
+
 function rotate_vector_gpu(x0, y0, z0, R_x)
     # do dot product
     x1 = x0 * R_x[1,1] + y0 * R_x[1,2] + z0 * R_x[1,3]
@@ -39,3 +53,15 @@ end
 function quad_limb_darkening_gpu(μ, u1, u2)
     return 1.0 - u1 * (1.0 - μ) - u2 * (1.0 - μ)^2.0
 end
+
+# function quad_limb_darkening_gpu_eclipse(μ, wavelength)
+    
+# end
+
+# function quad_limb_darkening_eclipse(μ::T, wavelength::T) where T<:AF
+#     μ < zero(T) && return 0.0    
+
+#     index = findmin(x->abs(x-wavelength), lambda_nm)[2]
+
+#     return a0[index] + a1[index]*μ + a2[index]*μ^2 + a3[index]*μ^3 + a4[index]*μ^4 + a5[index]*μ^5
+# end

@@ -11,18 +11,19 @@ struct SynthWorkspaceEclipse{T<:AF}
     ϕc::AA{T,2}
     θc::AA{T,2}
     μs::AA{T,2}
-    ld::AA{T,2}
+    ld::AA{T,3}
+    ext::AA{T,3}
     dA::AA{T,2}
-    wts::AA{T,2}
+    wts::AA{T,3}
     xyz::AA{T,3}
 
     cbs::AA{T,2}
-    z_rot::AA{T,2}
+    z_rot::AA{T,3}
     ax_codes::AA{Int,2}
     keys::AA{Tuple{Symbol, Symbol},2}
 end
 
-function SynthWorkspaceEclipse(disk::DiskParamsEclipse; ndepths::Integer=100, verbose::Bool=true)
+function SynthWorkspaceEclipse(disk::DiskParamsEclipse, lines_number::Int; ndepths::Integer=100, verbose::Bool=true)
     # allocate the needed memory for synthesis
     lwavgrid = zeros(ndepths)
     rwavgrid = zeros(ndepths)
@@ -36,16 +37,17 @@ function SynthWorkspaceEclipse(disk::DiskParamsEclipse; ndepths::Integer=100, ve
     ϕc = zeros(size(disk.θc)...)
     θc = zeros(size(disk.θc)...)
     μs = zeros(size(disk.θc)...)
-    ld = zeros(size(disk.θc)...)
+    ld = zeros(size(disk.θc)..., lines_number)
+    ext = zeros(size(disk.θc)..., lines_number)
     dA = zeros(size(disk.θc)...)
     xyz = zeros(size(disk.θc)..., 3)
-    wts = zeros(size(disk.θc)...)
-    z_rot = zeros(size(disk.θc)...)
+    wts = zeros(size(disk.θc)..., lines_number)
+    z_rot = zeros(size(disk.θc)...,  lines_number)
     ax_codes = zeros(Int, size(disk.θc))
     cbs = zeros(size(disk.θc)...)
     keys = repeat([(:off,:off)], size(disk.θc)...)
 
     return SynthWorkspaceEclipse(lwavgrid, rwavgrid, allwavs, allints,
-                          bist, intt, widt, ϕc, θc, μs, ld, dA,
+                          bist, intt, widt, ϕc, θc, μs, ld, ext, dA,
                           wts, xyz, cbs, z_rot, ax_codes, keys)
 end

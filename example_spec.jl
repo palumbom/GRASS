@@ -5,8 +5,8 @@ using SPICE
 using Statistics
 using EchelleCCFs
 using BenchmarkTools
-using Profile
-using ProfileView
+# using Profile
+# using ProfileView
 
 GRASS.get_kernels()
 
@@ -141,7 +141,7 @@ if case == "Gottingen"
     alt = 0.201
 
     # set up paramaters for disk
-    N = 197
+    N = 50
     Nt = length(time_stamps)
 
     # set up parameters for spectrum
@@ -153,14 +153,14 @@ if case == "Gottingen"
     resolution = 7e5                    # spectral resolution
 
     # make the disk and spec composite type instances
-    disk = GRASS.DiskParamsEclipse(N=N, Nt=Nt, Nsubgrid=40)
+    disk = GRASS.DiskParamsEclipse(N=N, Nt=Nt, Nsubgrid=10)
     spec = GRASS.SpecParams(lines=lines, depths=depths, variability=variability,
                     blueshifts=blueshifts, templates=templates, resolution=resolution)  
     
     # actually synthesize the spectra
     println(">>> Synthesizing on CPU...")
     tstart = time()
-    lambdas_cpu, outspec_cpu = ProfileView.@profview GRASS.synthesize_spectra_eclipse(spec, disk, obs_long, obs_lat, alt, lines[1]/10.0, time_stamps, verbose=true, use_gpu=false)
+    lambdas_cpu, outspec_cpu = GRASS.synthesize_spectra_eclipse(spec, disk, obs_long, obs_lat, alt, lines ./ 10.0, time_stamps, verbose=true, use_gpu=false) #ProfileView.@profview
     tstop = time()
 
     # open(Profile.print, "profile", "w")

@@ -1,6 +1,6 @@
 struct GeoWorkspaceEclipse{T<:AF}
     dA_total_proj_mean::AA{T,2}
-    mean_intensity::AA{T,2}
+    mean_intensity::AA{T,3}
     mean_weight_v_no_cb::AA{T,2}
     mean_weight_v_earth_orb::AA{T,2}
 
@@ -19,10 +19,10 @@ struct GeoWorkspaceEclipse{T<:AF}
     v_earth_orb_proj::Matrix{Float64}
 end
 
-function GeoWorkspaceEclipse(disk::DiskParamsEclipse)
+function GeoWorkspaceEclipse(disk::DiskParamsEclipse, lines_number::Int)
     # allocate memory that wont be needed outside this function
     dA_total_proj_mean = zeros(length(disk.ϕc), maximum(disk.Nθ))
-    mean_intensity = zeros(length(disk.ϕc), maximum(disk.Nθ))
+    mean_intensity = zeros(length(disk.ϕc), maximum(disk.Nθ), lines_number)
     mean_weight_v_no_cb = zeros(length(disk.ϕc), maximum(disk.Nθ))
     mean_weight_v_earth_orb = zeros(length(disk.ϕc), maximum(disk.Nθ))
     # vectors

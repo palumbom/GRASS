@@ -1,9 +1,9 @@
 function eclipse_compute_quantities!(disk::DiskParamsEclipse{T}, epoch::T, obs_long::T,
-                                    obs_lat::T, alt::T, wavelength::T, ϕc::AA{T,2}, θc::AA{T,2},
-                                     μs::AA{T,2}, ld::AA{T,2}, dA::AA{T,2},
-                                     xyz::AA{T,3}, wts::AA{T,2}, z_rot::AA{T,2},
+                                     obs_lat::T, alt::T, wavelength::Vector{Float64}, ϕc::AA{T,2}, θc::AA{T,2},
+                                     μs::AA{T,2}, ld::AA{T,3}, ext::AA{T,3} , dA::AA{T,2},
+                                     xyz::AA{T,3}, wts::AA{T,3}, z_rot::AA{T,3},
                                      ax_codes::AA{Int64, 2}, 
-                                     dA_total_proj_mean::AA{T,2}, mean_intensity::AA{T,2}, mean_weight_v_no_cb::AA{T,2},
+                                     dA_total_proj_mean::AA{T,2}, mean_intensity::AA{T,3}, mean_weight_v_no_cb::AA{T,2},
                                      mean_weight_v_earth_orb::AA{T,2}, pole_vector_grid::Matrix{Vector{Float64}},
                                      SP_sun_pos::Matrix{Vector{Float64}}, SP_sun_vel::Matrix{Vector{Float64}}, SP_bary::Matrix{Vector{Float64}}, SP_bary_pos::Matrix{Vector{Float64}},
                                      SP_bary_vel::Matrix{Vector{Float64}}, OP_bary::Matrix{Vector{Float64}}, mu_grid::AA{T,2}, projected_velocities_no_cb::AA{T,2}, 
@@ -125,33 +125,44 @@ function eclipse_compute_quantities!(disk::DiskParamsEclipse{T}, epoch::T, obs_l
                 ax_codes[i,j] = find_nearest_ax_code_eclipse(xyz[i,j,2]/sun_radius, xyz[i,j,3]/sun_radius) 
             end
 
-            # calc limb darkening
-            ld_sub = map(x -> quad_limb_darkening_eclipse(x, wavelength), mu_grid)
-
             # calculate area element of tile
             dϕ = step(ϕe_sub) 
             dθ = step(θe_sub) 
             dA_sub = map(x -> calc_dA(sun_radius, getindex(x,1), dϕ, dθ), subgrid)
             #get total projected, visible area of larger tile
             dA_total_proj = dA_sub .* mu_grid
-            dA_total_proj_mean[i,j] = sum(view(dA_total_proj, idx1))
-
+            dA_total_proj_mean[i,j] = sum(view(dA_total_proj, idx1))    
+                 
             # copy to workspace
-            mean_intensity[i,j] = mean(view(ld_sub, idx3))
-            ld[i,j] = mean(view(ld_sub, idx3))
             dA[i,j] = sum(view(dA_total_proj, idx1))
             mean_weight_v_no_cb[i,j] = mean(view(projected_velocities_no_cb, idx3))
             mean_weight_v_earth_orb[i,j] = mean(view(v_earth_orb_proj, idx3))
-            wts[i,j] = mean(view(ld_sub .* dA_total_proj, idx3))
-            z_rot[i,j] = sum(view(z_rot_sub .* ld_sub .* dA_total_proj, idx3)) ./ sum(view(ld_sub .* dA_total_proj, idx3))
 
-            if isnan(ld[i,j])
-                ld[i,j] = 0.0
-                mean_intensity[i,j] = 0.0
-                mean_weight_v_no_cb[i,j] = 0.0
-                mean_weight_v_earth_orb[i,j] = 0.0
-                wts[i,j] = 0.0
-                z_rot[i,j] = 0.0
+            # calc limb darkening
+            for l in eachindex(wavelength)
+                ld_sub = map(x -> quad_limb_darkening_eclipse(x, wavelength[l]), mu_grid)
+                ld[i,j,l] = sum(view(ld_sub, idx3)) / Nsubgrid^2
+                #mean(view(ld_sub, idx3))
+                mean_intensity[i,j,l] = sum(view(ld_sub, idx3)) / Nsubgrid^2
+
+                # #extinction
+                # zenith_angle_matrix = rad2deg.(map(x -> calc_proj_dist(x[1:3], EO_bary[1:3]), OP_bary))
+                # extin = map(x -> 10^(-((1/cosd(x))*ext_coef[i,j,l])/2.5), zenith_angle_matrix)
+                # ext[i,j,l] = mean(view(extin, idx3)) 
+
+                #wts[i,j,l] = mean(view(ld_sub .* dA_total_proj, idx3)) #.* extin
+                z_rot[i,j,l] = sum(view(z_rot_sub .* ld_sub .* dA_total_proj, idx3)) ./ sum(view(ld_sub .* dA_total_proj, idx3)) #.* extin
+    
+
+                if isnan(ld[i,j,l])
+                    ld[i,j,l] = 0.0
+                    ext[i,j,l] = 0.0
+                    mean_intensity[i,j,l] = 0.0
+                    mean_weight_v_no_cb[i,j] = 0.0
+                    mean_weight_v_earth_orb[i,j] = 0.0
+                    wts[i,j,l] = 0.0
+                    z_rot[i,j,l] = 0.0
+                end
             end
         end
     end
