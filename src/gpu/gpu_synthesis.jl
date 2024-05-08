@@ -53,7 +53,7 @@ function fill_workspaces!(line, variability, extra_z, tloop, dat_idx, z_rot,
 end
 
 
-function line_profile_gpu!(prof, μs, wts, λs, allwavs, allints)
+function line_profile_gpu!(prof, μs, ld, dA, wts, λs, allwavs, allints)
     # get indices from GPU blocks + threads
     idx = threadIdx().x + blockDim().x * (blockIdx().x-1)
     sdx = blockDim().x * gridDim().x
@@ -77,9 +77,9 @@ function line_profile_gpu!(prof, μs, wts, λs, allwavs, allints)
         # loop over wavelengths
         for j in idy:sdy:CUDA.length(λs)
             if ((λs[j] < CUDA.first(allwavs_i)) || (λs[j] > CUDA.last(allwavs_i)))
-                @inbounds CUDA.@atomic prof[j] += wts[i]
+                @inbounds CUDA.@atomic prof[j] += dA[i] * ld[i, 1]
             else
-                @inbounds CUDA.@atomic prof[j] += itp(λs[j]) * wts[i]
+                @inbounds CUDA.@atomic prof[j] += itp(λs[j]) * dA[i] * ld[i, 1]
             end
         end
     end

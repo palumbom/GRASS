@@ -4,6 +4,9 @@ struct GPUAllocs{T1<:AF}
     flux::CuArray{T1,2}
 
     μs::CuArray{T1,1}
+    dA::CuArray{T1,1}
+    ld::CuArray{T1,2}
+
     wts::CuArray{T1,1}
     z_rot::CuArray{T1,1}
     z_cbs::CuArray{T1,1}
@@ -49,16 +52,20 @@ function GPUAllocs(spec::SpecParams, disk::DiskParams; precision::DataType=Float
     # allocate memory for pre-computations
     @cusync begin
         μs = CUDA.zeros(precision, Nϕ, Nθ_max)
+        dA = CUDA.zeros(precision, Nϕ, Nθ_max)
+        ld = CUDA.zeros(precision, Nϕ, Nθ_max, 5)
         wts = CUDA.zeros(precision, Nϕ, Nθ_max)
         z_rot = CUDA.zeros(precision, Nϕ, Nθ_max)
         ax_code = CUDA.zeros(Int32, Nϕ, Nθ_max)
     end
 
     # perform the pre-computations
-    precompute_quantities_gpu!(disk, μs, wts, z_rot, ax_code)
+    precompute_quantities_gpu!(disk, μs, dA, ld, wts, z_rot, ax_code)
 
     # reshape to a vector
     @cusync μs = CUDA.reshape(μs, num_tiles)
+    @cusync dA = CUDA.reshape(dA, num_tiles)
+    @cusync ld = CUDA.reshape(ld, num_tiles, 5)
     @cusync wts = CUDA.reshape(wts, num_tiles)
     @cusync z_rot = CUDA.reshape(z_rot, num_tiles)
     @cusync ax_code = CUDA.reshape(ax_code, num_tiles)
@@ -69,6 +76,9 @@ function GPUAllocs(spec::SpecParams, disk::DiskParams; precision::DataType=Float
 
     @cusync begin
         μs_new = CUDA.zeros(precision, CUDA.sum(idx))
+        dA_new = CUDA.zeros(precision, CUDA.sum(idx))
+        ld_new = CUDA.zeros(precision, CUDA.sum(idx), 5)
+        μs_new = CUDA.zeros(precision, CUDA.sum(idx))
         wts_new = CUDA.zeros(precision, CUDA.sum(idx))
         z_rot_new = CUDA.zeros(precision, CUDA.sum(idx))
         ax_code_new = CUDA.zeros(Int32, CUDA.sum(idx))
@@ -76,12 +86,16 @@ function GPUAllocs(spec::SpecParams, disk::DiskParams; precision::DataType=Float
 
     # launch the kernel
     @cusync @cuda filter_array_gpu!(μs_new, μs, idx, 0)
+    @cusync @cuda filter_array_gpu!(dA_new, dA, idx, 0)
+    @cusync @cuda filter_array_gpu!(ld_new, ld, idx, 0)
     @cusync @cuda filter_array_gpu!(wts_new, wts, idx, 0)
     @cusync @cuda filter_array_gpu!(z_rot_new, z_rot, idx, 0)
     @cusync @cuda filter_array_gpu!(ax_code_new, ax_code, idx, 0)
 
     @cusync begin
         μs = μs_new
+        dA = dA_new
+        ld = ld_new
         wts = wts_new
         z_rot = z_rot_new
         ax_code = ax_code_new
@@ -103,6 +117,6 @@ function GPUAllocs(spec::SpecParams, disk::DiskParams; precision::DataType=Float
         allints = CUDA.zeros(precision, num_nonzero, 200)
     end
 
-    return GPUAllocs(λs_gpu, prof_gpu, flux_gpu, μs, wts, z_rot, z_cbs, ax_code,
+    return GPUAllocs(λs_gpu, prof_gpu, flux_gpu, μs, dA, ld, wts, z_rot, z_cbs, ax_code,
                      dat_idx, tloop_gpu, tloop_init, allwavs, allints)
 end

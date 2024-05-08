@@ -34,12 +34,12 @@ function searchsortednearest_gpu(a,x)
     end
 end
 
-function filter_array_gpu!(output, input, pred, n)
+function filter_array_gpu!(output::AA{T,1}, input::AA{T,1}, pred, n) where T
     # get indices from GPU blocks + threads
     idx = threadIdx().x + blockDim().x * (blockIdx().x-1)
     sdx = gridDim().x * blockDim().x
 
-    for i in idx:sdx:CUDA.length(input)
+    for i in idx:sdx:CUDA.size(input,1)
         if CUDA.isone(pred[i])
             n += 1
             output[n] = input[i]
@@ -47,3 +47,21 @@ function filter_array_gpu!(output, input, pred, n)
     end
     return nothing
 end
+
+function filter_array_gpu!(output::AA{T,2}, input::AA{T,2}, pred, n) where T
+    # get indices from GPU blocks + threads
+    idx = threadIdx().x + blockDim().x * (blockIdx().x-1)
+    sdx = gridDim().x * blockDim().x
+
+    for i in idx:sdx:CUDA.size(input,1)
+        if CUDA.isone(pred[i])
+            n += 1
+            for j in 1:CUDA.size(input, 2)
+                output[n, j] = input[i, j]
+                continue
+            end
+        end
+    end
+    return nothing
+end
+

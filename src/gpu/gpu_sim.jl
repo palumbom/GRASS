@@ -12,6 +12,8 @@ function disk_sim_gpu(spec::SpecParams{T1}, disk::DiskParams{T1}, soldata::GPUSo
     flux = gpu_allocs.flux
 
     μs = gpu_allocs.μs
+    dA = gpu_allocs.dA
+    ld = gpu_allocs.ld
     wts = gpu_allocs.wts
     z_rot = gpu_allocs.z_rot
     z_cbs = gpu_allocs.z_cbs
@@ -59,11 +61,13 @@ function disk_sim_gpu(spec::SpecParams{T1}, disk::DiskParams{T1}, soldata::GPUSo
     end
 
     # get weighted disk average cbs
-    @cusync sum_wts = CUDA.sum(wts)
-    @cusync z_cbs_avg = CUDA.sum(z_cbs .* wts) / sum_wts
+    @cusync sum_wts = CUDA.sum(dA .* ld[:,1])
+    @show sum_wts
+    @cusync z_cbs_avg = 0.0 #CUDA.sum(z_cbs .* wts) / sum_wts
 
     # calculate how much extra shift is needed
     extra_z = spec.conv_blueshifts .- z_cbs_avg
+    extra_z = 0.0
 
     # loop over time
     for t in 1:Nt
@@ -97,7 +101,7 @@ function disk_sim_gpu(spec::SpecParams{T1}, disk::DiskParams{T1}, soldata::GPUSo
                                                                            widall_gpu_loop, allwavs, allints)
 
             # do the line synthesis, interp back onto wavelength grid
-            @cusync @cuda threads=threads4 blocks=blocks4 line_profile_gpu!(prof, μs, wts, λs, allwavs, allints)
+            @cusync @cuda threads=threads4 blocks=blocks4 line_profile_gpu!(prof, μs, dA, ld, wts, λs, allwavs, allints)
 
             # copy data from GPU to CPU
             @cusync @cuda threads=threads5 blocks=blocks5 apply_line!(t, prof, flux, sum_wts)

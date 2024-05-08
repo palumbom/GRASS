@@ -1,4 +1,4 @@
-function precompute_quantities_gpu!(disk::DiskParams{T1}, μs::CuArray{T2,2},
+function precompute_quantities_gpu!(disk::DiskParams{T1}, μs::CuArray{T2,2}, dA::CuArray{T2,2}, ld::CuArray{T2,3},
                                     wts::CuArray{T2,2}, z_rot::CuArray{T2,2},
                                     ax_codes::CuArray{Int32,2}) where {T1<:AF, T2<:AF}
     # get precision from GPU allocs
@@ -31,7 +31,7 @@ function precompute_quantities_gpu!(disk::DiskParams{T1}, μs::CuArray{T2,2},
     # compute geometric parameters, average over subtiles
     threads1 = 256
     blocks1 = cld(Nϕ * Nθ_max, prod(threads1))
-    @cusync @captured @cuda threads=threads1 blocks=blocks1 precompute_quantities_gpu!(μs, wts, z_rot, ax_codes, Nϕ,
+    @cusync @captured @cuda threads=threads1 blocks=blocks1 precompute_quantities_gpu!(μs, dA, ld, wts, z_rot, ax_codes, Nϕ,
                                                                                        Nθ_max, Nsubgrid, Nθ, R_x, O⃗,
                                                                                        ρs, A, B, C, v0, u1, u2)
 
@@ -39,7 +39,7 @@ function precompute_quantities_gpu!(disk::DiskParams{T1}, μs::CuArray{T2,2},
     return nothing
 end
 
-function precompute_quantities_gpu!(μs, wts, z_rot, ax_codes, Nϕ, Nθ_max, Nsubgrid,
+function precompute_quantities_gpu!(μs, dA, ld, wts, z_rot, ax_codes, Nϕ, Nθ_max, Nsubgrid,
                                     Nθ, R_x, O⃗, ρs, A, B, C, v0, u1, u2)
 # get indices from GPU blocks + threads
     idx = threadIdx().x + blockDim().x * (blockIdx().x-1)
@@ -142,8 +142,9 @@ function precompute_quantities_gpu!(μs, wts, z_rot, ax_codes, Nϕ, Nθ_max, Nsu
                 μ_sum += μ_sub
 
                 # get limb darkening
-                ld = quad_limb_darkening_gpu(μ_sub, u1, u2)
-                ld_sum += ld
+                for l in 1:5
+                    ld[m,n,l] += quad_limb_darkening_gpu(μ_sub, u1, u2)
+                end
 
                 # rotate the velocity vectors by inclination
                 d, e, f = rotate_vector_gpu(d, e, f, R_x)
@@ -157,12 +158,12 @@ function precompute_quantities_gpu!(μs, wts, z_rot, ax_codes, Nϕ, Nθ_max, Nsu
                 n1 = CUDA.sqrt(a^2.0 + b^2.0 + c^2.0)
                 n2 = CUDA.sqrt(d^2.0 + e^2.0 + f^2.0)
                 angle = (a * d + b * e + c * f) / (n1 * n2)
-                v_sum += (n2 * angle) * ld
+                v_sum += (n2 * angle)
 
                 # get projected area element
-                dA = calc_dA_gpu(ρs, ϕc, dϕ, dθ)
-                dA *= μ_sub
-                dA_sum += dA
+                dA_i = calc_dA_gpu(ρs, ϕc, dϕ, dθ)
+                dA_i *= μ_sub
+                dA_sum += dA_i
 
                 # sum on vector components
                 x_sum += x
@@ -176,8 +177,13 @@ function precompute_quantities_gpu!(μs, wts, z_rot, ax_codes, Nϕ, Nθ_max, Nsu
         if count > 0
             # set scalar quantity elements as average
             @inbounds μs[m, n] = μ_sum / count
-            @inbounds z_rot[m, n] = v_sum / ld_sum
-            @inbounds wts[m, n] = (ld_sum / count) * dA_sum
+            @inbounds dA[m, n] = dA_sum
+            @inbounds z_rot[m, n] = v_sum / count
+            @inbounds wts[m, n] = 0.0
+
+            for l in 1:5
+                @inbounds ld[m, n, l] /= count
+            end
 
             # set vector components as average
             @inbounds xx = x_sum / count
@@ -188,8 +194,13 @@ function precompute_quantities_gpu!(μs, wts, z_rot, ax_codes, Nϕ, Nθ_max, Nsu
         else
             # zero out elements if count is 0 (avoid div by 0)
             @inbounds μs[m, n] = 0.0
+            @inbounds dA[m, n] = 0.0
             @inbounds wts[m, n] = 0.0
             @inbounds z_rot[m, n] = 0.0
+
+            for l in 1:5
+                @inbounds ld[m, n, l] = 0.0
+            end
 
             # set axis code to 0
             @inbounds ax_codes[m, n] = 0
