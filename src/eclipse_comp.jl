@@ -54,34 +54,43 @@ function eclipse_compute_quantities!(disk::DiskParamsEclipse{T}, epoch::T, obs_l
             ϕc_sub = get_grid_centers(ϕe_sub)
             θc_sub = get_grid_centers(θe_sub)
             subgrid = Iterators.product(ϕc_sub, θc_sub)
+            # map(x -> println(getindex(x,1), " ", getindex(x,2)), subgrid)
 
             # get cartesian coord for each subgrid 
             SP_sun_pos .= map(x -> pgrrec("SUN", getindex(x,2), getindex(x,1), 0.0, sun_radius, 0.0), subgrid)
+            #println(SP_sun_pos)
 
             # get differential rotation velocities
             v_scalar_grid .= map(x -> v_scalar(x...), subgrid)
             #convert v_scalar to from km/day km/s
             v_scalar_grid ./= 86400.0
+            #println(v_scalar_grid)
 
             #determine pole vector for each patch
             pole_vector_grid!(SP_sun_pos, pole_vector_grid)
 
             #get velocity vector direction and set magnitude
             v_vector(SP_sun_pos, pole_vector_grid, v_scalar_grid, SP_sun_vel)
+            #println(SP_sun_vel)
 
             for k in eachindex(SP_sun_pos)
                 SP_bary_pos[k] .= (sun_rot_mat * SP_sun_pos[k])
                 SP_bary_vel[k] .= (sun_rot_mat * SP_sun_vel[k])
                 SP_bary[k] = vcat(SP_bary_pos[k], SP_bary_vel[k])
             end
+            #println(SP_bary)
 
             #get vector from obs to each patch on Sun's surface
             for k in eachindex(OP_bary)
                 OP_bary[k] = OS_bary .+ SP_bary[k]
             end
+            #println(OP_bary)
 
             # calculate mu at each point
             calc_mu_grid!(SP_bary, OP_bary, mu_grid)
+            println(mu_grid)
+            println(i,j)
+            println(mean(mu_grid))
             # move on if everything is off the grid
             all(mu_grid .< zero(T)) && continue
 
@@ -116,6 +125,7 @@ function eclipse_compute_quantities!(disk::DiskParamsEclipse{T}, epoch::T, obs_l
 
             # assign the mean mu as the mean of visible mus
             μs[i,j] = mean(view(mu_grid, idx1))
+            println(mean(view(mu_grid, idx1)))
 
             # find xz at mean value of mu and get axis code (i.e., N, E, S, W)
             xyz[i,j,1] = mean(view(getindex.(SP_sun_pos,1), idx1))
@@ -141,7 +151,7 @@ function eclipse_compute_quantities!(disk::DiskParamsEclipse{T}, epoch::T, obs_l
             # calc limb darkening
             for l in eachindex(wavelength)
                 ld_sub = map(x -> quad_limb_darkening_eclipse(x, wavelength[l]), mu_grid)
-                ld[i,j,l] = sum(view(ld_sub, idx3)) / Nsubgrid^2
+                ld[i,j,l] = sum(view(ld_sub, idx3)) / Nsubgrid^2 #change - shouldnt be Nsubgrid in case some at limb arent visible - change to sum of idx1
                 #mean(view(ld_sub, idx3))
                 mean_intensity[i,j,l] = sum(view(ld_sub, idx3)) / Nsubgrid^2
 

@@ -5,6 +5,13 @@ function calc_mu_gpu(x, y, z, O⃗)
     return dp / (n1 * n2)
 end
 
+function calc_mu_gpu(x, y, z, Ox, Oy, Oz)
+    dp = x * Ox + y * Oy + z * Oz
+    n1 = CUDA.sqrt(Ox^2.0 + Oy^2.0 + Oz^2.0)
+    n2 = CUDA.sqrt(x^2.0 + y^2.0 + z^2.0)
+    return dp / (n1 * n2)
+end
+
 function sphere_to_cart_gpu(ρ, ϕ, θ)
     # compute trig quantities
     sinϕ = CUDA.sin(ϕ)
@@ -54,14 +61,8 @@ function quad_limb_darkening_gpu(μ, u1, u2)
     return 1.0 - u1 * (1.0 - μ) - u2 * (1.0 - μ)^2.0
 end
 
-# function quad_limb_darkening_gpu_eclipse(μ, wavelength)
-    
-# end
+function quad_limb_darkening_gpu_eclipse(μ, wavelength, lambda_nm, a0, a1, a2, a3, a4, a5)
+    index = searchsortednearest_gpu(lambda_nm, wavelength)
 
-# function quad_limb_darkening_eclipse(μ::T, wavelength::T) where T<:AF
-#     μ < zero(T) && return 0.0    
-
-#     index = findmin(x->abs(x-wavelength), lambda_nm)[2]
-
-#     return a0[index] + a1[index]*μ + a2[index]*μ^2 + a3[index]*μ^3 + a4[index]*μ^4 + a5[index]*μ^5
-# end
+    return a0[index] + a1[index]*μ + a2[index]*μ^2 + a3[index]*μ^3 + a4[index]*μ^4 + a5[index]*μ^5
+end

@@ -1,13 +1,11 @@
 function disk_sim_eclipse_gpu(spec::SpecParams{T1}, disk::DiskParams{T1}, 
                                soldata::GPUSolarData{T2}, gpu_allocs::GPUAllocs{T2},
-                               eclipse_allocs::EclipseAllocs{T2}, flux_cpu::AA{T1,2},
-                               vels::AA{T1,1}, tloop, tloop_init, templates, idx, 
+                               flux_cpu::AA{T1,2}, vels::AA{T1,1}, templates, idx, 
                                obs_long, obs_lat, alt, time_stamps, wavelength;
                                verbose::Bool=false, seed_rng::Bool=false,
                                skip_times::BitVector=falses(disk.Nt)) where {T1<:AF, T2<:AF}
 
     # get dimensions for memory alloc
-    N = disk.N
     Nt = disk.Nt
     Nλ = length(spec.lambdas)                           
                                 
@@ -16,42 +14,22 @@ function disk_sim_eclipse_gpu(spec::SpecParams{T1}, disk::DiskParams{T1},
     prof = gpu_allocs.prof
     flux = gpu_allocs.flux
 
-    # parse out rossiter allocations
-    lwavgrid = eclipse_allocs.lwavgrid
-    rwavgrid = eclipse_allocs.rwavgrid
-    allwavs = eclipse_allocs.allwavs
-    allints = eclipse_allocs.allints
-    bist = eclipse_allocs.bist
-    intt = eclipse_allocs.intt
-    widt = eclipse_allocs.widt
-    ϕc = eclipse_allocs.ϕc
-    θc = eclipse_allocs.θc
-    μs = eclipse_allocs.μs
-    ld = eclipse_allocs.ld
-    ext = eclipse_allocs.ext
-    dA = eclipse_allocs.dA
-    wts = eclipse_allocs.wts
-    xyz = eclipse_allocs.xyz
-    cbs = eclipse_allocs.cbs
-    z_rot = eclipse_allocs.z_rot
-    ax_codes = eclipse_allocs.ax_codes
-    keys = eclipse_allocs.keys
-    dA_total_proj_mean = eclipse_allocs.dA_total_proj_mean
-    mean_intensity = eclipse_allocs.mean_intensity
-    mean_weight_v_no_cb = eclipse_allocs.mean_weight_v_no_cb
-    mean_weight_v_earth_orb = eclipse_allocs.mean_weight_v_earth_orb
-    pole_vector_grid = eclipse_allocs.pole_vector_grid
-    SP_sun_pos = eclipse_allocs.SP_sun_pos
-    SP_sun_vel = eclipse_allocs.SP_sun_vel
-    SP_bary = eclipse_allocs.SP_bary
-    SP_bary_pos = eclipse_allocs.SP_bary_pos
-    SP_bary_vel = eclipse_allocs.SP_bary_vel
-    OP_bary = eclipse_allocs.OP_bary
-    mu_grid = eclipse_allocs.mu_grid
-    projected_velocities_no_cb = eclipse_allocs.projected_velocities_no_cb
-    distance = eclipse_allocs.distance
-    v_scalar_grid = eclipse_allocs.v_scalar_grid
-    v_earth_orb_proj = eclipse_allocs.v_earth_orb_proj
+    allwavs = gpu_allocs.allwavs
+    allints = gpu_allocs.allints
+    tloop = gpu_allocs.tloop
+    tloop_init = gpu_allocs.tloop_init
+    dat_idx = gpu_allocs.dat_idx
+
+    ϕc = gpu_allocs.ϕc
+    θc = gpu_allocs.θc
+    μs = gpu_allocs.μs
+    ld = gpu_allocs.ld
+    ext = gpu_allocs.ext
+    dA = gpu_allocs.dA
+    xyz = gpu_allocs.xyz
+    z_rot = gpu_allocs.z_rot
+    z_cbs = gpu_allocs.z_cbs
+    ax_codes = gpu_allocs.ax_codes
 
     # alias the input data from GPUSolarData
     disc_mu_gpu = soldata.mu
@@ -89,6 +67,8 @@ function disk_sim_eclipse_gpu(spec::SpecParams{T1}, disk::DiskParams{T1},
         widall_gpu_loop = CUDA.zeros(T2, CUDA.size(widall_gpu))
     end
 
+#---------------------
+
     # # get weighted disk average cbs
     # @cusync sum_wts_og = CUDA.sum(wts)
     # @cusync z_cbs_avg = CUDA.sum(z_cbs .* wts) / sum_wts_og
@@ -104,7 +84,7 @@ function disk_sim_eclipse_gpu(spec::SpecParams{T1}, disk::DiskParams{T1},
             continue
         end
 
-        calc_eclipse_quantities_gpu!(t, time_stamps[t], obs_long, obs_lat, alt, wavelength, disk, gpu_allocs, eclipse_allocs)
+        calc_eclipse_quantities_gpu!(time_stamps[t], obs_long, obs_lat, alt, wavelength, disk, gpu_allocs)
 
 #---------------------
 
