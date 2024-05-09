@@ -84,20 +84,11 @@ function synth_Eclipse_gpu(spec::SpecParams{T}, disk::DiskParamsEclipse{T}, seed
     flux = ones(Nλ, Nt)
     vels = zeros(Nt)
 
-    # pre-allocate memory and pre-compute geometric quantities
-    wsp = SynthWorkspaceEclipse(disk, Int(length(wavelength)), verbose=verbose)
-    mem = GeoWorkspaceEclipse(disk, Int(length(wavelength)))
-
-    # allocate memory for time indices
-    tloop = zeros(Int, size(wsp.μs))
-    tloop_init = zeros(Int, size(tloop))
-
     # get number of calls to disk_sim needed
     templates = unique(spec.templates)
 
     # allocate memory needed for rossiter computations
-    eclipse_allocs = EclipseAllocs(wsp, mem) 
-    gpu_allocs = GPUAllocsEclipse(spec, disk, precision=precision, verbose=verbose)
+    gpu_allocs = GPUAllocsEclipse(spec, disk, Int(length(wavelength)), precision=precision, verbose=verbose)
 
     # run the simulation and return
     for (idx, file) in enumerate(templates)
@@ -112,11 +103,11 @@ function synth_Eclipse_gpu(spec::SpecParams{T}, disk::DiskParamsEclipse{T}, seed
         soldata = GPUSolarData(soldata_cpu, precision=precision)
 
         # get conv. blueshift and keys from input data
-        get_keys_and_cbs_gpu!(gpu_allocs, soldata) ################################# GPUAllocsEclipse missing info
+        get_keys_and_cbs_gpu!(gpu_allocs, soldata)
 
         # run the simulation and multiply flux by this spectrum
         disk_sim_eclipse_gpu(spec_temp, disk, soldata, gpu_allocs,
-                              eclipse_allocs, flux, vels, tloop, tloop_init, templates, idx, 
+                              flux, vels, templates, idx, 
                               obs_long, obs_lat, alt, time_stamps, wavelength, verbose=verbose,
                               skip_times=skip_times)
     end

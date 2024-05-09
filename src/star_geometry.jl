@@ -105,7 +105,7 @@ function calc_mu_grid!(A::Matrix, B::Matrix, out::Matrix)
     out: mu value between A and B
     """
     for i in eachindex(A)
-        out[i] = calc_mu(view(A[i], 1:3), view(B[i], 1:3))
+        out[i] = calc_mu(A[i][1:3], B[i][1:3])
         end
     return
 end
