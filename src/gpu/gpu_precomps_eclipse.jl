@@ -1,8 +1,6 @@
 function calc_eclipse_quantities_gpu!(epoch, obs_long, obs_lat, alt, wavelength,
                                         disk::DiskParamsEclipse{T2}, gpu_allocs::GPUAllocsEclipse{T1}) where {T1<:AF, T2<:AF}
 
-    ϕc = gpu_allocs.ϕc
-    θc = gpu_allocs.θc
     μs = gpu_allocs.μs
     ld = gpu_allocs.ld
     ext = gpu_allocs.ext
@@ -67,10 +65,12 @@ function calc_eclipse_quantities_gpu!(epoch, obs_long, obs_lat, alt, wavelength,
         Nθ = CuArray{Float64}(disk.Nθ)
     end
 
+    wavelength_gpu = CuArray(wavelength)
+
     # compute geometric parameters, average over subtiles
     threads1 = 256
     blocks1 = cld(CUDA.length(μs), prod(threads1))
-    @cusync @captured @cuda threads=threads1 blocks=blocks1 calc_eclipse_quantities_gpu!(wavelength, ϕc, θc, μs, z_rot,
+    @cusync @captured @cuda threads=threads1 blocks=blocks1 calc_eclipse_quantities_gpu!(wavelength_gpu, μs, z_rot,
                                                                                           Nϕ, Nθ, Nsubgrid, Nθ_max, ld, ext, dA,
                                                                                           moon_radius, OS_bary_gpu, OM_bary_gpu, sun_rot_mat_gpu, 
                                                                                           sun_radius, A, B, C, u1, u2,
@@ -78,7 +78,7 @@ function calc_eclipse_quantities_gpu!(epoch, obs_long, obs_lat, alt, wavelength,
     return nothing
 end                               
 
-function calc_eclipse_quantities_gpu!(wavelength, ϕc, θc, μs, z_rot,
+function calc_eclipse_quantities_gpu!(wavelength, μs, z_rot,
                                         Nϕ, Nθ, Nsubgrid, Nθ_max, ld, ext, dA,
                                         moon_radius, OS_bary, OM_bary, sun_rot_mat, 
                                         sun_radius, A, B, C, u1, u2,
@@ -86,10 +86,6 @@ function calc_eclipse_quantities_gpu!(wavelength, ϕc, θc, μs, z_rot,
     # get indices from GPU blocks + threads
     idx = threadIdx().x + blockDim().x * (blockIdx().x-1)
     sdx = gridDim().x * blockDim().x
-
-    # # get latitude subtile step size
-    # N_ϕ_edges = Nϕ * Nsubgrid
-    # dϕ = (CUDA.deg2rad(90.0) - CUDA.deg2rad(-90.0)) / (N_ϕ_edges)
 
     # get number of elements along tile side
     k = Nsubgrid
@@ -101,27 +97,10 @@ function calc_eclipse_quantities_gpu!(wavelength, ϕc, θc, μs, z_rot,
     N_ϕ_edges = Nϕ * Nsubgrid
     dϕ = π / (N_ϕ_edges)
 
-    # # linear index over course grid tiles
-    # for i in idx:sdx:CUDA.length(μs)
-    # linear index over course grid tiles
     for t in idx:sdx:num_tiles
-        # # get dϕ and dθ for large tiles
-        # dϕ_large = (CUDA.deg2rad(90.0) - CUDA.deg2rad(-90.0)) / Nϕ
-        # dθ_large = (CUDA.deg2rad(360.0) - CUDA.deg2rad(0.0)) / get_Nθ(ϕc[i], dϕ_large)
-
-        # # get starting edge of large tiles
-        # ϕl = ϕc[i] - dϕ_large / 2.0
-        # θl = θc[i] - dθ_large / 2.0
-
-        # # get number of longitude tiles in course latitude slice
-        # N_θ_edges = get_Nθ(ϕc[i], dϕ_large)
-        # dθ = (CUDA.deg2rad(360.0) - CUDA.deg2rad(0.0)) / (N_θ_edges * Nsubgrid)
-
-        # get index for output array - subgridding
+        # get index for output array 
         row = (t - 1) ÷ Nθ_max
         col = (t - 1) % Nθ_max
-        # @cuprintln("row ", row)
-        # @cuprintln("col ", col)
         m = row + 1
         n = col + 1
 
@@ -143,16 +122,6 @@ function calc_eclipse_quantities_gpu!(wavelength, ϕc, θc, μs, z_rot,
         # initiate counter
         μ_count = 0
         count = 0
-        
-        # # loop over ϕ subgrid
-        # for j in 1:Nsubgrid
-        #     # get coordinates of latitude subtile center
-        #     ϕc_sub = ϕl + (dϕ/2.0) + (j - 1) * dϕ
-
-        #     # loop over θsubgrid
-        #     for k in 1:Nsubgrid
-        #         # get coordinates of longitude subtile center
-        #         θsub = θl + (dθ/2.0) + (k - 1) * dθ
 
         # loop over latitude sub tiles
         for ti in i:i+k-1
@@ -171,18 +140,14 @@ function calc_eclipse_quantities_gpu!(wavelength, ϕc, θc, μs, z_rot,
     
                 # get longitude
                 θc_sub = (dθ/2.0) + (tj - 1) * dθ  
-                # @cuprintln(typeof(ϕc_sub), " ", typeof(θc_sub))
-                # @cuprintln(ϕc_sub, " ", θc_sub)
 
                 # # get cartesian coords of patch
                 x, y, z = sphere_to_cart_gpu_eclipse(sun_radius, ϕc_sub, θc_sub)
-                #@cuprintln(x," ", y, " ", z)
 
                 # get vector from spherical circle center to surface patch
                 a = x
                 b = y
                 c = CUDA.zero(CUDA.eltype(μs))
-                #@cuprintln(a, " ", b, " ", c)
 
                 # take cross product to get vector in direction of rotation
                 d = - sun_radius * b
@@ -200,13 +165,11 @@ function calc_eclipse_quantities_gpu!(wavelength, ϕc, θc, μs, z_rot,
 
                 # get in units of c
                 rp /= 86400.0
-                #@cuprintln(rp)
 
                 # set magnitude of vector
                 d *= rp
                 e *= rp
                 f *= rp
-                #@cuprintln(d, " ", e, " ", f)
 
                 #xyz rotated for SP bary
                 x_new = sun_rot_mat[1] * x + sun_rot_mat[4] * y + sun_rot_mat[7] * z
@@ -216,7 +179,6 @@ function calc_eclipse_quantities_gpu!(wavelength, ϕc, θc, μs, z_rot,
                 vx = sun_rot_mat[1] * d + sun_rot_mat[4] * e + sun_rot_mat[7] * f
                 vy = sun_rot_mat[2] * d + sun_rot_mat[5] * e + sun_rot_mat[8] * f
                 vz = sun_rot_mat[3] * d + sun_rot_mat[6] * e + sun_rot_mat[9] * f
-                #@cuprintln(x_new, " ", y_new, " ", z_new, " ", vx, " ", vy, " ", vz)
 
                 #OP_bary state vector
                 OP_bary_x = OS_bary[1] + x_new
@@ -226,12 +188,9 @@ function calc_eclipse_quantities_gpu!(wavelength, ϕc, θc, μs, z_rot,
                 OP_bary_vx = OS_bary[4] + vx
                 OP_bary_vy = OS_bary[5] + vy
                 OP_bary_vz = OS_bary[6] + vz
-                #@cuprintln(OP_bary_x, " ", OP_bary_y, " ", OP_bary_z, " ", OP_bary_vx, " ", OP_bary_vy, " ", OP_bary_vz)
 
                 # calculate mu
                 μ_sub = calc_mu_gpu(x_new, y_new, z_new, OP_bary_x, OP_bary_y, OP_bary_z) 
-                # @cuprintln(μ_sub)
-                # @cuprintln(i,j)
                 if μ_sub <= 0.0
                     continue
                 end
@@ -267,28 +226,30 @@ function calc_eclipse_quantities_gpu!(wavelength, ϕc, θc, μs, z_rot,
                     continue
                 end
 
-                # get limb darkening
-                ld_sub = quad_limb_darkening_gpu_eclipse(μ_sub, wavelength, lambda_nm, a0, a1, a2, a3, a4, a5)
-                ld_sum += ld_sub
-
-                z_rot_numerator += z_rot_sub * dA_sub * ld_sub
-                z_rot_denominator += dA_sub * ld_sub
+                for wl in eachindex(wavelength)
+                    # get limb darkening
+                    ld[m,n,wl] += quad_limb_darkening_gpu_eclipse(μ_sub, wavelength[wl], lambda_nm, a0, a1, a2, a3, a4, a5)
+                end
+                z_rot_numerator += z_rot_sub * dA_sub * ld[m,n,1]
+                z_rot_denominator += dA_sub * ld[m,n,1]
             end
         end
         # take averages
         if count > 0
             # set scalar quantity elements as average
-            @inbounds μs[i,j] = μ_sum / μ_count
-            @cuprintln(i,j)
-            @cuprintln(μ_sum / μ_count)
-            @inbounds dA[i,j] = dA_sum 
-            @inbounds ld[i,j] = ld_sum / μ_count
-            @inbounds z_rot[i,j] = z_rot_numerator / z_rot_denominator
+            @inbounds μs[m,n] = μ_sum / μ_count
+            @inbounds dA[m,n] = dA_sum 
+            for wl in eachindex(wavelength)
+                @inbounds ld[m,n,wl] /= count
+            end
+            @inbounds z_rot[m,n] = z_rot_numerator / z_rot_denominator
         else
-            @inbounds μs[i,j] = 0.0
-            @inbounds dA[i,j] = 0.0
-            @inbounds ld[i,j] = 0.0
-            @inbounds z_rot[i,j] = 0.0
+            @inbounds μs[m,n] = 0.0
+            @inbounds dA[m,n] = 0.0
+            for wl in eachindex(wavelength)
+                @inbounds ld[m,n,wl] = 0.0
+            end
+            @inbounds z_rot[m,n] = 0.0
         end
     end
 

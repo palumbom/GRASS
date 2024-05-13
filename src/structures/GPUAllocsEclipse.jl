@@ -3,20 +3,16 @@ struct GPUAllocsEclipse{T1<:AF}
     prof::CuArray{T1,1}
     flux::CuArray{T1,2}
 
-    ϕc::CuArray{T1,2}
-    θc::CuArray{T1,2}
-    xyz::CuArray{T1,2}
     μs::CuArray{T1,2}
     dA::CuArray{T1,2}
     ld::CuArray{T1,3}
     ext::CuArray{T1,3}
-    z_rot::CuArray{T1,3}
+    z_rot::CuArray{T1,2}
     z_cbs::CuArray{T1,2}
-    ax_codes::CuArray{Int32,2}
 
     tloop::CuArray{Int32,2}
-    tloop_init::CuArray{Int32,2}
     dat_idx::CuArray{Int32,2}
+    ax_codes::CuArray{Int32,2}
 
     allwavs::CuArray{T1,3}
     allints::CuArray{T1,3}
@@ -40,14 +36,11 @@ function GPUAllocsEclipse(spec::SpecParams, disk::DiskParamsEclipse, lines_numbe
 
     # allocate memory for pre-computations
     @cusync begin
-        ϕc = CUDA.zeros(precision, Nϕ, Nθ_max)
-        θc = CUDA.zeros(precision, Nϕ, Nθ_max)
-        xyz = CUDA.zeros(precision, Nϕ, Nθ_max)
         μs = CUDA.zeros(precision, Nϕ, Nθ_max)
         dA = CUDA.zeros(precision, Nϕ, Nθ_max)
         ld = CUDA.zeros(precision, Nϕ, Nθ_max, lines_number)
         ext = CUDA.zeros(precision, Nϕ, Nθ_max, lines_number)
-        z_rot = CUDA.zeros(precision, Nϕ, Nθ_max, lines_number)
+        z_rot = CUDA.zeros(precision, Nϕ, Nθ_max)
         ax_code = CUDA.zeros(Int32, Nϕ, Nθ_max)
     end
 
@@ -57,7 +50,6 @@ function GPUAllocsEclipse(spec::SpecParams, disk::DiskParamsEclipse, lines_numbe
     # allocate memory for indices
     @cusync begin
         tloop_gpu = CUDA.zeros(Int32, Nϕ, Nθ_max)
-        tloop_init = CUDA.zeros(Int32, Nϕ, Nθ_max)
         dat_idx = CUDA.zeros(Int32, Nϕ, Nθ_max)
     end
 
@@ -67,6 +59,6 @@ function GPUAllocsEclipse(spec::SpecParams, disk::DiskParamsEclipse, lines_numbe
         allints = CUDA.zeros(precision, Nϕ, Nθ_max, 200)
     end
 
-    return GPUAllocsEclipse(λs_gpu, prof_gpu, flux_gpu, ϕc, θc, xyz, μs, dA, ld, ext, z_rot, z_cbs, ax_code,
-                     dat_idx, tloop_gpu, tloop_init, allwavs, allints)
+    return GPUAllocsEclipse(λs_gpu, prof_gpu, flux_gpu, μs, dA, ld, ext, z_rot, z_cbs, tloop_gpu,
+                     dat_idx, ax_code, allwavs, allints)
 end

@@ -8,7 +8,7 @@ using BenchmarkTools
 
 GRASS.get_kernels()
 
-case = "GPU_test"
+case = "Gottingen"
 
 if case == "GPU_test" 
     epoch = utc2et.("2023-10-14T15:26:45")
@@ -24,9 +24,9 @@ if case == "GPU_test"
     Nt = length(epoch)
     
     # set up parameters for spectrum
-    lines = [6173.0] # array of line centers 
-    depths = [0.6]   # array of line depths
-    templates = ["FeI_6173"] # template data to use
+    lines = [6173.0, 6173.0] # array of line centers 
+    depths = [0.6, 0.6]   # array of line depths
+    templates = ["FeI_6173", "FeI_6173"] # template data to use
     variability = trues(length(lines))  # whether or not the bisectors should "dance"
     blueshifts = zeros(length(lines))   # set convective blueshift value
     resolution = 7e5                    # spectral resolution
@@ -37,14 +37,15 @@ if case == "GPU_test"
                     blueshifts=blueshifts, templates=templates, resolution=resolution) 
     
     gpu_allocs = GRASS.GPUAllocsEclipse(spec, disk, Int(length(lines)))
-    GRASS.calc_eclipse_quantities_gpu!(epoch, obs_long, obs_lat, alt, lines[1]/10.0, disk, gpu_allocs)
+    GRASS.calc_eclipse_quantities_gpu!(epoch, obs_long, obs_lat, alt, lines./10.0, disk, gpu_allocs)
 
-    println(Array(gpu_allocs.μs))
+    println(Array(gpu_allocs.ld)) #plt.imshow(diff between two arrays)
+    #maximum(abs.(wsp.ld[:,:,1] .- Array(gpu_allocs.ld)[:,:,1]))
+    #plt.imshow(wsp.ld[:,:,1] .- Array(gpu_allocs.ld)[:,:,1])
     println("----------------------")
-
     wsp = GRASS.SynthWorkspaceEclipse(disk, Int(length(lines)))
     mem = GRASS.GeoWorkspaceEclipse(disk, Int(length(lines)))
-    GRASS.eclipse_compute_quantities!(disk, epoch, obs_long, obs_lat, alt, [lines[1]/10.0], wsp.ϕc, wsp.θc, 
+    GRASS.eclipse_compute_quantities!(disk, epoch, obs_long, obs_lat, alt, lines./10.0, wsp.ϕc, wsp.θc, 
                                                 wsp.μs, wsp.ld, wsp.ext, wsp.dA, wsp.xyz, wsp.wts, wsp.z_rot, wsp.ax_codes,
                                                 mem.dA_total_proj_mean, mem.mean_intensity, mem.mean_weight_v_no_cb,
                                                 mem.mean_weight_v_earth_orb, mem.pole_vector_grid,
@@ -52,7 +53,8 @@ if case == "GPU_test"
                                                 mem.SP_bary_vel, mem.OP_bary, mem.mu_grid, mem.projected_velocities_no_cb, 
                                                 mem.distance, mem.v_scalar_grid, mem.v_earth_orb_proj)
 
-    println(wsp.μs)                                       
+    println(wsp.ld)       
+
 end
 
 
@@ -202,19 +204,14 @@ if case == "Gottingen"
                     blueshifts=blueshifts, templates=templates, resolution=resolution)  
     
     # actually synthesize the spectra
-    println(">>> Synthesizing on CPU...")
+    println(">>> Synthesizing on GPU...")
     tstart = time()
-    lambdas_cpu, outspec_cpu = GRASS.synthesize_spectra_eclipse(spec, disk, obs_long, obs_lat, alt, lines ./ 10.0, time_stamps, verbose=true, use_gpu=false) #ProfileView.@profview
+    lambdas_cpu, outspec_cpu = GRASS.synthesize_spectra_eclipse(spec, disk, obs_long, obs_lat, alt, lines ./ 10.0, time_stamps, verbose=true, use_gpu=true)
     tstop = time()
-
-    # open(Profile.print, "profile", "w")
-    # Profile.clear()
 
     @printf(">>> Synthesis time --> %.3f seconds \n", tstop - tstart)
 
     #measure velocities
     v_grid_cpu, ccf_cpu = GRASS.calc_ccf(lambdas_cpu, outspec_cpu, spec)
     rvs_cpu, sigs_cpu = GRASS.calc_rvs_from_ccf(v_grid_cpu, ccf_cpu)
-
-    print(rvs_cpu)
 end

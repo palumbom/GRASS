@@ -88,9 +88,6 @@ function eclipse_compute_quantities!(disk::DiskParamsEclipse{T}, epoch::T, obs_l
 
             # calculate mu at each point
             calc_mu_grid!(SP_bary, OP_bary, mu_grid)
-            println(mu_grid)
-            println(i,j)
-            println(mean(mu_grid))
             # move on if everything is off the grid
             all(mu_grid .< zero(T)) && continue
 
@@ -125,7 +122,6 @@ function eclipse_compute_quantities!(disk::DiskParamsEclipse{T}, epoch::T, obs_l
 
             # assign the mean mu as the mean of visible mus
             μs[i,j] = mean(view(mu_grid, idx1))
-            println(mean(view(mu_grid, idx1)))
 
             # find xz at mean value of mu and get axis code (i.e., N, E, S, W)
             xyz[i,j,1] = mean(view(getindex.(SP_sun_pos,1), idx1))
@@ -134,7 +130,7 @@ function eclipse_compute_quantities!(disk::DiskParamsEclipse{T}, epoch::T, obs_l
             if xyz[i,j,2] !== NaN
                 ax_codes[i,j] = find_nearest_ax_code_eclipse(xyz[i,j,2]/sun_radius, xyz[i,j,3]/sun_radius) 
             end
-
+            
             # calculate area element of tile
             dϕ = step(ϕe_sub) 
             dθ = step(θe_sub) 
@@ -151,9 +147,9 @@ function eclipse_compute_quantities!(disk::DiskParamsEclipse{T}, epoch::T, obs_l
             # calc limb darkening
             for l in eachindex(wavelength)
                 ld_sub = map(x -> quad_limb_darkening_eclipse(x, wavelength[l]), mu_grid)
-                ld[i,j,l] = sum(view(ld_sub, idx3)) / Nsubgrid^2 #change - shouldnt be Nsubgrid in case some at limb arent visible - change to sum of idx1
+                ld[i,j,l] = sum(view(ld_sub, idx3)) / sum(idx1)
                 #mean(view(ld_sub, idx3))
-                mean_intensity[i,j,l] = sum(view(ld_sub, idx3)) / Nsubgrid^2
+                mean_intensity[i,j,l] = sum(view(ld_sub, idx3)) / sum(idx1)
 
                 # #extinction
                 # zenith_angle_matrix = rad2deg.(map(x -> calc_proj_dist(x[1:3], EO_bary[1:3]), OP_bary))
@@ -162,7 +158,7 @@ function eclipse_compute_quantities!(disk::DiskParamsEclipse{T}, epoch::T, obs_l
 
                 #wts[i,j,l] = mean(view(ld_sub .* dA_total_proj, idx3)) #.* extin
                 z_rot[i,j,l] = sum(view(z_rot_sub .* ld_sub .* dA_total_proj, idx3)) ./ sum(view(ld_sub .* dA_total_proj, idx3)) #.* extin
-    
+                #TODO check if same throughout lines
 
                 if isnan(ld[i,j,l])
                     ld[i,j,l] = 0.0

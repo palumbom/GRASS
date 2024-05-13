@@ -1,6 +1,6 @@
-function disk_sim_eclipse_gpu(spec::SpecParams{T1}, disk::DiskParams{T1}, 
-                               soldata::GPUSolarData{T2}, gpu_allocs::GPUAllocs{T2},
-                               flux_cpu::AA{T1,2}, vels::AA{T1,1}, templates, idx, 
+function disk_sim_eclipse_gpu(spec::SpecParams{T1}, disk::DiskParamsEclipse{T1}, 
+                               soldata::GPUSolarData{T2}, gpu_allocs::GPUAllocsEclipse{T2},
+                               flux_cpu::AA{T1,2}, templates, idx, 
                                obs_long, obs_lat, alt, time_stamps, wavelength;
                                verbose::Bool=false, seed_rng::Bool=false,
                                skip_times::BitVector=falses(disk.Nt)) where {T1<:AF, T2<:AF}
@@ -17,25 +17,17 @@ function disk_sim_eclipse_gpu(spec::SpecParams{T1}, disk::DiskParams{T1},
     allwavs = gpu_allocs.allwavs
     allints = gpu_allocs.allints
     tloop = gpu_allocs.tloop
-    tloop_init = gpu_allocs.tloop_init
     dat_idx = gpu_allocs.dat_idx
 
-    ϕc = gpu_allocs.ϕc
-    θc = gpu_allocs.θc
     μs = gpu_allocs.μs
     ld = gpu_allocs.ld
     ext = gpu_allocs.ext
     dA = gpu_allocs.dA
-    xyz = gpu_allocs.xyz
     z_rot = gpu_allocs.z_rot
     z_cbs = gpu_allocs.z_cbs
-    ax_codes = gpu_allocs.ax_codes
 
     # alias the input data from GPUSolarData
-    disc_mu_gpu = soldata.mu
-    disc_ax_gpu = soldata.ax
     lenall_gpu = soldata.len
-    cbsall_gpu = soldata.cbs
     bisall_gpu = soldata.bis
     intall_gpu = soldata.int
     widall_gpu = soldata.wid
@@ -54,7 +46,7 @@ function disk_sim_eclipse_gpu(spec::SpecParams{T1}, disk::DiskParams{T1},
     blocks3 = cld(CUDA.length(μs) * 100, prod(threads3))
 
     # set number of threads and blocks for N*N*Nλ matrix gpu functions
-    threads4 = (16,32)
+    threads4 = (16,16)
     blocks4 = cld(CUDA.length(μs) * Nλ, prod(threads4))
 
     threads5 = 1024
@@ -67,15 +59,6 @@ function disk_sim_eclipse_gpu(spec::SpecParams{T1}, disk::DiskParams{T1},
         widall_gpu_loop = CUDA.zeros(T2, CUDA.size(widall_gpu))
     end
 
-#---------------------
-
-    # # get weighted disk average cbs
-    # @cusync sum_wts_og = CUDA.sum(wts)
-    # @cusync z_cbs_avg = CUDA.sum(z_cbs .* wts) / sum_wts_og
-
-    # # calculate how much extra shift is needed
-    # extra_z = spec.conv_blueshifts .- z_cbs_avg
-
     # loop over time
     for t in 1:Nt
         # don't synthesize spectrum if skip_times is true, but iterate t index
@@ -86,23 +69,15 @@ function disk_sim_eclipse_gpu(spec::SpecParams{T1}, disk::DiskParams{T1},
 
         calc_eclipse_quantities_gpu!(time_stamps[t], obs_long, obs_lat, alt, wavelength, disk, gpu_allocs)
 
-#---------------------
-
-        # get sum wts
-        @cusync sum_wts = CUDA.sum(wts)
-
-        # # get weighted disk average cbs
-        # @cusync sum_wts_og = CUDA.sum(wts)
-        # @cusync z_cbs_avg = CUDA.sum(z_cbs .* wts) / sum_wts_og
-
-        # # calculate how much extra shift is needed
-        # extra_z = spec.conv_blueshifts .- z_cbs_avg
-
-        # get weighted sum of velocities
-        @cusync @inbounds vels[t] = sum(Array(z_rot) .* c_ms .* Array(wts)) ./ sum_wts
-
         # loop over lines to synthesize
         for l in eachindex(spec.lines)
+            # get weighted disk average cbs
+            @cusync sum_wts = CUDA.sum(dA .* ld[:,:,l])
+            @cusync z_cbs_avg = CUDA.sum(z_cbs .* dA .* ld[:,:,l]) / sum_wts
+
+            # calculate how much extra shift is needed
+            extra_z = spec.conv_blueshifts .- z_cbs_avg
+
             # get a fresh copy of the untrimmed bisector + width data
             @cusync begin
                 CUDA.copyto!(bisall_gpu_loop, bisall_gpu)
@@ -118,14 +93,16 @@ function disk_sim_eclipse_gpu(spec::SpecParams{T1}, disk::DiskParams{T1},
                                                                              intall_gpu, widall_gpu)
 
             # assemble line shape on even int grid
-            @cusync @cuda threads=threads3 blocks=blocks3 fill_workspaces!(spec.lines[l], spec.variability[l],
+            @cusync @cuda threads=threads3 blocks=blocks3 fill_workspaces_2D!(spec.lines[l], spec.variability[l],
                                                                            extra_z[l], tloop, dat_idx,
                                                                            z_rot, z_cbs, lenall_gpu,
                                                                            bisall_gpu_loop, intall_gpu_loop,
                                                                            widall_gpu_loop, allwavs, allints)
 
             # do the line synthesis, interp back onto wavelength grid
-            @cusync @cuda threads=threads4 blocks=blocks4 line_profile_gpu!(prof, μs, wts, λs, allwavs, allints)
+            # @cusync @cuda threads=threads4 blocks=blocks4 line_profile_gpu!(prof, μs, ld[:,:,l], dA, λs, allwavs, allints)
+
+            @cusync @cuda threads=threads4 blocks=blocks4 line_profile_gpu!(prof, μs, ld, dA, λs, allwavs, allints)
 
             # copy data from GPU to CPU
             @cusync @cuda threads=threads5 blocks=blocks5 apply_line!(t, prof, flux, sum_wts)
