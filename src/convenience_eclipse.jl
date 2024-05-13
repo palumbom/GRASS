@@ -82,7 +82,6 @@ function synth_Eclipse_gpu(spec::SpecParams{T}, disk::DiskParamsEclipse{T}, seed
 
     # allocate memory
     flux = ones(Nλ, Nt)
-    vels = zeros(Nt)
 
     # get number of calls to disk_sim needed
     templates = unique(spec.templates)
@@ -107,9 +106,9 @@ function synth_Eclipse_gpu(spec::SpecParams{T}, disk::DiskParamsEclipse{T}, seed
 
         # run the simulation and multiply flux by this spectrum
         disk_sim_eclipse_gpu(spec_temp, disk, soldata, gpu_allocs,
-                              flux, vels, templates, idx, 
+                              flux, templates, idx, 
                               obs_long, obs_lat, alt, time_stamps, wavelength, verbose=verbose,
                               skip_times=skip_times)
     end
-    return spec.lambdas, flux, vels
+    return spec.lambdas, flux
 end

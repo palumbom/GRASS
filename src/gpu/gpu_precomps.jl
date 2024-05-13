@@ -229,6 +229,27 @@ function get_keys_and_cbs_gpu!(gpu_allocs::GPUAllocs{T}, soldata::GPUSolarData{T
     return nothing
 end
 
+function get_keys_and_cbs_gpu!(gpu_allocs::GPUAllocsEclipse{T}, soldata::GPUSolarData{T}) where T<:AF
+    # parse out gpu allocs
+    μs = gpu_allocs.μs
+    z_cbs = gpu_allocs.z_cbs
+    dat_idx = gpu_allocs.dat_idx
+    ax_codes = gpu_allocs.ax_codes
+
+    # parse out soldata
+    cbsall = soldata.cbs
+    disc_mu = soldata.mu
+    disc_ax = soldata.ax
+
+    threads1 = 256
+    blocks1 = cld(length(μs), prod(threads1))
+
+    @cusync @captured @cuda threads=threads1 blocks=blocks1 get_keys_and_cbs_gpu!(dat_idx, z_cbs, μs, ax_codes,
+                                                                                  cbsall, disc_mu, disc_ax)
+    CUDA.synchronize()
+    return nothing
+end
+
 function get_keys_and_cbs_gpu!(dat_idx, z_cbs, μs, ax_codes, cbsall, disc_mu, disc_ax)
     # get indices from GPU blocks + threads
     idx = threadIdx().x + blockDim().x * (blockIdx().x-1)
