@@ -9,18 +9,18 @@ Synthesize spectra given parameters in `spec` and `disk` instances.
 """
 function synthesize_spectra_eclipse(spec::SpecParams{T}, disk::DiskParamsEclipse{T}, obs_long, obs_lat, alt, wavelength, time_stamps;
                             seed_rng::Bool=false, verbose::Bool=true,
-                            use_gpu::Bool=false, precision::DataType=Float64,
+                            use_gpu::Bool=false, precision::DataType=Float64, fixed_bisector::Bool=false,
                             skip_times::BitVector=falses(disk.Nt)) where T<:AF
     # call appropriate simulation function on cpu or gpu
     if use_gpu
-        return synth_Eclipse_gpu(spec, disk, seed_rng, verbose, precision, skip_times, obs_long, obs_lat, alt, time_stamps, wavelength)
+        return synth_Eclipse_gpu(spec, disk, seed_rng, verbose, precision, skip_times, obs_long, obs_lat, alt, time_stamps, wavelength, fixed_bisector)
     else
-        return synth_Eclipse_cpu(spec, disk, seed_rng, verbose, skip_times, obs_long, obs_lat, alt, time_stamps, wavelength)
+        return synth_Eclipse_cpu(spec, disk, seed_rng, verbose, skip_times, obs_long, obs_lat, alt, time_stamps, wavelength, fixed_bisector)
     end
 end
 
 function synth_Eclipse_cpu(spec::SpecParams{T}, disk::DiskParamsEclipse{T}, seed_rng::Bool,
-                   verbose::Bool, skip_times::BitVector, obs_long, obs_lat, alt, time_stamps, wavelength) where T<:AF
+                   verbose::Bool, skip_times::BitVector, obs_long, obs_lat, alt, time_stamps, wavelength, fixed_bisector::Bool) where T<:AF
 
     # parse out dimensions for memory allocation
     N = disk.N
@@ -51,7 +51,7 @@ function synth_Eclipse_cpu(spec::SpecParams{T}, disk::DiskParamsEclipse{T}, seed
         if verbose
             println("\t>>> Template: " * splitdir(file)[end])
         end
-        soldata = SolarData(fname=file)
+        soldata = SolarData(fname=file, fixed_bisector=fixed_bisector)
 
         # re-seed the rng
         if seed_rng
@@ -66,7 +66,7 @@ function synth_Eclipse_cpu(spec::SpecParams{T}, disk::DiskParamsEclipse{T}, seed
 end
 
 function synth_Eclipse_gpu(spec::SpecParams{T}, disk::DiskParamsEclipse{T}, seed_rng::Bool,
-                   verbose::Bool, precision::DataType, skip_times::BitVector, obs_long, obs_lat, alt, time_stamps, wavelength) where T<:AF
+                   verbose::Bool, precision::DataType, skip_times::BitVector, obs_long, obs_lat, alt, time_stamps, wavelength, fixed_bisector::Bool) where T<:AF
     # make sure there is actually a GPU to use
     @assert CUDA.functional()
 
@@ -98,11 +98,11 @@ function synth_Eclipse_gpu(spec::SpecParams{T}, disk::DiskParamsEclipse{T}, seed
         if verbose
             println("\t>>> Template: " * splitdir(file)[end])
         end
-        soldata_cpu = SolarData(fname=file)
+        soldata_cpu = SolarData(fname=file, fixed_bisector=fixed_bisector)
         soldata = GPUSolarData(soldata_cpu, precision=precision)
 
-        # get conv. blueshift and keys from input data
-        get_keys_and_cbs_gpu!(gpu_allocs, soldata)
+        # # get conv. blueshift and keys from input data
+        # get_keys_and_cbs_gpu!(gpu_allocs, soldata)
 
         # run the simulation and multiply flux by this spectrum
         disk_sim_eclipse_gpu(spec_temp, disk, soldata, gpu_allocs,

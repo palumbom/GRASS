@@ -156,6 +156,11 @@ if case == "EXPRES"
     depths = [0.6]   # array of line depths
     templates = ["FeI_6173"] # template data to use
     variability = trues(length(lines))  # whether or not the bisectors should "dance"
+    #no CB model 
+    #variability = falses
+    #fixed_bisector = true
+    #extra_z = 0
+
     blueshifts = zeros(length(lines))   # set convective blueshift value
     resolution = 7e5                    # spectral resolution
 
@@ -167,13 +172,15 @@ if case == "EXPRES"
     # actually synthesize the spectra
     println(">>> Synthesizing on CPU...")
     tstart = time()
-    lambdas_cpu, outspec_cpu = GRASS.synthesize_spectra_eclipse(spec, disk, obs_long, obs_lat, alt, lines[1]/10.0, time_stamps, verbose=true, use_gpu=false)
+    lambdas_cpu, outspec_cpu = GRASS.synthesize_spectra_eclipse(spec, disk, obs_long, obs_lat, alt, lines ./ 10.0, time_stamps, verbose=true, use_gpu=false, fixed_bisector=true)
     tstop = time()
     @printf(">>> Synthesis time --> %.3f seconds \n", tstop - tstart)
 
     #measure velocities
     v_grid_cpu, ccf_cpu = GRASS.calc_ccf(lambdas_cpu, outspec_cpu, spec)
     rvs_cpu, sigs_cpu = GRASS.calc_rvs_from_ccf(v_grid_cpu, ccf_cpu)
+
+    print(rvs_cpu)
 end
 
 if case == "Gottingen"
@@ -212,6 +219,6 @@ if case == "Gottingen"
     @printf(">>> Synthesis time --> %.3f seconds \n", tstop - tstart)
 
     #measure velocities
-    v_grid_cpu, ccf_cpu = GRASS.calc_ccf(lambdas_cpu, outspec_cpu, spec)
-    rvs_cpu, sigs_cpu = GRASS.calc_rvs_from_ccf(v_grid_cpu, ccf_cpu)
+    GRASS.calc_ccf(lambdas_cpu, outspec_cpu, spec)
+    # rvs_cpu, sigs_cpu = GRASS.calc_rvs_from_ccf(v_grid_cpu, ccf_cpu)
 end

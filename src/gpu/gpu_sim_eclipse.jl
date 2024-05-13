@@ -61,13 +61,21 @@ function disk_sim_eclipse_gpu(spec::SpecParams{T1}, disk::DiskParamsEclipse{T1},
 
     # loop over time
     for t in 1:Nt
+        # sort out the system geometry
+        calc_eclipse_quantities_gpu!(time_stamps[t], obs_long, obs_lat, alt, wavelength, disk, gpu_allocs)
+
+        # get conv. blueshift and keys from input data
+        get_keys_and_cbs_gpu!(gpu_allocs, soldata)
+
+        if isone(t)
+            # generate the random numbers on the gpu
+            @cusync @cuda threads=threads1 blocks=blocks1 generate_tloop_gpu!(tloop, dat_idx, lenall_gpu)
+        end
+
         # don't synthesize spectrum if skip_times is true, but iterate t index
         if skip_times[t]
             @cusync @captured @cuda threads=threads1 blocks=blocks1 iterate_tloop_gpu!(tloop, dat_idx, lenall_gpu)
-            continue
         end
-
-        calc_eclipse_quantities_gpu!(time_stamps[t], obs_long, obs_lat, alt, wavelength, disk, gpu_allocs)
 
         # loop over lines to synthesize
         for l in eachindex(spec.lines)
@@ -100,9 +108,9 @@ function disk_sim_eclipse_gpu(spec::SpecParams{T1}, disk::DiskParamsEclipse{T1},
                                                                            widall_gpu_loop, allwavs, allints)
 
             # do the line synthesis, interp back onto wavelength grid
-            # @cusync @cuda threads=threads4 blocks=blocks4 line_profile_gpu!(prof, μs, ld[:,:,l], dA, λs, allwavs, allints)
+            @cusync @cuda threads=threads4 blocks=blocks4 line_profile_gpu!(prof, μs, ld[:,:,l], dA, λs, allwavs, allints)
 
-            @cusync @cuda threads=threads4 blocks=blocks4 line_profile_gpu!(prof, μs, ld, dA, λs, allwavs, allints)
+            #@cusync @cuda threads=threads4 blocks=blocks4 line_profile_gpu!(prof, μs, ld, dA, λs, allwavs, allints)
 
             # copy data from GPU to CPU
             @cusync @cuda threads=threads5 blocks=blocks5 apply_line!(t, prof, flux, sum_wts)

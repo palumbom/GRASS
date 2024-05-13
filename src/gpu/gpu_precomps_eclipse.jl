@@ -6,6 +6,16 @@ function calc_eclipse_quantities_gpu!(epoch, obs_long, obs_lat, alt, wavelength,
     ext = gpu_allocs.ext
     dA = gpu_allocs.dA
     z_rot = gpu_allocs.z_rot
+    ax_codes = gpu_allocs.ax_codes
+
+    # re-zero everything
+    @cusync begin
+        μs .= 0.0
+        ld .= 0.0
+        ext .= 0.0
+        dA .= 0.0
+        z_rot .= 0.0
+    end
 
     # convert scalars from disk params to desired precision
     A = convert(T2, disk.A)
@@ -39,50 +49,54 @@ function calc_eclipse_quantities_gpu!(epoch, obs_long, obs_lat, alt, wavelength,
 
     # get light travel time corrected OS vector
     OS_bary, OS_lt, OS_dlt = spkltc(10, epoch, "J2000", lt_flag, BO_bary)
-    OS_bary_gpu = CuArray(OS_bary)
+    @cusync OS_bary_gpu = CuArray(OS_bary)
 
     # get vector from observatory on earth's surface to moon center
     OM_bary, OM_lt, OM_dlt = spkltc(301, epoch, "J2000", lt_flag, BO_bary)
-    OM_bary_gpu = CuArray(OM_bary)
+    @cusync OM_bary_gpu = CuArray(OM_bary)
 
     # get modified epch
     epoch_lt = epoch - OS_lt
 
     # get rotation matrix for sun
     sun_rot_mat = pxform("IAU_SUN", "J2000", epoch_lt)
-    sun_rot_mat_gpu = CuArray(sun_rot_mat)
+    @cusync sun_rot_mat_gpu = CuArray(sun_rot_mat)
 
     #LD - gpu array
     lambda_nm_gpu = CuArray(lambda_nm)
-    a0_gpu = CuArray(a0)
-    a1_gpu = CuArray(a1)
-    a2_gpu = CuArray(a2)
-    a3_gpu = CuArray(a3)
-    a4_gpu = CuArray(a4)
-    a5_gpu = CuArray(a5)
+    @cusync begin
+        a0_gpu = CuArray(a0)
+        a1_gpu = CuArray(a1)
+        a2_gpu = CuArray(a2)
+        a3_gpu = CuArray(a3)
+        a4_gpu = CuArray(a4)
+        a5_gpu = CuArray(a5)
+    end
 
     @cusync begin
         Nθ = CuArray{Float64}(disk.Nθ)
     end
 
-    wavelength_gpu = CuArray(wavelength)
+    @cusync wavelength_gpu = CuArray(wavelength)
 
     # compute geometric parameters, average over subtiles
     threads1 = 256
     blocks1 = cld(CUDA.length(μs), prod(threads1))
-    @cusync @captured @cuda threads=threads1 blocks=blocks1 calc_eclipse_quantities_gpu!(wavelength_gpu, μs, z_rot,
-                                                                                          Nϕ, Nθ, Nsubgrid, Nθ_max, ld, ext, dA,
-                                                                                          moon_radius, OS_bary_gpu, OM_bary_gpu, sun_rot_mat_gpu, 
-                                                                                          sun_radius, A, B, C, u1, u2,
-                                                                                          lambda_nm_gpu, a0_gpu, a1_gpu, a2_gpu, a3_gpu, a4_gpu, a5_gpu)
+    @cusync @cuda threads=threads1 blocks=blocks1 calc_eclipse_quantities_gpu!(wavelength_gpu, μs, z_rot, ax_codes,
+                                                                               Nϕ, Nθ, Nsubgrid, Nθ_max, ld, ext, dA,
+                                                                               moon_radius, OS_bary_gpu, OM_bary_gpu,
+                                                                               sun_rot_mat_gpu, sun_radius, A, B, C,
+                                                                               u1,  u2, lambda_nm_gpu, a0_gpu, a1_gpu,
+                                                                               a2_gpu, a3_gpu, a4_gpu, a5_gpu)
     return nothing
 end                               
 
-function calc_eclipse_quantities_gpu!(wavelength, μs, z_rot,
-                                        Nϕ, Nθ, Nsubgrid, Nθ_max, ld, ext, dA,
-                                        moon_radius, OS_bary, OM_bary, sun_rot_mat, 
-                                        sun_radius, A, B, C, u1, u2,
-                                        lambda_nm, a0, a1, a2, a3, a4, a5)
+function calc_eclipse_quantities_gpu!(wavelength, μs, z_rot, ax_codes,
+                                        Nϕ, Nθ, Nsubgrid, Nθ_max, ld, ext,
+                                        dA, moon_radius, OS_bary, OM_bary,
+                                        sun_rot_mat, sun_radius, A, B, C,
+                                        u1, u2, lambda_nm, a0, a1, a2, a3,
+                                        a4, a5)
     # get indices from GPU blocks + threads
     idx = threadIdx().x + blockDim().x * (blockIdx().x-1)
     sdx = gridDim().x * blockDim().x
@@ -118,6 +132,8 @@ function calc_eclipse_quantities_gpu!(wavelength, μs, z_rot,
         ld_sum = CUDA.zero(CUDA.eltype(ld))
         ext_sum = CUDA.zero(CUDA.eltype(ext))
         dA_sum = CUDA.zero(CUDA.eltype(dA))
+        x_sum = CUDA.zero(CUDA.eltype(μs))
+        y_sum = CUDA.zero(CUDA.eltype(μs))
 
         # initiate counter
         μ_count = 0
@@ -197,6 +213,10 @@ function calc_eclipse_quantities_gpu!(wavelength, μs, z_rot,
                 μ_sum += μ_sub
                 μ_count += 1
 
+                # sum on vector components
+                x_sum += x_new
+                y_sum += y_new
+
                 # get OP_bary and SP_bary between them and find projected_velocities_no_cb
                 n1 = CUDA.sqrt(OP_bary_x^2.0 + OP_bary_y^2.0 + OP_bary_z^2.0)
                 n2 = CUDA.sqrt(vx^2.0 + vy^2.0 + vz^2.0)
@@ -221,7 +241,7 @@ function calc_eclipse_quantities_gpu!(wavelength, μs, z_rot,
 
                 #calculate distance
                 n2 = CUDA.sqrt(OM_bary[1]^2.0 + OM_bary[2]^2.0 + OM_bary[3]^2.0)  
-                d2 = (OM_bary[1] * OP_bary_x + OM_bary[2] * OP_bary_y + OM_bary[3] * OP_bary_z) / (n2 * n1)
+                d2 = acos((OM_bary[1] * OP_bary_x + OM_bary[2] * OP_bary_y + OM_bary[3] * OP_bary_z) / (n2 * n1))
                 if (d2 < atan(moon_radius/n2))
                     continue
                 end
@@ -243,6 +263,12 @@ function calc_eclipse_quantities_gpu!(wavelength, μs, z_rot,
                 @inbounds ld[m,n,wl] /= count
             end
             @inbounds z_rot[m,n] = z_rot_numerator / z_rot_denominator
+
+            # set vector components as average
+            @inbounds xx = x_sum / μ_count
+            @inbounds yy = y_sum / μ_count
+
+            @inbounds ax_codes[m, n] = find_nearest_ax_gpu(xx / sun_radius, yy / sun_radius)
         else
             @inbounds μs[m,n] = 0.0
             @inbounds dA[m,n] = 0.0
