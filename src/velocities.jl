@@ -44,24 +44,24 @@ function calc_ccf(λs::AA{T1,1}, flux::AA{T1,1},
     # get the velocity grid for the ccfs
     v_grid = EchelleCCFs.calc_ccf_v_grid(ccf_plan)
 
-    # # compute the mask projection
-    # ccf = zeros(T1, length(v_grid))
-    # projection = zeros(T1, length(λs), 1)
-    # for i in eachindex(v_grid)
-    #     # project shifted mask on wavelength domain
-    #     doppler_factor = calc_doppler_factor(v_grid[i])
-    #     project_mask!(projection, λs, ccf_plan, shift_factor=doppler_factor)
+    # compute the mask projection
+    ccf = zeros(T1, length(v_grid))
+    projection = zeros(T1, length(λs), 1)
+    for i in eachindex(v_grid)
+        # project shifted mask on wavelength domain
+        doppler_factor = calc_doppler_factor(v_grid[i])
+        project_mask!(projection, λs, ccf_plan, shift_factor=doppler_factor)
 
-    #     # compute the ccf value at the current velocity shift
-    #     projection .*= flux
-    #     ccf[i] = ccf_plan.allow_nans ? nansum(projection) : sum(projection)
-    # end
+        # compute the ccf value at the current velocity shift
+        projection .*= flux
+        ccf[i] = ccf_plan.allow_nans ? nansum(projection) : sum(projection)
+    end
 
-    # # normalize if normalize==true
-    # if normalize
-    #     ccf ./= maximum(ccf)
-    # end
-    # return v_grid, ccf
+    # normalize if normalize==true
+    if normalize
+        ccf ./= maximum(ccf)
+    end
+    return v_grid, ccf
 end
 
 function calc_ccf(λs::AA{T1,1}, flux::AA{T1,2},
@@ -105,12 +105,13 @@ function calc_ccf(λs::AA{T1,1}, flux::AA{T1,2},
             ccf[i,j] = ccf_plan.allow_nans ? nansum(proj_flux) : sum(proj_flux)
         end
     end
+    # print(ccf)
 
-    # normalize if normalize==true
-    if normalize
-        ccf ./= maximum(ccf)
-    end
-    return v_grid, ccf
+    # # normalize if normalize==true
+    # if normalize
+    #     ccf ./= maximum(ccf)
+    # end
+    # return v_grid, ccf
 end
 
 function calc_ccf!(v_grid::AA{T1,1}, projection::AA{T1,2}, proj_flux::AA{T1,1},
@@ -197,4 +198,5 @@ end
 function calc_rvs_from_ccf(v_grid::AA{T,1}, ccf::AA{T,2}; kwargs...) where {T<:Float64}
     func = x -> calc_rvs_from_ccf(v_grid, x; kwargs...)
     out = mapslices(func, ccf, dims=1)
-    return vec.(unzi
+    return vec.(unzip(out))
+end
