@@ -65,6 +65,7 @@ function disk_sim_eclipse(spec::SpecParams{T}, disk::DiskParamsEclipse{T}, solda
 
                     # get amount of convective blueshift needed
                     extra_z = spec.conv_blueshifts[l] - z_cbs_avg
+                    #extra_z = 0.0 # spec.conv_blueshifts[l] - z_cbs_avg
 
                     # get shifted line center
                     λΔD = spec.lines[l]
