@@ -1,8 +1,7 @@
 function eclipse_compute_quantities!(disk::DiskParamsEclipse{T}, epoch::T, obs_long::T,
                                      obs_lat::T, alt::T, wavelength::Vector{Float64}, ϕc::AA{T,2}, θc::AA{T,2},
                                      μs::AA{T,2}, ld::AA{T,3}, ext::AA{T,3} , dA::AA{T,2},
-                                     xyz::AA{T,3}, wts::AA{T,3}, z_rot::AA{T,3},
-                                     ax_codes::AA{Int64, 2}, 
+                                     xyz::AA{T,3}, z_rot::AA{T,3}, ax_codes::AA{Int64, 2}, 
                                      dA_total_proj_mean::AA{T,2}, mean_intensity::AA{T,3}, mean_weight_v_no_cb::AA{T,2},
                                      mean_weight_v_earth_orb::AA{T,2}, pole_vector_grid::Matrix{Vector{Float64}},
                                      SP_sun_pos::Matrix{Vector{Float64}}, SP_sun_vel::Matrix{Vector{Float64}}, SP_bary::Matrix{Vector{Float64}}, SP_bary_pos::Matrix{Vector{Float64}},
@@ -54,37 +53,31 @@ function eclipse_compute_quantities!(disk::DiskParamsEclipse{T}, epoch::T, obs_l
             ϕc_sub = get_grid_centers(ϕe_sub)
             θc_sub = get_grid_centers(θe_sub)
             subgrid = Iterators.product(ϕc_sub, θc_sub)
-            # map(x -> println(getindex(x,1), " ", getindex(x,2)), subgrid)
 
             # get cartesian coord for each subgrid 
             SP_sun_pos .= map(x -> pgrrec("SUN", getindex(x,2), getindex(x,1), 0.0, sun_radius, 0.0), subgrid)
-            #println(SP_sun_pos)
 
             # get differential rotation velocities
             v_scalar_grid .= map(x -> v_scalar(x...), subgrid)
             #convert v_scalar to from km/day km/s
             v_scalar_grid ./= 86400.0
-            #println(v_scalar_grid)
 
             #determine pole vector for each patch
             pole_vector_grid!(SP_sun_pos, pole_vector_grid)
 
             #get velocity vector direction and set magnitude
             v_vector(SP_sun_pos, pole_vector_grid, v_scalar_grid, SP_sun_vel)
-            #println(SP_sun_vel)
 
             for k in eachindex(SP_sun_pos)
                 SP_bary_pos[k] .= (sun_rot_mat * SP_sun_pos[k])
                 SP_bary_vel[k] .= (sun_rot_mat * SP_sun_vel[k])
                 SP_bary[k] = vcat(SP_bary_pos[k], SP_bary_vel[k])
             end
-            #println(SP_bary)
 
             #get vector from obs to each patch on Sun's surface
             for k in eachindex(OP_bary)
                 OP_bary[k] = OS_bary .+ SP_bary[k]
             end
-            #println(OP_bary)
 
             # calculate mu at each point
             calc_mu_grid!(SP_bary, OP_bary, mu_grid)
@@ -148,7 +141,6 @@ function eclipse_compute_quantities!(disk::DiskParamsEclipse{T}, epoch::T, obs_l
             for l in eachindex(wavelength)
                 ld_sub = map(x -> quad_limb_darkening_eclipse(x, wavelength[l]), mu_grid)
                 ld[i,j,l] = sum(view(ld_sub, idx3)) / sum(idx1)
-                #mean(view(ld_sub, idx3))
                 mean_intensity[i,j,l] = sum(view(ld_sub, idx3)) / sum(idx1)
 
                 # #extinction
@@ -156,9 +148,7 @@ function eclipse_compute_quantities!(disk::DiskParamsEclipse{T}, epoch::T, obs_l
                 # extin = map(x -> 10^(-((1/cosd(x))*ext_coef[i,j,l])/2.5), zenith_angle_matrix)
                 # ext[i,j,l] = mean(view(extin, idx3)) 
 
-                #wts[i,j,l] = mean(view(ld_sub .* dA_total_proj, idx3)) #.* extin
                 z_rot[i,j,l] = sum(view(z_rot_sub .* ld_sub .* dA_total_proj, idx3)) ./ sum(view(ld_sub .* dA_total_proj, idx3)) #.* extin
-                #TODO check if same throughout lines
 
                 if isnan(ld[i,j,l])
                     ld[i,j,l] = 0.0
@@ -166,7 +156,6 @@ function eclipse_compute_quantities!(disk::DiskParamsEclipse{T}, epoch::T, obs_l
                     mean_intensity[i,j,l] = 0.0
                     mean_weight_v_no_cb[i,j] = 0.0
                     mean_weight_v_earth_orb[i,j] = 0.0
-                    wts[i,j,l] = 0.0
                     z_rot[i,j,l] = 0.0
                 end
             end

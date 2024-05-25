@@ -60,7 +60,7 @@ function synth_Eclipse_cpu(spec::SpecParams{T}, disk::DiskParamsEclipse{T}, seed
 
         # run the simulation and multiply flux by this spectrum
         disk_sim_eclipse(spec_temp, disk, soldata, wsp, mem, prof, flux, tloop, tloop_init, templates, idx, obs_long, obs_lat, alt, time_stamps, wavelength,
-                 skip_times=skip_times, verbose=verbose)
+                 fixed_bisector, skip_times=skip_times, verbose=verbose)
     end
     return spec.lambdas, flux
 end
@@ -100,9 +100,6 @@ function synth_Eclipse_gpu(spec::SpecParams{T}, disk::DiskParamsEclipse{T}, seed
         end
         soldata_cpu = SolarData(fname=file, fixed_bisector=fixed_bisector)
         soldata = GPUSolarData(soldata_cpu, precision=precision)
-
-        # # get conv. blueshift and keys from input data
-        # get_keys_and_cbs_gpu!(gpu_allocs, soldata)
 
         # run the simulation and multiply flux by this spectrum
         disk_sim_eclipse_gpu(spec_temp, disk, soldata, gpu_allocs,

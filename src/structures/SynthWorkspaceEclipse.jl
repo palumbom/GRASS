@@ -14,7 +14,6 @@ struct SynthWorkspaceEclipse{T<:AF}
     ld::AA{T,3}
     ext::AA{T,3}
     dA::AA{T,2}
-    wts::AA{T,3}
     xyz::AA{T,3}
 
     cbs::AA{T,2}
@@ -41,7 +40,6 @@ function SynthWorkspaceEclipse(disk::DiskParamsEclipse, lines_number::Int; ndept
     ext = zeros(size(disk.θc)..., lines_number)
     dA = zeros(size(disk.θc)...)
     xyz = zeros(size(disk.θc)..., 3)
-    wts = zeros(size(disk.θc)..., lines_number)
     z_rot = zeros(size(disk.θc)...,  lines_number)
     ax_codes = zeros(Int, size(disk.θc))
     cbs = zeros(size(disk.θc)...)
@@ -49,5 +47,5 @@ function SynthWorkspaceEclipse(disk::DiskParamsEclipse, lines_number::Int; ndept
 
     return SynthWorkspaceEclipse(lwavgrid, rwavgrid, allwavs, allints,
                           bist, intt, widt, ϕc, θc, μs, ld, ext, dA,
-                          wts, xyz, cbs, z_rot, ax_codes, keys)
+                          xyz, cbs, z_rot, ax_codes, keys)
 end
