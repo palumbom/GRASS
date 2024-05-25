@@ -105,13 +105,12 @@ function calc_ccf(λs::AA{T1,1}, flux::AA{T1,2},
             ccf[i,j] = ccf_plan.allow_nans ? nansum(proj_flux) : sum(proj_flux)
         end
     end
-    # print(ccf)
 
-    # # normalize if normalize==true
-    # if normalize
-    #     ccf ./= maximum(ccf)
-    # end
-    # return v_grid, ccf
+    # normalize if normalize==true
+    if normalize
+        ccf ./= maximum(ccf)
+    end
+    return v_grid, ccf
 end
 
 function calc_ccf!(v_grid::AA{T1,1}, projection::AA{T1,2}, proj_flux::AA{T1,1},

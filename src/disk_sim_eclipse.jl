@@ -1,6 +1,6 @@
 function disk_sim_eclipse(spec::SpecParams{T}, disk::DiskParamsEclipse{T}, soldata::SolarData{T},
     wsp::SynthWorkspaceEclipse{T}, mem::GeoWorkspaceEclipse{T}, prof::AA{T,1}, flux::AA{T,2},
-    tloop, tloop_init, templates, idx, obs_long, obs_lat, alt, time_stamps, wavelength; verbose::Bool=true,
+    tloop, tloop_init, templates, idx, obs_long, obs_lat, alt, time_stamps, wavelength, fixed_bisector::Bool; verbose::Bool=true,
     skip_times::BitVector=falses(disk.Nt)) where T<:AF
 
     # loop over time
@@ -8,7 +8,7 @@ function disk_sim_eclipse(spec::SpecParams{T}, disk::DiskParamsEclipse{T}, solda
 
             #compute geometry for timestamp
             GRASS.eclipse_compute_quantities!(disk, time_stamps[t], obs_long, obs_lat, alt, wavelength, wsp.ϕc, wsp.θc, 
-                                                wsp.μs, wsp.ld, wsp.ext, wsp.dA, wsp.xyz, wsp.wts, wsp.z_rot, wsp.ax_codes,
+                                                wsp.μs, wsp.ld, wsp.ext, wsp.dA, wsp.xyz, wsp.z_rot, wsp.ax_codes,
                                                 mem.dA_total_proj_mean, mem.mean_intensity, mem.mean_weight_v_no_cb,
                                                 mem.mean_weight_v_earth_orb, mem.pole_vector_grid,
                                                 mem.SP_sun_pos, mem.SP_sun_vel, mem.SP_bary, mem.SP_bary_pos,
@@ -63,9 +63,12 @@ function disk_sim_eclipse(spec::SpecParams{T}, disk::DiskParamsEclipse{T}, solda
                     wsp.intt .= copy(view(soldata.int[key], :, tloop[i,j]))
                     wsp.widt .= copy(view(soldata.wid[key], :, tloop[i,j]))
 
-                    # get amount of convective blueshift needed
-                    extra_z = spec.conv_blueshifts[l] - z_cbs_avg
-                    #extra_z = 0.0 # spec.conv_blueshifts[l] - z_cbs_avg
+                    if fixed_bisector == false
+                        # get amount of convective blueshift needed
+                        extra_z = spec.conv_blueshifts[l] - z_cbs_avg
+                    else
+                        extra_z = 0.0
+                    end
 
                     # get shifted line center
                     λΔD = spec.lines[l]
@@ -86,7 +89,6 @@ function disk_sim_eclipse(spec::SpecParams{T}, disk::DiskParamsEclipse{T}, solda
                     trim_bisector!(dtrim, wsp.bist, wsp.intt)
 
                     # update the line profile in place
-                    #line_profile_cpu!(λΔD, wsp.wts[i,j,l], spec.lambdas, prof, wsp)s
                     line_profile_cpu!(λΔD, wsp.dA[i,j], wsp.ld[i,j,l], wsp.ext[i,j,l], contrast[i,j], spec.lambdas, prof, wsp)
                     end
                 end

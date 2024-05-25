@@ -114,7 +114,7 @@ for (i, file) in enumerate(files)
     disk = GRASS.DiskParamsEclipse(N=N, Nt=Nt, Nsubgrid=10)
 
     # simulate the spectrum
-    wavs_sim, flux_sim = GRASS.synthesize_spectra_eclipse(spec, disk, obs_long, obs_lat, alt, lines[1]/10.0, time_stamps, verbose=true, use_gpu=false)
+    wavs_sim, flux_sim = GRASS.synthesize_spectra_eclipse(spec, disk, obs_long, obs_lat, alt, lines ./ 10.0, time_stamps, verbose=true, use_gpu=false)
     flux_sim = dropdims(mean(flux_sim, dims=2), dims=2)
 
     # interpolate iag on synth wavelength grid

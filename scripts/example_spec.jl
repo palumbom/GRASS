@@ -9,94 +9,7 @@ using BenchmarkTools
 GRASS.get_kernels()
 
 case = "Gottingen"
-
-if case == "GPU_test" 
-    epoch = utc2et.("2023-10-14T15:26:45")
-
-    #NEID location
-    obs_lat = 31.9583 
-    obs_long = -111.5967  
-    alt = 2.097938 
-
-    # set up paramaters for disk
-    N = 2
-    Nsubgrid=2
-    Nt = length(epoch)
-    
-    # set up parameters for spectrum
-    lines = [6173.0, 6173.0] # array of line centers 
-    depths = [0.6, 0.6]   # array of line depths
-    templates = ["FeI_6173", "FeI_6173"] # template data to use
-    variability = trues(length(lines))  # whether or not the bisectors should "dance"
-    blueshifts = zeros(length(lines))   # set convective blueshift value
-    resolution = 7e5                    # spectral resolution
-
-    # make the disk and spec composite type instances
-    disk = GRASS.DiskParamsEclipse(N=N, Nt=Nt, Nsubgrid=Nsubgrid)
-    spec = GRASS.SpecParams(lines=lines, depths=depths, variability=variability,
-                    blueshifts=blueshifts, templates=templates, resolution=resolution) 
-    
-    gpu_allocs = GRASS.GPUAllocsEclipse(spec, disk, Int(length(lines)))
-    GRASS.calc_eclipse_quantities_gpu!(epoch, obs_long, obs_lat, alt, lines./10.0, disk, gpu_allocs)
-
-    println(Array(gpu_allocs.ld)) #plt.imshow(diff between two arrays)
-    #maximum(abs.(wsp.ld[:,:,1] .- Array(gpu_allocs.ld)[:,:,1]))
-    #plt.imshow(wsp.ld[:,:,1] .- Array(gpu_allocs.ld)[:,:,1])
-    println("----------------------")
-    wsp = GRASS.SynthWorkspaceEclipse(disk, Int(length(lines)))
-    mem = GRASS.GeoWorkspaceEclipse(disk, Int(length(lines)))
-    GRASS.eclipse_compute_quantities!(disk, epoch, obs_long, obs_lat, alt, lines./10.0, wsp.ϕc, wsp.θc, 
-                                                wsp.μs, wsp.ld, wsp.ext, wsp.dA, wsp.xyz, wsp.wts, wsp.z_rot, wsp.ax_codes,
-                                                mem.dA_total_proj_mean, mem.mean_intensity, mem.mean_weight_v_no_cb,
-                                                mem.mean_weight_v_earth_orb, mem.pole_vector_grid,
-                                                mem.SP_sun_pos, mem.SP_sun_vel, mem.SP_bary, mem.SP_bary_pos,
-                                                mem.SP_bary_vel, mem.OP_bary, mem.mu_grid, mem.projected_velocities_no_cb, 
-                                                mem.distance, mem.v_scalar_grid, mem.v_earth_orb_proj)
-
-    println(wsp.ld)       
-
-end
-
-
-if case == "NEID"
-    neid_timestamps = ["2023-10-14T15:26:45.500000", "2023-10-14T15:28:07.500000", "2023-10-14T15:29:30.500000", "2023-10-14T15:30:53.500000", "2023-10-14T15:32:15.500000", "2023-10-14T15:33:38.500000", "2023-10-14T15:35:01.500000", "2023-10-14T15:36:23.500000", "2023-10-14T15:37:46.500000", "2023-10-14T15:39:09.500000", "2023-10-14T15:40:31.500000", "2023-10-14T15:41:54.500000", "2023-10-14T15:43:17.500000", "2023-10-14T15:44:39.500000", "2023-10-14T15:46:02.500000", "2023-10-14T15:47:25.500000", "2023-10-14T15:48:47.500000", "2023-10-14T15:50:10.500000", "2023-10-14T15:51:33.500000", "2023-10-14T15:52:56.500000", "2023-10-14T15:54:18.500000", "2023-10-14T15:55:41.500000", "2023-10-14T15:57:04.500000", "2023-10-14T15:58:26.500000", "2023-10-14T15:59:49.500000", "2023-10-14T16:01:12.500000", "2023-10-14T16:02:34.500000", "2023-10-14T16:03:57.500000", "2023-10-14T16:05:20.500000", "2023-10-14T16:06:42.500000", "2023-10-14T16:08:05.500000", "2023-10-14T16:09:28.500000", "2023-10-14T16:10:50.500000", "2023-10-14T16:12:13.500000", "2023-10-14T16:13:36.500000", "2023-10-14T16:14:58.500000", "2023-10-14T16:16:21.500000", "2023-10-14T16:17:44.500000", "2023-10-14T16:19:06.500000", "2023-10-14T16:20:29.500000", "2023-10-14T16:21:52.500000", "2023-10-14T16:23:15.500000", "2023-10-14T16:24:37.500000", "2023-10-14T16:26:00.500000", "2023-10-14T16:27:23.500000", "2023-10-14T16:28:45.500000", "2023-10-14T16:30:08.500000", "2023-10-14T16:31:31.500000", "2023-10-14T16:32:53.500000", "2023-10-14T16:34:16.500000", "2023-10-14T16:35:39.500000", "2023-10-14T16:37:01.500000", "2023-10-14T16:38:24.500000", "2023-10-14T16:39:47.500000", "2023-10-14T16:41:09.500000", "2023-10-14T16:42:32.500000", "2023-10-14T16:43:55.500000", "2023-10-14T16:45:17.500000", "2023-10-14T16:46:40.500000", "2023-10-14T16:48:03.500000", "2023-10-14T16:49:25.500000", "2023-10-14T16:50:48.500000", "2023-10-14T16:52:11.500000", "2023-10-14T16:53:33.500000", "2023-10-14T16:54:56.500000", "2023-10-14T16:56:19.500000", "2023-10-14T16:57:42.500000", "2023-10-14T16:59:04.500000", "2023-10-14T17:00:27.500000", "2023-10-14T17:01:50.500000", "2023-10-14T17:03:12.500000", "2023-10-14T17:04:35.500000", "2023-10-14T17:05:58.500000", "2023-10-14T17:07:20.500000", "2023-10-14T17:08:43.500000", "2023-10-14T17:10:06.500000", "2023-10-14T17:11:28.500000", "2023-10-14T17:12:51.500000", "2023-10-14T17:14:14.500000", "2023-10-14T17:15:36.500000", "2023-10-14T17:16:59.500000", "2023-10-14T17:18:22.500000", "2023-10-14T17:19:44.500000", "2023-10-14T17:21:07.500000", "2023-10-14T17:22:30.500000", "2023-10-14T17:23:52.500000", "2023-10-14T17:25:15.500000", "2023-10-14T17:26:38.500000", "2023-10-14T17:28:01.500000", "2023-10-14T17:29:23.500000", "2023-10-14T17:30:46.500000", "2023-10-14T17:32:09.500000", "2023-10-14T17:33:31.500000", "2023-10-14T17:34:54.500000", "2023-10-14T17:36:17.500000", "2023-10-14T17:37:39.500000", "2023-10-14T17:39:02.500000", "2023-10-14T17:40:25.500000", "2023-10-14T17:41:47.500000", "2023-10-14T17:43:10.500000", "2023-10-14T17:44:33.500000", "2023-10-14T17:45:55.500000", "2023-10-14T17:47:18.500000", "2023-10-14T17:48:41.500000", "2023-10-14T17:50:03.500000", "2023-10-14T17:51:26.500000", "2023-10-14T17:52:49.500000", "2023-10-14T17:54:11.500000", "2023-10-14T17:55:34.500000", "2023-10-14T17:56:57.500000", "2023-10-14T17:58:20.500000", "2023-10-14T17:59:42.500000", "2023-10-14T18:01:05.500000", "2023-10-14T18:02:28.500000", "2023-10-14T18:03:50.500000", "2023-10-14T18:05:13.500000", "2023-10-14T18:06:36.500000", "2023-10-14T18:07:58.500000", "2023-10-14T18:09:21.500000", "2023-10-14T18:10:44.500000", "2023-10-14T18:12:06.500000", "2023-10-14T18:13:29.500000", "2023-10-14T18:14:52.500000", "2023-10-14T18:16:14.500000", "2023-10-14T18:17:37.500000", "2023-10-14T18:19:00.500000", "2023-10-14T18:20:22.500000", "2023-10-14T18:21:45.500000", "2023-10-14T18:23:08.500000", "2023-10-14T18:24:30.500000", "2023-10-14T18:25:53.500000", "2023-10-14T18:27:16.500000", "2023-10-14T18:28:38.500000", "2023-10-14T18:30:01.500000", "2023-10-14T18:31:24.500000", "2023-10-14T18:32:47.500000", "2023-10-14T18:34:09.500000", "2023-10-14T18:35:32.500000", "2023-10-14T18:36:55.500000", "2023-10-14T18:38:17.500000", "2023-10-14T18:39:40.500000", "2023-10-14T18:41:03.500000", "2023-10-14T18:42:25.500000", "2023-10-14T18:43:48.500000", "2023-10-14T18:45:11.500000", "2023-10-14T18:46:33.500000", "2023-10-14T18:47:56.500000", "2023-10-14T18:49:19.500000", "2023-10-14T18:50:41.500000", "2023-10-14T18:52:04.500000", "2023-10-14T18:53:27.500000", "2023-10-14T18:54:49.500000", "2023-10-14T18:56:12.500000", "2023-10-14T18:57:35.500000", "2023-10-14T18:58:57.500000", "2023-10-14T19:00:20.500000", "2023-10-14T19:01:43.500000", "2023-10-14T19:03:06.500000"]
-    #convert from utc to et as needed by SPICE
-    time_stamps = utc2et.(neid_timestamps)
-
-    #NEID location
-    obs_lat = 31.9583 
-    obs_long = -111.5967  
-    alt = 2.097938 
-
-    # set up paramaters for disk
-    N = 50
-    Nsubgrid=10
-    Nt = length(time_stamps)
-
-    # set up parameters for spectrum
-    lines = [6173.0] # array of line centers 
-    depths = [0.6]   # array of line depths
-    templates = ["FeI_6173"] # template data to use
-    variability = trues(length(lines))  # whether or not the bisectors should "dance"
-    blueshifts = zeros(length(lines))   # set convective blueshift value
-    resolution = 7e5                    # spectral resolution
-
-    # make the disk and spec composite type instances
-    disk = GRASS.DiskParamsEclipse(N=N, Nt=Nt, Nsubgrid=Nsubgrid)
-    spec = GRASS.SpecParams(lines=lines, depths=depths, variability=variability,
-                    blueshifts=blueshifts, templates=templates, resolution=resolution)  
-
-    # actually synthesize the spectra
-    println(">>> Synthesizing on CPU...")
-    tstart = time()
-    lambdas_cpu, outspec_cpu = GRASS.synthesize_spectra_eclipse(spec, disk, obs_long, obs_lat, alt, lines[1]/10.0, time_stamps, Nsubgrid, verbose=true, use_gpu=false)
-    tstop = time()
-    @printf(">>> Synthesis time --> %.3f seconds \n", tstop - tstart)
-
-    #measure velocities
-    v_grid_cpu, ccf_cpu = GRASS.calc_ccf(lambdas_cpu, outspec_cpu, spec)
-    rvs_cpu, sigs_cpu = GRASS.calc_rvs_from_ccf(v_grid_cpu, ccf_cpu)
-end
+granulation = false
 
 if case == "Boulder"
     boulder_timestamps = ["2023-10-14T13:25:37", "2023-10-14T13:27:01", "2023-10-14T13:28:23", "2023-10-14T13:29:42", "2023-10-14T13:31:08", "2023-10-14T13:32:25", "2023-10-14T13:33:49", "2023-10-14T13:35:10", "2023-10-14T13:36:33", "2023-10-14T13:37:56", "2023-10-14T13:39:18", "2023-10-14T13:40:37", "2023-10-14T13:42:01", "2023-10-14T13:43:22", "2023-10-14T13:44:46", "2023-10-14T13:46:09", "2023-10-14T13:47:26", "2023-10-14T13:48:50", "2023-10-14T13:50:14", "2023-10-14T13:51:38", "2023-10-14T13:52:57", "2023-10-14T13:53:55", "2023-10-14T13:59:00", "2023-10-14T13:59:41", "2023-10-14T14:03:04", "2023-10-14T14:03:20", "2023-10-14T14:05:15", "2023-10-14T14:06:34", "2023-10-14T14:12:22", "2023-10-14T14:13:27", "2023-10-14T14:14:48", "2023-10-14T14:16:12", "2023-10-14T14:17:34", "2023-10-14T14:18:56", "2023-10-14T14:20:20", "2023-10-14T14:21:44", "2023-10-14T14:23:02", "2023-10-14T14:24:24", "2023-10-14T14:25:45", "2023-10-14T14:27:10", "2023-10-14T14:28:32", "2023-10-14T14:29:50", "2023-10-14T14:31:13", "2023-10-14T14:32:34", "2023-10-14T14:33:59", "2023-10-14T14:35:21", "2023-10-14T14:36:18", "2023-10-14T15:38:31", "2023-10-14T15:39:34", "2023-10-14T15:40:55", "2023-10-14T15:42:19", "2023-10-14T15:43:37", "2023-10-14T15:44:42", "2023-10-14T15:46:30", "2023-10-14T15:47:48", "2023-10-14T15:49:10", "2023-10-14T15:50:31", "2023-10-14T15:51:53", "2023-10-14T15:53:14", "2023-10-14T15:54:37", "2023-10-14T15:55:59", "2023-10-14T15:57:21", "2023-10-14T15:58:40", "2023-10-14T16:00:04", "2023-10-14T16:01:28", "2023-10-14T16:02:49", "2023-10-14T16:04:11", "2023-10-14T16:05:32", "2023-10-14T16:06:54", "2023-10-14T16:08:18", "2023-10-14T16:09:39", "2023-10-14T16:11:01", "2023-10-14T16:12:25", "2023-10-14T16:13:46", "2023-10-14T16:15:08", "2023-10-14T16:16:27", "2023-10-14T16:17:50", "2023-10-14T16:19:14", "2023-10-14T16:20:36", "2023-10-14T16:21:57", "2023-10-14T16:23:19", "2023-10-14T16:24:40", "2023-10-14T16:26:04", "2023-10-14T16:27:26", "2023-10-14T16:28:47", "2023-10-14T16:30:09", "2023-10-14T16:31:32", "2023-10-14T16:32:54", "2023-10-14T16:34:16", "2023-10-14T16:35:37", "2023-10-14T16:36:58", "2023-10-14T16:39:52", "2023-10-14T16:41:05", "2023-10-14T16:42:32", "2023-10-14T16:43:51", "2023-10-14T16:45:12", "2023-10-14T16:46:23", "2023-10-14T16:48:03", "2023-10-14T16:49:17", "2023-10-14T16:50:42", "2023-10-14T16:51:58", "2023-10-14T16:53:24", "2023-10-14T16:54:45", "2023-10-14T16:56:06", "2023-10-14T16:57:31", "2023-10-14T16:58:53", "2023-10-14T17:00:13", "2023-10-14T17:01:35", "2023-10-14T17:02:56", "2023-10-14T17:04:20", "2023-10-14T17:05:42", "2023-10-14T17:07:03", "2023-10-14T17:08:27", "2023-10-14T17:09:49", "2023-10-14T17:11:10", "2023-10-14T17:12:32", "2023-10-14T17:13:53", "2023-10-14T17:15:17", "2023-10-14T17:16:39", "2023-10-14T17:18:00", "2023-10-14T17:19:21", "2023-10-14T17:20:43", "2023-10-14T17:22:07", "2023-10-14T17:23:28", "2023-10-14T17:24:50", "2023-10-14T17:26:12", "2023-10-14T17:27:33", "2023-10-14T17:28:41", "2023-10-14T18:41:52", "2023-10-14T18:42:46", "2023-10-14T18:44:08", "2023-10-14T18:45:29", "2023-10-14T18:46:50", "2023-10-14T18:48:12", "2023-10-14T18:49:36", "2023-10-14T18:50:39", "2023-10-14T18:55:41", "2023-10-14T18:56:25", "2023-10-14T18:57:51", "2023-10-14T18:59:09", "2023-10-14T19:00:33", "2023-10-14T19:01:54", "2023-10-14T19:03:13", "2023-10-14T19:04:37", "2023-10-14T20:37:30", "2023-10-14T23:07:01", "2023-10-14T23:07:58", "2023-10-14T23:09:18"]
@@ -113,10 +26,16 @@ if case == "Boulder"
     Nt = length(time_stamps)
 
     # set up parameters for spectrum
-    lines = [6173.0] # array of line centers 
+    lines = [5434.0] # array of line centers 
     depths = [0.6]   # array of line depths
-    templates = ["FeI_6173"] # template data to use
-    variability = trues(length(lines))  # whether or not the bisectors should "dance"
+    templates = ["FeI_5434"] # template data to use
+    if granulation == false
+        variability = falses(length(lines)) 
+        fixed_bisector = true
+    else
+        variability = trues(length(lines))  # whether or not the bisectors should "dance"
+        fixed_bisector = false
+    end
     blueshifts = zeros(length(lines))   # set convective blueshift value
     resolution = 7e5                    # spectral resolution
 
@@ -128,13 +47,15 @@ if case == "Boulder"
     # actually synthesize the spectra
     println(">>> Synthesizing on CPU...")
     tstart = time()
-    lambdas_cpu, outspec_cpu = GRASS.synthesize_spectra_eclipse(spec, disk, obs_long, obs_lat, alt, lines[1]/10.0, time_stamps, verbose=true, use_gpu=false)
+    lambdas_cpu, outspec_cpu = GRASS.synthesize_spectra_eclipse(spec, disk, obs_long, obs_lat, alt, lines ./ 10.0, time_stamps, verbose=true, use_gpu=false, fixed_bisector=fixed_bisector)
     tstop = time()
     @printf(">>> Synthesis time --> %.3f seconds \n", tstop - tstart)
 
     #measure velocities
     v_grid_cpu, ccf_cpu = GRASS.calc_ccf(lambdas_cpu, outspec_cpu, spec)
     rvs_cpu, sigs_cpu = GRASS.calc_rvs_from_ccf(v_grid_cpu, ccf_cpu)
+
+    print(rvs_cpu)
 end
 
 if case == "EXPRES"
@@ -152,15 +73,16 @@ if case == "EXPRES"
     Nt = length(time_stamps)
 
     # set up parameters for spectrum
-    lines = [6173.0] # array of line centers 
+    lines = [5434.0] # array of line centers 
     depths = [0.6]   # array of line depths
-    templates = ["FeI_6173"] # template data to use
-    variability = trues(length(lines))  # whether or not the bisectors should "dance"
-    #no CB model 
-    #variability = falses
-    #fixed_bisector = true
-    #extra_z = 0
-
+    templates = ["FeI_5434"] # template data to use
+    if granulation == false
+        variability = falses(length(lines)) 
+        fixed_bisector = true
+    else
+        variability = trues(length(lines))  # whether or not the bisectors should "dance"
+        fixed_bisector = false
+    end
     blueshifts = zeros(length(lines))   # set convective blueshift value
     resolution = 7e5                    # spectral resolution
 
@@ -172,14 +94,13 @@ if case == "EXPRES"
     # actually synthesize the spectra
     println(">>> Synthesizing on CPU...")
     tstart = time()
-    lambdas_cpu, outspec_cpu = GRASS.synthesize_spectra_eclipse(spec, disk, obs_long, obs_lat, alt, lines ./ 10.0, time_stamps, verbose=true, use_gpu=false, fixed_bisector=true)
+    lambdas_cpu, outspec_cpu = GRASS.synthesize_spectra_eclipse(spec, disk, obs_long, obs_lat, alt, lines ./ 10.0, time_stamps, verbose=true, use_gpu=false, fixed_bisector=fixed_bisector)
     tstop = time()
     @printf(">>> Synthesis time --> %.3f seconds \n", tstop - tstart)
 
     #measure velocities
     v_grid_cpu, ccf_cpu = GRASS.calc_ccf(lambdas_cpu, outspec_cpu, spec)
     rvs_cpu, sigs_cpu = GRASS.calc_rvs_from_ccf(v_grid_cpu, ccf_cpu)
-
     print(rvs_cpu)
 end
 
@@ -198,10 +119,16 @@ if case == "Gottingen"
     Nt = length(time_stamps)
 
     # set up parameters for spectrum
-    lines = [6173.0] # array of line centers 
+    lines = [5434.0] # array of line centers 
     depths = [0.6]   # array of line depths
-    templates = ["FeI_6173"] # template data to use
-    variability = trues(length(lines))  # whether or not the bisectors should "dance"
+    templates = ["FeI_5434"] # template data to use
+    if granulation == false
+        variability = falses(length(lines)) 
+        fixed_bisector = true
+    else
+        variability = trues(length(lines))  # whether or not the bisectors should "dance"
+        fixed_bisector = false
+    end
     blueshifts = zeros(length(lines))   # set convective blueshift value
     resolution = 7e5                    # spectral resolution
 
@@ -211,14 +138,65 @@ if case == "Gottingen"
                     blueshifts=blueshifts, templates=templates, resolution=resolution)  
     
     # actually synthesize the spectra
-    println(">>> Synthesizing on GPU...")
+    println(">>> Synthesizing on CPU...")
     tstart = time()
-    lambdas_cpu, outspec_cpu = GRASS.synthesize_spectra_eclipse(spec, disk, obs_long, obs_lat, alt, lines ./ 10.0, time_stamps, verbose=true, use_gpu=true)
+    lambdas_cpu, outspec_cpu = GRASS.synthesize_spectra_eclipse(spec, disk, obs_long, obs_lat, alt, lines ./ 10.0, time_stamps, verbose=true, use_gpu=false, fixed_bisector=fixed_bisector)
     tstop = time()
-
     @printf(">>> Synthesis time --> %.3f seconds \n", tstop - tstart)
 
     #measure velocities
-    GRASS.calc_ccf(lambdas_cpu, outspec_cpu, spec)
-    # rvs_cpu, sigs_cpu = GRASS.calc_rvs_from_ccf(v_grid_cpu, ccf_cpu)
+    v_grid_cpu, ccf_cpu = GRASS.calc_ccf(lambdas_cpu, outspec_cpu, spec)
+    rvs_cpu, sigs_cpu = GRASS.calc_rvs_from_ccf(v_grid_cpu, ccf_cpu)
+    print(rvs_cpu)
 end
+
+########################################################################
+#TO BE CLEAR
+#grass = src: gpu (finalize and clear) + structures (GPU ones need to be finalized)
+#grass once gpu done run with gpu + clear loose in src and loose outside src
+
+# if case == "GPU_test" 
+#     epoch = utc2et.("2023-10-14T15:26:45")
+
+#     #NEID location
+#     obs_lat = 31.9583 
+#     obs_long = -111.5967  
+#     alt = 2.097938 
+
+#     # set up paramaters for disk
+#     N = 2
+#     Nsubgrid=2
+#     Nt = length(epoch)
+    
+#     # set up parameters for spectrum
+#     lines = [6173.0, 6173.0] # array of line centers 
+#     depths = [0.6, 0.6]   # array of line depths
+#     templates = ["FeI_6173", "FeI_6173"] # template data to use
+#     variability = trues(length(lines))  # whether or not the bisectors should "dance"
+#     blueshifts = zeros(length(lines))   # set convective blueshift value
+#     resolution = 7e5                    # spectral resolution
+
+#     # make the disk and spec composite type instances
+#     disk = GRASS.DiskParamsEclipse(N=N, Nt=Nt, Nsubgrid=Nsubgrid)
+#     spec = GRASS.SpecParams(lines=lines, depths=depths, variability=variability,
+#                     blueshifts=blueshifts, templates=templates, resolution=resolution) 
+    
+#     gpu_allocs = GRASS.GPUAllocsEclipse(spec, disk, Int(length(lines)))
+#     GRASS.calc_eclipse_quantities_gpu!(epoch, obs_long, obs_lat, alt, lines./10.0, disk, gpu_allocs)
+
+#     println(Array(gpu_allocs.ld)) #plt.imshow(diff between two arrays)
+#     #maximum(abs.(wsp.ld[:,:,1] .- Array(gpu_allocs.ld)[:,:,1]))
+#     #plt.imshow(wsp.ld[:,:,1] .- Array(gpu_allocs.ld)[:,:,1])
+#     println("----------------------")
+#     wsp = GRASS.SynthWorkspaceEclipse(disk, Int(length(lines)))
+#     mem = GRASS.GeoWorkspaceEclipse(disk, Int(length(lines)))
+#     GRASS.eclipse_compute_quantities!(disk, epoch, obs_long, obs_lat, alt, lines./10.0, wsp.ϕc, wsp.θc, 
+#                                                 wsp.μs, wsp.ld, wsp.ext, wsp.dA, wsp.xyz, wsp.wts, wsp.z_rot, wsp.ax_codes,
+#                                                 mem.dA_total_proj_mean, mem.mean_intensity, mem.mean_weight_v_no_cb,
+#                                                 mem.mean_weight_v_earth_orb, mem.pole_vector_grid,
+#                                                 mem.SP_sun_pos, mem.SP_sun_vel, mem.SP_bary, mem.SP_bary_pos,
+#                                                 mem.SP_bary_vel, mem.OP_bary, mem.mu_grid, mem.projected_velocities_no_cb, 
+#                                                 mem.distance, mem.v_scalar_grid, mem.v_earth_orb_proj)
+
+#     println(wsp.ld)       
+# end
