@@ -31,6 +31,14 @@ function quad_limb_darkening_eclipse(μ::T, wavelength::T) where T<:AF
     return a0[index] + a1[index]*μ + a2[index]*μ^2 + a3[index]*μ^3 + a4[index]*μ^4 + a5[index]*μ^5
 end
 
+function quad_limb_darkening_NIR(μ::T) where T
+    """
+    limb darkening prescription for NIR based on mu angle  
+    """
+    μ < zero(T) && return 0.0
+    return 0.59045 + 1.41938*μ - 3.01866*μ^2 + 3.99843*μ^3 - 2.67727*μ^4 + 0.068758*μ^5
+end
+
 function quad_limb_darkening(μ::T, u1::T, u2::T) where T<:AF
     μ < zero(T) && return 0.0
     return !iszero(μ) * (one(T) - u1*(one(T)-μ) - u2*(one(T)-μ)^2)

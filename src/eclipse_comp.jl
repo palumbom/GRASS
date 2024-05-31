@@ -1,4 +1,4 @@
-function eclipse_compute_quantities!(disk::DiskParamsEclipse{T}, epoch::T, obs_long::T,
+function eclipse_compute_quantities!(disk::DiskParamsEclipse{T}, epoch::T, band, obs_long::T,
                                      obs_lat::T, alt::T, wavelength::Vector{Float64}, ϕc::AA{T,2}, θc::AA{T,2},
                                      μs::AA{T,2}, ld::AA{T,3}, ext::AA{T,3} , dA::AA{T,2},
                                      xyz::AA{T,3}, z_rot::AA{T,3}, ax_codes::AA{Int64, 2}, 
@@ -139,7 +139,14 @@ function eclipse_compute_quantities!(disk::DiskParamsEclipse{T}, epoch::T, obs_l
 
             # calc limb darkening
             for l in eachindex(wavelength)
-                ld_sub = map(x -> quad_limb_darkening_eclipse(x, wavelength[l]), mu_grid)
+                if band == "Optical"
+                    ld_sub = map(x -> quad_limb_darkening_eclipse(x, wavelength[l]), mu_grid)
+                end
+
+                if band == "NIR"
+                    ld_sub = map(x -> quad_limb_darkening_NIR(x), mu_grid)
+                end
+
                 ld[i,j,l] = sum(view(ld_sub, idx3)) / sum(idx1)
                 mean_intensity[i,j,l] = sum(view(ld_sub, idx3)) / sum(idx1)
 
