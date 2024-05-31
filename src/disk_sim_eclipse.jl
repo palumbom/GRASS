@@ -1,13 +1,13 @@
 function disk_sim_eclipse(spec::SpecParams{T}, disk::DiskParamsEclipse{T}, soldata::SolarData{T},
     wsp::SynthWorkspaceEclipse{T}, mem::GeoWorkspaceEclipse{T}, prof::AA{T,1}, flux::AA{T,2},
-    tloop, tloop_init, templates, idx, obs_long, obs_lat, alt, time_stamps, wavelength, fixed_bisector::Bool; verbose::Bool=true,
+    tloop, tloop_init, templates, idx, obs_long, obs_lat, alt, time_stamps, band, wavelength, CB::Bool; verbose::Bool=true,
     skip_times::BitVector=falses(disk.Nt)) where T<:AF
 
     # loop over time
     for t in 1:disk.Nt
 
             #compute geometry for timestamp
-            GRASS.eclipse_compute_quantities!(disk, time_stamps[t], obs_long, obs_lat, alt, wavelength, wsp.ϕc, wsp.θc, 
+            GRASS.eclipse_compute_quantities!(disk, time_stamps[t], band, obs_long, obs_lat, alt, wavelength, wsp.ϕc, wsp.θc, 
                                                 wsp.μs, wsp.ld, wsp.ext, wsp.dA, wsp.xyz, wsp.z_rot, wsp.ax_codes,
                                                 mem.dA_total_proj_mean, mem.mean_intensity, mem.mean_weight_v_no_cb,
                                                 mem.mean_weight_v_earth_orb, mem.pole_vector_grid,
@@ -63,7 +63,7 @@ function disk_sim_eclipse(spec::SpecParams{T}, disk::DiskParamsEclipse{T}, solda
                     wsp.intt .= copy(view(soldata.int[key], :, tloop[i,j]))
                     wsp.widt .= copy(view(soldata.wid[key], :, tloop[i,j]))
 
-                    if fixed_bisector == false
+                    if CB == true
                         # get amount of convective blueshift needed
                         extra_z = spec.conv_blueshifts[l] - z_cbs_avg
                     else
