@@ -9,18 +9,18 @@ Synthesize spectra given parameters in `spec` and `disk` instances.
 """
 function synthesize_spectra_eclipse(spec::SpecParams{T}, disk::DiskParamsEclipse{T}, obs_long, obs_lat, alt, wavelength, time_stamps, band;
                             seed_rng::Bool=false, verbose::Bool=true,
-                            use_gpu::Bool=false, precision::DataType=Float64, CB::Bool=true,
+                            use_gpu::Bool=false, precision::DataType=Float64,
                             skip_times::BitVector=falses(disk.Nt)) where T<:AF
     # call appropriate simulation function on cpu or gpu
     if use_gpu
-        return synth_Eclipse_gpu(spec, disk, seed_rng, verbose, precision, skip_times, obs_long, obs_lat, alt, time_stamps, band, wavelength, CB)
+        return synth_Eclipse_gpu(spec, disk, seed_rng, verbose, precision, skip_times, obs_long, obs_lat, alt, time_stamps, band, wavelength)
     else
-        return synth_Eclipse_cpu(spec, disk, seed_rng, verbose, skip_times, obs_long, obs_lat, alt, time_stamps, band, wavelength, CB)
+        return synth_Eclipse_cpu(spec, disk, seed_rng, verbose, skip_times, obs_long, obs_lat, alt, time_stamps, band, wavelength)
     end
 end
 
 function synth_Eclipse_cpu(spec::SpecParams{T}, disk::DiskParamsEclipse{T}, seed_rng::Bool,
-                   verbose::Bool, skip_times::BitVector, obs_long, obs_lat, alt, time_stamps, band, wavelength, CB::Bool) where T<:AF
+                   verbose::Bool, skip_times::BitVector, obs_long, obs_lat, alt, time_stamps, band, wavelength) where T<:AF
 
     # parse out dimensions for memory allocation
     N = disk.N
@@ -60,13 +60,13 @@ function synth_Eclipse_cpu(spec::SpecParams{T}, disk::DiskParamsEclipse{T}, seed
 
         # run the simulation and multiply flux by this spectrum
         disk_sim_eclipse(spec_temp, disk, soldata, wsp, mem, prof, flux, tloop, tloop_init, templates, idx, obs_long, obs_lat, alt, time_stamps, band, wavelength,
-                 CB, skip_times=skip_times, verbose=verbose)
+                 skip_times=skip_times, verbose=verbose)
     end
     return spec.lambdas, flux
 end
 
 function synth_Eclipse_gpu(spec::SpecParams{T}, disk::DiskParamsEclipse{T}, seed_rng::Bool,
-                   verbose::Bool, precision::DataType, skip_times::BitVector, obs_long, obs_lat, alt, time_stamps, band, wavelength, CB::Bool) where T<:AF
+                   verbose::Bool, precision::DataType, skip_times::BitVector, obs_long, obs_lat, alt, time_stamps, band, wavelength) where T<:AF
     # make sure there is actually a GPU to use
     @assert CUDA.functional()
 

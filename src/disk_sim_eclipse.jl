@@ -1,6 +1,6 @@
 function disk_sim_eclipse(spec::SpecParams{T}, disk::DiskParamsEclipse{T}, soldata::SolarData{T},
     wsp::SynthWorkspaceEclipse{T}, mem::GeoWorkspaceEclipse{T}, prof::AA{T,1}, flux::AA{T,2},
-    tloop, tloop_init, templates, idx, obs_long, obs_lat, alt, time_stamps, band, wavelength, CB::Bool; verbose::Bool=true,
+    tloop, tloop_init, templates, idx, obs_long, obs_lat, alt, time_stamps, band, wavelength; verbose::Bool=true,
     skip_times::BitVector=falses(disk.Nt)) where T<:AF
 
     # loop over time
@@ -63,12 +63,8 @@ function disk_sim_eclipse(spec::SpecParams{T}, disk::DiskParamsEclipse{T}, solda
                     wsp.intt .= copy(view(soldata.int[key], :, tloop[i,j]))
                     wsp.widt .= copy(view(soldata.wid[key], :, tloop[i,j]))
 
-                    if CB == true
-                        # get amount of convective blueshift needed
-                        extra_z = spec.conv_blueshifts[l] - z_cbs_avg
-                    else
-                        extra_z = 0.0
-                    end
+                    # get amount of convective blueshift needed
+                    extra_z = spec.conv_blueshifts[l] - z_cbs_avg
 
                     # get shifted line center
                     λΔD = spec.lines[l]
