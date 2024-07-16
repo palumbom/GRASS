@@ -26,9 +26,15 @@ end
 function quad_limb_darkening_eclipse(μ::T, wavelength::T) where T<:AF
     μ < zero(T) && return 0.0    
 
-    index = findmin(x->abs(x-wavelength), lambda_nm)[2]
+    # index = findmin(x->abs(x-wavelength), lambda_nm)[2]
 
-    return a0[index] + a1[index]*μ + a2[index]*μ^2 + a3[index]*μ^3 + a4[index]*μ^4 + a5[index]*μ^5
+    # return a0[index] + a1[index]*μ + a2[index]*μ^2 + a3[index]*μ^3 + a4[index]*μ^4 + a5[index]*μ^5
+    
+    index = findmin(x->abs(x-wavelength), Kostogryz_LD_file[!, "wavelength"])[2]
+    Kostogryz_LD_array = Kostogryz_LD_file[index, ["0.1", "0.2", "0.3", "0.4", "0.5", "0.6", "0.7", "0.8", "0.9", "1.0"]]
+    Kostogryz_LD_interpol = linear_interp([0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0], collect(Kostogryz_LD_array))
+
+    return Kostogryz_LD_interpol(μ)
 end
 
 function quad_limb_darkening_NIR(μ::T) where T

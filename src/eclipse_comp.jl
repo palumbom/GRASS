@@ -6,7 +6,7 @@ function eclipse_compute_quantities!(disk::DiskParamsEclipse{T}, epoch::T, band,
                                      mean_weight_v_earth_orb::AA{T,2}, pole_vector_grid::Matrix{Vector{Float64}},
                                      SP_sun_pos::Matrix{Vector{Float64}}, SP_sun_vel::Matrix{Vector{Float64}}, SP_bary::Matrix{Vector{Float64}}, SP_bary_pos::Matrix{Vector{Float64}},
                                      SP_bary_vel::Matrix{Vector{Float64}}, OP_bary::Matrix{Vector{Float64}}, mu_grid::AA{T,2}, projected_velocities_no_cb::AA{T,2}, 
-                                     distance::AA{T,2}, v_scalar_grid::AA{T,2}, v_earth_orb_proj::Matrix{Float64}, neid_ext_coeff) where T<:AF
+                                     distance::AA{T,2}, v_scalar_grid::AA{T,2}, v_earth_orb_proj::Matrix{Float64}, neid_ext_coeff, ext_toggle) where T<:AF
 
     #query JPL horizons for E, S, M position (km) and velocities (km/s)
     BE_bary = spkssb(399,epoch,"J2000")
@@ -150,23 +150,29 @@ function eclipse_compute_quantities!(disk::DiskParamsEclipse{T}, epoch::T, band,
                 ld[i,j,l] = sum(view(ld_sub, idx3)) / sum(idx1)
                 mean_intensity[i,j,l] = sum(view(ld_sub, idx3)) / sum(idx1)
 
-                #extinction 
-                zenith_angle_matrix = rad2deg.(map(x -> calc_proj_dist(x[1:3], EO_bary[1:3]), OP_bary))
-                extin = map(x -> exp(-((1/cosd(x))*neid_ext_coeff)), zenith_angle_matrix)
-                ext[i,j,l] = mean(view(extin, idx3)) 
-
-                z_rot[i,j,l] = sum(view(z_rot_sub .* ld_sub .* dA_total_proj .* extin, idx3)) ./ sum(view(ld_sub .* dA_total_proj .* extin, idx3))
-
-                if isnan(ld[i,j,l])
-                    ld[i,j,l] = 0.0
-                    ext[i,j,l] = 0.0
-                    mean_intensity[i,j,l] = 0.0
-                    mean_weight_v_no_cb[i,j] = 0.0
-                    mean_weight_v_earth_orb[i,j] = 0.0
-                    z_rot[i,j,l] = 0.0
+                if ext_toggle == false
+                    z_rot[i,j,l] = sum(view(z_rot_sub .* ld_sub .* dA_total_proj, idx3)) ./ sum(view(ld_sub .* dA_total_proj, idx3))
                 end
 
-                if isnan(ext[i,j,l])
+                if ext_toggle == true
+                    #extinction
+                    zenith_angle_matrix = rad2deg.(map(x -> calc_proj_dist(x[1:3], EO_bary[1:3]), OP_bary))
+                    extin = map(x -> exp(-((1/cosd(x))*neid_ext_coeff)), zenith_angle_matrix)
+                    ext[i,j,l] = mean(view(extin, idx3)) 
+
+                    z_rot[i,j,l] = sum(view(z_rot_sub .* ld_sub .* dA_total_proj .* extin, idx3)) ./ sum(view(ld_sub .* dA_total_proj .* extin, idx3))
+
+                    if isnan(ext[i,j,l])
+                        ld[i,j,l] = 0.0
+                        ext[i,j,l] = 0.0
+                        mean_intensity[i,j,l] = 0.0
+                        mean_weight_v_no_cb[i,j] = 0.0
+                        mean_weight_v_earth_orb[i,j] = 0.0
+                        z_rot[i,j,l] = 0.0
+                    end
+                end
+
+                if isnan(ld[i,j,l])
                     ld[i,j,l] = 0.0
                     ext[i,j,l] = 0.0
                     mean_intensity[i,j,l] = 0.0

@@ -324,7 +324,7 @@ end
 
 function line_rvs_ccf(line_names, airwav, vacwav, orders, neid_timestamps, timestamps, path, obs_long, obs_lat, alt)
 
-    file = DataFrame(CSV.File("data/extinction_coefficient.csv"))
+    file = DataFrame(CSV.File("data/NEID_extinction_coefficient.csv"))
 
     #convert from utc to et as needed by SPICE
     time_stamps = utc2et.(neid_timestamps)
@@ -356,7 +356,7 @@ function line_rvs_ccf(line_names, airwav, vacwav, orders, neid_timestamps, times
         spec = SpecParams(lines=lines, depths=depths, templates=templates, resolution=resolution, oversampling=4.0)
     
         # simulate the spectrum 
-        wavs_sim, flux_sim = GRASS.synthesize_spectra_eclipse(spec, disk, obs_long, obs_lat, alt, lines ./ 10.0, time_stamps, "Optical", neid_ext_coeff, verbose=true, use_gpu=false)
+        wavs_sim, flux_sim = GRASS.synthesize_spectra_eclipse(spec, disk, obs_long, obs_lat, alt, lines ./ 10.0, time_stamps, "Optical", neid_ext_coeff, ext_toggle = false, verbose=true, use_gpu=false)
         # convolve GRASS spectrum to NEID resolution
         wavs_sim, flux_sim = GRASS.convolve_gauss(wavs_sim, flux_sim, new_res=11e4, oversampling=4.0)
         wavs_sim .= λ_air_to_vac.(wavs_sim)
@@ -442,8 +442,8 @@ end
 
 #october
 RV_all_lines, RV_error_all_lines = line_rvs_ccf(line_names, airwav, vacwav, orders, neid_timestamps_october, timestamps_october, path_october, obs_long, obs_lat, alt)
-@save "neid_RVlinebyline_ext.jld2"
-jldopen("neid_RVlinebyline_ext.jld2", "a+") do file
+@save "neid_RVlinebyline_Kostogryz_LD_300.jld2"
+jldopen("neid_RVlinebyline_Kostogryz_LD_300.jld2", "a+") do file
     file["name"] = line_names 
     file["rv"] = RV_all_lines 
     file["rv_error"] = RV_error_all_lines 
