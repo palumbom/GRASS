@@ -4,9 +4,9 @@
 #SBATCH --nodes=10
 #SBATCH --ntasks=10
 #SBATCH --mem=15gb
-#SBATCH --job-name=neid_RVlinebyline_ext
-#SBATCH --output /storage/home/efg5335/work/GRASS/neid_RVlinebyline_ext.out
-#SBATCH --error /storage/home/efg5335/work/GRASS/neid_RVlinebyline_ext.err
+#SBATCH --job-name=neid_RVlinebyline_Kostogryz_LD_300
+#SBATCH --output /storage/home/efg5335/work/GRASS/neid_RVlinebyline_Kostogryz_LD_300.out
+#SBATCH --error /storage/home/efg5335/work/GRASS/neid_RVlinebyline_Kostogryz_LD_300.err
 #SBATCH --mail-user=efg5335@psu.com
 
 ##now=$(date +"%T")
