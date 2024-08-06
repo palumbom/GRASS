@@ -11,8 +11,6 @@ struct DiskParamsEclipse{T<:AF}
     A::T
     B::T
     C::T
-    u1::T
-    u2::T
 end
 
 """
@@ -26,14 +24,12 @@ center vector.
 - `N=197`: Number of stellar latitude grid elements. Should be set to 197 for physical validity.
 - `Nt=50`: Number of 15-second time steps.
 - `radius=1.0`: Radius of model star. Default is one solar radius.
-- `u1=0.4`: Quadratic limb darkening law coefficient.
-- `u2=0.25`: Quadratic limb darkening law coefficient
 - `A=14.713`: Differential rotation coefficient. Units of deg/day.
 - `B=-2.396`: Differential rotation coefficient. Units of deg/day.
 - `C=-1.787`: Differential rotation coefficient. Units of deg/day.
 """
 function DiskParamsEclipse(;N=197, Nt=NaN, Nsubgrid=40, radius=sun_radius,
-                     u1=0.4, u2=0.26, A=14.713, B=-2.396, C=-1.787)
+                            A=14.713, B=-2.396, C=-1.787)
     # assertions and warnings
     @assert !isnan(Nt)
 
@@ -62,7 +58,7 @@ function DiskParamsEclipse(;N=197, Nt=NaN, Nsubgrid=40, radius=sun_radius,
         θe[i, 1:Nθ[i]+1] .= collect(edges)
     end
 
-    return DiskParamsEclipse(N, Nt, radius, ϕe, ϕc, θe, θc, Nθ, Nsubgrid, A, B, C, u1, u2)
+    return DiskParamsEclipse(N, Nt, radius, ϕe, ϕc, θe, θc, Nθ, Nsubgrid, A, B, C)
 end
 
 function get_Nθ(ϕc, dϕ)

@@ -23,26 +23,23 @@ function width_thermal(; λ::T1=1.0, M::T1=1.0, T::T1=5778.0, v_turb::T1=0.0) wh
     return sqrt((2.0*kB/mH) * (T/M) + v_turb^2) * (λ/c)
 end
 
-function quad_limb_darkening_eclipse(μ::T, wavelength::T) where T<:AF
+function NL94_limb_darkening(μ::T, wavelength::T) where T<:AF
     μ < zero(T) && return 0.0    
+    index = findmin(x->abs(x-wavelength), lambda_nm)[2]
 
-    # index = findmin(x->abs(x-wavelength), lambda_nm)[2]
-
-    # return a0[index] + a1[index]*μ + a2[index]*μ^2 + a3[index]*μ^3 + a4[index]*μ^4 + a5[index]*μ^5
-    
-    index = findmin(x->abs(x-wavelength), Kostogryz_LD_file[!, "wavelength"])[2]
-    Kostogryz_LD_array = Kostogryz_LD_file[index, ["0.1", "0.2", "0.3", "0.4", "0.5", "0.6", "0.7", "0.8", "0.9", "1.0"]]
-    Kostogryz_LD_interpol = linear_interp([0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0], collect(Kostogryz_LD_array))
-
-    return Kostogryz_LD_interpol(μ)
+    return a0[index] + a1[index]*μ + a2[index]*μ^2 + a3[index]*μ^3 + a4[index]*μ^4 + a5[index]*μ^5
 end
 
-function quad_limb_darkening_NIR(μ::T) where T
-    """
-    limb darkening prescription for NIR based on mu angle  
-    """
+function NIR_limb_darkening(μ::T) where T
     μ < zero(T) && return 0.0
     return 0.59045 + 1.41938*μ - 3.01866*μ^2 + 3.99843*μ^3 - 2.67727*μ^4 + 0.068758*μ^5
+end
+
+LD_model(x, p) = 1 .- p[1] .* (1 .-x) .- p[2] .* (1 .- x) .^ 2.0
+
+function quad_limb_darkening_eclipse(μ::T, u1::T, u2::T) where T<:AF
+    μ < zero(T) && return 0.0
+    return LD_model(μ, [u1,u2])
 end
 
 function quad_limb_darkening(μ::T, u1::T, u2::T) where T<:AF

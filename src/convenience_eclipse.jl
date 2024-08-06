@@ -7,20 +7,28 @@ Synthesize spectra given parameters in `spec` and `disk` instances.
 - `spec::SpecParams`: SpecParams instance
 - `disk::DiskParams`: DiskParams instance
 """
-function synthesize_spectra_eclipse(spec::SpecParams{T}, disk::DiskParamsEclipse{T}, obs_long, obs_lat, alt, wavelength, time_stamps, band, neid_ext_coeff;
-                            ext_toggle::Bool=false, seed_rng::Bool=false, verbose::Bool=true,
-                            use_gpu::Bool=false, precision::DataType=Float64,
-                            skip_times::BitVector=falses(disk.Nt)) where T<:AF
+function synthesize_spectra_eclipse(spec::SpecParams{T}, disk::DiskParamsEclipse{T}, wavelength, LD_type, 
+                                    zenith_mean, dA_total_proj, idx1, idx3, mu_grid, z_rot_sub,
+                                    stored_μs, stored_ax_codes, stored_dA, neid_ext_coeff;
+                                    ext_toggle::Bool=false, seed_rng::Bool=false, verbose::Bool=true,
+                                    use_gpu::Bool=false, precision::DataType=Float64,
+                                    skip_times::BitVector=falses(disk.Nt)) where T<:AF
     # call appropriate simulation function on cpu or gpu
     if use_gpu
-        return synth_Eclipse_gpu(spec, disk, seed_rng, verbose, precision, skip_times, obs_long, obs_lat, alt, time_stamps, band, wavelength, neid_ext_coeff, ext_toggle)
+        return synth_Eclipse_gpu(spec, disk, seed_rng, verbose, precision, skip_times, LD_type,
+                                    zenith_mean, dA_total_proj, idx1, idx3, mu_grid, z_rot_sub,
+                                    stored_μs, stored_ax_codes, stored_dA, wavelength, neid_ext_coeff, ext_toggle)
     else
-        return synth_Eclipse_cpu(spec, disk, seed_rng, verbose, skip_times, obs_long, obs_lat, alt, time_stamps, band, wavelength, neid_ext_coeff, ext_toggle)
+        return synth_Eclipse_cpu(spec, disk, seed_rng, verbose, skip_times, LD_type, wavelength, 
+                                    zenith_mean, dA_total_proj, idx1, idx3, mu_grid, z_rot_sub,
+                                    stored_μs, stored_ax_codes, stored_dA, neid_ext_coeff, ext_toggle)
     end
 end
 
 function synth_Eclipse_cpu(spec::SpecParams{T}, disk::DiskParamsEclipse{T}, seed_rng::Bool,
-                   verbose::Bool, skip_times::BitVector, obs_long, obs_lat, alt, time_stamps, band, wavelength, neid_ext_coeff, ext_toggle) where T<:AF
+                            verbose::Bool, skip_times::BitVector, LD_type, wavelength, 
+                            zenith_mean, dA_total_proj, idx1, idx3, mu_grid, z_rot_sub,
+                            stored_μs, stored_ax_codes, stored_dA, neid_ext_coeff, ext_toggle) where T<:AF
 
     # parse out dimensions for memory allocation
     N = disk.N
@@ -32,11 +40,10 @@ function synth_Eclipse_cpu(spec::SpecParams{T}, disk::DiskParamsEclipse{T}, seed
     flux = ones(Nλ, Nt)
 
     # pre-allocate memory and pre-compute geometric quantities
-    wsp = SynthWorkspaceEclipse(disk, Int(length(wavelength)), verbose=verbose)
-    mem = GeoWorkspaceEclipse(disk, Int(length(wavelength)))
+    wsp = SynthWorkspaceEclipse(disk, Int(length(wavelength)), Nt, verbose=verbose)
 
     # allocate memory for time indices
-    tloop = zeros(Int, size(wsp.μs))
+    tloop = zeros(Int, size(disk.θc))
     tloop_init = zeros(Int, size(tloop))
 
     # get number of calls to disk_sim needed
@@ -59,8 +66,9 @@ function synth_Eclipse_cpu(spec::SpecParams{T}, disk::DiskParamsEclipse{T}, seed
         end
 
         # run the simulation and multiply flux by this spectrum
-        disk_sim_eclipse(spec_temp, disk, soldata, wsp, mem, prof, flux, tloop, tloop_init, templates, idx, obs_long, obs_lat, alt, time_stamps, band, wavelength, neid_ext_coeff, ext_toggle,
-                 skip_times=skip_times, verbose=verbose)
+        disk_sim_eclipse(spec_temp, disk, soldata, wsp, prof, flux, tloop, tloop_init, templates, idx, LD_type, wavelength, 
+                        zenith_mean, dA_total_proj, idx1, idx3, mu_grid, z_rot_sub,
+                        stored_μs, stored_ax_codes, stored_dA, neid_ext_coeff, ext_toggle, skip_times=skip_times, verbose=verbose)
     end
     return spec.lambdas, flux
 end

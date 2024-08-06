@@ -60,11 +60,18 @@ obs_lat = 31.9583
 obs_long = -111.5967  
 alt = 2.097938
 
-function neid_bis(line_names, files, airwav, vacwav, orders, neid_timestamps, timestamps, path, obs_long, obs_lat, alt)
+function neid_bis(line_names, files, airwav, vacwav, orders, neid_timestamps, timestamps, path, filename, LD_type)
     #convert from utc to et as needed by SPICE
     time_stamps = utc2et.(neid_timestamps)
 
-    N = 5
+    variable_names = ["zenith_mean", "dA_total_proj", "idx1", "idx3", "mu_grid", "z_rot_sub", "mu", "ax_codes", "dA", "N"]
+
+    # Open the JLD2 file and read the variables into a dictionary
+    data = jldopen("data/solar_disk/$(filename).jld2", "r") do file
+        Dict(var => read(file, var) for var in variable_names)
+    end
+
+    N = data["N"]
     Nt = length(time_stamps)
     disk = GRASS.DiskParamsEclipse(N=N, Nt=Nt, Nsubgrid=10)
 
@@ -74,6 +81,16 @@ function neid_bis(line_names, files, airwav, vacwav, orders, neid_timestamps, ti
         if i == 11
             continue
         end
+
+        zenith_mean = deepcopy(data["zenith_mean"])
+        dA_total_proj = deepcopy(data["dA_total_proj"])
+        idx1 = deepcopy(data["idx1"])
+        idx3 = deepcopy(data["idx3"])
+        mu_grid = deepcopy(data["mu_grid"])
+        z_rot_sub = deepcopy(data["z_rot_sub"])
+        stored_μs = deepcopy(data["mu"])
+        stored_ax_codes = deepcopy(data["ax_codes"])
+        stored_dA = deepcopy(data["dA"])
 
         println(">>> Running " * line_names[i] * "...")
 
@@ -115,7 +132,9 @@ function neid_bis(line_names, files, airwav, vacwav, orders, neid_timestamps, ti
         spec = SpecParams(lines=lines, depths=depths, templates=templates, resolution=resolution, oversampling=4.0)
     
         # simulate the spectrum 
-        wavs_sim, flux_sim = GRASS.synthesize_spectra_eclipse(spec, disk, obs_long, obs_lat, alt, lines ./ 10.0, time_stamps, "Optical", verbose=true, use_gpu=false)
+        wavs_sim, flux_sim = GRASS.synthesize_spectra_eclipse(spec, disk, lines, LD_type, zenith_mean,
+                                                                dA_total_proj, idx1, idx3, mu_grid, z_rot_sub,
+                                                                stored_μs, stored_ax_codes, stored_dA, [0.0], ext_toggle = false, verbose=true, use_gpu=false)
         # convolve GRASS spectrum to NEID resolution
         wavs_sim, flux_sim = GRASS.convolve_gauss(wavs_sim, flux_sim, new_res=11e4, oversampling=4.0)
         wavs_sim .= λ_air_to_vac.(wavs_sim)
@@ -314,4 +333,4 @@ function neid_bis(line_names, files, airwav, vacwav, orders, neid_timestamps, ti
 end
 
 #for first timestamp (out of transit) of October eclipse, line and bisector comparsion between GRASS and NEID
-neid_bis(line_names, files, airwav, vacwav, orders, neid_timestamps_october, timestamps_october, path_october, obs_long, obs_lat, alt)
+neid_bis(line_names, files, airwav, vacwav, orders, neid_timestamps_october, timestamps_october, path_october, "neid_october_N_5", "KSSD")
