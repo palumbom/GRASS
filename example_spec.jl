@@ -152,7 +152,7 @@ end
 ########################################################################
 #TO BE CLEAR
 #grass = src: gpu (finalize and clear) + structures (GPU ones need to be finalized)
-#grass once gpu done run with gpu + clear loose in src and loose outside src
+#grass once gpu done run with gpu + clear loose in src and loose outside src - that follow GPU pipeline
 
 # if case == "GPU_test" 
 #     epoch = utc2et.("2023-10-14T15:26:45")

@@ -1,27 +1,23 @@
 function disk_sim_eclipse(spec::SpecParams{T}, disk::DiskParamsEclipse{T}, soldata::SolarData{T},
-    wsp::SynthWorkspaceEclipse{T}, mem::GeoWorkspaceEclipse{T}, prof::AA{T,1}, flux::AA{T,2},
-    tloop, tloop_init, templates, idx, obs_long, obs_lat, alt, time_stamps, band, wavelength, neid_ext_coeff, ext_toggle; verbose::Bool=true,
-    skip_times::BitVector=falses(disk.Nt)) where T<:AF
-
+                            wsp::SynthWorkspaceEclipse{T}, prof::AA{T,1}, flux::AA{T,2},
+                            tloop, tloop_init, templates, idx, LD_type, wavelength, 
+                            zenith_mean, dA_total_proj, idx1, idx3, mu_grid, z_rot_sub,
+                            stored_μs, stored_ax_codes, stored_dA, neid_ext_coeff, ext_toggle; verbose::Bool=true,
+                            skip_times::BitVector=falses(disk.Nt)) where T<:AF
     # loop over time
     for t in 1:disk.Nt
-
-            #compute geometry for timestamp
-            GRASS.eclipse_compute_quantities!(disk, time_stamps[t], band, obs_long, obs_lat, alt, wavelength, wsp.ϕc, wsp.θc, 
-                                                wsp.μs, wsp.ld, wsp.ext, wsp.dA, wsp.xyz, wsp.z_rot, wsp.ax_codes,
-                                                mem.dA_total_proj_mean, mem.mean_intensity, mem.mean_weight_v_no_cb,
-                                                mem.mean_weight_v_earth_orb, mem.pole_vector_grid,
-                                                mem.SP_sun_pos, mem.SP_sun_vel, mem.SP_bary, mem.SP_bary_pos,
-                                                mem.SP_bary_vel, mem.OP_bary, mem.mu_grid, mem.projected_velocities_no_cb, 
-                                                mem.distance, mem.v_scalar_grid, mem.v_earth_orb_proj, neid_ext_coeff[t], ext_toggle)
+            #compute intensity for timestamp
+            GRASS.eclipse_compute_intensity(disk, wavelength, neid_ext_coeff, LD_type, idx1[t], idx3[t],
+                                mu_grid[t], z_rot_sub[t], dA_total_proj[t], wsp.ld, wsp.z_rot, zenith_mean[:, :, t], 
+                                stored_μs, stored_ax_codes, stored_dA, wsp.μs, wsp.ax_codes, wsp.dA, ext_toggle, t)
             # get conv. blueshift and keys from input data
-            GRASS.get_keys_and_cbs_eclispe!(wsp, soldata)
+            GRASS.get_keys_and_cbs_eclispe!(wsp, soldata, t)
             
             # generate or copy tloop
             if (idx > 1) && GRASS.in_same_group(templates[idx - 1], templates[idx])
                 tloop .= tloop_init
             else
-                GRASS.generate_tloop_eclipse!(tloop_init, wsp, soldata)
+                GRASS.generate_tloop_eclipse!(tloop_init, wsp, soldata, t)
                 tloop .= tloop_init
             end
 
@@ -32,12 +28,12 @@ function disk_sim_eclipse(spec::SpecParams{T}, disk::DiskParamsEclipse{T}, solda
 
                 # get sum of weights
                 if ext_toggle == false
-                    sum_wts = sum(wsp.ld[:, :, l] .* wsp.dA)
-                    z_cbs_avg = sum(wsp.ld[:, :, l] .* wsp.dA .* wsp.cbs) / sum_wts
+                    sum_wts = sum(wsp.ld[:, :, l] .* wsp.dA[:, :, t])
+                    z_cbs_avg = sum(wsp.ld[:, :, l] .* wsp.dA[:, :, t] .* wsp.cbs) / sum_wts
                 end
                 if ext_toggle == true
-                    sum_wts = sum(wsp.ld[:, :, l] .* wsp.dA .* wsp.ext[:, :, l])
-                    z_cbs_avg = sum(wsp.ld[:, :, l] .* wsp.dA .* wsp.ext[:, :, l] .* wsp.cbs) / sum_wts
+                    sum_wts = sum(wsp.ld[:, :, l] .* wsp.dA[:, :, t] .* wsp.ext[:, :, l])
+                    z_cbs_avg = sum(wsp.ld[:, :, l] .* wsp.dA[:, :, t] .* wsp.ext[:, :, l] .* wsp.cbs) / sum_wts
                 end
 
                 # loop over spatial patches
@@ -45,7 +41,7 @@ function disk_sim_eclipse(spec::SpecParams{T}, disk::DiskParamsEclipse{T}, solda
                     for j in 1:disk.Nθ[i]
 
                     # move to next iteration if patch element is not visible
-                    (wsp.ld[i,j,l] .* wsp.dA[i,j]) <= zero(T) && continue
+                    (wsp.ld[i,j,l] .* wsp.dA[i,j,t]) <= zero(T) && continue
 
                     # get input data for place on disk
                     key = wsp.keys[i,j]
@@ -89,7 +85,7 @@ function disk_sim_eclipse(spec::SpecParams{T}, disk::DiskParamsEclipse{T}, solda
                     trim_bisector!(dtrim, wsp.bist, wsp.intt)
 
                     # update the line profile in place
-                    line_profile_cpu!(λΔD, wsp.dA[i,j], wsp.ld[i,j,l], wsp.ext[i,j,l], spec.lambdas, prof, wsp, ext_toggle)
+                    line_profile_cpu!(λΔD, wsp.dA[i,j,t], wsp.ld[i,j,l], wsp.ext[i,j,l], spec.lambdas, prof, wsp, ext_toggle)
                     end
                 end
 
