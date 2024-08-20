@@ -378,7 +378,9 @@ function line_rvs_ccf(line_names, airwav, vacwav, orders, neid_timestamps, times
     RV_error_all_lines = Vector{Vector{Float64}}(undef,length(line_names)...)
     #iterate through lines and determine line RV for eclipse EM curve
     Threads.@threads for i in 1:length(line_names)
-    # for i in [6]
+        if i == 6
+            continue
+        end
         zenith_mean = deepcopy(data["zenith_mean"])
         dA_total_proj = deepcopy(data["dA_total_proj"])
         idx1 = deepcopy(data["idx1"])
@@ -481,9 +483,9 @@ function line_rvs_ccf(line_names, airwav, vacwav, orders, neid_timestamps, times
 end
 
 # october
-RV_all_lines, RV_error_all_lines = line_rvs_ccf(line_names, airwav, vacwav, orders, neid_timestamps_october, timestamps_october, path_october, "neid_october_N_5", "NL94")
-@save "neid_RVlinebyline_NL94.jld2"
-jldopen("neid_RVlinebyline_NL94.jld2", "a+") do file
+RV_all_lines, RV_error_all_lines = line_rvs_ccf(line_names, airwav, vacwav, orders, neid_timestamps_october, timestamps_october, path_october, "neid_october_N_50", "HD")
+@save "neid_RVlinebyline_HD.jld2"
+jldopen("neid_RVlinebyline_HD.jld2", "a+") do file
     file["name"] = line_names 
     file["rv"] = RV_all_lines 
     file["rv_error"] = RV_error_all_lines 
