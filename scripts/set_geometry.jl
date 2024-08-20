@@ -22,12 +22,14 @@ function set_geometry(time, obs_lat, obs_long, alt, N, filename)
     idx1_eclipse = Vector{Matrix{Matrix{Int}}}(undef,size(time_stamps)...)
     idx3_eclipse = Vector{Matrix{Matrix{Int}}}(undef,size(time_stamps)...)
     z_rot_eclipse = Vector{Matrix{Matrix{Float64}}}(undef,size(time_stamps)...)
+    zenith_eclipse = Vector{Matrix{Matrix{Float64}}}(undef,size(time_stamps)...)
 
     mu_grid_matrix = Matrix{Matrix{Float64}}(undef, length(disk.ϕc), maximum(disk.Nθ))    
     dA_total_proj_matrix = Matrix{Matrix{Float64}}(undef, length(disk.ϕc), maximum(disk.Nθ))
     idx1_matrix = Matrix{Matrix{Float64}}(undef, length(disk.ϕc), maximum(disk.Nθ))
     idx3_matrix = Matrix{Matrix{Float64}}(undef, length(disk.ϕc), maximum(disk.Nθ))
     z_rot_matrix = Matrix{Matrix{Float64}}(undef, length(disk.ϕc), maximum(disk.Nθ))
+    zenith_matrix = Matrix{Matrix{Float64}}(undef, length(disk.ϕc), maximum(disk.Nθ))
 
     Threads.@threads for t in 1:disk.Nt
         #compute geometry for timestamp
@@ -37,13 +39,14 @@ function set_geometry(time, obs_lat, obs_long, alt, N, filename)
                                             mem.mean_weight_v_earth_orb, mem.pole_vector_grid,
                                             mem.SP_sun_pos, mem.SP_sun_vel, mem.SP_bary, mem.SP_bary_pos,
                                             mem.SP_bary_vel, mem.OP_bary, mem.mu_grid, mem.projected_velocities_no_cb, 
-                                            mem.distance, mem.v_scalar_grid, mem.v_earth_orb_proj, mem.zenith_mean, t, mu_grid_matrix,
-                                            dA_total_proj_matrix, idx1_matrix, idx3_matrix, z_rot_matrix)                                  
+                                            mem.distance, mem.v_scalar_grid, mem.v_earth_orb_proj, t, mu_grid_matrix,
+                                            dA_total_proj_matrix, idx1_matrix, idx3_matrix, z_rot_matrix, zenith_matrix)                                  
         mu_grid_eclipse[t] = deepcopy(mu_grid_matrix)
         dA_total_proj_eclipse[t] = deepcopy(dA_total_proj_matrix)
         idx1_eclipse[t] = deepcopy(idx1_matrix)
         idx3_eclipse[t] = deepcopy(idx3_matrix)
         z_rot_eclipse[t] = deepcopy(z_rot_matrix)
+        zenith_eclipse[t] = deepcopy(zenith_matrix)
     end
 
     @save "data/solar_disk/$(filename).jld2"
@@ -51,10 +54,10 @@ function set_geometry(time, obs_lat, obs_long, alt, N, filename)
         file["dA_total_proj_mean"] = deepcopy(mem.dA_total_proj_mean)
         file["mean_weight_v_no_cb"] = deepcopy(mem.mean_weight_v_no_cb)
         file["mean_weight_v_earth_orb"] = deepcopy(mem.mean_weight_v_earth_orb)
-        file["zenith_mean"] = deepcopy(mem.zenith_mean)
         file["mu_grid"] = deepcopy(mu_grid_eclipse)
         file["dA_total_proj"] = deepcopy(dA_total_proj_eclipse)
         file["idx1"] = deepcopy(idx1_eclipse)
+        file["zenith"] = deepcopy(zenith_eclipse)
         file["idx3"] = deepcopy(idx3_eclipse)
         file["mu"] = deepcopy(wsp.μs)
         file["dA"] = deepcopy(wsp.dA)
@@ -77,4 +80,4 @@ obs_lat = 31.9583
 obs_long = -111.5967  
 alt = 2.097938 
 
-set_geometry(exp_meter_time[6001:-1], obs_lat, obs_long, alt, 50, "neid_october_exp_meter_N_50")
+set_geometry(exp_meter_time[6001:length(exp_meter_time)], obs_lat, obs_long, alt, 50, "neid_october_exp_meter_N_50_7000")

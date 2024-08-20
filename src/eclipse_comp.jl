@@ -5,8 +5,9 @@ function eclipse_compute_quantities!(disk::DiskParamsEclipse{T}, epoch::T, obs_l
                                      SP_sun_pos::Matrix{Vector{Float64}}, SP_sun_vel::Matrix{Vector{Float64}}, SP_bary::Matrix{Vector{Float64}}, 
                                      SP_bary_pos::Matrix{Vector{Float64}}, SP_bary_vel::Matrix{Vector{Float64}}, OP_bary::Matrix{Vector{Float64}}, 
                                      mu_grid::AA{T,2}, projected_velocities_no_cb::AA{T,2}, distance::AA{T,2}, v_scalar_grid::AA{T,2}, 
-                                     v_earth_orb_proj::Matrix{Float64}, zenith_mean::AA{T,3}, t, mu_grid_matrix::Matrix{Matrix{Float64}},
-                                     dA_total_proj_matrix::Matrix{Matrix{Float64}}, idx1_matrix::Matrix{Matrix{Float64}}, idx3_matrix::Matrix{Matrix{Float64}}, z_rot_matrix::Matrix{Matrix{Float64}}) where T<:AF
+                                     v_earth_orb_proj::Matrix{Float64}, t, mu_grid_matrix::Matrix{Matrix{Float64}},
+                                     dA_total_proj_matrix::Matrix{Matrix{Float64}}, idx1_matrix::Matrix{Matrix{Float64}}, idx3_matrix::Matrix{Matrix{Float64}}, 
+                                     z_rot_matrix::Matrix{Matrix{Float64}}, zenith_matrix::Matrix{Matrix{Float64}}) where T<:AF
 
     #query JPL horizons for E, S, M position (km) and velocities (km/s)
     BE_bary = spkssb(399,epoch,"J2000")
@@ -141,8 +142,7 @@ function eclipse_compute_quantities!(disk::DiskParamsEclipse{T}, epoch::T, obs_l
             mean_weight_v_earth_orb[i,j,t] = deepcopy(mean(view(v_earth_orb_proj, idx3)))
 
             # average zenith angle
-            zenith_angle_matrix = rad2deg.(map(x -> calc_proj_dist(x[1:3], EO_bary[1:3]), OP_bary))
-            zenith_mean[i,j,t] = mean(view(zenith_angle_matrix, idx1))
+            zenith_matrix[i,j] = rad2deg.(map(x -> calc_proj_dist(x[1:3], EO_bary[1:3]), OP_bary))
         end
     end
     return 
@@ -177,6 +177,12 @@ function eclipse_compute_intensity(disk::DiskParamsEclipse{T}, wavelength::Vecto
                     filtered_df = quad_ld_coeff_SSD[quad_ld_coeff_SSD.wavelength .== wavelength, :]
                     ld_sub = map(x -> quad_limb_darkening_eclipse(x, filtered_df.u1[1], filtered_df.u2[1]), mu_grid[i,j])
                 end
+
+                if LD_law == "HD"
+                    filtered_df = quad_ld_coeff_HD[quad_ld_coeff_HD.wavelength .== wavelength, :]
+                    ld_sub = map(x -> quad_limb_darkening_eclipse(x, filtered_df.u1[1], filtered_df.u2[1]), mu_grid[i,j])
+                end
+
                 boolean_mask = idx3[i,j] .== 1
                 idx1_sum = sum(idx1[i,j])
 
@@ -252,6 +258,12 @@ function eclipse_compute_intensity(disk::DiskParamsEclipse{T}, wavelength::Vecto
                     filtered_df = quad_ld_coeff_SSD[quad_ld_coeff_SSD.wavelength .== wavelength, :]
                     ld_sub = map(x -> quad_limb_darkening(x, filtered_df.u1[1], filtered_df.u2[1]), mu_grid[i,j])
                 end
+
+                if LD_law == "HD"
+                    filtered_df = quad_ld_coeff_HD[quad_ld_coeff_HD.wavelength .== wavelength, :]
+                    ld_sub = map(x -> quad_limb_darkening(x, filtered_df.u1[1], filtered_df.u2[1]), mu_grid[i,j])
+                end
+
                 boolean_mask = idx3[i,j] .== 1
                 idx1_sum = sum(idx1[i,j])
 

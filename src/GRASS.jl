@@ -47,6 +47,7 @@ moon_radius = bodvrd("MOON", "RADII")[1]
 #collect LD info as global variables - (units: nm)
 quad_ld_coeff_SSD = CSV.read("data/quad_ld_coeff_SSD.csv", DataFrame)
 quad_ld_coeff_300 = CSV.read("data/quad_ld_coeff_300.csv", DataFrame)
+quad_ld_coeff_HD = CSV.read("data/quad_ld_coeff_HD.csv", DataFrame)
 
 NL94_coeff = CSV.read("data/NL94_coeff.csv", DataFrame)
 lambda_nm = NL94_coeff.lambda_nm
