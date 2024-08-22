@@ -52,7 +52,7 @@ function extinction_reduction(time, index)
     N = geometry["N"]
     Nt = length(time)
     disk = GRASS.DiskParamsEclipse(N=N, Nt=Nt, Nsubgrid=10)
-    ext_coeff = LinRange(0.1, 0.6, 10)
+    ext_coeff = LinRange(0.0, 0.1, 10)
     wsp = GRASS.SynthWorkspaceEclipse(disk, length(ext_coeff), Nt, verbose=true)
 
     # get lines to construct templates
@@ -105,6 +105,7 @@ Threads.@threads for j in 1:7
     global end_value = parse(Int, "$(j+1)000")
 end
 
-@save "extinction_chi.jld2"
-    jldopen("extinction_chi.jld2", "a+") do file
+@save "extinction_chi_under1.jld2"
+    jldopen("extinction_chi_under1.jld2", "a+") do file
+        file["extinction_chi_data"] = deepcopy(intensity_ext_eclipse) 
 end
