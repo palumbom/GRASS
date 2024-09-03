@@ -150,7 +150,7 @@ end
 
 function eclipse_compute_intensity(disk::DiskParamsEclipse{T}, wavelength::Vector{Float64}, neid_ext_coeff::Vector{Float64}, LD_law, idx1::Matrix{Matrix{Int}}, idx3::Matrix{Matrix{Int}},
                                     mu_grid::Matrix{Matrix{Float64}}, mean_weight_v_no_cb::AA{T,2}, mean_weight_v_earth_orb::AA{T,2},
-                                    z_rot_sub::Matrix{Matrix{Float64}}, dA_total_proj::Matrix{Matrix{Float64}}, ld::AA{T,3}, z_rot::AA{T,3}, zenith_mean, ext_toggle) where T<:AF
+                                    z_rot_sub::Matrix{Matrix{Float64}}, dA_total_proj::Matrix{Matrix{Float64}}, ld::AA{T,3}, z_rot::AA{T,3}, zenith_mean, ext_toggle, ext) where T<:AF
     for i in eachindex(disk.ϕc)
         for j in 1:disk.Nθ[i]
             if all(x -> x < zero(T), vec(mu_grid[i, j]))
@@ -195,7 +195,7 @@ function eclipse_compute_intensity(disk::DiskParamsEclipse{T}, wavelength::Vecto
 
                 #z_rot + extinction
                 if ext_toggle == true
-                    extin = map(x -> exp(-((1/cosd(x))*neid_ext_coeff)), zenith_mean)
+                    extin = map(x -> exp(-((1/cosd(x))*neid_ext_coeff[1])), zenith_mean[i,j])
                     ext[i,j,l] = mean(view(extin, boolean_mask)) 
 
                     z_rot[i,j,l] = sum(view(z_rot_sub[i,j] .* ld_sub .* dA_total_proj[i,j] .* extin, boolean_mask)) ./ sum(view(ld_sub .* dA_total_proj[i,j] .* extin, boolean_mask))
@@ -228,7 +228,7 @@ function eclipse_compute_intensity(disk::DiskParamsEclipse{T}, wavelength::Vecto
                                     idx3::Matrix{Matrix{Int}}, mu_grid::Matrix{Matrix{Float64}},
                                     z_rot_sub::Matrix{Matrix{Float64}}, dA_total_proj::Matrix{Matrix{Float64}}, 
                                     ld::AA{T,3}, z_rot::AA{T,3}, zenith_mean, stored_μs, stored_ax_codes, stored_dA,
-                                    μs::AA{T,3}, ax_codes::AA{Int,3}, dA::AA{T,3}, ext_toggle, t) where T<:AF
+                                    μs::AA{T,3}, ax_codes::AA{Int,3}, dA::AA{T,3}, ext_toggle, t, ext) where T<:AF
     for i in eachindex(disk.ϕc)
         for j in 1:disk.Nθ[i]
             if all(x -> x < zero(T), vec(mu_grid[i, j]))
@@ -276,7 +276,7 @@ function eclipse_compute_intensity(disk::DiskParamsEclipse{T}, wavelength::Vecto
 
                 #z_rot + extinction
                 if ext_toggle == true
-                    extin = map(x -> exp(-((1/cosd(x))*neid_ext_coeff)), zenith_mean)
+                    extin = map(x -> exp(-((1/cosd(x))*neid_ext_coeff[1])), zenith_mean[i,j])
                     ext[i,j,l] = mean(view(extin, boolean_mask)) 
 
                     z_rot[i,j,l] = sum(view(z_rot_sub[i,j] .* ld_sub .* dA_total_proj[i,j] .* extin, boolean_mask)) ./ sum(view(ld_sub .* dA_total_proj[i,j] .* extin, boolean_mask))

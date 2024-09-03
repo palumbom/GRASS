@@ -361,7 +361,9 @@ function line_rvs_ccf(line_names, airwav, vacwav, orders, neid_timestamps, times
     #convert from utc to et as needed by SPICE
     time_stamps = utc2et.(neid_timestamps)
 
-    variable_names = ["zenith_mean", "dA_total_proj", "idx1", "idx3", "mu_grid", "z_rot_sub", "mu", "ax_codes", "dA", "N"]
+    variable_names = ["zenith", "dA_total_proj", "idx1", "idx3", "mu_grid", "z_rot_sub", "mu", "ax_codes", "dA", "N"]
+
+    extinction_coeff = DataFrame(CSV.File("data/NEID_extinction_coefficient.csv"))
 
     # Open the JLD2 file and read the variables into a dictionary
     data = jldopen("data/solar_disk/$(filename).jld2", "r") do file
@@ -378,10 +380,7 @@ function line_rvs_ccf(line_names, airwav, vacwav, orders, neid_timestamps, times
     RV_error_all_lines = Vector{Vector{Float64}}(undef,length(line_names)...)
     #iterate through lines and determine line RV for eclipse EM curve
     Threads.@threads for i in 1:length(line_names)
-        if i == 6
-            continue
-        end
-        zenith_mean = deepcopy(data["zenith_mean"])
+        zenith_mean = deepcopy(data["zenith"])
         dA_total_proj = deepcopy(data["dA_total_proj"])
         idx1 = deepcopy(data["idx1"])
         idx3 = deepcopy(data["idx3"])
@@ -403,11 +402,13 @@ function line_rvs_ccf(line_names, airwav, vacwav, orders, neid_timestamps, times
         templates = [line_names[i]]
         resolution = 7e5
         spec = SpecParams(lines=lines, depths=depths, templates=templates, resolution=resolution, oversampling=4.0)
+
+        neid_ext_coeff = extinction_coeff[extinction_coeff[!, "Key"] .== airwav[i], "Value"]
     
         # simulate the spectrum 
         wavs_sim, flux_sim = GRASS.synthesize_spectra_eclipse(spec, disk, lines, LD_type, zenith_mean,
                                                             dA_total_proj, idx1, idx3, mu_grid, z_rot_sub,
-                                                            stored_μs, stored_ax_codes, stored_dA, [0.0], ext_toggle = false, verbose=true, use_gpu=false)
+                                                            stored_μs, stored_ax_codes, stored_dA, neid_ext_coeff, ext_toggle = true, verbose=true, use_gpu=false)
         # convolve GRASS spectrum to NEID resolution
         wavs_sim, flux_sim = GRASS.convolve_gauss(wavs_sim, flux_sim, new_res=11e4, oversampling=4.0)
         wavs_sim .= λ_air_to_vac.(wavs_sim)
@@ -473,7 +474,7 @@ function line_rvs_ccf(line_names, airwav, vacwav, orders, neid_timestamps, times
                 ax1.set_ylabel("Normalized Flux")
                 ax1.set_xlabel("Wavelength (Å)")
                 ax2.set_xlabel("Radial Velocity (m/s)")
-                fig.savefig("neid_figures/October_FeI_5383_movie/timestamp_$(j).png")
+                # fig.savefig("neid_figures/October_FeI_5383_movie/timestamp_$(j).png")
             end
         end
         RV_all_lines[i] = RV_list
@@ -483,9 +484,9 @@ function line_rvs_ccf(line_names, airwav, vacwav, orders, neid_timestamps, times
 end
 
 # october
-RV_all_lines, RV_error_all_lines = line_rvs_ccf(line_names, airwav, vacwav, orders, neid_timestamps_october, timestamps_october, path_october, "neid_october_N_50", "HD")
-@save "neid_RVlinebyline_HD.jld2"
-jldopen("neid_RVlinebyline_HD.jld2", "a+") do file
+RV_all_lines, RV_error_all_lines = line_rvs_ccf(line_names, airwav, vacwav, orders, neid_timestamps_october, timestamps_october, path_october, "neid_october_N_50", "KSSD")
+@save "neid_RVlinebyline_KSSD_ext.jld2"
+jldopen("neid_RVlinebyline_KSSD_ext.jld2", "a+") do file
     file["name"] = line_names 
     file["rv"] = RV_all_lines 
     file["rv_error"] = RV_error_all_lines 
