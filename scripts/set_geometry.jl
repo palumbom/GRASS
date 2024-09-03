@@ -80,4 +80,4 @@ obs_lat = 31.9583
 obs_long = -111.5967  
 alt = 2.097938 
 
-set_geometry(exp_meter_time[6001:length(exp_meter_time)], obs_lat, obs_long, alt, 50, "neid_october_exp_meter_N_50_7000")
+set_geometry(neid_october, obs_lat, obs_long, alt, 50, "neid_october_N_50")

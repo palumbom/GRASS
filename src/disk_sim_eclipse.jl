@@ -8,8 +8,8 @@ function disk_sim_eclipse(spec::SpecParams{T}, disk::DiskParamsEclipse{T}, solda
     for t in 1:disk.Nt
             #compute intensity for timestamp
             GRASS.eclipse_compute_intensity(disk, wavelength, neid_ext_coeff, LD_type, idx1[t], idx3[t],
-                                mu_grid[t], z_rot_sub[t], dA_total_proj[t], wsp.ld, wsp.z_rot, zenith_mean[:, :, t], 
-                                stored_μs, stored_ax_codes, stored_dA, wsp.μs, wsp.ax_codes, wsp.dA, ext_toggle, t)
+                                mu_grid[t], z_rot_sub[t], dA_total_proj[t], wsp.ld, wsp.z_rot, zenith_mean[t], 
+                                stored_μs, stored_ax_codes, stored_dA, wsp.μs, wsp.ax_codes, wsp.dA, ext_toggle, t, wsp.ext)
             # get conv. blueshift and keys from input data
             GRASS.get_keys_and_cbs_eclispe!(wsp, soldata, t)
             
