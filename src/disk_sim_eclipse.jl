@@ -4,10 +4,17 @@ function disk_sim_eclipse(spec::SpecParams{T}, disk::DiskParamsEclipse{T}, solda
                             zenith_mean, dA_total_proj, idx1, idx3, mu_grid, z_rot_sub,
                             stored_μs, stored_ax_codes, stored_dA, neid_ext_coeff, ext_toggle; verbose::Bool=true,
                             skip_times::BitVector=falses(disk.Nt)) where T<:AF
+    extinction_coeff = DataFrame(CSV.File("data/NEID_two_extinctions.csv"))
     # loop over time
     for t in 1:disk.Nt
+            if t < 85
+                neid_ext_coeff_new = extinction_coeff[extinction_coeff[!, "Wavelength"] .== wavelength, "Ext1"]
+            elseif t >= 85
+                neid_ext_coeff_new = extinction_coeff[extinction_coeff[!, "Wavelength"] .== wavelength, "Ext2"]
+            end
+
             #compute intensity for timestamp
-            GRASS.eclipse_compute_intensity(disk, wavelength, neid_ext_coeff, LD_type, idx1[t], idx3[t],
+            GRASS.eclipse_compute_intensity(disk, wavelength, neid_ext_coeff_new, LD_type, idx1[t], idx3[t],
                                 mu_grid[t], z_rot_sub[t], dA_total_proj[t], wsp.ld, wsp.z_rot, zenith_mean[t], 
                                 stored_μs, stored_ax_codes, stored_dA, wsp.μs, wsp.ax_codes, wsp.dA, ext_toggle, t, wsp.ext)
             # get conv. blueshift and keys from input data
@@ -41,7 +48,12 @@ function disk_sim_eclipse(spec::SpecParams{T}, disk::DiskParamsEclipse{T}, solda
                     for j in 1:disk.Nθ[i]
 
                     # move to next iteration if patch element is not visible
-                    (wsp.ld[i,j,l] .* wsp.dA[i,j,t]) <= zero(T) && continue
+                    if ext_toggle == false
+                        (wsp.ld[i,j,l] .* wsp.dA[i,j,t]) <= zero(T) && continue
+                    end
+                    if ext_toggle == true
+                        (wsp.ld[i,j,l] .* wsp.dA[i,j,t] .* wsp.ext[i,j,l]) <= zero(T) && continue
+                    end
 
                     # get input data for place on disk
                     key = wsp.keys[i,j]

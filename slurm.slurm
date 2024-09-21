@@ -1,12 +1,12 @@
 #!/bin/bash
-#SBATCH --account=sqm107_b
+#SBATCH --account=open
 #SBATCH --time=48:00:00
 #SBATCH --nodes=10
 #SBATCH --ntasks=10
-#SBATCH --mem=10gb
-#SBATCH --job-name=neid_all_lines_rv_off_KSSD_ext
-#SBATCH --output /storage/home/efg5335/work/GRASS/neid_all_lines_rv_off_KSSD_ext.out
-#SBATCH --error /storage/home/efg5335/work/GRASS/neid_all_lines_rv_off_KSSD_ext.err
+#SBATCH --mem=40gb
+#SBATCH --job-name=neid_all_lines_rv_regular_KSSD_2_ext
+#SBATCH --output /storage/home/efg5335/work/GRASS/neid_all_lines_rv_regular_KSSD_2_ext.out
+#SBATCH --error /storage/home/efg5335/work/GRASS/neid_all_lines_rv_regular_KSSD_2_ext.err
 #SBATCH --mail-user=efg5335@psu.com
 
 ##now=$(date +"%T")

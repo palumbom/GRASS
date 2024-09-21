@@ -41,7 +41,7 @@ function projected_RV(time, filename, LD_type, ext_toggle)
     λrest = GRASS.get_rest_wavelength(lp)
     lfile = GRASS.get_file(lp)
 
-    extinction_coeff = DataFrame(CSV.File("data/NEID_extinction_coefficient.csv"))
+    extinction_coeff = DataFrame(CSV.File("data/NEID_two_extinctions.csv"))
 
     RV_list_no_cb_final = Vector{Vector{Float64}}(undef,size(lp.λrest)...)
     intensity_list_final = Vector{Vector{Float64}}(undef,size(lp.λrest)...)
@@ -52,12 +52,17 @@ function projected_RV(time, filename, LD_type, ext_toggle)
         println("\t>>> Template: " * string(splitdir(lfile[i])[2]))
         # set up parameters for synthesis
         lines = [λrest[i]]
-        neid_ext_coeff = extinction_coeff[extinction_coeff[!, "Key"] .== λrest[i], "Value"]
 
         RV_list_no_cb = Vector{Float64}(undef,size(time_stamps)...)
         intensity_list = Vector{Float64}(undef,size(time_stamps)...)
         mean_intensity_list = Vector{Matrix{Float64}}(undef,size(time_stamps)...)
         for t in 1:disk.Nt
+            if t < 85
+                neid_ext_coeff = extinction_coeff[extinction_coeff[!, "Wavelength"] .== λrest[i], "Ext1"]
+            elseif t >= 85
+                neid_ext_coeff = extinction_coeff[extinction_coeff[!, "Wavelength"] .== λrest[i], "Ext2"]
+            end
+
             mean_intensity = GRASS.eclipse_compute_intensity(disk, lines, neid_ext_coeff, LD_type, idx1[t], idx3[t],
                                                                         mu_grid[t], mean_weight_v_no_cb[:, :, t], mean_weight_v_earth_orb[:, :, t],
                                                                         z_rot_sub[t], dA_total_proj[t], wsp.ld, wsp.z_rot, zenith_mean[t], ext_toggle, wsp.ext)
@@ -86,8 +91,8 @@ function projected_RV(time, filename, LD_type, ext_toggle)
         mean_intensity_final[i] = deepcopy(mean_intensity_list)
     end
 
-    @save "$(filename)_KSSD_ext.jld2"
-    jldopen("$(filename)_KSSD_ext.jld2", "a+") do file
+    @save "$(filename)_KSSD_2_ext.jld2"
+    jldopen("$(filename)_KSSD_2_ext.jld2", "a+") do file
         file["RV_list_no_cb"] = deepcopy(RV_list_no_cb_final) 
         file["intensity_list"] = deepcopy(intensity_list_final)
         file["mean_intensity"] = deepcopy(mean_intensity_final)
