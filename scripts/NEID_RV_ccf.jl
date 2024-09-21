@@ -485,8 +485,8 @@ end
 
 # october
 RV_all_lines, RV_error_all_lines = line_rvs_ccf(line_names, airwav, vacwav, orders, neid_timestamps_october, timestamps_october, path_october, "neid_october_N_50", "KSSD")
-@save "neid_RVlinebyline_KSSD_ext.jld2"
-jldopen("neid_RVlinebyline_KSSD_ext.jld2", "a+") do file
+@save "neid_RVlinebyline_KSSD_2_ext.jld2"
+jldopen("neid_RVlinebyline_KSSD_2_ext.jld2", "a+") do file
     file["name"] = line_names 
     file["rv"] = RV_all_lines 
     file["rv_error"] = RV_error_all_lines 
