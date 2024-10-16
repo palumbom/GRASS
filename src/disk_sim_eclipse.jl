@@ -4,19 +4,35 @@ function disk_sim_eclipse(spec::SpecParams{T}, disk::DiskParamsEclipse{T}, solda
                             zenith_mean, dA_total_proj, idx1, idx3, mu_grid, z_rot_sub,
                             stored_μs, stored_ax_codes, stored_dA, neid_ext_coeff, ext_toggle; verbose::Bool=true,
                             skip_times::BitVector=falses(disk.Nt)) where T<:AF
-    extinction_coeff = DataFrame(CSV.File("data/NEID_two_extinctions.csv"))
     # loop over time
     for t in 1:disk.Nt
-            if t < 85
-                neid_ext_coeff_new = extinction_coeff[extinction_coeff[!, "Wavelength"] .== wavelength, "Ext1"]
-            elseif t >= 85
-                neid_ext_coeff_new = extinction_coeff[extinction_coeff[!, "Wavelength"] .== wavelength, "Ext2"]
-            end
-
-            #compute intensity for timestamp
-            GRASS.eclipse_compute_intensity(disk, wavelength, neid_ext_coeff_new, LD_type, idx1[t], idx3[t],
+            if neid_ext_coeff == "three"
+                if t < 25
+                    coeff1 = extinction_coeff[extinction_coeff[!, "Wavelength"] .== wavelength, "Ext1"]
+                    #compute intensity for timestamp
+                    GRASS.eclipse_compute_intensity(disk, wavelength, coeff1, LD_type, idx1[t], idx3[t],
                                 mu_grid[t], z_rot_sub[t], dA_total_proj[t], wsp.ld, wsp.z_rot, zenith_mean[t], 
                                 stored_μs, stored_ax_codes, stored_dA, wsp.μs, wsp.ax_codes, wsp.dA, ext_toggle, t, wsp.ext)
+                elseif t >= 25 && t < 46 
+                    coeff2 = extinction_coeff[extinction_coeff[!, "Wavelength"] .== wavelength, "Ext2"]
+                    #compute intensity for timestamp
+                    GRASS.eclipse_compute_intensity(disk, wavelength, coeff2, LD_type, idx1[t], idx3[t],
+                                mu_grid[t], z_rot_sub[t], dA_total_proj[t], wsp.ld, wsp.z_rot, zenith_mean[t], 
+                                stored_μs, stored_ax_codes, stored_dA, wsp.μs, wsp.ax_codes, wsp.dA, ext_toggle, t, wsp.ext)
+                elseif t >= 46
+                    coeff3 = extinction_coeff[extinction_coeff[!, "Wavelength"] .== wavelength, "Ext3"]
+                    #compute intensity for timestamp
+                    GRASS.eclipse_compute_intensity(disk, wavelength, coeff3, LD_type, idx1[t], idx3[t],
+                                mu_grid[t], z_rot_sub[t], dA_total_proj[t], wsp.ld, wsp.z_rot, zenith_mean[t], 
+                                stored_μs, stored_ax_codes, stored_dA, wsp.μs, wsp.ax_codes, wsp.dA, ext_toggle, t, wsp.ext)
+                end
+            else
+                #compute intensity for timestamp
+                GRASS.eclipse_compute_intensity(disk, wavelength, neid_ext_coeff, LD_type, idx1[t], idx3[t],
+                        mu_grid[t], z_rot_sub[t], dA_total_proj[t], wsp.ld, wsp.z_rot, zenith_mean[t], 
+                        stored_μs, stored_ax_codes, stored_dA, wsp.μs, wsp.ax_codes, wsp.dA, ext_toggle, t, wsp.ext)
+            end
+
             # get conv. blueshift and keys from input data
             GRASS.get_keys_and_cbs_eclispe!(wsp, soldata, t)
             

@@ -35,13 +35,6 @@ function NIR_limb_darkening(μ::T) where T
     return 0.59045 + 1.41938*μ - 3.01866*μ^2 + 3.99843*μ^3 - 2.67727*μ^4 + 0.068758*μ^5
 end
 
-LD_model(x, p) = 1 .- p[1] .* (1 .-x) .- p[2] .* (1 .- x) .^ 2.0
-
-function quad_limb_darkening_eclipse(μ::T, u1::T, u2::T) where T<:AF
-    μ < zero(T) && return 0.0
-    return LD_model(μ, [u1,u2])
-end
-
 function quad_limb_darkening(μ::T, u1::T, u2::T) where T<:AF
     μ < zero(T) && return 0.0
     return !iszero(μ) * (one(T) - u1*(one(T)-μ) - u2*(one(T)-μ)^2)
@@ -84,7 +77,6 @@ function projected!(A::Matrix, B::Matrix, out_no_cb::Matrix)
     end
     return
 end
-
 
 """
     patch_velocity_los(x, y; rstar, pole)
