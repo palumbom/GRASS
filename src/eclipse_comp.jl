@@ -161,7 +161,8 @@ function eclipse_compute_intensity(disk::DiskParamsEclipse{T}, wavelength::Vecto
             for l in eachindex(wavelength)
                 #limb darkening
                 if LD_law == "NL94"
-                    ld_sub = map(x -> NL94_limb_darkening(x, wavelength[l] / 10.0), mu_grid[i,j])
+                    filtered_df = quad_ld_coeff_NL94[quad_ld_coeff_NL94.wavelength .== wavelength, :]
+                    ld_sub = map(x -> quad_limb_darkening_eclipse(x, filtered_df.u1[1], filtered_df.u2[1]), mu_grid[i,j])
                 end
 
                 if LD_law == "NIR"
@@ -186,7 +187,7 @@ function eclipse_compute_intensity(disk::DiskParamsEclipse{T}, wavelength::Vecto
                 boolean_mask = idx3[i,j] .== 1
                 idx1_sum = sum(idx1[i,j])
 
-                ld[i,j,l] = sum(view(ld_sub, boolean_mask)) / sum(idx1_sum) 
+                ld[i,j,l] = mean(view(ld_sub, boolean_mask))  
 
                 #z_rot
                 if ext_toggle == false
@@ -242,7 +243,8 @@ function eclipse_compute_intensity(disk::DiskParamsEclipse{T}, wavelength::Vecto
             for l in eachindex(wavelength)
                 #limb darkening
                 if LD_law == "NL94"
-                    ld_sub = map(x -> NL94_limb_darkening(x, wavelength[l] / 10.0), mu_grid[i,j])
+                    filtered_df = quad_ld_coeff_NL94[quad_ld_coeff_NL94.wavelength .== wavelength, :]
+                    ld_sub = map(x -> quad_limb_darkening(x, filtered_df.u1[1], filtered_df.u2[1]), mu_grid[i,j])
                 end
 
                 if LD_law == "NIR"
@@ -267,7 +269,7 @@ function eclipse_compute_intensity(disk::DiskParamsEclipse{T}, wavelength::Vecto
                 boolean_mask = idx3[i,j] .== 1
                 idx1_sum = sum(idx1[i,j])
 
-                ld[i,j,l] = sum(view(ld_sub, boolean_mask)) / sum(idx1_sum) 
+                ld[i,j,l] = mean(view(ld_sub, boolean_mask)) 
 
                 #z_rot
                 if ext_toggle == false

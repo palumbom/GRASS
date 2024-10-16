@@ -32,7 +32,7 @@ df = CSV.read(joinpath(datadir, "optimized_depth.csv"), DataFrame)
 neid_timestamps_october = ["2023-10-14T15:26:45.500000", "2023-10-14T15:28:07.500000", "2023-10-14T15:29:30.500000", "2023-10-14T15:30:53.500000", "2023-10-14T15:32:15.500000", "2023-10-14T15:33:38.500000", "2023-10-14T15:35:01.500000", "2023-10-14T15:36:23.500000", "2023-10-14T15:37:46.500000", "2023-10-14T15:39:09.500000", "2023-10-14T15:40:31.500000", "2023-10-14T15:41:54.500000", "2023-10-14T15:43:17.500000", "2023-10-14T15:44:39.500000", "2023-10-14T15:46:02.500000", "2023-10-14T15:47:25.500000", "2023-10-14T15:48:47.500000", "2023-10-14T15:50:10.500000", "2023-10-14T15:51:33.500000", "2023-10-14T15:52:56.500000", "2023-10-14T15:54:18.500000", "2023-10-14T15:55:41.500000", "2023-10-14T15:57:04.500000", "2023-10-14T15:58:26.500000", "2023-10-14T15:59:49.500000", "2023-10-14T16:01:12.500000", "2023-10-14T16:02:34.500000", "2023-10-14T16:03:57.500000", "2023-10-14T16:05:20.500000", "2023-10-14T16:06:42.500000", "2023-10-14T16:08:05.500000", "2023-10-14T16:09:28.500000", "2023-10-14T16:10:50.500000", "2023-10-14T16:12:13.500000", "2023-10-14T16:13:36.500000", "2023-10-14T16:14:58.500000", "2023-10-14T16:16:21.500000", "2023-10-14T16:17:44.500000", "2023-10-14T16:19:06.500000", "2023-10-14T16:20:29.500000", "2023-10-14T16:21:52.500000", "2023-10-14T16:23:15.500000", "2023-10-14T16:24:37.500000", "2023-10-14T16:26:00.500000", "2023-10-14T16:27:23.500000", "2023-10-14T16:28:45.500000", "2023-10-14T16:30:08.500000", "2023-10-14T16:31:31.500000", "2023-10-14T16:32:53.500000", "2023-10-14T16:34:16.500000", "2023-10-14T16:35:39.500000", "2023-10-14T16:37:01.500000", "2023-10-14T16:38:24.500000", "2023-10-14T16:39:47.500000", "2023-10-14T16:41:09.500000", "2023-10-14T16:42:32.500000", "2023-10-14T16:43:55.500000", "2023-10-14T16:45:17.500000", "2023-10-14T16:46:40.500000", "2023-10-14T16:48:03.500000", "2023-10-14T16:49:25.500000", "2023-10-14T16:50:48.500000", "2023-10-14T16:52:11.500000", "2023-10-14T16:53:33.500000", "2023-10-14T16:54:56.500000", "2023-10-14T16:56:19.500000", "2023-10-14T16:57:42.500000", "2023-10-14T16:59:04.500000", "2023-10-14T17:00:27.500000", "2023-10-14T17:01:50.500000", "2023-10-14T17:03:12.500000", "2023-10-14T17:04:35.500000", "2023-10-14T17:05:58.500000", "2023-10-14T17:07:20.500000", "2023-10-14T17:08:43.500000", "2023-10-14T17:10:06.500000", "2023-10-14T17:11:28.500000", "2023-10-14T17:12:51.500000", "2023-10-14T17:14:14.500000", "2023-10-14T17:15:36.500000", "2023-10-14T17:16:59.500000", "2023-10-14T17:18:22.500000", "2023-10-14T17:19:44.500000", "2023-10-14T17:21:07.500000", "2023-10-14T17:22:30.500000", "2023-10-14T17:23:52.500000", "2023-10-14T17:25:15.500000", "2023-10-14T17:26:38.500000", "2023-10-14T17:28:01.500000", "2023-10-14T17:29:23.500000", "2023-10-14T17:30:46.500000", "2023-10-14T17:32:09.500000", "2023-10-14T17:33:31.500000", "2023-10-14T17:34:54.500000", "2023-10-14T17:36:17.500000", "2023-10-14T17:37:39.500000", "2023-10-14T17:39:02.500000", "2023-10-14T17:40:25.500000", "2023-10-14T17:41:47.500000", "2023-10-14T17:43:10.500000", "2023-10-14T17:44:33.500000", "2023-10-14T17:45:55.500000", "2023-10-14T17:47:18.500000", "2023-10-14T17:48:41.500000", "2023-10-14T17:50:03.500000", "2023-10-14T17:51:26.500000", "2023-10-14T17:52:49.500000", "2023-10-14T17:54:11.500000", "2023-10-14T17:55:34.500000", "2023-10-14T17:56:57.500000", "2023-10-14T17:58:20.500000", "2023-10-14T17:59:42.500000", "2023-10-14T18:01:05.500000", "2023-10-14T18:02:28.500000", "2023-10-14T18:03:50.500000", "2023-10-14T18:05:13.500000", "2023-10-14T18:06:36.500000", "2023-10-14T18:07:58.500000", "2023-10-14T18:09:21.500000", "2023-10-14T18:10:44.500000", "2023-10-14T18:12:06.500000", "2023-10-14T18:13:29.500000", "2023-10-14T18:14:52.500000", "2023-10-14T18:16:14.500000", "2023-10-14T18:17:37.500000", "2023-10-14T18:19:00.500000", "2023-10-14T18:20:22.500000", "2023-10-14T18:21:45.500000", "2023-10-14T18:23:08.500000", "2023-10-14T18:24:30.500000", "2023-10-14T18:25:53.500000", "2023-10-14T18:27:16.500000", "2023-10-14T18:28:38.500000", "2023-10-14T18:30:01.500000", "2023-10-14T18:31:24.500000", "2023-10-14T18:32:47.500000", "2023-10-14T18:34:09.500000", "2023-10-14T18:35:32.500000", "2023-10-14T18:36:55.500000", "2023-10-14T18:38:17.500000", "2023-10-14T18:39:40.500000", "2023-10-14T18:41:03.500000", "2023-10-14T18:42:25.500000", "2023-10-14T18:43:48.500000", "2023-10-14T18:45:11.500000", "2023-10-14T18:46:33.500000", "2023-10-14T18:47:56.500000", "2023-10-14T18:49:19.500000", "2023-10-14T18:50:41.500000", "2023-10-14T18:52:04.500000", "2023-10-14T18:53:27.500000", "2023-10-14T18:54:49.500000", "2023-10-14T18:56:12.500000", "2023-10-14T18:57:35.500000", "2023-10-14T18:58:57.500000", "2023-10-14T19:00:20.500000", "2023-10-14T19:01:43.500000", "2023-10-14T19:03:06.500000"]
 # October Eclipse
 path_october = "/storage/group/ebf11/default/pipeline/neid_solar/data/v1.3/L2/2023/10/14/"
-timestamps_full_october = CSV.read("/storage/home/efg5335/work/Eclipse_GRASS/src/plots/NEID_October/data/NEID_Data.csv", DataFrame)[!, "filename"]
+timestamps_full_october = CSV.read("/storage/home/efg5335/work/Eclipse_GRASS/figures/NEID_October/data/NEID_Data.csv", DataFrame)[!, "filename"]
 timestamps_october = timestamps_full_october[16:length(timestamps_full_october)-150]
 
 #NEID location
@@ -161,7 +161,7 @@ function last_timestamp_lines(line_names, airwav, vacwav, orders, neid_timestamp
 
             plt.title("air wav: $(line_names[i])")
             plt.gca().invert_xaxis()
-            plt.savefig("neid_figures/October_zoom_out_comp/spectra_$(i).png")
+            plt.savefig("eclipse_figures/Spectrum/October_zoom_out_comp/spectra_$(i).png")
         end
     end
 end
@@ -170,7 +170,7 @@ function GRASS_comparison(line_names, airwav, vacwav, orders, neid_timestamps, t
     #convert from utc to et as needed by SPICE
     time_stamps = utc2et.(neid_timestamps)
 
-    variable_names = ["zenith_mean", "dA_total_proj", "idx1", "idx3", "mu_grid", "z_rot_sub", "mu", "ax_codes", "dA", "N"]
+    variable_names = ["zenith", "dA_total_proj", "idx1", "idx3", "mu_grid", "z_rot_sub", "mu", "ax_codes", "dA", "N"]
 
     # Open the JLD2 file and read the variables into a dictionary
     data = jldopen("data/solar_disk/$(filename).jld2", "r") do file
@@ -188,7 +188,7 @@ function GRASS_comparison(line_names, airwav, vacwav, orders, neid_timestamps, t
             continue
         end
 
-        zenith_mean = deepcopy(data["zenith_mean"])
+        zenith_mean = deepcopy(data["zenith"])
         dA_total_proj = deepcopy(data["dA_total_proj"])
         idx1 = deepcopy(data["idx1"])
         idx3 = deepcopy(data["idx3"])
@@ -246,7 +246,7 @@ function GRASS_comparison(line_names, airwav, vacwav, orders, neid_timestamps, t
             chunk_flux_full = itp.(wavs_sim)
             chunck_vac_wav = copy(wavs_sim)
 
-            v_grid_cpu_neid, ccf_cpu_neid = GRASS.calc_ccf(chunck_vac_wav, chunk_flux_full, spec)
+            v_grid_cpu_neid, ccf_cpu_neid = GRASS.calc_ccf(chunck_vac_wav, chunk_flux_full, lines, [maximum(chunk_flux_full) - minimum(chunk_flux_full)], 11e4)
             v_grid_cpu_sim, ccf_cpu_sim = GRASS.calc_ccf(wavs_sim, flux_sim_j, spec)
 
             # deal with annoying line blend
@@ -315,7 +315,7 @@ function GRASS_comparison(line_names, airwav, vacwav, orders, neid_timestamps, t
             
                 # save the plot
                 fig.subplots_adjust(wspace=0.05)
-                fig.savefig(joinpath("neid_figures/October_zoom_in_comp", line_name * "_line.png"))
+                fig.savefig(joinpath("eclipse_figures/Spectrum/October_zoom_in_comp", line_name * "_line.png"))
                 plt.clf(); plt.close()
             
                 # plot the bisectors
@@ -347,7 +347,7 @@ function GRASS_comparison(line_names, airwav, vacwav, orders, neid_timestamps, t
             
                 # save the plot
                 fig.subplots_adjust(hspace=0.05)
-                fig.savefig(joinpath("neid_figures/October_zoom_in_comp", line_name * "_bisector.png"))
+                fig.savefig(joinpath("eclipse_figures/Spectrum/October_zoom_in_comp", line_name * "_bisector.png"))
                 plt.clf(); plt.close()
                 return nothing
             end
@@ -356,73 +356,26 @@ function GRASS_comparison(line_names, airwav, vacwav, orders, neid_timestamps, t
     end
 end
 
-function line_rvs_ccf(line_names, airwav, vacwav, orders, neid_timestamps, timestamps, path, filename, LD_type)
-
-    #convert from utc to et as needed by SPICE
-    time_stamps = utc2et.(neid_timestamps)
-
-    variable_names = ["zenith", "dA_total_proj", "idx1", "idx3", "mu_grid", "z_rot_sub", "mu", "ax_codes", "dA", "N"]
-
-    extinction_coeff = DataFrame(CSV.File("data/NEID_extinction_coefficient.csv"))
-
-    # Open the JLD2 file and read the variables into a dictionary
-    data = jldopen("data/solar_disk/$(filename).jld2", "r") do file
-        Dict(var => read(file, var) for var in variable_names)
-    end
-
-    N = data["N"]
-    Nt = length(time_stamps)
-    disk = GRASS.DiskParamsEclipse(N=N, Nt=Nt, Nsubgrid=10)
+function line_rvs_ccf(line_names, vacwav, orders, timestamps, path)
 
     full_pixels = 2048:7168
+
+    resolution = 11e4
 
     RV_all_lines = Vector{Vector{Float64}}(undef,length(line_names)...)
     RV_error_all_lines = Vector{Vector{Float64}}(undef,length(line_names)...)
     #iterate through lines and determine line RV for eclipse EM curve
     Threads.@threads for i in 1:length(line_names)
-        zenith_mean = deepcopy(data["zenith"])
-        dA_total_proj = deepcopy(data["dA_total_proj"])
-        idx1 = deepcopy(data["idx1"])
-        idx3 = deepcopy(data["idx3"])
-        mu_grid = deepcopy(data["mu_grid"])
-        z_rot_sub = deepcopy(data["z_rot_sub"])
-        stored_μs = deepcopy(data["mu"])
-        stored_ax_codes = deepcopy(data["ax_codes"])
-        stored_dA = deepcopy(data["dA"])
-
         order_index = orders[i]
         min_wav = vacwav[i] - 2
         max_wav = vacwav[i] + 2
 
-        #get the depth for the simulation
         sim_depth = df[i, "optimized_depth"]
-        #simulate the spectrum
-        lines = [airwav[i]]
-        depths = [sim_depth]
-        templates = [line_names[i]]
-        resolution = 7e5
-        spec = SpecParams(lines=lines, depths=depths, templates=templates, resolution=resolution, oversampling=4.0)
-
-        neid_ext_coeff = extinction_coeff[extinction_coeff[!, "Key"] .== airwav[i], "Value"]
-    
-        # simulate the spectrum 
-        wavs_sim, flux_sim = GRASS.synthesize_spectra_eclipse(spec, disk, lines, LD_type, zenith_mean,
-                                                            dA_total_proj, idx1, idx3, mu_grid, z_rot_sub,
-                                                            stored_μs, stored_ax_codes, stored_dA, neid_ext_coeff, ext_toggle = true, verbose=true, use_gpu=false)
-        # convolve GRASS spectrum to NEID resolution
-        wavs_sim, flux_sim = GRASS.convolve_gauss(wavs_sim, flux_sim, new_res=11e4, oversampling=4.0)
-        wavs_sim .= λ_air_to_vac.(wavs_sim)
-
-        #convert from airwav to vacuum wavelength 
-        spec.lambdas .= λ_air_to_vac.(spec.lambdas)
-        spec.lines .= λ_air_to_vac.(spec.lines)
+        lines = [vacwav[i]]
 
         RV_list = Vector{Float64}(undef,length(timestamps)...)
         RV_error_list = Vector{Float64}(undef,length(timestamps)...)
         Threads.@threads for j in 1:length(timestamps)
-            #GRASS flux for given timestamps
-            flux_sim_j = flux_sim[((j-1)*length(wavs_sim) + 1):(length(wavs_sim)*j)]
-
             f = FITS(joinpath(path, timestamps[j]))
             header = read_header(f[1])
             bc_ms = (header["SSBRV0$order_index"]) * 1000
@@ -433,10 +386,9 @@ function line_rvs_ccf(line_names, airwav, vacwav, orders, neid_timestamps, times
             pixels = NEID.find_pixels_for_line_in_chunk(chunk, min_wav, max_wav)
             chunk_flux_full_o = chunk.flux[pixels]
             chunk_flux_full = chunk_flux_full_o ./ maximum(chunk_flux_full_o)
-            chunk_flux_full .-= 1 - maximum(flux_sim_j)
             chunck_vac_wav = chunk.λ[pixels]
 
-            v_grid_cpu, ccf_cpu = GRASS.calc_ccf(chunck_vac_wav, chunk_flux_full, spec)
+            v_grid_cpu, ccf_cpu = GRASS.calc_ccf(chunck_vac_wav, chunk_flux_full, lines, [maximum(chunk_flux_full) - minimum(chunk_flux_full)], resolution)
             rvs_cpu, sigs_cpu = GRASS.calc_rvs_from_ccf(v_grid_cpu, ccf_cpu)
 
             RV_list[j] = rvs_cpu
@@ -452,21 +404,21 @@ function line_rvs_ccf(line_names, airwav, vacwav, orders, neid_timestamps, times
                 ax1.scatter(chunck_vac_wav ./ ((-bc_ms)/GRASS.c_ms + 1), chunk_flux_full, c=colors[1])
                 ax1.axvline(x = vacwav[i], c=colors[1])
                 # find limits
-                idx_min = argmin(flux_sim_j)
-                idx1 = idx_min - findfirst(x -> x .> 0.95, flux_sim_j[idx_min:-1:1])
-                idx2 = idx_min + findfirst(x -> x .> 0.95, flux_sim_j[idx_min:end])
+                idx_min = argmin(chunk_flux_full)
+                idx1 = idx_min - findfirst(x -> x .> 0.95, chunk_flux_full[idx_min:-1:1])
+                idx2 = idx_min + findfirst(x -> x .> 0.95, chunk_flux_full[idx_min:end])
                 # set limits
-                ax1.set_xlim(wavs_sim[idx1-20], wavs_sim[idx2+20])
-                ax1.set_ylim(minimum(flux_sim_j) - 0.1, 1.1)
+                ax1.set_xlim(chunck_vac_wav[idx1-20], chunck_vac_wav[idx2+20])
+                ax1.set_ylim(minimum(chunk_flux_full) - 0.1, 1.1)
 
                 # get bisectors
                 top = 0.9
-                v_grid_cpu_bc, ccf_cpu_bc = GRASS.calc_ccf(chunck_vac_wav ./ ((-bc_ms)/GRASS.c_ms + 1), chunk_flux_full, spec)
+                v_grid_cpu_bc, ccf_cpu_bc = GRASS.calc_ccf(chunck_vac_wav ./ ((-bc_ms)/GRASS.c_ms + 1), chunk_flux_full, lines, [maximum(chunk_flux_full) - minimum(chunk_flux_full)], resolution)
                 vel_neid, int_neid = GRASS.calc_bisector(v_grid_cpu_bc, ccf_cpu_bc, nflux=50, top=top)
                 ax2.plot(vel_neid[4:end], int_neid[4:end], c=colors[1])
                 ax2.scatter(vel_neid[4:end], int_neid[4:end], c=colors[1])
                 # set limits
-                ax2.set_ylim(minimum(flux_sim_j) - 0.05, 1.05)
+                ax2.set_ylim(minimum(chunk_flux_full) - 0.05, 1.05)
                 ax2.set_yticks([])
 
                 idx = findfirst('_', line_names[i])
@@ -474,7 +426,7 @@ function line_rvs_ccf(line_names, airwav, vacwav, orders, neid_timestamps, times
                 ax1.set_ylabel("Normalized Flux")
                 ax1.set_xlabel("Wavelength (Å)")
                 ax2.set_xlabel("Radial Velocity (m/s)")
-                # fig.savefig("neid_figures/October_FeI_5383_movie/timestamp_$(j).png")
+                fig.savefig("eclipse_figures/Spectrum/timestamp_$(j).png")
             end
         end
         RV_all_lines[i] = RV_list
@@ -484,16 +436,16 @@ function line_rvs_ccf(line_names, airwav, vacwav, orders, neid_timestamps, times
 end
 
 # october
-RV_all_lines, RV_error_all_lines = line_rvs_ccf(line_names, airwav, vacwav, orders, neid_timestamps_october, timestamps_october, path_october, "neid_october_N_50", "KSSD")
-@save "neid_RVlinebyline_KSSD_2_ext.jld2"
-jldopen("neid_RVlinebyline_KSSD_2_ext.jld2", "a+") do file
-    file["name"] = line_names 
-    file["rv"] = RV_all_lines 
-    file["rv_error"] = RV_error_all_lines 
-end
+# RV_all_lines, RV_error_all_lines = line_rvs_ccf(line_names, vacwav, orders, timestamps_october, path_october)
+# @save "/storage/home/efg5335/work/Eclipse_GRASS/figures/NEID_October/data/neid_RVlinebyline.jld2"
+# jldopen("/storage/home/efg5335/work/Eclipse_GRASS/figures/NEID_October/data/neid_RVlinebyline.jld2", "a+") do file
+#     file["name"] = line_names 
+#     file["rv"] = RV_all_lines 
+#     file["rv_error"] = RV_error_all_lines 
+# end
 
 # #for last timestamp (out of transit) of October eclipse, line comparsion between IAG, GRASS, and NEID
-# last_timestamp_lines(line_names, airwav, vacwav, orders, neid_timestamps_october, timestamps_october, path_october, "neid_october_N_5", "KSSD")
+# last_timestamp_lines(line_names, airwav, vacwav, orders, neid_timestamps_october, timestamps_october, path_october, "neid_october_N_50", "KSSD")
 
-# #for last timestamp (out of transit) of October eclipse, line and bisector comparsion between GRASS and NEID
-# GRASS_comparison(line_names, airwav, vacwav, orders, neid_timestamps_october, timestamps_october, path_october, "neid_october_N_5", "KSSD")
+#for last timestamp (out of transit) of October eclipse, line and bisector comparsion between GRASS and NEID
+GRASS_comparison(line_names, airwav, vacwav, orders, neid_timestamps_october, timestamps_october, path_october, "neid_october_N_50", "KSSD")

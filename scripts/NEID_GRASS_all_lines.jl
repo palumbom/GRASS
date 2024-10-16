@@ -50,8 +50,6 @@ function neid_all_lines(neid_time, granulation_status, filename, LD_type)
     depth = GRASS.get_depth(lp)
     lfile = GRASS.get_file(lp)
 
-    extinction_coeff = DataFrame(CSV.File("data/NEID_extinction_coefficient.csv"))
-
     rv = Vector{Vector{Float64}}(undef,size(name)...)
     rv_error = Vector{Vector{Float64}}(undef,size(name)...)
 
@@ -72,19 +70,17 @@ function neid_all_lines(neid_time, granulation_status, filename, LD_type)
         end
         blueshifts = zeros(length(lines))   # set convective blueshift value
 
-        neid_ext_coeff = extinction_coeff[extinction_coeff[!, "Key"] .== λrest[i], "Value"]
-
         # make the spec composite type instances
         spec = GRASS.SpecParams(lines=lines, depths=depths, variability=variability,
                         blueshifts=blueshifts, templates=templates, resolution=resolution) 
 
         lambdas_cpu, outspec_cpu = GRASS.synthesize_spectra_eclipse(spec, disk, lines, LD_type, zenith_mean,
                                                             dA_total_proj, idx1, idx3, mu_grid, z_rot_sub,
-                                                            stored_μs, stored_ax_codes, stored_dA, neid_ext_coeff, ext_toggle = true, verbose=true, use_gpu=false)
+                                                            stored_μs, stored_ax_codes, stored_dA, "three", ext_toggle = false, verbose=true, use_gpu=false)
         wavs_sim, flux_sim = GRASS.convolve_gauss(lambdas_cpu, outspec_cpu, new_res=11e4, oversampling=4.0)
 
         #measure velocities
-        v_grid_cpu, ccf_cpu = deepcopy(GRASS.calc_ccf(wavs_sim, flux_sim, spec))
+        v_grid_cpu, ccf_cpu = deepcopy(GRASS.calc_ccf(wavs_sim, flux_sim, lines, depths, 11e4))
         rvs_cpu, sigs_cpu = deepcopy(GRASS.calc_rvs_from_ccf(v_grid_cpu, ccf_cpu))
 
         rv[i] = deepcopy(rvs_cpu)
@@ -97,16 +93,16 @@ neid_october = ["2023-10-14T15:26:45.500000", "2023-10-14T15:28:07.500000", "202
 neid_april = ["2024-04-08T20:11:26", "2024-04-08T20:10:03", "2024-04-08T20:08:41", "2024-04-08T20:07:18", "2024-04-08T20:05:55", "2024-04-08T20:04:33", "2024-04-08T20:03:10", "2024-04-08T20:01:47", "2024-04-08T20:00:25", "2024-04-08T19:59:02", "2024-04-08T19:57:39", "2024-04-08T19:56:16", "2024-04-08T19:54:54", "2024-04-08T19:53:31", "2024-04-08T19:52:08", "2024-04-08T19:50:46", "2024-04-08T19:49:23", "2024-04-08T19:48:00", "2024-04-08T19:46:38", "2024-04-08T19:45:15", "2024-04-08T19:43:52", "2024-04-08T19:42:30", "2024-04-08T19:41:07", "2024-04-08T19:39:44", "2024-04-08T19:38:22", "2024-04-08T19:36:59", "2024-04-08T19:35:36", "2024-04-08T19:34:14", "2024-04-08T19:32:51", "2024-04-08T19:31:28", "2024-04-08T19:30:06", "2024-04-08T19:28:43", "2024-04-08T19:27:20", "2024-04-08T19:25:57", "2024-04-08T19:24:35", "2024-04-08T19:23:12", "2024-04-08T19:21:49", "2024-04-08T19:20:27", "2024-04-08T19:19:04", "2024-04-08T19:17:41", "2024-04-08T19:16:19", "2024-04-08T19:14:56", "2024-04-08T19:13:33", "2024-04-08T19:12:11", "2024-04-08T19:10:48", "2024-04-08T19:09:25", "2024-04-08T19:08:03", "2024-04-08T19:06:40", "2024-04-08T19:05:17", "2024-04-08T19:03:55", "2024-04-08T19:02:32", "2024-04-08T19:01:09", "2024-04-08T18:59:47", "2024-04-08T18:58:24", "2024-04-08T18:57:01", "2024-04-08T18:55:38", "2024-04-08T18:54:16", "2024-04-08T18:52:53", "2024-04-08T18:51:30", "2024-04-08T18:50:08", "2024-04-08T18:48:45", "2024-04-08T18:47:22", "2024-04-08T18:46:00", "2024-04-08T18:44:37", "2024-04-08T18:43:14", "2024-04-08T18:41:52", "2024-04-08T18:40:29", "2024-04-08T18:39:06", "2024-04-08T18:37:44", "2024-04-08T18:36:21", "2024-04-08T18:34:58", "2024-04-08T18:33:36", "2024-04-08T18:32:13", "2024-04-08T18:30:50", "2024-04-08T18:29:28", "2024-04-08T18:28:05", "2024-04-08T18:26:42", "2024-04-08T18:25:19", "2024-04-08T18:23:57", "2024-04-08T18:22:34", "2024-04-08T18:21:11", "2024-04-08T18:19:49", "2024-04-08T18:18:26", "2024-04-08T18:17:03", "2024-04-08T18:15:41", "2024-04-08T18:14:18", "2024-04-08T18:12:55", "2024-04-08T18:11:33", "2024-04-08T18:10:10", "2024-04-08T18:08:47", "2024-04-08T18:07:25", "2024-04-08T18:06:02", "2024-04-08T18:04:39", "2024-04-08T18:03:17", "2024-04-08T18:01:54", "2024-04-08T18:00:31", "2024-04-08T17:59:09", "2024-04-08T17:57:46", "2024-04-08T17:56:23", "2024-04-08T17:55:01", "2024-04-08T17:53:38", "2024-04-08T17:52:15", "2024-04-08T17:50:52", "2024-04-08T17:49:30", "2024-04-08T17:48:07", "2024-04-08T17:46:44", "2024-04-08T17:45:22", "2024-04-08T17:43:59", "2024-04-08T17:42:36", "2024-04-08T17:41:14", "2024-04-08T17:39:51", "2024-04-08T17:38:28", "2024-04-08T17:37:06", "2024-04-08T17:35:43", "2024-04-08T17:34:20", "2024-04-08T17:32:58", "2024-04-08T17:31:35", "2024-04-08T17:30:12", "2024-04-08T17:28:50", "2024-04-08T17:27:27", "2024-04-08T17:26:04", "2024-04-08T17:24:42", "2024-04-08T17:23:19", "2024-04-08T17:21:56", "2024-04-08T17:20:33", "2024-04-08T17:19:11", "2024-04-08T17:17:48", "2024-04-08T17:16:25", "2024-04-08T17:15:03", "2024-04-08T17:13:40", "2024-04-08T17:12:17", "2024-04-08T17:10:55", "2024-04-08T17:09:32", "2024-04-08T17:08:09", "2024-04-08T17:06:47", "2024-04-08T17:05:24", "2024-04-08T17:04:01", "2024-04-08T17:02:39", "2024-04-08T17:01:16", "2024-04-08T16:59:53", "2024-04-08T16:58:31", "2024-04-08T16:57:08", "2024-04-08T16:55:45", "2024-04-08T16:54:23", "2024-04-08T16:53:00", "2024-04-08T16:51:37", "2024-04-08T16:50:14", "2024-04-08T16:48:52"]
 
 rv, rv_error, λrest = deepcopy(neid_all_lines(neid_october, true, "neid_october_N_50", "KSSD"))
-@save "neid_all_lines_rv_regular_KSSD_2_ext.jld2"
-jldopen("neid_all_lines_rv_regular_KSSD_2_ext.jld2", "a+") do file
+@save "neid_all_lines_rv_regular_KSSD_new.jld2"
+jldopen("neid_all_lines_rv_regular_KSSD_new.jld2", "a+") do file
     file["name"] = deepcopy(λrest) 
     file["rv"] = deepcopy(rv) 
     file["rv_error"] = deepcopy(rv_error)
 end
 
-# rv, rv_error, λrest = deepcopy(neid_all_lines(neid_october, false, "neid_october_N_50", "KSSD"))
-# @save "neid_all_lines_rv_off_KSSD_2_ext.jld2"
-# jldopen("neid_all_lines_rv_off_KSSD_2_ext.jld2", "a+") do file
+# rv, rv_error, λrest = deepcopy(neid_all_lines(neid_october, false, "neid_october_N_50", "NL94"))
+# @save "neid_all_lines_rv_off_NL94.jld2"
+# jldopen("neid_all_lines_rv_off_NL94.jld2", "a+") do file
 #     file["name"] = deepcopy(λrest) 
 #     file["rv"] = deepcopy(rv) 
 #     file["rv_error"] = deepcopy(rv_error)
