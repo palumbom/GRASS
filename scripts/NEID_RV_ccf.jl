@@ -246,7 +246,7 @@ function GRASS_comparison(line_names, airwav, vacwav, orders, neid_timestamps, t
             chunk_flux_full = itp.(wavs_sim)
             chunck_vac_wav = copy(wavs_sim)
 
-            v_grid_cpu_neid, ccf_cpu_neid = GRASS.calc_ccf(chunck_vac_wav, chunk_flux_full, lines, [maximum(chunk_flux_full) - minimum(chunk_flux_full)], 11e4)
+            v_grid_cpu_neid, ccf_cpu_neid = GRASS.calc_ccf(chunck_vac_wav, chunk_flux_full, spec)
             v_grid_cpu_sim, ccf_cpu_sim = GRASS.calc_ccf(wavs_sim, flux_sim_j, spec)
 
             # deal with annoying line blend
@@ -357,7 +357,6 @@ function GRASS_comparison(line_names, airwav, vacwav, orders, neid_timestamps, t
 end
 
 function line_rvs_ccf(line_names, vacwav, orders, timestamps, path)
-
     full_pixels = 2048:7168
 
     resolution = 11e4
@@ -384,50 +383,51 @@ function line_rvs_ccf(line_names, vacwav, orders, timestamps, path)
             #find where line is - NEID flux
             chunk = NEID.ChunkOfSpectrum(spectrum, order_index, full_pixels) 
             pixels = NEID.find_pixels_for_line_in_chunk(chunk, min_wav, max_wav)
-            chunk_flux_full_o = chunk.flux[pixels]
-            chunk_flux_full = chunk_flux_full_o ./ maximum(chunk_flux_full_o)
+            chunk_flux_full = chunk.flux[pixels]
+            chunk_flux_full ./= maximum(chunk_flux_full)
             chunck_vac_wav = chunk.λ[pixels]
+            chunck_var = chunk.var[pixels] ./ maximum(chunk_flux_full)^2
 
-            v_grid_cpu, ccf_cpu = GRASS.calc_ccf(chunck_vac_wav, chunk_flux_full, lines, [maximum(chunk_flux_full) - minimum(chunk_flux_full)], resolution)
-            rvs_cpu, sigs_cpu = GRASS.calc_rvs_from_ccf(v_grid_cpu, ccf_cpu)
+            v_grid_cpu, ccf_cpu, ccf_var_out = GRASS.calc_ccf(chunck_vac_wav, chunk_flux_full, chunck_var, lines, [maximum(chunk_flux_full) - minimum(chunk_flux_full)], resolution)
+            rvs_cpu, sigs_cpu = GRASS.calc_rvs_from_ccf(v_grid_cpu, ccf_cpu, ccf_var_out)  
 
             RV_list[j] = rvs_cpu
             RV_error_list[j] = sigs_cpu
 
-            if line_names[i] == "FeI_5383"
-                fig = plt.figure(figsize=(6.4,4.8))
-                gs = mpl.gridspec.GridSpec(nrows=1, ncols=2, width_ratios=[2, 1.1], figure=fig, wspace=0.05)
-                ax1 = fig.add_subplot(gs[1])
-                ax2 = fig.add_subplot(gs[2])
+            # if line_names[i] == "FeI_5383"
+            #     fig = plt.figure(figsize=(6.4,4.8))
+            #     gs = mpl.gridspec.GridSpec(nrows=1, ncols=2, width_ratios=[2, 1.1], figure=fig, wspace=0.05)
+            #     ax1 = fig.add_subplot(gs[1])
+            #     ax2 = fig.add_subplot(gs[2])
 
-                ax1.plot(chunck_vac_wav ./ ((-bc_ms)/GRASS.c_ms + 1), chunk_flux_full, c=colors[1])
-                ax1.scatter(chunck_vac_wav ./ ((-bc_ms)/GRASS.c_ms + 1), chunk_flux_full, c=colors[1])
-                ax1.axvline(x = vacwav[i], c=colors[1])
-                # find limits
-                idx_min = argmin(chunk_flux_full)
-                idx1 = idx_min - findfirst(x -> x .> 0.95, chunk_flux_full[idx_min:-1:1])
-                idx2 = idx_min + findfirst(x -> x .> 0.95, chunk_flux_full[idx_min:end])
-                # set limits
-                ax1.set_xlim(chunck_vac_wav[idx1-20], chunck_vac_wav[idx2+20])
-                ax1.set_ylim(minimum(chunk_flux_full) - 0.1, 1.1)
+            #     ax1.plot(chunck_vac_wav ./ ((-bc_ms)/GRASS.c_ms + 1), chunk_flux_full, c=colors[1])
+            #     ax1.scatter(chunck_vac_wav ./ ((-bc_ms)/GRASS.c_ms + 1), chunk_flux_full, c=colors[1])
+            #     ax1.axvline(x = vacwav[i], c=colors[1])
+            #     # find limits
+            #     idx_min = argmin(chunk_flux_full)
+            #     idx1 = idx_min - findfirst(x -> x .> 0.95, chunk_flux_full[idx_min:-1:1])
+            #     idx2 = idx_min + findfirst(x -> x .> 0.95, chunk_flux_full[idx_min:end])
+            #     # set limits
+            #     ax1.set_xlim(chunck_vac_wav[idx1-20], chunck_vac_wav[idx2+20])
+            #     ax1.set_ylim(minimum(chunk_flux_full) - 0.1, 1.1)
 
-                # get bisectors
-                top = 0.9
-                v_grid_cpu_bc, ccf_cpu_bc = GRASS.calc_ccf(chunck_vac_wav ./ ((-bc_ms)/GRASS.c_ms + 1), chunk_flux_full, lines, [maximum(chunk_flux_full) - minimum(chunk_flux_full)], resolution)
-                vel_neid, int_neid = GRASS.calc_bisector(v_grid_cpu_bc, ccf_cpu_bc, nflux=50, top=top)
-                ax2.plot(vel_neid[4:end], int_neid[4:end], c=colors[1])
-                ax2.scatter(vel_neid[4:end], int_neid[4:end], c=colors[1])
-                # set limits
-                ax2.set_ylim(minimum(chunk_flux_full) - 0.05, 1.05)
-                ax2.set_yticks([])
+            #     # get bisectors
+            #     top = 0.9
+            #     v_grid_cpu_bc, ccf_cpu_bc = GRASS.calc_ccf(chunck_vac_wav ./ ((-bc_ms)/GRASS.c_ms + 1), chunk_flux_full, lines, [maximum(chunk_flux_full) - minimum(chunk_flux_full)], resolution)
+            #     vel_neid, int_neid = GRASS.calc_bisector(v_grid_cpu_bc, ccf_cpu_bc, nflux=50, top=top)
+            #     ax2.plot(vel_neid[4:end], int_neid[4:end], c=colors[1])
+            #     ax2.scatter(vel_neid[4:end], int_neid[4:end], c=colors[1])
+            #     # set limits
+            #     ax2.set_ylim(minimum(chunk_flux_full) - 0.05, 1.05)
+            #     ax2.set_yticks([])
 
-                idx = findfirst('_', line_names[i])
-                fig.suptitle("$(line_names[i][1:idx-1]) $(round(vacwav[i]; digits = 1))", y=0.95)
-                ax1.set_ylabel("Normalized Flux")
-                ax1.set_xlabel("Wavelength (Å)")
-                ax2.set_xlabel("Radial Velocity (m/s)")
-                fig.savefig("eclipse_figures/Spectrum/timestamp_$(j).png")
-            end
+            #     idx = findfirst('_', line_names[i])
+            #     fig.suptitle("$(line_names[i][1:idx-1]) $(round(vacwav[i]; digits = 1))", y=0.95)
+            #     ax1.set_ylabel("Normalized Flux")
+            #     ax1.set_xlabel("Wavelength (Å)")
+            #     ax2.set_xlabel("Radial Velocity (m/s)")
+            #     fig.savefig("eclipse_figures/Spectrum/timestamp_$(j).png")
+            # end
         end
         RV_all_lines[i] = RV_list
         RV_error_all_lines[i] = RV_error_list
@@ -436,16 +436,16 @@ function line_rvs_ccf(line_names, vacwav, orders, timestamps, path)
 end
 
 # october
-# RV_all_lines, RV_error_all_lines = line_rvs_ccf(line_names, vacwav, orders, timestamps_october, path_october)
-# @save "/storage/home/efg5335/work/Eclipse_GRASS/figures/NEID_October/data/neid_RVlinebyline.jld2"
-# jldopen("/storage/home/efg5335/work/Eclipse_GRASS/figures/NEID_October/data/neid_RVlinebyline.jld2", "a+") do file
-#     file["name"] = line_names 
-#     file["rv"] = RV_all_lines 
-#     file["rv_error"] = RV_error_all_lines 
-# end
+RV_all_lines, RV_error_all_lines = line_rvs_ccf(line_names, vacwav, orders, timestamps_october, path_october)
+@save "/storage/home/efg5335/work/Eclipse_GRASS/figures/NEID_October/data/neid_RVlinebyline.jld2"
+jldopen("/storage/home/efg5335/work/Eclipse_GRASS/figures/NEID_October/data/neid_RVlinebyline.jld2", "a+") do file
+    file["name"] = line_names 
+    file["rv"] = RV_all_lines 
+    file["rv_error"] = RV_error_all_lines 
+end
 
 # #for last timestamp (out of transit) of October eclipse, line comparsion between IAG, GRASS, and NEID
 # last_timestamp_lines(line_names, airwav, vacwav, orders, neid_timestamps_october, timestamps_october, path_october, "neid_october_N_50", "KSSD")
 
-#for last timestamp (out of transit) of October eclipse, line and bisector comparsion between GRASS and NEID
-GRASS_comparison(line_names, airwav, vacwav, orders, neid_timestamps_october, timestamps_october, path_october, "neid_october_N_50", "KSSD")
+# #for last timestamp (out of transit) of October eclipse, line and bisector comparsion between GRASS and NEID
+# GRASS_comparison(line_names, airwav, vacwav, orders, neid_timestamps_october, timestamps_october, path_october, "neid_october_N_50", "KSSD")

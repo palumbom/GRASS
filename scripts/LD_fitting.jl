@@ -7,6 +7,8 @@ using CSV
 
 Kostogryz_LD_file = DataFrame(CSV.File("data/Kostogryz_LD_300.csv", header = ["wavelength", "0.1", "0.2", "0.3", "0.4", "0.5", "0.6", "0.7", "0.8", "0.9", "1.0"]))
 
+LD_model(x, p) = 1 .- p[1] .* (1 .-x) .- p[2] .* (1 .- x) .^ 2.0
+
 function K_LD_best_fit(μ::T, wavelength::T) where T
     """
     limb darkening prescription for optical based on mu angle  
@@ -17,10 +19,10 @@ function K_LD_best_fit(μ::T, wavelength::T) where T
     Kostogryz_LD_array = Kostogryz_LD_file[index, ["0.1", "0.2", "0.3", "0.4", "0.5", "0.6", "0.7", "0.8", "0.9", "1.0"]]
 
     p0 = [1.0, 1.0]
-    fit_K = curve_fit(GRASS.LD_model, [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0], collect(Kostogryz_LD_array), p0)
+    fit_K = curve_fit(LD_model, [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0], collect(Kostogryz_LD_array), p0)
     p_opt_K = fit_K.param
 
-    return GRASS.LD_model(μ, p_opt_K), p_opt_K[1], p_opt_K[2]
+    return LD_model(μ, p_opt_K), p_opt_K[1], p_opt_K[2]
 end
 
 # mu array for figures
@@ -50,14 +52,14 @@ for lambda in 1:length(wavelength)
     end
 
     p0 = [1.0, 1.0]
-    fit_NL = curve_fit(GRASS.LD_model, mu_arr, NL_LD, p0)
+    fit_NL = curve_fit(LD_model, mu_arr, NL_LD, p0)
     p_opt_NL = fit_NL.param
     best_u1_NL94[lambda] = p_opt_NL[1]
     best_u2_NL94[lambda] = p_opt_NL[2]
   
     for i in 1:length(mu_zero_arr)
-        Kos_LD_full[i] = GRASS.LD_model(mu_zero_arr[i], [best_u1[lambda], best_u2[lambda]])
-        NL_LD_full[i] = GRASS.LD_model(mu_zero_arr[i], p_opt_NL)
+        Kos_LD_full[i] = LD_model(mu_zero_arr[i], [best_u1[lambda], best_u2[lambda]])
+        NL_LD_full[i] = LD_model(mu_zero_arr[i], p_opt_NL)
     end
 
     #figures
