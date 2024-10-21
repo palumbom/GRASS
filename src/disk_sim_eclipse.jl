@@ -51,12 +51,24 @@ function disk_sim_eclipse(spec::SpecParams{T}, disk::DiskParamsEclipse{T}, solda
 
                 # get sum of weights
                 if ext_toggle == false
-                    sum_wts = sum(wsp.ld[:, :, l] .* wsp.dA[:, :, t])
-                    z_cbs_avg = sum(wsp.ld[:, :, l] .* wsp.dA[:, :, t] .* wsp.cbs) / sum_wts
+                    if !spec.variability[l]
+                        sum_wts_first = sum(wsp.ld[:, :, l] .* wsp.dA[:, :, 1])
+                        sum_wts = sum(wsp.ld[:, :, l] .* wsp.dA[:, :, t])
+                        z_cbs_avg = sum(wsp.ld[:, :, l] .* wsp.dA[:, :, 1] .* wsp.cbs) / sum_wts_first
+                    else
+                        sum_wts = sum(wsp.ld[:, :, l] .* wsp.dA[:, :, t])
+                        z_cbs_avg = sum(wsp.ld[:, :, l] .* wsp.dA[:, :, t] .* wsp.cbs) / sum_wts
+                    end
                 end
                 if ext_toggle == true
-                    sum_wts = sum(wsp.ld[:, :, l] .* wsp.dA[:, :, t] .* wsp.ext[:, :, l])
-                    z_cbs_avg = sum(wsp.ld[:, :, l] .* wsp.dA[:, :, t] .* wsp.ext[:, :, l] .* wsp.cbs) / sum_wts
+                    if !spec.variability[l]
+                        sum_wts_first = sum(wsp.ld[:, :, l] .* wsp.dA[:, :, 1] .* wsp.ext[:, :, l])
+                        sum_wts = sum(wsp.ld[:, :, l] .* wsp.dA[:, :, t] .* wsp.ext[:, :, l])
+                        z_cbs_avg = sum(wsp.ld[:, :, l] .* wsp.dA[:, :, 1] .* wsp.ext[:, :, l] .* wsp.cbs) / sum_wts_first
+                    else
+                        sum_wts = sum(wsp.ld[:, :, l] .* wsp.dA[:, :, t] .* wsp.ext[:, :, l])
+                        z_cbs_avg = sum(wsp.ld[:, :, l] .* wsp.dA[:, :, t] .* wsp.ext[:, :, l] .* wsp.cbs) / sum_wts
+                    end
                 end
 
                 # loop over spatial patches
@@ -88,7 +100,7 @@ function disk_sim_eclipse(spec::SpecParams{T}, disk::DiskParamsEclipse{T}, solda
 
                     # get views needed for line synthesis
                     wsp.bist .= copy(view(soldata.bis[key], :, tloop[i,j]))
-                    wsp.intt .= copy(view(soldata.int[key], :, tloop[i,j]))
+                    wsp.intt .= copy(view(soldata.int[key], :, tloop[i,j])) 
                     wsp.widt .= copy(view(soldata.wid[key], :, tloop[i,j]))
 
                     # get amount of convective blueshift needed
@@ -97,12 +109,12 @@ function disk_sim_eclipse(spec::SpecParams{T}, disk::DiskParamsEclipse{T}, solda
                     # get shifted line center
                     λΔD = spec.lines[l]
                     λΔD *= (1.0 + z_rot)
-                    λΔD *= (1.0 + z_cbs .* spec.variability[l])
+                    λΔD *= (1.0 + z_cbs)
                     λΔD *= (1.0 + extra_z)
 
-                    # get rid of bisector and fix width if variability is turned off
-                    wsp.bist .*= spec.variability[l]
+                    # fix bisector and width if variability is turned off 
                     if !spec.variability[l]
+                        wsp.bist .= view(soldata.bis[key], :, 1)
                         wsp.widt .= view(soldata.wid[key], :, 1)
                     end
 
@@ -118,7 +130,7 @@ function disk_sim_eclipse(spec::SpecParams{T}, disk::DiskParamsEclipse{T}, solda
                 end
 
                 # apply normalization term and add to flux
-                flux[:,t] .*= prof./ sum_wts
+                flux[:,t] .*= prof./ sum_wts 
             end
 
             # iterate tloop
