@@ -1,5 +1,6 @@
 function calc_eclipse_quantities_gpu!(epoch, obs_long, obs_lat, alt, wavelength,
-                                        disk::DiskParamsEclipse{T2}, gpu_allocs::GPUAllocsEclipse{T1}) where {T1<:AF, T2<:AF}
+                                      disk::DiskParamsEclipse{T2}, 
+                                      gpu_allocs::GPUAllocsEclipse{T1}) where {T1<:AF, T2<:AF}
 
     μs = gpu_allocs.μs
     ld = gpu_allocs.ld
@@ -21,8 +22,8 @@ function calc_eclipse_quantities_gpu!(epoch, obs_long, obs_lat, alt, wavelength,
     A = convert(T2, disk.A)
     B = convert(T2, disk.B)
     C = convert(T2, disk.C)
-    u1 = convert(T2, disk.u1)
-    u2 = convert(T2, disk.u2)
+    # u1 = convert(T2, disk.u1)
+    # u2 = convert(T2, disk.u2)
 
     # geometry from disk
     #Nϕ = convert(T2, disk.N)
@@ -86,7 +87,8 @@ function calc_eclipse_quantities_gpu!(epoch, obs_long, obs_lat, alt, wavelength,
                                                                                Nϕ, Nθ, Nsubgrid, Nθ_max, ld, ext, dA,
                                                                                moon_radius, OS_bary_gpu, OM_bary_gpu,
                                                                                sun_rot_mat_gpu, sun_radius, A, B, C,
-                                                                               u1,  u2, lambda_nm_gpu, a0_gpu, a1_gpu,
+                                                                               #u1,  u2, 
+                                                                               lambda_nm_gpu, a0_gpu, a1_gpu,
                                                                                a2_gpu, a3_gpu, a4_gpu, a5_gpu)
     return nothing
 end                               
@@ -95,7 +97,8 @@ function calc_eclipse_quantities_gpu!(wavelength, μs, z_rot, ax_codes,
                                         Nϕ, Nθ, Nsubgrid, Nθ_max, ld, ext,
                                         dA, moon_radius, OS_bary, OM_bary,
                                         sun_rot_mat, sun_radius, A, B, C,
-                                        u1, u2, lambda_nm, a0, a1, a2, a3,
+                                        #u1, u2, 
+                                        lambda_nm, a0, a1, a2, a3,
                                         a4, a5)
     # get indices from GPU blocks + threads
     idx = threadIdx().x + blockDim().x * (blockIdx().x-1)
