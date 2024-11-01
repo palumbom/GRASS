@@ -49,6 +49,7 @@ include("structures.jl")
 # star geometry + thermal/RT physics
 include("stargeometry.jl")
 include("starphysics.jl")
+include("pmode.jl")
 
 # data read-in + calculations
 include("inputIO.jl")
