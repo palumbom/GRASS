@@ -55,7 +55,7 @@ function calc_ccf(λs::AA{T1,1}, flux::AA{T1,1}, var::AA{T1,1},
 
         # compute the ccf value at the current velocity shift
         ccf[i] = ccf_plan.allow_nans ? nansum(projection .* flux) : sum(projection .* flux)
-        ccf_var_out[i] = ccf_plan.allow_nans ? nansum(var .* projection.^2) : sum(var .* projection.^2)
+        ccf_var_out[i] = ccf_plan.allow_nans ? nansum(var .* projection.^2) : sum(var .* projection.^2) #do weights need to also be squared? 
     end
 
     # normalize if normalize==true
