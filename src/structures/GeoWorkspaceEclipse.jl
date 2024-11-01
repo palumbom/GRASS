@@ -11,6 +11,7 @@ struct GeoWorkspaceEclipse{T<:AF}
     SP_bary_pos::Matrix{Vector{Float64}}
     SP_bary_vel::Matrix{Vector{Float64}}
     OP_bary::Matrix{Vector{Float64}}
+    OP_ltt::AA{T,2}
 
     mu_grid::AA{T,2}
     projected_velocities_no_cb::AA{T,2}
@@ -34,6 +35,8 @@ function GeoWorkspaceEclipse(disk::DiskParamsEclipse, lines_number::Int, time_nu
     SP_bary_pos = fill(Vector{Float64}(undef, 3), disk.Nsubgrid, disk.Nsubgrid)
     SP_bary_vel = fill(Vector{Float64}(undef, 3), disk.Nsubgrid, disk.Nsubgrid)
     OP_bary = fill(Vector{Float64}(undef, 6), disk.Nsubgrid, disk.Nsubgrid)
+    OP_ltt = zeros(disk.Nsubgrid, disk.Nsubgrid)
+    
     # scalars
     mu_grid = zeros(disk.Nsubgrid, disk.Nsubgrid)
     projected_velocities_no_cb = zeros(disk.Nsubgrid, disk.Nsubgrid)
@@ -42,6 +45,6 @@ function GeoWorkspaceEclipse(disk::DiskParamsEclipse, lines_number::Int, time_nu
     v_earth_orb_proj = zeros(disk.Nsubgrid, disk.Nsubgrid)
 
     return GeoWorkspaceEclipse(dA_total_proj_mean, mean_intensity, mean_weight_v_no_cb, mean_weight_v_earth_orb,
-    pole_vector_grid, SP_sun_pos, SP_sun_vel, SP_bary, SP_bary_pos, SP_bary_vel, OP_bary, mu_grid,
+    pole_vector_grid, SP_sun_pos, SP_sun_vel, SP_bary, SP_bary_pos, SP_bary_vel, OP_bary, OP_ltt, mu_grid,
     projected_velocities_no_cb, distance, v_scalar_grid, v_earth_orb_proj)
 end
