@@ -3,9 +3,9 @@ function sort_spectrum_data(;dir::String="", write::Bool=false)
     @assert isdir(dir);
 
     if isdir(dir * "spectra/")
-        files = glob("*.chvtt.fits", dir * "spectra/")
+        files = glob("*.fits", dir * "spectra/")
     else
-        files = glob("*.chvtt.fits", dir)
+        files = glob("*.fits", dir)
     end
     @assert !isempty(files)
 
