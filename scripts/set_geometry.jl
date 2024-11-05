@@ -7,7 +7,7 @@ using DataFrames
 
 GRASS.get_kernels()
 
-function set_geometry(time, obs_lat, obs_long, alt, N, filename)
+function set_geometry(time, obs_lat, obs_long, alt, N, filename, obs_id)
     #convert from utc to et as needed by SPICE
     time_stamps = utc2et.(time)
 
@@ -33,14 +33,23 @@ function set_geometry(time, obs_lat, obs_long, alt, N, filename)
 
     Threads.@threads for t in 1:disk.Nt
         #compute geometry for timestamp
-        GRASS.eclipse_compute_quantities!(disk, time_stamps[t], obs_long, obs_lat, alt, wsp.ϕc, wsp.θc, 
-                                            wsp.μs, wsp.dA, wsp.xyz, wsp.ax_codes,
-                                            mem.dA_total_proj_mean, mem.mean_weight_v_no_cb,
-                                            mem.mean_weight_v_earth_orb, mem.pole_vector_grid,
-                                            mem.SP_sun_pos, mem.SP_sun_vel, mem.SP_bary, mem.SP_bary_pos,
-                                            mem.SP_bary_vel, mem.OP_bary, mem.mu_grid, mem.projected_velocities_no_cb, 
-                                            mem.distance, mem.v_scalar_grid, mem.v_earth_orb_proj, t, mu_grid_matrix,
-                                            dA_total_proj_matrix, idx1_matrix, idx3_matrix, z_rot_matrix, zenith_matrix)                                  
+        # GRASS.eclipse_compute_quantities!(disk, time_stamps[t], obs_long, obs_lat, alt, wsp.ϕc, wsp.θc, 
+        #                                     wsp.μs, wsp.dA, wsp.xyz, wsp.ax_codes,
+        #                                     mem.dA_total_proj_mean, mem.mean_weight_v_no_cb,
+        #                                     mem.mean_weight_v_earth_orb, mem.pole_vector_grid,
+        #                                     mem.SP_sun_pos, mem.SP_sun_vel, mem.SP_bary, mem.SP_bary_pos,
+        #                                     mem.SP_bary_vel, mem.OP_bary, mem.mu_grid, mem.projected_velocities_no_cb, 
+        #                                     mem.distance, mem.v_scalar_grid, mem.v_earth_orb_proj, t, mu_grid_matrix,
+        #                                     dA_total_proj_matrix, idx1_matrix, idx3_matrix, z_rot_matrix, zenith_matrix)  
+        GRASS.eclipse_compute_quantities_updated!(disk, time_stamps[t], obs_id, obs_long, obs_lat, alt, wsp.ϕc, wsp.θc, 
+                                                wsp.μs, wsp.dA, wsp.xyz, wsp.ax_codes,
+                                                mem.dA_total_proj_mean, mem.mean_weight_v_no_cb,
+                                                mem.mean_weight_v_earth_orb, mem.pole_vector_grid,
+                                                mem.SP_sun_pos, mem.SP_sun_vel, mem.SP_bary, mem.SP_bary_pos,
+                                                mem.SP_bary_vel, mem.OP_bary, mem.OP_ltt,
+                                                mem.mu_grid, mem.projected_velocities_no_cb, 
+                                                mem.distance, mem.v_scalar_grid, mem.v_earth_orb_proj, t, mu_grid_matrix,
+                                                dA_total_proj_matrix, idx1_matrix, idx3_matrix, z_rot_matrix, zenith_matrix)         
         mu_grid_eclipse[t] = deepcopy(mu_grid_matrix)
         dA_total_proj_eclipse[t] = deepcopy(dA_total_proj_matrix)
         idx1_eclipse[t] = deepcopy(idx1_matrix)
@@ -76,14 +85,15 @@ neid_april = ["2024-04-08T20:11:26", "2024-04-08T20:10:03", "2024-04-08T20:08:41
 boulder_october = ["2023-10-14T13:25:37", "2023-10-14T13:27:01", "2023-10-14T13:28:23", "2023-10-14T13:29:42", "2023-10-14T13:31:08", "2023-10-14T13:32:25", "2023-10-14T13:33:49", "2023-10-14T13:35:10", "2023-10-14T13:36:33", "2023-10-14T13:37:56", "2023-10-14T13:39:18", "2023-10-14T13:40:37", "2023-10-14T13:42:01", "2023-10-14T13:43:22", "2023-10-14T13:44:46", "2023-10-14T13:46:09", "2023-10-14T13:47:26", "2023-10-14T13:48:50", "2023-10-14T13:50:14", "2023-10-14T13:51:38", "2023-10-14T13:52:57", "2023-10-14T13:53:55", "2023-10-14T13:59:00", "2023-10-14T13:59:41", "2023-10-14T14:03:04", "2023-10-14T14:03:20", "2023-10-14T14:05:15", "2023-10-14T14:06:34", "2023-10-14T14:12:22", "2023-10-14T14:13:27", "2023-10-14T14:14:48", "2023-10-14T14:16:12", "2023-10-14T14:17:34", "2023-10-14T14:18:56", "2023-10-14T14:20:20", "2023-10-14T14:21:44", "2023-10-14T14:23:02", "2023-10-14T14:24:24", "2023-10-14T14:25:45", "2023-10-14T14:27:10", "2023-10-14T14:28:32", "2023-10-14T14:29:50", "2023-10-14T14:31:13", "2023-10-14T14:32:34", "2023-10-14T14:33:59", "2023-10-14T14:35:21", "2023-10-14T14:36:18", "2023-10-14T15:38:31", "2023-10-14T15:39:34", "2023-10-14T15:40:55", "2023-10-14T15:42:19", "2023-10-14T15:43:37", "2023-10-14T15:44:42", "2023-10-14T15:46:30", "2023-10-14T15:47:48", "2023-10-14T15:49:10", "2023-10-14T15:50:31", "2023-10-14T15:51:53", "2023-10-14T15:53:14", "2023-10-14T15:54:37", "2023-10-14T15:55:59", "2023-10-14T15:57:21", "2023-10-14T15:58:40", "2023-10-14T16:00:04", "2023-10-14T16:01:28", "2023-10-14T16:02:49", "2023-10-14T16:04:11", "2023-10-14T16:05:32", "2023-10-14T16:06:54", "2023-10-14T16:08:18", "2023-10-14T16:09:39", "2023-10-14T16:11:01", "2023-10-14T16:12:25", "2023-10-14T16:13:46", "2023-10-14T16:15:08", "2023-10-14T16:16:27", "2023-10-14T16:17:50", "2023-10-14T16:19:14", "2023-10-14T16:20:36", "2023-10-14T16:21:57", "2023-10-14T16:23:19", "2023-10-14T16:24:40", "2023-10-14T16:26:04", "2023-10-14T16:27:26", "2023-10-14T16:28:47", "2023-10-14T16:30:09", "2023-10-14T16:31:32", "2023-10-14T16:32:54", "2023-10-14T16:34:16", "2023-10-14T16:35:37", "2023-10-14T16:36:58", "2023-10-14T16:39:52", "2023-10-14T16:41:05", "2023-10-14T16:42:32", "2023-10-14T16:43:51", "2023-10-14T16:45:12", "2023-10-14T16:46:23", "2023-10-14T16:48:03", "2023-10-14T16:49:17", "2023-10-14T16:50:42", "2023-10-14T16:51:58", "2023-10-14T16:53:24", "2023-10-14T16:54:45", "2023-10-14T16:56:06", "2023-10-14T16:57:31", "2023-10-14T16:58:53", "2023-10-14T17:00:13", "2023-10-14T17:01:35", "2023-10-14T17:02:56", "2023-10-14T17:04:20", "2023-10-14T17:05:42", "2023-10-14T17:07:03", "2023-10-14T17:08:27", "2023-10-14T17:09:49", "2023-10-14T17:11:10", "2023-10-14T17:12:32", "2023-10-14T17:13:53", "2023-10-14T17:15:17", "2023-10-14T17:16:39", "2023-10-14T17:18:00", "2023-10-14T17:19:21", "2023-10-14T17:20:43", "2023-10-14T17:22:07", "2023-10-14T17:23:28", "2023-10-14T17:24:50", "2023-10-14T17:26:12", "2023-10-14T17:27:33", "2023-10-14T17:28:41", "2023-10-14T18:41:52", "2023-10-14T18:42:46", "2023-10-14T18:44:08", "2023-10-14T18:45:29", "2023-10-14T18:46:50", "2023-10-14T18:48:12", "2023-10-14T18:49:36", "2023-10-14T18:50:39", "2023-10-14T18:55:41", "2023-10-14T18:56:25", "2023-10-14T18:57:51", "2023-10-14T18:59:09", "2023-10-14T19:00:33", "2023-10-14T19:01:54", "2023-10-14T19:03:13", "2023-10-14T19:04:37", "2023-10-14T20:37:30", "2023-10-14T23:07:01", "2023-10-14T23:07:58", "2023-10-14T23:09:18"]
     
 #obs location
-# #NEID location
-# obs_lat = 31.9583 
-# obs_long = -111.5967  
-# alt = 2.097938 
+#NEID location
+obs_lat = 31.9583 
+obs_long = -111.5967  
+alt = 2.097938 
 
-#Boulder location
-obs_lat = 39.995380
-obs_long = -105.262390
-alt = 1.6523
+# #Boulder location
+# obs_lat = 39.995380
+# obs_long = -105.262390
+# alt = 1.6523
 
-set_geometry(boulder_october, obs_lat, obs_long, alt, 50, "boulder_october_N_50")
+#set_geometry(boulder_october, obs_lat, obs_long, alt, 50, "boulder_october_N_50")
+set_geometry(neid_october, obs_lat, obs_long, alt, 50, "neid_october_N_50_updated", "NEID")
