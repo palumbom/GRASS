@@ -114,8 +114,8 @@ function disk_sim_eclipse(spec::SpecParams{T}, disk::DiskParamsEclipse{T}, solda
 
                     # fix bisector and width if variability is turned off 
                     if !spec.variability[l]
-                        wsp.bist .= view(soldata.bis[key], :, 1)
-                        wsp.widt .= view(soldata.wid[key], :, 1)
+                        wsp.bist .= mean(soldata.bis[key], dims=2) 
+                        wsp.widt .= mean(soldata.wid[key], dims=2)
                     end
 
                     # get depth to trim to from depth contrast
