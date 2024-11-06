@@ -43,3 +43,13 @@ function take_many_steps(omega, gamma, dt, driving_amp; timescale=365.0)
     end
     return ts, xs, rvs
 end
+
+function simulate_exposure(ts, rvs, start_time, exp_time)
+    pad = 100. # seconds - ARBITRARY
+    smaller_inds = (ts .> (start_time - pad)) .& (ts .< (start_time + exp_time + pad))
+    itp = Spline1D(ts[smaller_inds], rvs[smaller_inds]; w=ones(length(ts[smaller_inds])), k=3, bc="nearest")    
+    tiny = 0.1 # 100 ms
+    fine_ts = range(start_time, start_time+exp_time, step=tiny) # fine grid
+    fine_rvs = itp.(fine_ts)
+    return sum(fine_rvs) / length(fine_rvs) # ASSUMES EVEN WEIGHTING - technically incorrect for last point
+end
