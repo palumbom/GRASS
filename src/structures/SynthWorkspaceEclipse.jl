@@ -40,7 +40,7 @@ function SynthWorkspaceEclipse(disk::DiskParamsEclipse, lines_number::Int, time_
     ext = zeros(size(disk.θc)..., lines_number)
     dA = zeros(size(disk.θc)..., time_number)
     xyz = zeros(size(disk.θc)..., 3)
-    z_rot = zeros(size(disk.θc)...,  lines_number)
+    z_rot = zeros(size(disk.θc)...,  time_number)
     ax_codes = zeros(Int, size(disk.θc)..., time_number)
     cbs = zeros(size(disk.θc)...)
     keys = repeat([(:off,:off)], size(disk.θc)...)

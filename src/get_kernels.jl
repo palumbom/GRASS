@@ -34,7 +34,7 @@ function get_kernels()
     furnsh(datdir * "earth_latest_high_prec.bpc")
     furnsh(datdir * "earth_assoc_itrf93.tf")
     furnsh(datdir * "jup365.bsp")
-    furnsh(datdir * "eclipse_SPK.bsp")
+    # furnsh(datdir * "eclipse_SPK.bsp")
     furnsh(datdir * "ID_mapping.txt")
 
     return nothing

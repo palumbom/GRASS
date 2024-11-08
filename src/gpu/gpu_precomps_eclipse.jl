@@ -137,6 +137,7 @@ function calc_eclipse_quantities_gpu!(wavelength, μs, z_rot, ax_codes,
         dA_sum = CUDA.zero(CUDA.eltype(dA))
         x_sum = CUDA.zero(CUDA.eltype(μs))
         y_sum = CUDA.zero(CUDA.eltype(μs))
+        z_sum = CUDA.zero(CUDA.eltype(μs))
 
         # initiate counter
         μ_count = 0
@@ -194,6 +195,7 @@ function calc_eclipse_quantities_gpu!(wavelength, μs, z_rot, ax_codes,
                 x_new = sun_rot_mat[1] * x + sun_rot_mat[4] * y + sun_rot_mat[7] * z
                 y_new = sun_rot_mat[2] * x + sun_rot_mat[5] * y + sun_rot_mat[8] * z
                 z_new = sun_rot_mat[3] * x + sun_rot_mat[6] * y + sun_rot_mat[9] * z
+
                 #vel component rotated for SP bary
                 vx = sun_rot_mat[1] * d + sun_rot_mat[4] * e + sun_rot_mat[7] * f
                 vy = sun_rot_mat[2] * d + sun_rot_mat[5] * e + sun_rot_mat[8] * f
@@ -219,6 +221,7 @@ function calc_eclipse_quantities_gpu!(wavelength, μs, z_rot, ax_codes,
                 # sum on vector components
                 x_sum += x_new
                 y_sum += y_new
+                z_sum += z_new
 
                 # get OP_bary and SP_bary between them and find projected_velocities_no_cb
                 n1 = CUDA.sqrt(OP_bary_x^2.0 + OP_bary_y^2.0 + OP_bary_z^2.0)
@@ -253,7 +256,7 @@ function calc_eclipse_quantities_gpu!(wavelength, μs, z_rot, ax_codes,
                     # get limb darkening
                     ld[m,n,wl] += quad_limb_darkening_gpu_eclipse(μ_sub, wavelength[wl], lambda_nm, a0, a1, a2, a3, a4, a5)
                 end
-                z_rot_numerator += z_rot_sub * dA_sub * ld[m,n,1]
+                z_rot_numerator += z_rot_sub # * dA_sub * ld[m,n,1]
                 z_rot_denominator += dA_sub * ld[m,n,1]
             end
         end
@@ -265,13 +268,15 @@ function calc_eclipse_quantities_gpu!(wavelength, μs, z_rot, ax_codes,
             for wl in eachindex(wavelength)
                 @inbounds ld[m,n,wl] /= count
             end
-            @inbounds z_rot[m,n] = z_rot_numerator / z_rot_denominator
+            # @inbounds z_rot[m,n] = z_rot_numerator / z_rot_denominator
+            @inbounds z_rot[m,n] = z_rot_numerator / μ_count
 
             # set vector components as average
             @inbounds xx = x_sum / μ_count
             @inbounds yy = y_sum / μ_count
+            @inbounds zz = z_sum / μ_count
 
-            @inbounds ax_codes[m, n] = find_nearest_ax_gpu(xx / sun_radius, yy / sun_radius)
+            @inbounds ax_codes[m, n] = find_nearest_ax_gpu(yy / sun_radius, zz / sun_radius)
         else
             @inbounds μs[m,n] = 0.0
             @inbounds dA[m,n] = 0.0
