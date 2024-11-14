@@ -60,9 +60,3 @@ end
 function quad_limb_darkening_gpu(μ, u1, u2)
     return 1.0 - u1 * (1.0 - μ) - u2 * (1.0 - μ)^2.0
 end
-
-function quad_limb_darkening_gpu_eclipse(μ, wavelength, lambda_nm, a0, a1, a2, a3, a4, a5)
-    index = searchsortednearest_gpu(lambda_nm, wavelength)
-
-    return a0[index] + a1[index]*μ + a2[index]*μ^2 + a3[index]*μ^3 + a4[index]*μ^4 + a5[index]*μ^5
-end

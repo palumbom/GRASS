@@ -1,6 +1,10 @@
 using Revise
 using GRASS
 using SPICE
+using CSV
+using DataFrames
+import PyPlot
+plt = PyPlot
 
 #NEID location
 obs_lat = 31.9583 
@@ -9,12 +13,22 @@ alt = 2.097938
 
 #convert from utc to et as needed by SPICE
 time_stamps = utc2et.(["2023-10-14T14:29:23.500000"])
-# time_stamps = utc2et.(["2023-10-14T17:29:23.500000"])
 
 N = 50
 Nt = length(time_stamps)
 Nsubgrid = 4
 disk = GRASS.DiskParamsEclipse(N=N, Nt=Nt, Nsubgrid=Nsubgrid)
+
+lines = [5434.5232] # array of line centers 
+depths = [0.6]   # array of line depths
+templates = ["FeI_5434"] # template data to use
+variability = trues(length(lines))  # whether or not the bisectors should "dance"
+blueshifts = zeros(length(lines))   # set convective blueshift value
+resolution = 7e5                    # spectral resolution
+
+# make the disk and spec composite type instances
+spec = GRASS.SpecParams(lines=lines, depths=depths, variability=variability,
+                        blueshifts=blueshifts, templates=templates, resolution=resolution) 
 
 """
 CPU GEOMETRY CODE CALLS BELOW
@@ -22,13 +36,7 @@ CPU GEOMETRY CODE CALLS BELOW
 
 wsp = GRASS.SynthWorkspaceEclipse(disk, 1, Nt, verbose=true)
 mem = GRASS.GeoWorkspaceEclipse(disk, 1, Nt)
-
-mu_grid_eclipse = Vector{Matrix{Matrix{Float64}}}(undef,size(time_stamps)...)
-dA_total_proj_eclipse = Vector{Matrix{Matrix{Float64}}}(undef,size(time_stamps)...)
-idx1_eclipse = Vector{Matrix{Matrix{Int}}}(undef,size(time_stamps)...)
-idx3_eclipse = Vector{Matrix{Matrix{Int}}}(undef,size(time_stamps)...)
-z_rot_eclipse = Vector{Matrix{Matrix{Float64}}}(undef,size(time_stamps)...)
-zenith_eclipse = Vector{Matrix{Matrix{Float64}}}(undef,size(time_stamps)...)
+LD_type = "KSSD"
 
 mu_grid_matrix = Matrix{Matrix{Float64}}(undef, length(disk.ϕc), maximum(disk.Nθ))    
 dA_total_proj_matrix = Matrix{Matrix{Float64}}(undef, length(disk.ϕc), maximum(disk.Nθ))
@@ -41,55 +49,37 @@ zenith_matrix = Matrix{Matrix{Float64}}(undef, length(disk.ϕc), maximum(disk.N�
 t = 1
     
 GRASS.eclipse_compute_quantities!(disk, time_stamps[t], obs_long, obs_lat, alt, wsp.ϕc, wsp.θc, 
-                                  wsp.μs, wsp.dA, wsp.xyz, wsp.ax_codes, #wsp.z_rot, 
+                                  wsp.μs, wsp.dA, wsp.xyz, wsp.ax_codes, 
                                   mem.dA_total_proj_mean, mem.mean_weight_v_no_cb,
                                   mem.mean_weight_v_earth_orb, mem.pole_vector_grid,
                                   mem.SP_sun_pos, mem.SP_sun_vel, mem.SP_bary, mem.SP_bary_pos,
                                   mem.SP_bary_vel, mem.OP_bary, mem.mu_grid, mem.projected_velocities_no_cb, 
                                   mem.distance, mem.v_scalar_grid, mem.v_earth_orb_proj, t, mu_grid_matrix,
-                                  dA_total_proj_matrix, idx1_matrix, idx3_matrix, z_rot_matrix, zenith_matrix)  
-# GRASS.eclipse_compute_quantities_updated!(disk, time_stamps[t], obs_id, obs_long, obs_lat, alt, wsp.ϕc, wsp.θc, 
-#                                           wsp.μs, wsp.dA, wsp.xyz, wsp.ax_codes,
-#                                           mem.dA_total_proj_mean, mem.mean_weight_v_no_cb,
-#                                           mem.mean_weight_v_earth_orb, mem.pole_vector_grid,
-#                                           mem.SP_sun_pos, mem.SP_sun_vel, mem.SP_bary, mem.SP_bary_pos,
-#                                           mem.SP_bary_vel, mem.OP_bary, mem.OP_ltt,
-#                                           mem.mu_grid, mem.projected_velocities_no_cb, 
-#                                           mem.distance, mem.v_scalar_grid, mem.v_earth_orb_proj, t, mu_grid_matrix,
-#                                           dA_total_proj_matrix, idx1_matrix, idx3_matrix, z_rot_matrix, zenith_matrix)         
-mu_grid_eclipse[t] = deepcopy(mu_grid_matrix)
-dA_total_proj_eclipse[t] = deepcopy(dA_total_proj_matrix)
-idx1_eclipse[t] = deepcopy(idx1_matrix)
-idx3_eclipse[t] = deepcopy(idx3_matrix)
-z_rot_eclipse[t] = deepcopy(z_rot_matrix)
-zenith_eclipse[t] = deepcopy(zenith_matrix)
+                                  dA_total_proj_matrix, idx1_matrix, idx3_matrix, z_rot_matrix, zenith_matrix)           
 
+extinction_coeff = DataFrame(CSV.File("data/NEID_three_extinction.csv"))
+neid_ext_coeff = extinction_coeff[extinction_coeff[!, "Wavelength"] .== lines[1], "Ext1"]
+mean_intensity = GRASS.eclipse_compute_intensity(disk, lines, neid_ext_coeff, LD_type, idx1_matrix, idx3_matrix,
+                    mu_grid_matrix, mem.mean_weight_v_no_cb[:, :, t], mem.mean_weight_v_earth_orb[:, :, t],
+                    z_rot_matrix, dA_total_proj_matrix, wsp.ld, wsp.z_rot, zenith_matrix, "true", wsp.ext)
+            
 """
 GPU GEOMETRY CODE CALLS BELOW
 """
-
-disk = GRASS.DiskParamsEclipse(N=N, Nt=Nt, Nsubgrid=Nsubgrid)
-
-lines = [15652.79] # array of line centers 
-depths = [0.25]   # array of line depths
-templates = ["FeI_5434"] # template data to use
-variability = trues(length(lines))  # whether or not the bisectors should "dance"
-blueshifts = zeros(length(lines))   # set convective blueshift value
-resolution = 7e5                    # spectral resolution
-
-# make the disk and spec composite type instances
-spec = GRASS.SpecParams(lines=lines, depths=depths, variability=variability,
-                        blueshifts=blueshifts, templates=templates, resolution=resolution)  
+ 
 gpu_allocs = GRASS.GPUAllocsEclipse(spec, disk, 1)
 
-GRASS.calc_eclipse_quantities_gpu!(time_stamps[t], obs_long, obs_lat, alt, [5500.0], disk, gpu_allocs)
+GRASS.calc_eclipse_quantities_gpu!(time_stamps[t], obs_long, obs_lat, alt, lines, LD_type, 1.0, neid_ext_coeff[1], disk, gpu_allocs)
 
 # make a plot
-plt.imshow(wsp.z_rot .- Array(gpu_allocs.z_rot))
+plt.imshow(wsp.ext .- Array(gpu_allocs.ext))
 # plt.imshow(wsp.z_rot .* GRASS.c_ms, vmin=-2000, vmax=2000, cmap="seismic")
 # plt.imshow(Array(gpu_allocs.z_rot) .* GRASS.c_ms .- wsp.z_rot .* GRASS.c_ms)
 plt.colorbar()
-plt.show()
+plt.savefig("gpu_test.png")
+plt.clf()
+#z_rot & dA & ext
+
 
 # # get size of sub-tiled grid
 # Nϕ = disk.N

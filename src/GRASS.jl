@@ -59,7 +59,7 @@ a3 = NL94_coeff.a3
 a4 = NL94_coeff.a4
 a5 = NL94_coeff.a5
 
-extinction_coeff = DataFrame(CSV.File("data/NEID_three_extinction_300.csv"))
+extinction_coeff = DataFrame(CSV.File("data/NEID_three_extinction.csv"))
 
 # configure directories
 include("config.jl")
