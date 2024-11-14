@@ -32,6 +32,13 @@ function disk_sim_gpu(spec::SpecParams{T1}, disk::DiskParams{T1}, soldata::GPUSo
     widall_gpu = soldata.wid
     depcontrast_gpu = soldata.dep_contrast
 
+    # allocate destinations for interpolations
+    @cusync begin
+        bisall_gpu_loop = CUDA.copy(bisall_gpu)
+        intall_gpu_loop = CUDA.copy(intall_gpu)
+        widall_gpu_loop = CUDA.copy(widall_gpu)
+    end
+
     # set number of threads and blocks for len(μ) gpu kernels
     threads1 = 1024
     blocks1 = cld(CUDA.length(μs), prod(threads1))
@@ -51,13 +58,6 @@ function disk_sim_gpu(spec::SpecParams{T1}, disk::DiskParams{T1}, soldata::GPUSo
     threads5 = 1024
     blocks5 = cld(CUDA.length(prof), prod(threads5))
 
-    # allocate arrays for fresh copy of input data to copy to each loop
-    @cusync begin
-        bisall_gpu_loop = CUDA.zeros(T2, CUDA.size(bisall_gpu))
-        intall_gpu_loop = CUDA.zeros(T2, CUDA.size(intall_gpu))
-        widall_gpu_loop = CUDA.zeros(T2, CUDA.size(widall_gpu))
-    end
-
     # get weighted disk average cbs
     @cusync sum_wts = CUDA.sum(wts)
     @cusync z_cbs_avg = CUDA.sum(z_cbs .* wts) / sum_wts
@@ -75,13 +75,6 @@ function disk_sim_gpu(spec::SpecParams{T1}, disk::DiskParams{T1}, soldata::GPUSo
 
         # loop over lines to synthesize
         for l in eachindex(spec.lines)
-            # get a fresh copy of the untrimmed bisector + width data
-            @cusync begin
-                CUDA.copyto!(bisall_gpu_loop, bisall_gpu)
-                CUDA.copyto!(intall_gpu_loop, intall_gpu)
-                CUDA.copyto!(widall_gpu_loop, widall_gpu)
-            end
-
             # trim all the bisector data
             @cusync @cuda threads=threads2 blocks=blocks2 trim_bisector_gpu!(spec.depths[l], spec.variability[l],
                                                                              depcontrast_gpu, lenall_gpu,
