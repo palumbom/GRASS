@@ -1,4 +1,4 @@
-function calc_eclipse_quantities_gpu!(epoch, obs_long, obs_lat, alt, wavelength,
+function calc_eclipse_quantities_gpu!(epoch, obs_long, obs_lat, alt, wavelength, LD_law, ext_toggle, neid_ext_coeff,
                                       disk::DiskParamsEclipse{T2}, 
                                       gpu_allocs::GPUAllocsEclipse{T1}) where {T1<:AF, T2<:AF}
 
@@ -22,8 +22,31 @@ function calc_eclipse_quantities_gpu!(epoch, obs_long, obs_lat, alt, wavelength,
     A = convert(T2, disk.A)
     B = convert(T2, disk.B)
     C = convert(T2, disk.C)
-    # u1 = convert(T2, disk.u1)
-    # u2 = convert(T2, disk.u2)
+    ext_coeff_gpu = convert(T2, neid_ext_coeff)
+
+    if LD_law == "NL94"
+        filtered_df = quad_ld_coeff_NL94[quad_ld_coeff_NL94.wavelength .== wavelength, :]
+        u1 = convert(T2, filtered_df.u1[1])
+        u2 = convert(T2, filtered_df.u2[1])
+    end
+
+    if LD_law == "K300"
+        filtered_df = quad_ld_coeff_300[quad_ld_coeff_300.wavelength .== wavelength, :]
+        u1 = convert(T2, filtered_df.u1[1])
+        u2 = convert(T2, filtered_df.u2[1])
+    end
+
+    if LD_law == "KSSD"
+        filtered_df = quad_ld_coeff_SSD[quad_ld_coeff_SSD.wavelength .== wavelength, :]
+        u1 = convert(T2, filtered_df.u1[1])
+        u2 = convert(T2, filtered_df.u2[1])
+    end
+
+    if LD_law == "HD"
+        filtered_df = quad_ld_coeff_HD[quad_ld_coeff_HD.wavelength .== wavelength, :]
+        u1 = convert(T2, filtered_df.u1[1])
+        u2 = convert(T2, filtered_df.u2[1])
+    end
 
     # geometry from disk
     #Nϕ = convert(T2, disk.N)
@@ -41,6 +64,7 @@ function calc_eclipse_quantities_gpu!(epoch, obs_long, obs_lat, alt, wavelength,
     EO_earth = vcat(EO_earth_pos, [0.0, 0.0, 0.0])
     #transform into ICRF frame
     EO_bary = sxform("ITRF93", "J2000", epoch) * EO_earth
+    @cusync EO_bary_gpu = CuArray(EO_bary)
 
     # get vector from barycenter to observatory on Earth's surface
     BO_bary = BE_bary .+ EO_bary
@@ -85,21 +109,19 @@ function calc_eclipse_quantities_gpu!(epoch, obs_long, obs_lat, alt, wavelength,
     blocks1 = cld(CUDA.length(μs), prod(threads1))
     @cusync @cuda threads=threads1 blocks=blocks1 calc_eclipse_quantities_gpu!(wavelength_gpu, μs, z_rot, ax_codes,
                                                                                Nϕ, Nθ, Nsubgrid, Nθ_max, ld, ext, dA,
-                                                                               moon_radius, OS_bary_gpu, OM_bary_gpu,
-                                                                               sun_rot_mat_gpu, sun_radius, A, B, C,
-                                                                               #u1,  u2, 
+                                                                               moon_radius, OS_bary_gpu, OM_bary_gpu, EO_bary_gpu,
+                                                                               sun_rot_mat_gpu, sun_radius, A, B, C, u1, u2, 
                                                                                lambda_nm_gpu, a0_gpu, a1_gpu,
-                                                                               a2_gpu, a3_gpu, a4_gpu, a5_gpu)
+                                                                               a2_gpu, a3_gpu, a4_gpu, a5_gpu, ext_toggle, ext_coeff_gpu)
     return nothing
 end                               
 
 function calc_eclipse_quantities_gpu!(wavelength, μs, z_rot, ax_codes,
                                         Nϕ, Nθ, Nsubgrid, Nθ_max, ld, ext,
-                                        dA, moon_radius, OS_bary, OM_bary,
-                                        sun_rot_mat, sun_radius, A, B, C,
-                                        #u1, u2, 
+                                        dA, moon_radius, OS_bary, OM_bary, EO_bary,
+                                        sun_rot_mat, sun_radius, A, B, C, u1, u2, 
                                         lambda_nm, a0, a1, a2, a3,
-                                        a4, a5)
+                                        a4, a5, ext_toggle, ext_coeff_gpu)
     # get indices from GPU blocks + threads
     idx = threadIdx().x + blockDim().x * (blockIdx().x-1)
     sdx = gridDim().x * blockDim().x
@@ -132,8 +154,6 @@ function calc_eclipse_quantities_gpu!(wavelength, μs, z_rot, ax_codes,
         μ_sum = CUDA.zero(CUDA.eltype(μs))
         z_rot_numerator = CUDA.zero(CUDA.eltype(z_rot))
         z_rot_denominator = CUDA.zero(CUDA.eltype(z_rot))
-        ld_sum = CUDA.zero(CUDA.eltype(ld))
-        ext_sum = CUDA.zero(CUDA.eltype(ext))
         dA_sum = CUDA.zero(CUDA.eltype(dA))
         x_sum = CUDA.zero(CUDA.eltype(μs))
         y_sum = CUDA.zero(CUDA.eltype(μs))
@@ -219,9 +239,9 @@ function calc_eclipse_quantities_gpu!(wavelength, μs, z_rot, ax_codes,
                 μ_count += 1
 
                 # sum on vector components
-                x_sum += x_new
-                y_sum += y_new
-                z_sum += z_new
+                x_sum += x
+                y_sum += y
+                z_sum += z
 
                 # get OP_bary and SP_bary between them and find projected_velocities_no_cb
                 n1 = CUDA.sqrt(OP_bary_x^2.0 + OP_bary_y^2.0 + OP_bary_z^2.0)
@@ -252,12 +272,26 @@ function calc_eclipse_quantities_gpu!(wavelength, μs, z_rot, ax_codes,
                     continue
                 end
 
+                #zenith
+                n3 = CUDA.sqrt(EO_bary[1]^2.0 + EO_bary[2]^2.0 + EO_bary[3]^2.0) 
+                zenith = (CUDA.acos((EO_bary[1] * OP_bary_x + EO_bary[2] * OP_bary_y + EO_bary[3] * OP_bary_z) / (n3 * n1)))
+
                 for wl in eachindex(wavelength)
                     # get limb darkening
-                    ld[m,n,wl] += quad_limb_darkening_gpu_eclipse(μ_sub, wavelength[wl], lambda_nm, a0, a1, a2, a3, a4, a5)
+                    ld[m,n,wl] += quad_limb_darkening_gpu(μ_sub, u1, u2)
+
+                    if ext_toggle == 1.0
+                        ext[m,n,wl] += CUDA.exp(-((1/(CUDA.cos(zenith)))*ext_coeff_gpu))
+                    end
                 end
-                z_rot_numerator += z_rot_sub # * dA_sub * ld[m,n,1]
-                z_rot_denominator += dA_sub * ld[m,n,1]
+
+                if ext_toggle == 1.0
+                    z_rot_numerator += z_rot_sub * dA_sub * ld[m,n,1] * ext[m,n,1]
+                    z_rot_denominator += dA_sub * ld[m,n,1] * ext[m,n,1]
+                else
+                    z_rot_numerator += z_rot_sub * dA_sub * ld[m,n,1]
+                    z_rot_denominator += dA_sub * ld[m,n,1]
+                end
             end
         end
         # take averages
@@ -267,9 +301,9 @@ function calc_eclipse_quantities_gpu!(wavelength, μs, z_rot, ax_codes,
             @inbounds dA[m,n] = dA_sum 
             for wl in eachindex(wavelength)
                 @inbounds ld[m,n,wl] /= count
+                @inbounds ext[m,n,wl] /= count
             end
-            # @inbounds z_rot[m,n] = z_rot_numerator / z_rot_denominator
-            @inbounds z_rot[m,n] = z_rot_numerator / μ_count
+            @inbounds z_rot[m,n] = z_rot_numerator / z_rot_denominator
 
             # set vector components as average
             @inbounds xx = x_sum / μ_count
@@ -282,6 +316,7 @@ function calc_eclipse_quantities_gpu!(wavelength, μs, z_rot, ax_codes,
             @inbounds dA[m,n] = 0.0
             for wl in eachindex(wavelength)
                 @inbounds ld[m,n,wl] = 0.0
+                @inbounds ext[m,n,wl] = 0.0
             end
             @inbounds z_rot[m,n] = 0.0
         end

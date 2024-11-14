@@ -1,5 +1,5 @@
 function eclipse_compute_quantities!(disk::DiskParamsEclipse{T}, epoch::T, obs_long::T, obs_lat::T, alt::T, ϕc::AA{T,2}, θc::AA{T,2},
-                                     μs::AA{T,3}, dA::AA{T,3}, xyz::AA{T,3}, ax_codes::AA{Int,3}, #derp::AA{T,3},
+                                     μs::AA{T,3}, dA::AA{T,3}, xyz::AA{T,3}, ax_codes::AA{Int,3},
                                      dA_total_proj_mean::AA{T,3}, mean_weight_v_no_cb::AA{T,3},
                                      mean_weight_v_earth_orb::AA{T,3}, pole_vector_grid::Matrix{Vector{Float64}},
                                      SP_sun_pos::Matrix{Vector{Float64}}, SP_sun_vel::Matrix{Vector{Float64}}, SP_bary::Matrix{Vector{Float64}}, 
@@ -118,7 +118,6 @@ function eclipse_compute_quantities!(disk::DiskParamsEclipse{T}, epoch::T, obs_l
             idx3_matrix[i,j] = idx3
             # assign the mean mu as the mean of visible mus
             μs[i,j,t] = mean(view(mu_grid, idx1))
-            # derp[i,j,t] = mean(view(z_rot_sub, idx1))
 
             # find xz at mean value of mu and get axis code (i.e., N, E, S, W)
             xyz[i,j,1] = mean(view(getindex.(SP_sun_pos,1), idx1))
@@ -279,7 +278,7 @@ function eclipse_compute_quantities_updated!(disk::DiskParamsEclipse{T}, epoch::
     return 
 end
 
-function eclipse_compute_intensity(disk::DiskParamsEclipse{T}, wavelength::Vector{Float64}, neid_ext_coeff::Vector{Float64}, LD_law, idx1::Matrix{Matrix{Int}}, idx3::Matrix{Matrix{Int}},
+function eclipse_compute_intensity(disk::DiskParamsEclipse{T}, wavelength::Vector{Float64}, neid_ext_coeff::Vector{Float64}, LD_law, idx1::Matrix{Matrix{Float64}}, idx3::Matrix{Matrix{Float64}},
                                     mu_grid::Matrix{Matrix{Float64}}, mean_weight_v_no_cb::AA{T,2}, mean_weight_v_earth_orb::AA{T,2},
                                     z_rot_sub::Matrix{Matrix{Float64}}, dA_total_proj::Matrix{Matrix{Float64}}, ld::AA{T,3}, z_rot::AA{T,3}, zenith_mean, ext_toggle, ext) where T<:AF
     for i in eachindex(disk.ϕc)
