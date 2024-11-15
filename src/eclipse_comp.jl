@@ -6,7 +6,7 @@ function eclipse_compute_quantities!(disk::DiskParamsEclipse{T}, epoch::T, obs_l
                                      SP_bary_pos::Matrix{Vector{Float64}}, SP_bary_vel::Matrix{Vector{Float64}}, OP_bary::Matrix{Vector{Float64}}, 
                                      mu_grid::AA{T,2}, projected_velocities_no_cb::AA{T,2}, distance::AA{T,2}, v_scalar_grid::AA{T,2}, 
                                      v_earth_orb_proj::Matrix{Float64}, t, mu_grid_matrix::Matrix{Matrix{Float64}},
-                                     dA_total_proj_matrix::Matrix{Matrix{Float64}}, idx1_matrix::Matrix{Matrix{Float64}}, idx3_matrix::Matrix{Matrix{Float64}}, 
+                                     dA_total_proj_matrix::Matrix{Matrix{Float64}}, idx1_matrix::Matrix{Matrix{Int}}, idx3_matrix::Matrix{Matrix{Int}}, 
                                      z_rot_matrix::Matrix{Matrix{Float64}}, zenith_matrix::Matrix{Matrix{Float64}}) where T<:AF
 
     #query for E, S, M position (km) and velocities (km/s)
