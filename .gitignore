@@ -13,6 +13,7 @@
 *.tls
 *.tpc
 *.bpc
+*.png
 *.tf
 
 # specific files/directories
