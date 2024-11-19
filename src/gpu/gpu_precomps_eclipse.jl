@@ -303,7 +303,12 @@ function calc_eclipse_quantities_gpu!(wavelength, μs, z_rot, ax_codes,
                 @inbounds ld[m,n,wl] /= count
                 @inbounds ext[m,n,wl] /= count
             end
-            @inbounds z_rot[m,n] = z_rot_numerator / z_rot_denominator
+            
+            if iszero(z_rot_denominator)
+                @inbounds z_rot[m,n] = 0.0
+            else 
+                @inbounds z_rot[m,n] = z_rot_numerator / z_rot_denominator
+            end
 
             # set vector components as average
             @inbounds xx = x_sum / μ_count

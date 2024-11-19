@@ -147,7 +147,7 @@ function line_profile_gpu!(prof, μs, wts, λs, allwavs, allints)
     return nothing
 end
 
-function line_profile_gpu!(prof, μs, ld, dA, ext, λs, allwavs, allints, ext_toggle)
+function line_profile_gpu!(l, prof, μs, ld, dA, ext, λs, allwavs, allints, ext_toggle)
     # get indices from GPU blocks + threads
     idx = threadIdx().x + blockDim().x * (blockIdx().x-1)
     sdx = blockDim().x * gridDim().x
@@ -155,6 +155,9 @@ function line_profile_gpu!(prof, μs, ld, dA, ext, λs, allwavs, allints, ext_to
     sdy = blockDim().y * gridDim().y
 
     Nθ_max = CUDA.size(μs, 2)
+
+
+
     # parallelized loop over grid
     for i in idx:sdx:CUDA.length(μs)
          # get index for output array 
@@ -168,7 +171,7 @@ function line_profile_gpu!(prof, μs, ld, dA, ext, λs, allwavs, allints, ext_to
             continue
         end
 
-        #take view of arrays to pass to interpolater
+        # take view of arrays to pass to interpolater
         allwavs_i = CUDA.view(allwavs, m, n, :)
         allints_i = CUDA.view(allints, m, n, :)
 
@@ -179,18 +182,18 @@ function line_profile_gpu!(prof, μs, ld, dA, ext, λs, allwavs, allints, ext_to
             # loop over wavelengths
             for j in idy:sdy:CUDA.length(λs)
                 if ((λs[j] < CUDA.first(allwavs_i)) || (λs[j] > CUDA.last(allwavs_i)))
-                    @inbounds CUDA.@atomic prof[j] += dA[m,n] * ld[m,n] * ext[m,n]
+                    @inbounds CUDA.@atomic prof[j] += dA[m,n] * ld[m,n,l] * ext[m,n,l]
                 else
-                    @inbounds CUDA.@atomic prof[j] += itp(λs[j]) * dA[m,n] * ld[m,n] * ext[m,n]
+                    @inbounds CUDA.@atomic prof[j] += itp(λs[j]) * dA[m,n] * ld[m,n,l] * ext[m,n,l]
                 end
             end
         else
             # loop over wavelengths
             for j in idy:sdy:CUDA.length(λs)
                 if ((λs[j] < CUDA.first(allwavs_i)) || (λs[j] > CUDA.last(allwavs_i)))
-                    @inbounds CUDA.@atomic prof[j] += dA[m,n] * ld[m,n]
+                    @inbounds CUDA.@atomic prof[j] += dA[m,n] * ld[m,n,l]
                 else
-                    @inbounds CUDA.@atomic prof[j] += itp(λs[j]) * dA[m,n] * ld[m,n]
+                    @inbounds CUDA.@atomic prof[j] += itp(λs[j]) * dA[m,n] * ld[m,n,l]
                 end
             end
         end
