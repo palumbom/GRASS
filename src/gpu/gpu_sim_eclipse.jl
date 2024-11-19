@@ -128,7 +128,7 @@ function disk_sim_eclipse_gpu(spec::SpecParams{T1}, disk::DiskParamsEclipse{T1},
                                                                            z_rot, z_cbs, lenall_gpu,
                                                                            bisall_gpu_loop, intall_gpu_loop,
                                                                            widall_gpu_loop, allwavs, allints)
-
+            
             # do the line synthesis, interp back onto wavelength grid
             @cusync @cuda threads=threads4 blocks=blocks4 line_profile_gpu!(prof, μs, ld[:,:,l], dA, ext[:,:,l], λs, allwavs, allints, ext_toggle)
 
