@@ -36,7 +36,12 @@ import Polynomials: fit as pfit, coeffs
 import Base: AbstractArray as AA
 import Base: AbstractFloat as AF
 
+# configure directories
+include("config.jl")
+
+# get kernels for SPICE stuff
 include("get_kernels.jl")
+
 #set required body paramters as global variables 
 #E,S,M radii (units:km)
 earth_radius = bodvrd("EARTH", "RADII")[1]	
@@ -45,12 +50,12 @@ sun_radius = bodvrd("SUN","RADII")[1]
 moon_radius = bodvrd("MOON", "RADII")[1] 
 
 #collect LD info as global variables - (units: nm)
-quad_ld_coeff_SSD = CSV.read("data/quad_ld_coeff_SSD.csv", DataFrame)
-quad_ld_coeff_300 = CSV.read("data/quad_ld_coeff_300.csv", DataFrame)
-quad_ld_coeff_HD = CSV.read("data/quad_ld_coeff_HD.csv", DataFrame)
-quad_ld_coeff_NL94 = CSV.read("data/quad_ld_coeff_NL94.csv", DataFrame)
+quad_ld_coeff_SSD = CSV.read(joinpath(datdir, "quad_ld_coeff_SSD.csv"), DataFrame)
+quad_ld_coeff_300 = CSV.read(joinpath(datdir, "quad_ld_coeff_300.csv"), DataFrame)
+quad_ld_coeff_HD = CSV.read(joinpath(datdir, "quad_ld_coeff_HD.csv"), DataFrame)
+quad_ld_coeff_NL94 = CSV.read(joinpath(datdir, "quad_ld_coeff_NL94.csv"), DataFrame)
 
-NL94_coeff = CSV.read("data/NL94_coeff.csv", DataFrame)
+NL94_coeff = CSV.read(joinpath(datdir, "NL94_coeff.csv"), DataFrame)
 lambda_nm = NL94_coeff.lambda_nm
 a0 = NL94_coeff.a0
 a1 = NL94_coeff.a1
@@ -59,10 +64,7 @@ a3 = NL94_coeff.a3
 a4 = NL94_coeff.a4
 a5 = NL94_coeff.a5
 
-extinction_coeff = DataFrame(CSV.File("data/NEID_three_extinction.csv"))
-
-# configure directories
-include("config.jl")
+extinction_coeff = DataFrame(CSV.File(joinpath(datdir, "NEID_three_extinction.csv")))
 
 # ancillary functions + constants
 include("utils.jl")
