@@ -394,6 +394,8 @@ function line_rvs_ccf(line_names, vacwav, orders, timestamps, path)
             RV_list[j] = rvs_cpu
             RV_error_list[j] = sigs_cpu
 
+            # plt.scatter(j,mean(chunk.flux[pixels]/chunk.var[pixels]))
+
             # if line_names[i] == "FeI_5383"
             #     fig = plt.figure(figsize=(6.4,4.8))
             #     gs = mpl.gridspec.GridSpec(nrows=1, ncols=2, width_ratios=[2, 1.1], figure=fig, wspace=0.05)
@@ -432,13 +434,14 @@ function line_rvs_ccf(line_names, vacwav, orders, timestamps, path)
         RV_all_lines[i] = RV_list
         RV_error_all_lines[i] = RV_error_list
     end
+    # plt.savefig("SNR_test.png")
     return RV_all_lines, RV_error_all_lines
 end
 
 # october
 RV_all_lines, RV_error_all_lines = line_rvs_ccf(line_names, vacwav, orders, timestamps_october, path_october)
-@save "/storage/home/efg5335/work/Eclipse_GRASS/figures/NEID_October/data/neid_RVlinebyline.jld2"
-jldopen("/storage/home/efg5335/work/Eclipse_GRASS/figures/NEID_October/data/neid_RVlinebyline.jld2", "a+") do file
+@save "/storage/home/efg5335/work/Eclipse_GRASS/figures/NEID_October/data/neid_RVlinebyline_new.jld2"
+jldopen("/storage/home/efg5335/work/Eclipse_GRASS/figures/NEID_October/data/neid_RVlinebyline_new.jld2", "a+") do file
     file["name"] = line_names 
     file["rv"] = RV_all_lines 
     file["rv_error"] = RV_error_all_lines 
