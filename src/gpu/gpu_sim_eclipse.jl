@@ -52,12 +52,26 @@ function disk_sim_eclipse_gpu(spec::SpecParams{T1}, disk::DiskParamsEclipse{T1},
     threads5 = 1024
     blocks5 = cld(CUDA.length(prof), prod(threads5))
 
-    # allocate arrays for fresh copy of input data to copy to each loop
+    # allocate destinations for interpolations
     @cusync begin
-        bisall_gpu_loop = CUDA.zeros(T2, CUDA.size(bisall_gpu))
-        intall_gpu_loop = CUDA.zeros(T2, CUDA.size(intall_gpu))
-        widall_gpu_loop = CUDA.zeros(T2, CUDA.size(widall_gpu))
+        bisall_gpu_loop = CUDA.copy(bisall_gpu)
+        intall_gpu_loop = CUDA.copy(intall_gpu)
+        widall_gpu_loop = CUDA.copy(widall_gpu)
     end
+
+    # allocate memory for means
+    @cusync begin
+        bisall_mean = CUDA.zeros(CUDA.eltype(bisall_gpu_loop), 100, CUDA.size(bisall_gpu_loop, 3))
+        intall_mean = CUDA.zeros(CUDA.eltype(intall_gpu_loop), 100, CUDA.size(intall_gpu_loop, 3))
+        widall_mean = CUDA.zeros(CUDA.eltype(widall_gpu_loop), 100, CUDA.size(widall_gpu_loop, 3))
+    end
+
+    threads6 = (4, 16)
+    blocks6 = cld(length(lenall_gpu) * 100, prod(threads6))
+
+    @cusync @cuda threads=threads6 blocks=blocks6 time_average_bis!(lenall_gpu, bisall_mean, intall_mean, 
+                                                                    widall_mean, bisall_gpu, intall_gpu, 
+                                                                    widall_gpu)
 
     # loop over time
     for t in 1:Nt
@@ -108,19 +122,14 @@ function disk_sim_eclipse_gpu(spec::SpecParams{T1}, disk::DiskParamsEclipse{T1},
             # calculate how much extra shift is needed
             extra_z = spec.conv_blueshifts .- z_cbs_avg
 
-            # get a fresh copy of the untrimmed bisector + width data
-            @cusync begin
-                CUDA.copyto!(bisall_gpu_loop, bisall_gpu)
-                CUDA.copyto!(intall_gpu_loop, intall_gpu)
-                CUDA.copyto!(widall_gpu_loop, widall_gpu)
-            end
-
             # trim all the bisector data
             @cusync @cuda threads=threads2 blocks=blocks2 trim_bisector_gpu!(spec.depths[l], spec.variability[l],
                                                                              depcontrast_gpu, lenall_gpu,
                                                                              bisall_gpu_loop, intall_gpu_loop,
                                                                              widall_gpu_loop, bisall_gpu,
-                                                                             intall_gpu, widall_gpu)
+                                                                             intall_gpu, widall_gpu, 
+                                                                             bisall_mean, intall_mean, 
+                                                                             widall_mean)
 
             # assemble line shape on even int grid
             @cusync @cuda threads=threads3 blocks=blocks3 fill_workspaces_2D_eclipse!(spec.lines[l], spec.variability[l],
@@ -130,7 +139,7 @@ function disk_sim_eclipse_gpu(spec::SpecParams{T1}, disk::DiskParamsEclipse{T1},
                                                                            widall_gpu_loop, allwavs, allints)
             
             # do the line synthesis, interp back onto wavelength grid
-            @cusync @cuda threads=threads4 blocks=blocks4 line_profile_gpu!(prof, μs, ld[:,:,l], dA, ext[:,:,l], λs, allwavs, allints, ext_toggle)
+            @cusync @cuda threads=threads4 blocks=blocks4 line_profile_gpu!(l, prof, μs, ld, dA, ext, λs, allwavs, allints, ext_toggle)
 
             # copy data from GPU to CPU
             @cusync @cuda threads=threads5 blocks=blocks5 apply_line!(t, prof, flux, sum_wts)
