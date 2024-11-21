@@ -106,7 +106,7 @@ function calc_eclipse_quantities_gpu!(epoch, obs_long, obs_lat, alt, wavelength,
 
     # compute geometric parameters, average over subtiles
     threads1 = 256
-    blocks1 = cld(CUDA.length(μs), prod(threads1))
+    blocks1 = cld(prod(CUDA.size(μs)), prod(threads1))
     @cusync @cuda threads=threads1 blocks=blocks1 calc_eclipse_quantities_gpu!(wavelength_gpu, μs, z_rot, ax_codes,
                                                                                Nϕ, Nθ, Nsubgrid, Nθ_max, ld, ext, dA,
                                                                                moon_radius, OS_bary_gpu, OM_bary_gpu, EO_bary_gpu,
@@ -117,11 +117,11 @@ function calc_eclipse_quantities_gpu!(epoch, obs_long, obs_lat, alt, wavelength,
 end                               
 
 function calc_eclipse_quantities_gpu!(wavelength, μs, z_rot, ax_codes,
-                                        Nϕ, Nθ, Nsubgrid, Nθ_max, ld, ext,
-                                        dA, moon_radius, OS_bary, OM_bary, EO_bary,
-                                        sun_rot_mat, sun_radius, A, B, C, u1, u2, 
-                                        lambda_nm, a0, a1, a2, a3,
-                                        a4, a5, ext_toggle, ext_coeff_gpu)
+                                      Nϕ, Nθ, Nsubgrid, Nθ_max, ld, ext,
+                                      dA, moon_radius, OS_bary, OM_bary, EO_bary,
+                                      sun_rot_mat, sun_radius, A, B, C, u1, u2, 
+                                      lambda_nm, a0, a1, a2, a3,
+                                      a4, a5, ext_toggle, ext_coeff_gpu)
     # get indices from GPU blocks + threads
     idx = threadIdx().x + blockDim().x * (blockIdx().x-1)
     sdx = gridDim().x * blockDim().x
@@ -181,7 +181,7 @@ function calc_eclipse_quantities_gpu!(wavelength, μs, z_rot, ax_codes,
                 # get longitude
                 θc_sub = (dθ/2.0) + (tj - 1) * dθ  
 
-                # # get cartesian coords of patch
+                # get cartesian coords of patch
                 x, y, z = sphere_to_cart_gpu_eclipse(sun_radius, ϕc_sub, θc_sub)
 
                 # get vector from spherical circle center to surface patch
@@ -327,5 +327,106 @@ function calc_eclipse_quantities_gpu!(wavelength, μs, z_rot, ax_codes,
         end
     end
 
+    return nothing
+end
+
+function calc_grid_edge_xyz(epoch, obs_long, obs_lat, alt,
+                            disk::DiskParamsEclipse{T2}, 
+                            gpu_allocs::GPUAllocsEclipse{T1}) where {T1<:AF, T2<:AF}
+
+    # get phi edges
+    ϕe = repeat(collect(disk.ϕe), inner=2)[2:end-1]
+    ϕe = CuArray(ϕe)
+
+    # get number of theta edges
+    Nθ = repeat(disk.Nθ, inner=2) .+ 1
+    θe = zeros(length(ϕe), maximum(Nθ))
+
+    for i in eachindex(ϕe)
+        θe[i, 1:Nθ[i]] .= range(0.0, 2π, length=Nθ[i])
+    end
+    θe = CuArray(θe)
+
+    # allocate memory for cartesian coords
+    xs = CUDA.zeros(Float64, CUDA.length(ϕe), CUDA.size(θe,2))
+    ys = CUDA.zeros(Float64, CUDA.length(ϕe), CUDA.size(θe,2))
+    zs = CUDA.zeros(Float64, CUDA.length(ϕe), CUDA.size(θe,2))
+
+    #query JPL horizons for E, S, M position (km) and velocities (km/s)
+    BE_bary = spkssb(399,epoch,"J2000")
+
+    #determine xyz earth coordinates for lat/long of observatory
+    flat_coeff = (earth_radius - earth_radius_pole) / earth_radius
+    EO_earth_pos = georec(deg2rad(obs_long), deg2rad(obs_lat), alt, earth_radius, flat_coeff)
+    #set earth velocity vectors
+    EO_earth = vcat(EO_earth_pos, [0.0, 0.0, 0.0])
+    #transform into ICRF frame
+    EO_bary = sxform("ITRF93", "J2000", epoch) * EO_earth
+    @cusync EO_bary_gpu = CuArray(EO_bary)
+
+    # get vector from barycenter to observatory on Earth's surface
+    BO_bary = BE_bary .+ EO_bary
+
+    # set string for ltt and abberation
+    lt_flag = "CN+S"
+
+    # get light travel time corrected OS vector
+    OS_bary, OS_lt, OS_dlt = spkltc(10, epoch, "J2000", lt_flag, BO_bary)
+    @cusync OS_bary_gpu = CuArray(OS_bary)
+
+    # get modified epch
+    epoch_lt = epoch - OS_lt
+
+    # get rotation matrix for sun
+    sun_rot_mat = CuArray(pxform("IAU_SUN", "J2000", epoch_lt))
+
+    threads1 = (16,16)
+    blocks1 = cld(prod(CUDA.size(θe)), prod(threads1))
+    GRASS.@cusync @cuda threads=threads1 blocks=blocks1 calc_grid_edge_xyz!(ϕe, θe, xs, ys, zs, sun_radius, sun_rot_mat, OS_bary_gpu)
+
+    return Array(xs), Array(ys), Array(zs)
+end
+
+function calc_grid_edge_xyz!(ϕe, θe, xs, ys, zs, sun_radius, sun_rot_mat, OS_bary)
+                            #  OS_bary, OM_bary, EO_bary,
+                            #  sun_rot_mat, sun_radius)
+    # get indices from GPU blocks + threads
+    idx = threadIdx().x + blockDim().x * (blockIdx().x-1)
+    sdx = gridDim().x * blockDim().x
+    idy = threadIdx().y + blockDim().y * (blockIdx().y-1)
+    sdy = gridDim().y * blockDim().y
+
+    # total number of elements output array
+    Nθ_max = CUDA.size(θe, 2)
+    num_tiles = prod(CUDA.size(θe))
+
+    for i in idx:sdx:CUDA.length(ϕe)
+        for j in idy:sdy:CUDA.size(θe, 2)
+            ϕ1 = ϕe[i]
+            θ1 = θe[i,j]
+
+            if ((j > 1) & iszero(θ1))
+                continue
+            end
+            
+            # get cartesian coords of patch
+            x, y, z = sphere_to_cart_gpu_eclipse(sun_radius, ϕ1, θ1)
+
+            #xyz rotated for SP bary
+            x_new = sun_rot_mat[1] * x + sun_rot_mat[4] * y + sun_rot_mat[7] * z
+            y_new = sun_rot_mat[2] * x + sun_rot_mat[5] * y + sun_rot_mat[8] * z
+            z_new = sun_rot_mat[3] * x + sun_rot_mat[6] * y + sun_rot_mat[9] * z
+
+            #OP_bary state vector
+            x_new += OS_bary[1]
+            y_new += OS_bary[2]
+            z_new += OS_bary[3]
+
+            # set the elements and return
+            @inbounds xs[i,j] = x_new
+            @inbounds ys[i,j] = y_new
+            @inbounds zs[i,j] = z_new
+        end 
+    end
     return nothing
 end
