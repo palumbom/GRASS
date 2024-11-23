@@ -55,7 +55,7 @@ function calc_ccf(λs::AA{T1,1}, flux::AA{T1,1}, var::AA{T1,1},
 
         # compute the ccf value at the current velocity shift
         ccf[i] = ccf_plan.allow_nans ? nansum(projection .* flux) : sum(projection .* flux)
-        ccf_var_out[i] = ccf_plan.allow_nans ? nansum(var .* projection.^2) : sum(var .* projection.^2) #do weights need to also be squared? 
+        ccf_var_out[i] = ccf_plan.allow_nans ? nansum(var .* projection.^2) : sum(var .* projection.^2)
     end
 
     # normalize if normalize==true
@@ -64,6 +64,50 @@ function calc_ccf(λs::AA{T1,1}, flux::AA{T1,1}, var::AA{T1,1},
         ccf_var_out ./= maximum(ccf)^2
     end
     return v_grid, ccf, ccf_var_out
+end
+
+function calc_ccf(λs::AA{T1,1}, flux::AA{T1,1},
+                  lines::AA{T1,1}, depths::AA{T1,1},
+                  resolution::T1; normalize::Bool=true,
+                  mask_width::T1=c_ms/resolution,
+                  Δv_max::T1=15e3, Δv_step::Float64=100.0,
+                  mask_type::Type{T2}=TopHatMask) where {T1<:AF, T2<:MaskShape}
+    # make sure lines are sorted
+    if !issorted(lines)
+        idx = sortperm(lines)
+        lines = view(lines, idx)
+        depths = view(depths, idx)
+    end
+
+    # make a line list
+    line_list = EchelleCCFs.BasicLineList(lines, depths)
+
+    # set mask width
+    mask_shape = T2(mask_width)
+
+    # make ccf_plan
+    ccf_plan = BasicCCFPlan(line_list=line_list, mask_shape=mask_shape, step=Δv_step, max=Δv_max)
+
+    # get the velocity grid for the ccfs
+    v_grid = EchelleCCFs.calc_ccf_v_grid(ccf_plan)
+
+    # compute the mask projection
+    ccf = zeros(T1, length(v_grid))
+    projection = zeros(T1, length(λs), 1)
+    for i in eachindex(v_grid)
+        # project shifted mask on wavelength domain
+        doppler_factor = calc_doppler_factor(v_grid[i])
+        project_mask!(projection, λs, ccf_plan, shift_factor=doppler_factor)
+
+        # compute the ccf value at the current velocity shift
+        ccf[i] = ccf_plan.allow_nans ? nansum(projection .* flux) : sum(projection .* flux)
+    end
+
+    # normalize if normalize==true
+    if normalize
+        ccf ./= maximum(ccf)
+    end
+    return v_grid, ccf
 end
 
 function calc_ccf(λs::AA{T1,1}, flux::AA{T1,2},
@@ -171,6 +215,11 @@ function calc_ccf(λs::AA{T,1}, flux::AA{T,1}, var::Vector{Float32},
     return calc_ccf(λs, flux, var, spec.lines, spec.depths, spec.resolution; kwargs...)
 end
 
+function calc_ccf(λs::AA{T,1}, flux::AA{T,1},
+                  spec::SpecParams{T}; kwargs...) where {T<:Float64}
+    return calc_ccf(λs, flux, spec.lines, spec.depths, spec.resolution; kwargs...)
+end
+
 function calc_ccf(λs::AA{T,1}, flux::AA{T,2},
                   spec::SpecParams{T}; kwargs...) where {T<:Float64}
     # func = x -> calc_ccf(λs, x, spec; kwargs...)
@@ -200,7 +249,20 @@ function calc_rvs_from_ccf(v_grid::AA{T,1}, ccf::AA{T,2}, var::AA{T,2}; kwargs..
     func = x -> calc_rvs_from_ccf(v_grid, x, var; kwargs...)
     out = mapslices(func, ccf, dims=1)
     return vec.(unzip(out))
-end   
+end  
+
+function calc_rvs_from_ccf(v_grid::AA{Float64,1}, ccf::AA{Float64,1};
+                           frac_of_width_to_fit::Float64=0.75,
+                           fit_type::Type{T}=GaussianFit) where {T<:FitType}
+    mrv = T(frac_of_width_to_fit=frac_of_width_to_fit)
+    return mrv(v_grid, ccf)
+end
+
+function calc_rvs_from_ccf(v_grid::AA{T,1}, ccf::AA{T,2}; kwargs...) where {T<:Float64}
+    func = x -> calc_rvs_from_ccf(v_grid, x; kwargs...)
+    out = mapslices(func, ccf, dims=1)
+    return vec.(unzip(out))
+end  
 
 function calc_rvs_from_ccf(v_grid::AA{Float64,1}, ccf::AA{Float64,1};
                             frac_of_width_to_fit::Float64=0.75,
