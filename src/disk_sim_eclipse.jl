@@ -1,34 +1,43 @@
 function disk_sim_eclipse(spec::SpecParams{T}, disk::DiskParamsEclipse{T}, soldata::SolarData{T},
                             wsp::SynthWorkspaceEclipse{T}, prof::AA{T,1}, flux::AA{T,2},
-                            tloop, tloop_init, templates, idx, LD_type, wavelength, 
-                            zenith_mean, dA_total_proj, idx1, idx3, mu_grid, z_rot_sub,
-                            stored_μs, stored_ax_codes, stored_dA, neid_ext_coeff, ext_toggle; verbose::Bool=true,
+                            tloop, tloop_init, templates::AA{String,1}, idx, LD_type::String, wavelength::Vector{Float64}, 
+                            zenith_mean::Vector{Matrix{Matrix{Float64}}}, dA_total_proj::Vector{Matrix{Matrix{Float64}}}, 
+                            idx1::Vector{Matrix{Matrix{Int}}}, idx3::Vector{Matrix{Matrix{Int}}}, mu_grid::Vector{Matrix{Matrix{Float64}}}, 
+                            z_rot_sub::Vector{Matrix{Matrix{Float64}}}, stored_μs::AA{T,3}, stored_ax_codes::AA{Int,3}, 
+                            stored_dA::AA{T,3}, ext_coeff, ext_toggle::Bool;
                             skip_times::BitVector=falses(disk.Nt)) where T<:AF
+
     # loop over time
     for t in 1:disk.Nt
-            if neid_ext_coeff == "three"
+            if ext_coeff == "three"
+                if LD_type == "SSD"
+                    ext_coeff_file = ext_file_KSSD
+                elseif LD_type == "300"
+                    ext_coeff_file = ext_file_K300
+                end
+                
                 if t < 25
-                    coeff1 = extinction_coeff[extinction_coeff[!, "Wavelength"] .== wavelength, "Ext1"]
-                    #compute intensity for timestamp
+                    coeff1 = ext_coeff_file[ext_coeff_file[!, "Wavelength"] .== wavelength, "Ext1"][1]
+                    # compute intensity for timestamp
                     GRASS.eclipse_compute_intensity(disk, wavelength, coeff1, LD_type, idx1[t], idx3[t],
                                 mu_grid[t], z_rot_sub[t], dA_total_proj[t], wsp.ld, wsp.z_rot, zenith_mean[t], 
                                 stored_μs, stored_ax_codes, stored_dA, wsp.μs, wsp.ax_codes, wsp.dA, ext_toggle, t, wsp.ext)
                 elseif t >= 25 && t < 46 
-                    coeff2 = extinction_coeff[extinction_coeff[!, "Wavelength"] .== wavelength, "Ext2"]
-                    #compute intensity for timestamp
+                    coeff2 = ext_coeff_file[ext_coeff_file[!, "Wavelength"] .== wavelength, "Ext2"][1]
+                    # compute intensity for timestamp
                     GRASS.eclipse_compute_intensity(disk, wavelength, coeff2, LD_type, idx1[t], idx3[t],
                                 mu_grid[t], z_rot_sub[t], dA_total_proj[t], wsp.ld, wsp.z_rot, zenith_mean[t], 
                                 stored_μs, stored_ax_codes, stored_dA, wsp.μs, wsp.ax_codes, wsp.dA, ext_toggle, t, wsp.ext)
                 elseif t >= 46
-                    coeff3 = extinction_coeff[extinction_coeff[!, "Wavelength"] .== wavelength, "Ext3"]
-                    #compute intensity for timestamp
+                    coeff3 = ext_coeff_file[ext_coeff_file[!, "Wavelength"] .== wavelength, "Ext3"][1]
+                    # compute intensity for timestamp
                     GRASS.eclipse_compute_intensity(disk, wavelength, coeff3, LD_type, idx1[t], idx3[t],
                                 mu_grid[t], z_rot_sub[t], dA_total_proj[t], wsp.ld, wsp.z_rot, zenith_mean[t], 
                                 stored_μs, stored_ax_codes, stored_dA, wsp.μs, wsp.ax_codes, wsp.dA, ext_toggle, t, wsp.ext)
                 end
             else
-                #compute intensity for timestamp
-                GRASS.eclipse_compute_intensity(disk, wavelength, neid_ext_coeff, LD_type, idx1[t], idx3[t],
+                # compute intensity for timestamp
+                GRASS.eclipse_compute_intensity(disk, wavelength, ext_coeff, LD_type, idx1[t], idx3[t],
                         mu_grid[t], z_rot_sub[t], dA_total_proj[t], wsp.ld, wsp.z_rot, zenith_mean[t], 
                         stored_μs, stored_ax_codes, stored_dA, wsp.μs, wsp.ax_codes, wsp.dA, ext_toggle, t, wsp.ext)
             end
@@ -51,24 +60,12 @@ function disk_sim_eclipse(spec::SpecParams{T}, disk::DiskParamsEclipse{T}, solda
 
                 # get sum of weights
                 if ext_toggle == false
-                    if !spec.variability[l]
-                        sum_wts_first = sum(wsp.ld[:, :, l] .* wsp.dA[:, :, 1])
-                        sum_wts = sum(wsp.ld[:, :, l] .* wsp.dA[:, :, t])
-                        z_cbs_avg = sum(wsp.ld[:, :, l] .* wsp.dA[:, :, 1] .* wsp.cbs) / sum_wts_first
-                    else
-                        sum_wts = sum(wsp.ld[:, :, l] .* wsp.dA[:, :, t])
-                        z_cbs_avg = sum(wsp.ld[:, :, l] .* wsp.dA[:, :, t] .* wsp.cbs) / sum_wts
-                    end
+                    sum_wts = sum(wsp.ld[:, :, l] .* wsp.dA[:, :, t])
+                    z_cbs_avg = sum(wsp.ld[:, :, l] .* wsp.dA[:, :, t] .* wsp.cbs) / sum_wts
                 end
                 if ext_toggle == true
-                    if !spec.variability[l]
-                        sum_wts_first = sum(wsp.ld[:, :, l] .* wsp.dA[:, :, 1] .* wsp.ext[:, :, l])
-                        sum_wts = sum(wsp.ld[:, :, l] .* wsp.dA[:, :, t] .* wsp.ext[:, :, l])
-                        z_cbs_avg = sum(wsp.ld[:, :, l] .* wsp.dA[:, :, 1] .* wsp.ext[:, :, l] .* wsp.cbs) / sum_wts_first
-                    else
-                        sum_wts = sum(wsp.ld[:, :, l] .* wsp.dA[:, :, t] .* wsp.ext[:, :, l])
-                        z_cbs_avg = sum(wsp.ld[:, :, l] .* wsp.dA[:, :, t] .* wsp.ext[:, :, l] .* wsp.cbs) / sum_wts
-                    end
+                    sum_wts = sum(wsp.ld[:, :, l] .* wsp.dA[:, :, t] .* wsp.ext[:, :, l])
+                    z_cbs_avg = sum(wsp.ld[:, :, l] .* wsp.dA[:, :, t] .* wsp.ext[:, :, l] .* wsp.cbs) / sum_wts
                 end
 
                 # loop over spatial patches

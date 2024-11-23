@@ -1,6 +1,5 @@
 struct GeoWorkspaceEclipse{T<:AF}
     dA_total_proj_mean::AA{T,3}
-    mean_intensity::AA{T,3}
     mean_weight_v_no_cb::AA{T,3}
     mean_weight_v_earth_orb::AA{T,3}
 
@@ -23,7 +22,6 @@ end
 function GeoWorkspaceEclipse(disk::DiskParamsEclipse, lines_number::Int, time_number::Int)
     # allocate memory that wont be needed outside this function
     dA_total_proj_mean = zeros(length(disk.ϕc), maximum(disk.Nθ), time_number)
-    mean_intensity = zeros(length(disk.ϕc), maximum(disk.Nθ), lines_number)
     mean_weight_v_no_cb = zeros(length(disk.ϕc), maximum(disk.Nθ), time_number)
     mean_weight_v_earth_orb = zeros(length(disk.ϕc), maximum(disk.Nθ), time_number)
     
@@ -44,7 +42,7 @@ function GeoWorkspaceEclipse(disk::DiskParamsEclipse, lines_number::Int, time_nu
     v_scalar_grid = zeros(disk.Nsubgrid, disk.Nsubgrid)
     v_earth_orb_proj = zeros(disk.Nsubgrid, disk.Nsubgrid)
 
-    return GeoWorkspaceEclipse(dA_total_proj_mean, mean_intensity, mean_weight_v_no_cb, mean_weight_v_earth_orb,
+    return GeoWorkspaceEclipse(dA_total_proj_mean, mean_weight_v_no_cb, mean_weight_v_earth_orb,
     pole_vector_grid, SP_sun_pos, SP_sun_vel, SP_bary, SP_bary_pos, SP_bary_vel, OP_bary, OP_ltt, mu_grid,
     projected_velocities_no_cb, distance, v_scalar_grid, v_earth_orb_proj)
 end

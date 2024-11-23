@@ -55,16 +55,8 @@ quad_ld_coeff_300 = CSV.read(joinpath(datdir, "quad_ld_coeff_300.csv"), DataFram
 quad_ld_coeff_HD = CSV.read(joinpath(datdir, "quad_ld_coeff_HD.csv"), DataFrame)
 quad_ld_coeff_NL94 = CSV.read(joinpath(datdir, "quad_ld_coeff_NL94.csv"), DataFrame)
 
-NL94_coeff = CSV.read(joinpath(datdir, "NL94_coeff.csv"), DataFrame)
-lambda_nm = NL94_coeff.lambda_nm
-a0 = NL94_coeff.a0
-a1 = NL94_coeff.a1
-a2 = NL94_coeff.a2
-a3 = NL94_coeff.a3
-a4 = NL94_coeff.a4
-a5 = NL94_coeff.a5
-
-extinction_coeff = DataFrame(CSV.File(joinpath(datdir, "NEID_three_extinction.csv")))
+ext_file_KSSD = DataFrame(CSV.File(joinpath(datdir, "NEID_three_ext_coeff_KSSD.csv")))
+ext_file_K300 = DataFrame(CSV.File(joinpath(datdir, "NEID_three_ext_coeff_K300.csv")))
 
 # ancillary functions + constants
 include("utils.jl")

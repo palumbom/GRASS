@@ -26,7 +26,7 @@ function trim_bisector_gpu!(depth, variability, depcontrast, lenall, bisall_out,
             intt_out = CUDA.view(intall_out, :, j, i)
             widt_out = CUDA.view(widall_out, :, j, i)
 
-            if variability
+            if variability == true
                 # get views of the correct time slice in input
                 bist_in = CUDA.view(bisall_in, :, j, i)
                 intt_in = CUDA.view(intall_in, :, j, i)
@@ -45,7 +45,7 @@ function trim_bisector_gpu!(depth, variability, depcontrast, lenall, bisall_out,
                     end
                     @inbounds intt_out[k] = new_intt
                 end
-            else
+            elseif variability == false
                 # get views of the correct time slice in input
                 bist_in = CUDA.view(bisall_mean, :, i)
                 intt_in = CUDA.view(intall_mean, :, i)

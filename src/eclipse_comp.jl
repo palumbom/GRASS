@@ -1,23 +1,23 @@
-function eclipse_compute_quantities!(disk::DiskParamsEclipse{T}, epoch::T, obs_long::T, obs_lat::T, alt::T, ϕc::AA{T,2}, θc::AA{T,2},
-                                     μs::AA{T,3}, dA::AA{T,3}, xyz::AA{T,3}, ax_codes::AA{Int,3},
-                                     dA_total_proj_mean::AA{T,3}, mean_weight_v_no_cb::AA{T,3},
-                                     mean_weight_v_earth_orb::AA{T,3}, pole_vector_grid::Matrix{Vector{Float64}},
-                                     SP_sun_pos::Matrix{Vector{Float64}}, SP_sun_vel::Matrix{Vector{Float64}}, SP_bary::Matrix{Vector{Float64}}, 
-                                     SP_bary_pos::Matrix{Vector{Float64}}, SP_bary_vel::Matrix{Vector{Float64}}, OP_bary::Matrix{Vector{Float64}}, 
-                                     mu_grid::AA{T,2}, projected_velocities_no_cb::AA{T,2}, distance::AA{T,2}, v_scalar_grid::AA{T,2}, 
-                                     v_earth_orb_proj::Matrix{Float64}, t, mu_grid_matrix::Matrix{Matrix{Float64}},
-                                     dA_total_proj_matrix::Matrix{Matrix{Float64}}, idx1_matrix::Matrix{Matrix{Int}}, idx3_matrix::Matrix{Matrix{Int}}, 
-                                     z_rot_matrix::Matrix{Matrix{Float64}}, zenith_matrix::Matrix{Matrix{Float64}}) where T<:AF
+function eclipse_compute_quantities!(disk::DiskParamsEclipse{T}, epoch::T, t::Int64, obs_long::T, obs_lat::T, alt::T, 
+                                        ϕc::AA{T,2}, θc::AA{T,2}, μs::AA{T,3}, dA::AA{T,3}, xyz::AA{T,3}, ax_codes::AA{Int,3},
+                                        dA_total_proj_mean::AA{T,3}, mean_weight_v_no_cb::AA{T,3}, mean_weight_v_earth_orb::AA{T,3}, 
+                                        pole_vector_grid::Matrix{Vector{Float64}}, SP_sun_pos::Matrix{Vector{Float64}}, 
+                                        SP_sun_vel::Matrix{Vector{Float64}}, SP_bary::Matrix{Vector{Float64}}, 
+                                        SP_bary_pos::Matrix{Vector{Float64}}, SP_bary_vel::Matrix{Vector{Float64}}, 
+                                        OP_bary::Matrix{Vector{Float64}}, mu_grid::AA{T,2}, projected_velocities_no_cb::AA{T,2}, 
+                                        distance::AA{T,2}, v_scalar_grid::AA{T,2}, v_earth_orb_proj::Matrix{Float64}, mu_grid_matrix::Matrix{Matrix{Float64}},
+                                        dA_total_proj_matrix::Matrix{Matrix{Float64}}, idx1_matrix::Matrix{Matrix{Int}}, idx3_matrix::Matrix{Matrix{Int}}, 
+                                        z_rot_matrix::Matrix{Matrix{Float64}}, zenith_matrix::Matrix{Matrix{Float64}}) where T<:AF
 
-    #query for E, S, M position (km) and velocities (km/s)
+    # query for E, S, M position (km) and velocities (km/s)
     BE_bary = spkssb(399,epoch,"J2000")
 
-    #determine xyz earth coordinates for lat/long of observatory
+    # determine xyz earth coordinates for lat/long of observatory
     flat_coeff = (earth_radius - earth_radius_pole) / earth_radius
     EO_earth_pos = georec(deg2rad(obs_long), deg2rad(obs_lat), alt, earth_radius, flat_coeff)
     #set earth velocity vectors
     EO_earth = vcat(EO_earth_pos, [0.0, 0.0, 0.0])
-    #transform into ICRF frame
+    # transform into ICRF frame
     EO_bary = sxform("ITRF93", "J2000", epoch) * EO_earth
 
     # get vector from barycenter to observatory on Earth's surface
@@ -60,13 +60,13 @@ function eclipse_compute_quantities!(disk::DiskParamsEclipse{T}, epoch::T, obs_l
 
             # get differential rotation velocities
             v_scalar_grid .= map(x -> v_scalar(x...), subgrid)
-            #convert v_scalar to from km/day km/s
+            # convert v_scalar to from km/day km/s
             v_scalar_grid ./= 86400.0
 
-            #determine pole vector for each patch
+            # determine pole vector for each patch
             pole_vector_grid!(SP_sun_pos, pole_vector_grid)
 
-            #get velocity vector direction and set magnitude
+            # get velocity vector direction and set magnitude
             v_vector(SP_sun_pos, pole_vector_grid, v_scalar_grid, SP_sun_vel)
 
             for k in eachindex(SP_sun_pos)
@@ -75,23 +75,23 @@ function eclipse_compute_quantities!(disk::DiskParamsEclipse{T}, epoch::T, obs_l
                 SP_bary[k] = vcat(SP_bary_pos[k], SP_bary_vel[k])
             end
 
-            #get vector from obs to each patch on Sun's surface
+            # get vector from obs to each patch on Sun's surface
             for k in eachindex(OP_bary)
                 OP_bary[k] = OS_bary .+ SP_bary[k]
             end
+
             # calculate mu at each point
             mu_grid_matrix[i,j] = deepcopy(calc_mu_grid!(SP_bary, OP_bary, mu_grid))
-
             # move on if everything is off the grid
             all(mu_grid .< zero(T)) && continue
 
-            #get projected velocity for each patch
+            # get projected velocity for each patch
             projected!(SP_bary, OP_bary, projected_velocities_no_cb)
             # convert from km/s to m/s
             projected_velocities_no_cb .*= 1000.0
             z_rot_sub = (projected_velocities_no_cb)./c_ms
 
-            #get relative orbital motion in m/s
+            # get relative orbital motion in m/s
             v_delta = OS_bary[4:6]
             for k in eachindex(v_earth_orb_proj)
                 B = view(OP_bary[k], 1:3)
@@ -105,13 +105,12 @@ function eclipse_compute_quantities!(disk::DiskParamsEclipse{T}, epoch::T, obs_l
 
             z_rot_matrix[i,j] = z_rot_sub
 
-            #determine patches that are blocked by moon 
-            #calculate the distance between tile corner and moon
+            # calculate the distance between tile corner and moon
             for i in eachindex(OP_bary)
                 distance[i] = calc_proj_dist(OM_bary[1:3], OP_bary[i][1:3])
             end
 
-            #get indices for visible patches
+            # get indices for visible patches
             idx1 = mu_grid .> 0.0
             idx3 = (idx1) .& (distance .> atan((moon_radius)/norm(OM_bary[1:3])))
             idx1_matrix[i,j] = idx1
@@ -131,7 +130,7 @@ function eclipse_compute_quantities!(disk::DiskParamsEclipse{T}, epoch::T, obs_l
             dϕ = step(ϕe_sub) 
             dθ = step(θe_sub) 
             dA_sub = map(x -> calc_dA(sun_radius, getindex(x,1), dϕ, dθ), subgrid)
-            #get total projected, visible area of larger tile
+            # get total projected, visible area of larger tile
             dA_total_proj = dA_sub .* mu_grid
             dA_total_proj_matrix[i,j] = dA_total_proj
             dA[i,j,t] = sum(view(dA_total_proj, idx1))
@@ -148,17 +147,18 @@ function eclipse_compute_quantities!(disk::DiskParamsEclipse{T}, epoch::T, obs_l
     return 
 end
 
-function eclipse_compute_quantities_updated!(disk::DiskParamsEclipse{T}, epoch::T, obs_id, obs_long::T, obs_lat::T, alt::T, ϕc::AA{T,2}, θc::AA{T,2},
-                                     μs::AA{T,3}, dA::AA{T,3}, xyz::AA{T,3}, ax_codes::AA{Int,3}, 
-                                     dA_total_proj_mean::AA{T,3}, mean_weight_v_no_cb::AA{T,3},
-                                     mean_weight_v_earth_orb::AA{T,3}, pole_vector_grid::Matrix{Vector{Float64}},
-                                     SP_sun_pos::Matrix{Vector{Float64}}, SP_sun_vel::Matrix{Vector{Float64}}, SP_bary::Matrix{Vector{Float64}}, 
-                                     SP_bary_pos::Matrix{Vector{Float64}}, SP_bary_vel::Matrix{Vector{Float64}}, OP_bary::Matrix{Vector{Float64}}, 
-                                     OP_ltt::AA{T,2}, mu_grid::AA{T,2}, projected_velocities_no_cb::AA{T,2}, distance::AA{T,2}, v_scalar_grid::AA{T,2}, 
-                                     v_earth_orb_proj::Matrix{Float64}, t, mu_grid_matrix::Matrix{Matrix{Float64}},
-                                     dA_total_proj_matrix::Matrix{Matrix{Float64}}, idx1_matrix::Matrix{Matrix{Float64}}, idx3_matrix::Matrix{Matrix{Float64}}, 
-                                     z_rot_matrix::Matrix{Matrix{Float64}}, zenith_matrix::Matrix{Matrix{Float64}}) where T<:AF
-    #determine state vector for lat/long of observatory
+function eclipse_compute_quantities_updated!(disk::DiskParamsEclipse{T}, epoch::T, t::T, obs_id::T, obs_long::T, obs_lat::T, alt::T, 
+                                        ϕc::AA{T,2}, θc::AA{T,2}, μs::AA{T,3}, dA::AA{T,3}, xyz::AA{T,3}, ax_codes::AA{Int,3}, 
+                                        dA_total_proj_mean::AA{T,3}, mean_weight_v_no_cb::AA{T,3}, mean_weight_v_earth_orb::AA{T,3}, 
+                                        pole_vector_grid::Matrix{Vector{Float64}}, SP_sun_pos::Matrix{Vector{Float64}}, 
+                                        SP_sun_vel::Matrix{Vector{Float64}}, SP_bary::Matrix{Vector{Float64}}, 
+                                        SP_bary_pos::Matrix{Vector{Float64}}, SP_bary_vel::Matrix{Vector{Float64}}, 
+                                        OP_bary::Matrix{Vector{Float64}}, OP_ltt::AA{T,2}, mu_grid::AA{T,2}, projected_velocities_no_cb::AA{T,2}, 
+                                        distance::AA{T,2}, v_scalar_grid::AA{T,2}, v_earth_orb_proj::Matrix{Float64}, mu_grid_matrix::Matrix{Matrix{Float64}},
+                                        dA_total_proj_matrix::Matrix{Matrix{Float64}}, idx1_matrix::Matrix{Matrix{Float64}}, idx3_matrix::Matrix{Matrix{Float64}}, 
+                                        z_rot_matrix::Matrix{Matrix{Float64}}, zenith_matrix::Matrix{Matrix{Float64}}) where T<:AF
+
+    # determine state vector for lat/long of observatory
     EO_bary, EO_lt = spkezr(obs_id, epoch, "J2000", "NONE", "EARTH")
 
     # set string for ltt and abberation
@@ -166,6 +166,7 @@ function eclipse_compute_quantities_updated!(disk::DiskParamsEclipse{T}, epoch::
 
     # get light travel time corrected OS vector
     OS_bary, OS_lt = spkezr("SUN", epoch, "J2000", lt_flag, obs_id)
+
     # get vector from observatory on earth's surface to moon center
     OM_bary, OM_lt = spkezr("MOON", epoch, "J2000", lt_flag, obs_id)
 
@@ -191,16 +192,16 @@ function eclipse_compute_quantities_updated!(disk::DiskParamsEclipse{T}, epoch::
 
             # get differential rotation velocities
             v_scalar_grid .= map(x -> v_scalar(x...), subgrid)
-            #convert v_scalar to from km/day km/s
+            # convert v_scalar to from km/day km/s
             v_scalar_grid ./= 86400.0
 
-            #determine pole vector for each patch
+            # determine pole vector for each patch
             pole_vector_grid!(SP_sun_pos, pole_vector_grid)
 
-            #get velocity vector direction and set magnitude
+            # get velocity vector direction and set magnitude
             v_vector(SP_sun_pos, pole_vector_grid, v_scalar_grid, SP_sun_vel)
 
-            #get vector from obs to each patch on Sun's surface
+            # get vector from obs to each patch on Sun's surface
             results = map(x -> spkcpt(x, "SUN", "IAU_SUN", epoch, "J2000", "OBSERVER", lt_flag, obs_id), SP_sun_pos)
             OP_bary .= [result[1] for result in results]
             OP_ltt .= [result[2] for result in results]
@@ -213,17 +214,16 @@ function eclipse_compute_quantities_updated!(disk::DiskParamsEclipse{T}, epoch::
 
             # calculate mu at each point
             mu_grid_matrix[i,j] = deepcopy(calc_mu_grid!(SP_bary, OP_bary, mu_grid))
-
             # move on if everything is off the grid
             all(mu_grid .< zero(T)) && continue
 
-            #get projected velocity for each patch
+            # get projected velocity for each patch
             projected!(SP_bary, OP_bary, projected_velocities_no_cb)
             # convert from km/s to m/s
             projected_velocities_no_cb .*= 1000.0
             z_rot_sub = (projected_velocities_no_cb)./c_ms
 
-            #get relative orbital motion in m/s
+            # get relative orbital motion in m/s
             v_delta = OS_bary[4:6]
             for k in eachindex(v_earth_orb_proj)
                 B = view(OP_bary[k], 1:3)
@@ -235,13 +235,12 @@ function eclipse_compute_quantities_updated!(disk::DiskParamsEclipse{T}, epoch::
             z_rot_sub .+= v_earth_orb_proj/c_ms
             z_rot_matrix[i,j] = z_rot_sub
 
-            #determine patches that are blocked by moon 
-            #calculate the distance between tile corner and moon
+            # calculate the distance between tile corner and moon
             for i in eachindex(OP_bary)
                 distance[i] = calc_proj_dist(OM_bary[1:3], OP_bary[i][1:3])
             end
 
-            #get indices for visible patches
+            # get indices for visible patches
             idx1 = mu_grid .> 0.0
             idx3 = (idx1) .& (distance .> atan((moon_radius)/norm(OM_bary[1:3])))
             idx1_matrix[i,j] = idx1
@@ -261,7 +260,7 @@ function eclipse_compute_quantities_updated!(disk::DiskParamsEclipse{T}, epoch::
             dϕ = step(ϕe_sub) 
             dθ = step(θe_sub) 
             dA_sub = map(x -> calc_dA(sun_radius, getindex(x,1), dϕ, dθ), subgrid)
-            #get total projected, visible area of larger tile
+            # get total projected, visible area of larger tile
             dA_total_proj = dA_sub .* mu_grid
             dA_total_proj_matrix[i,j] = dA_total_proj
             dA[i,j,t] = sum(view(dA_total_proj, idx1))
@@ -278,9 +277,13 @@ function eclipse_compute_quantities_updated!(disk::DiskParamsEclipse{T}, epoch::
     return 
 end
 
-function eclipse_compute_intensity(disk::DiskParamsEclipse{T}, wavelength::Vector{Float64}, neid_ext_coeff::Vector{Float64}, LD_law, idx1::Matrix{Matrix{Float64}}, idx3::Matrix{Matrix{Float64}},
-                                    mu_grid::Matrix{Matrix{Float64}}, mean_weight_v_no_cb::AA{T,2}, mean_weight_v_earth_orb::AA{T,2},
-                                    z_rot_sub::Matrix{Matrix{Float64}}, dA_total_proj::Matrix{Matrix{Float64}}, ld::AA{T,3}, z_rot::AA{T,3}, zenith_mean, ext_toggle, ext) where T<:AF
+function eclipse_compute_intensity(disk::DiskParamsEclipse{T}, wavelength::Vector{Float64}, ext_coeff::Float64, 
+                                    LD_law::String, idx1::Matrix{Matrix{Int}}, idx3::Matrix{Matrix{Int}},
+                                    mu_grid::Matrix{Matrix{Float64}}, mean_weight_v_no_cb::AA{T,2}, 
+                                    mean_weight_v_earth_orb::AA{T,2}, z_rot_sub::Matrix{Matrix{Float64}}, 
+                                    dA_total_proj::Matrix{Matrix{Float64}}, ld::AA{T,3}, z_rot::AA{T,3}, 
+                                    zenith_mean::Matrix{Matrix{Float64}}, ext_toggle::Bool, ext::AA{T,3}) where T<:AF
+    
     for i in eachindex(disk.ϕc)
         for j in 1:disk.Nθ[i]
             if all(x -> x < zero(T), vec(mu_grid[i, j]))
@@ -289,22 +292,18 @@ function eclipse_compute_intensity(disk::DiskParamsEclipse{T}, wavelength::Vecto
 
             # calc limb darkening + extinction + z_rot 
             for l in eachindex(wavelength)
-                #limb darkening
+                # limb darkening
                 if LD_law == "NL94"
                     filtered_df = quad_ld_coeff_NL94[quad_ld_coeff_NL94.wavelength .== wavelength, :]
                     ld_sub = map(x -> quad_limb_darkening(x, filtered_df.u1[1], filtered_df.u2[1]), mu_grid[i,j])
                 end
 
-                if LD_law == "NIR"
-                    ld_sub = map(x -> NIR_limb_darkening(x), mu_grid[i,j])
-                end
-
-                if LD_law == "K300"
+                if LD_law == "300"
                     filtered_df = quad_ld_coeff_300[quad_ld_coeff_300.wavelength .== wavelength, :]
                     ld_sub = map(x -> quad_limb_darkening(x, filtered_df.u1[1], filtered_df.u2[1]), mu_grid[i,j])
                 end
 
-                if LD_law == "KSSD"
+                if LD_law == "SSD"
                     filtered_df = quad_ld_coeff_SSD[quad_ld_coeff_SSD.wavelength .== wavelength, :]
                     ld_sub = map(x -> quad_limb_darkening(x, filtered_df.u1[1], filtered_df.u2[1]), mu_grid[i,j])
                 end
@@ -315,18 +314,17 @@ function eclipse_compute_intensity(disk::DiskParamsEclipse{T}, wavelength::Vecto
                 end
 
                 boolean_mask = idx3[i,j] .== 1
-                idx1_sum = sum(idx1[i,j])
 
                 ld[i,j,l] = mean(view(ld_sub, boolean_mask))  
 
-                #z_rot
+                # z_rot
                 if ext_toggle == false
                     z_rot[i,j,l] = sum(view(z_rot_sub[i,j] .* ld_sub .* dA_total_proj[i,j], boolean_mask)) ./ sum(view(ld_sub .* dA_total_proj[i,j], boolean_mask))
                 end
 
-                #z_rot + extinction
+                # z_rot + extinction
                 if ext_toggle == true
-                    extin = map(x -> exp(-((1/cosd(x))*neid_ext_coeff[1])), zenith_mean[i,j])
+                    extin = map(x -> exp(-((1/cosd(x))*ext_coeff)), zenith_mean[i,j])
                     ext[i,j,l] = mean(view(extin, boolean_mask)) 
 
                     z_rot[i,j,l] = sum(view(z_rot_sub[i,j] .* ld_sub .* dA_total_proj[i,j] .* extin, boolean_mask)) ./ sum(view(ld_sub .* dA_total_proj[i,j] .* extin, boolean_mask))
@@ -348,45 +346,44 @@ function eclipse_compute_intensity(disk::DiskParamsEclipse{T}, wavelength::Vecto
                     z_rot[i,j,l] = 0.0
                 end
             end
-
         end
     end
     return ld
 end
 
 function eclipse_compute_intensity(disk::DiskParamsEclipse{T}, wavelength::Vector{Float64}, 
-                                    neid_ext_coeff::Vector{Float64}, LD_law, idx1::Matrix{Matrix{Int}}, 
+                                    ext_coeff::Float64, LD_law::String, idx1::Matrix{Matrix{Int}}, 
                                     idx3::Matrix{Matrix{Int}}, mu_grid::Matrix{Matrix{Float64}},
                                     z_rot_sub::Matrix{Matrix{Float64}}, dA_total_proj::Matrix{Matrix{Float64}}, 
-                                    ld::AA{T,3}, z_rot::AA{T,3}, zenith_mean, stored_μs, stored_ax_codes, stored_dA,
-                                    μs::AA{T,3}, ax_codes::AA{Int,3}, dA::AA{T,3}, ext_toggle, t, ext) where T<:AF
+                                    ld::AA{T,3}, z_rot::AA{T,3}, zenith_mean::Matrix{Matrix{Float64}}, 
+                                    stored_μs::AA{T,3}, stored_ax_codes::AA{Int,3}, 
+                                    stored_dA::AA{T,3}, μs::AA{T,3}, ax_codes::AA{Int,3}, 
+                                    dA::AA{T,3}, ext_toggle::Bool, t, ext::AA{T,3}) where T<:AF
+
     for i in eachindex(disk.ϕc)
         for j in 1:disk.Nθ[i]
             if all(x -> x < zero(T), vec(mu_grid[i, j]))
                 continue
             end
+
             μs[i,j,t] = stored_μs[i,j,t]
             ax_codes[i,j,t] = stored_ax_codes[i,j,t]
             dA[i,j,t] = stored_dA[i,j,t]
             
             # calc limb darkening + extinction + z_rot 
             for l in eachindex(wavelength)
-                #limb darkening
+                # limb darkening
                 if LD_law == "NL94"
                     filtered_df = quad_ld_coeff_NL94[quad_ld_coeff_NL94.wavelength .== wavelength, :]
                     ld_sub = map(x -> quad_limb_darkening(x, filtered_df.u1[1], filtered_df.u2[1]), mu_grid[i,j])
                 end
 
-                if LD_law == "NIR"
-                    ld_sub = map(x -> NIR_limb_darkening(x), mu_grid[i,j])
-                end
-
-                if LD_law == "K300"
+                if LD_law == "300"
                     filtered_df = quad_ld_coeff_300[quad_ld_coeff_300.wavelength .== wavelength, :]
                     ld_sub = map(x -> quad_limb_darkening(x, filtered_df.u1[1], filtered_df.u2[1]), mu_grid[i,j])
                 end
 
-                if LD_law == "KSSD"
+                if LD_law == "SSD"
                     filtered_df = quad_ld_coeff_SSD[quad_ld_coeff_SSD.wavelength .== wavelength, :]
                     ld_sub = map(x -> quad_limb_darkening(x, filtered_df.u1[1], filtered_df.u2[1]), mu_grid[i,j])
                 end
@@ -397,18 +394,17 @@ function eclipse_compute_intensity(disk::DiskParamsEclipse{T}, wavelength::Vecto
                 end
 
                 boolean_mask = idx3[i,j] .== 1
-                idx1_sum = sum(idx1[i,j])
 
                 ld[i,j,l] = mean(view(ld_sub, boolean_mask)) 
 
-                #z_rot
+                # z_rot
                 if ext_toggle == false
                     z_rot[i,j,l] = sum(view(z_rot_sub[i,j] .* ld_sub .* dA_total_proj[i,j], boolean_mask)) ./ sum(view(ld_sub .* dA_total_proj[i,j], boolean_mask))
                 end
 
-                #z_rot + extinction
+                # z_rot + extinction
                 if ext_toggle == true
-                    extin = map(x -> exp(-((1/cosd(x))*neid_ext_coeff[1])), zenith_mean[i,j])
+                    extin = map(x -> exp(-((1/cosd(x))*ext_coeff)), zenith_mean[i,j])
                     ext[i,j,l] = mean(view(extin, boolean_mask)) 
 
                     z_rot[i,j,l] = sum(view(z_rot_sub[i,j] .* ld_sub .* dA_total_proj[i,j] .* extin, boolean_mask)) ./ sum(view(ld_sub .* dA_total_proj[i,j] .* extin, boolean_mask))
