@@ -27,25 +27,7 @@ function calc_proj_dist(p1, p2)
     return acos(dot(p1, p2)/(norm(p1)*norm(p2)))
 end
 
-function sphere_to_cart_eclipse(ρ::T, ϕ::T, θ::T) where T
-    # compute trig quantitites
-    sinϕ, cosϕ = sincos(ϕ)
-    sinθ, cosθ = sincos(θ)
-
-    # now get cartesian coords
-    y = ρ * cosϕ * sinθ
-    z = ρ * sinϕ
-    x = ρ * cosϕ * cosθ
-    return [x, y, z]
-end
-
 function pole_vector_grid!(A::Matrix, out::Matrix)
-    """
-    remove the z component of each cell  
-
-    A: matrix of xyz orientation of each cell
-    out: matrix of xyz orientation with z removed
-    """ 
     for i in 1:length(A)
         out[i] = A[i] - [0.0, 0.0, A[i][3]]
     end
@@ -53,14 +35,6 @@ function pole_vector_grid!(A::Matrix, out::Matrix)
 end  
 
 function v_vector(A::Matrix, B::Matrix, C::Matrix, out::Matrix)
-    """
-    determine velocity vector (direction and magnitude) of each cell   
-
-    A: xyz position of cell
-    B: xyz position of cell with z removed
-    C: scalar velocity of each cell
-    out: matrix with xyz and velocity of each cell
-    """
     for i in eachindex(A)
         cross_product = cross([0.0,0.0,sun_radius], B[i])
         cross_product ./= norm(cross_product)
@@ -89,13 +63,6 @@ function calc_mu(xyz::AA{T,1}, O⃗::AA{T,1}) where T
 end
 
 function calc_mu_grid!(A::Matrix, B::Matrix, out::Matrix)
-    """
-    create matrix of mu values for each cell  
-
-    A: matrix of vectors from sun center to cell
-    B: matrix of vectors from observer to cell
-    out: mu value between A and B
-    """
     for i in eachindex(A)
         out[i] = calc_mu(A[i][1:3], B[i][1:3])
         end

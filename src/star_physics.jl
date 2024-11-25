@@ -23,18 +23,6 @@ function width_thermal(; λ::T1=1.0, M::T1=1.0, T::T1=5778.0, v_turb::T1=0.0) wh
     return sqrt((2.0*kB/mH) * (T/M) + v_turb^2) * (λ/c)
 end
 
-function NL94_limb_darkening(μ::T, wavelength::T) where T<:AF
-    μ < zero(T) && return 0.0    
-    index = findmin(x->abs(x-wavelength), lambda_nm)[2]
-
-    return a0[index] + a1[index]*μ + a2[index]*μ^2 + a3[index]*μ^3 + a4[index]*μ^4 + a5[index]*μ^5
-end
-
-function NIR_limb_darkening(μ::T) where T
-    μ < zero(T) && return 0.0
-    return 0.59045 + 1.41938*μ - 3.01866*μ^2 + 3.99843*μ^3 - 2.67727*μ^4 + 0.068758*μ^5
-end
-
 function quad_limb_darkening(μ::T, u1::T, u2::T) where T<:AF
     μ < zero(T) && return 0.0
     return !iszero(μ) * (one(T) - u1*(one(T)-μ) - u2*(one(T)-μ)^2)
@@ -62,17 +50,9 @@ function v_scalar(lat, lon)
 end
 
 function projected!(A::Matrix, B::Matrix, out_no_cb::Matrix)
-    """
-    determine projected velocity of each cell onto line of sight to observer - serial
-
-    A: matrix with xyz and velocity of each cell
-    B: matrix with line of sight from each cell to observer
-    out: matrix of projected velocities
-    """
     for i in 1:length(A)
         vel = A[i][4:6]
         angle = dot(B[i][1:3], vel) / (norm(B[i][1:3]) * norm(vel))
-
         out_no_cb[i] = (norm(vel) * angle)
     end
     return
