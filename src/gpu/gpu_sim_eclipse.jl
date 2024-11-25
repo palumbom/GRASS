@@ -1,9 +1,9 @@
 function disk_sim_eclipse_gpu(spec::SpecParams{T1}, disk::DiskParamsEclipse{T1}, 
                                soldata::GPUSolarData{T2}, gpu_allocs::GPUAllocsEclipse{T2},
-                               flux_cpu::AA{T1,2}, templates, idx, 
-                               obs_long, obs_lat, alt, time_stamps, wavelength,
-                               neid_ext_coeff, ext_toggle, LD_type;
-                               verbose::Bool=false, skip_times::BitVector=falses(disk.Nt)) where {T1<:AF, T2<:AF}
+                               flux_cpu::AA{T1,2}, 
+                               obs_long::T1, obs_lat::T1, alt::T1, time_stamps::Vector{Float64}, wavelength,
+                               ext_coeff, ext_toggle_cpu::Bool, LD_type::String;
+                               skip_times::BitVector=falses(disk.Nt)) where {T1<:AF, T2<:AF}
 
     # get dimensions for memory alloc
     Nt = disk.Nt
@@ -73,25 +73,37 @@ function disk_sim_eclipse_gpu(spec::SpecParams{T1}, disk::DiskParamsEclipse{T1},
                                                                     widall_mean, bisall_gpu, intall_gpu, 
                                                                     widall_gpu)
 
+    if ext_toggle_cpu == true
+        ext_toggle_gpu = 1.0
+    else 
+        ext_toggle_gpu = 0.0
+    end
+    
     # loop over time
     for t in 1:Nt
         # sort out the system geometry
-        if neid_ext_coeff == "three"
+        if ext_coeff == "three"
+            if LD_type == "SSD"
+                ext_coeff_file = ext_file_KSSD
+            elseif LD_type == "300"
+                ext_coeff_file = ext_file_K300
+            end
+
             if t < 25
-                coeff1 = extinction_coeff[extinction_coeff[!, "Wavelength"] .== wavelength, "Ext1"]
-                #compute intensity for timestamp
-                calc_eclipse_quantities_gpu!(time_stamps[t], obs_long, obs_lat, alt, wavelength, LD_type, ext_toggle, coeff1[1], disk, gpu_allocs)
+                coeff1 = ext_coeff_file[ext_coeff_file[!, "Wavelength"] .== wavelength, "Ext1"]
+                # compute intensity for timestamp
+                calc_eclipse_quantities_gpu!(time_stamps[t], obs_long, obs_lat, alt, wavelength, LD_type, ext_toggle_gpu, coeff1[1], disk, gpu_allocs)
             elseif t >= 25 && t < 46 
-                coeff2 = extinction_coeff[extinction_coeff[!, "Wavelength"] .== wavelength, "Ext2"]
-                #compute intensity for timestamp
-                calc_eclipse_quantities_gpu!(time_stamps[t], obs_long, obs_lat, alt, wavelength, LD_type, ext_toggle, coeff2[1], disk, gpu_allocs)
+                coeff2 = ext_coeff_file[ext_coeff_file[!, "Wavelength"] .== wavelength, "Ext2"]
+                # compute intensity for timestamp
+                calc_eclipse_quantities_gpu!(time_stamps[t], obs_long, obs_lat, alt, wavelength, LD_type, ext_toggle_gpu, coeff2[1], disk, gpu_allocs)
             elseif t >= 46
-                coeff3 = extinction_coeff[extinction_coeff[!, "Wavelength"] .== wavelength, "Ext3"]
-                #compute intensity for timestamp
-                calc_eclipse_quantities_gpu!(time_stamps[t], obs_long, obs_lat, alt, wavelength, LD_type, ext_toggle, coeff3[1], disk, gpu_allocs)
+                coeff3 = ext_coeff_file[ext_coeff_file[!, "Wavelength"] .== wavelength, "Ext3"]
+                # compute intensity for timestamp
+                calc_eclipse_quantities_gpu!(time_stamps[t], obs_long, obs_lat, alt, wavelength, LD_type, ext_toggle_gpu, coeff3[1], disk, gpu_allocs)
             end
         else
-            calc_eclipse_quantities_gpu!(time_stamps[t], obs_long, obs_lat, alt, wavelength, LD_type, ext_toggle, neid_ext_coeff, disk, gpu_allocs)
+            calc_eclipse_quantities_gpu!(time_stamps[t], obs_long, obs_lat, alt, wavelength, LD_type, ext_toggle_gpu, ext_coeff, disk, gpu_allocs)
         end
 
         # get conv. blueshift and keys from input data
@@ -109,7 +121,7 @@ function disk_sim_eclipse_gpu(spec::SpecParams{T1}, disk::DiskParamsEclipse{T1},
 
         # loop over lines to synthesize
         for l in eachindex(spec.lines)
-            if ext_toggle == 1.0
+            if ext_toggle_cpu == true
                 # get weighted disk average cbs
                 @cusync sum_wts = CUDA.sum(dA .* ld[:,:,l] .* ext[:,:,l])
                 @cusync z_cbs_avg = CUDA.sum(z_cbs .* dA .* ld[:,:,l] .* ext[:,:,l]) / sum_wts
@@ -139,7 +151,7 @@ function disk_sim_eclipse_gpu(spec::SpecParams{T1}, disk::DiskParamsEclipse{T1},
                                                                            widall_gpu_loop, allwavs, allints)
             
             # do the line synthesis, interp back onto wavelength grid
-            @cusync @cuda threads=threads4 blocks=blocks4 line_profile_gpu!(l, prof, μs, ld, dA, ext, λs, allwavs, allints, ext_toggle)
+            @cusync @cuda threads=threads4 blocks=blocks4 line_profile_gpu!(l, prof, μs, ld, dA, ext, λs, allwavs, allints, ext_toggle_gpu)
 
             # copy data from GPU to CPU
             @cusync @cuda threads=threads5 blocks=blocks5 apply_line!(t, prof, flux, sum_wts)
