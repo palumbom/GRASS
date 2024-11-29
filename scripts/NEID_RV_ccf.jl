@@ -359,8 +359,13 @@ function line_rvs_ccf(line_names, vacwav, orders, timestamps, path)
     # iterate through lines and determine line RV for eclipse EM curve
     Threads.@threads for i in 1:length(line_names)
         order_index = orders[i]
-        min_wav = vacwav[i] - 2
-        max_wav = vacwav[i] + 2
+        if i == 11
+            min_wav = vacwav[i] - 0.2
+            max_wav = vacwav[i] + 0.2
+        else
+            min_wav = vacwav[i] - 0.35
+            max_wav = vacwav[i] + 0.35
+        end
 
         lines = [vacwav[i]]
 
@@ -368,8 +373,8 @@ function line_rvs_ccf(line_names, vacwav, orders, timestamps, path)
         RV_error_list = Vector{Float64}(undef,length(timestamps)...)
         Threads.@threads for j in 1:length(timestamps)
             f = FITS(joinpath(path, timestamps[j]))
-            # header = read_header(f[1])
-            # bc_ms = (header["SSBRV0$order_index"]) * 1000
+            header = read_header(f[1])
+            bc_ms = (header["SSBRV0$order_index"]) * 1000
 
             spectrum = NEID.read_data(joinpath(path, timestamps[j]); normalization = :blaze)
             # find where line is - NEID flux
@@ -377,10 +382,12 @@ function line_rvs_ccf(line_names, vacwav, orders, timestamps, path)
             pixels = NEID.find_pixels_for_line_in_chunk(chunk, min_wav, max_wav)
             chunk_flux_full = chunk.flux[pixels]
             chunk_flux_full ./= maximum(chunk_flux_full)
-            chunck_vac_wav = chunk.λ[pixels]
+            chunck_vac_wav = chunk.λ[pixels] 
             chunck_var = chunk.var[pixels] ./ maximum(chunk_flux_full)^2
 
-            v_grid_cpu, ccf_cpu, ccf_var_out = GRASS.calc_ccf(chunck_vac_wav, chunk_flux_full, chunck_var, lines, [maximum(chunk_flux_full) - minimum(chunk_flux_full)], resolution)
+            v_grid_cpu, ccf_cpu, ccf_var_out = GRASS.calc_ccf(chunck_vac_wav, chunk_flux_full, chunck_var, lines, 
+                                                [maximum(chunk_flux_full) - minimum(chunk_flux_full)], resolution,
+                                                Δv_max=8000.0)         
             rvs_cpu, sigs_cpu = GRASS.calc_rvs_from_ccf(v_grid_cpu, ccf_cpu, ccf_var_out)  
 
             RV_list[j] = rvs_cpu
@@ -456,21 +463,6 @@ function neid_nxt_day()
     end
 end
 
-function neid_nxt_day()
-    path_october = "/storage/group/ebf11/default/pipeline/neid_solar/data/v1.3/L2/2023/10/15/"
-    files_and_dirs = readdir(path_october)
-    files = filter(f -> isfile(joinpath(path_october, f)), files_and_dirs)
-    timestamps_october = files[4:length(files)-145]
-
-    RV_all_lines, RV_error_all_lines = line_rvs_ccf(line_names, vacwav, orders, timestamps_october, path_october)
-    @save "neid_RVlinebyline_nxt_day.jld2"
-    jldopen("neid_RVlinebyline_nxt_day.jld2", "a+") do file
-        file["name"] = line_names 
-        file["rv"] = RV_all_lines 
-        file["rv_error"] = RV_error_all_lines 
-    end
-end
-
 function compare_spec_sources() # out of transit line comparsion between IAS, GRASS, and NEID
     neid_timestamps = ["2023-10-14T19:03:06.500000"] # last timestamp (out of transit)
     path_october = "/storage/group/ebf11/default/pipeline/neid_solar/data/v1.3/L2/2023/10/14/"
@@ -484,6 +476,6 @@ function compare_spec_sources() # out of transit line comparsion between IAS, GR
                             timestamps, path_october, "neid_october_N_50", "SSD")
 end
 
-# neid_eclipse()
+neid_eclipse()
 # neid_nxt_day()
-compare_spec_sources()
+# compare_spec_sources()
