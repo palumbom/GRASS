@@ -129,7 +129,8 @@ function eclipse_compute_quantities!(disk::DiskParamsEclipse{T}, epoch::T, t::In
             # calculate area element of tile
             dϕ = step(ϕe_sub) 
             dθ = step(θe_sub) 
-            dA_sub = map(x -> calc_dA(sun_radius, getindex(x,1), dϕ, dθ), subgrid)
+            dA_sub = map(x -> calc_dA(1.0, getindex(x,1), dϕ, dθ), subgrid)
+
             # get total projected, visible area of larger tile
             dA_total_proj = dA_sub .* mu_grid
             dA_total_proj_matrix[i,j] = dA_total_proj

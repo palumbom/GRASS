@@ -244,7 +244,7 @@ function calc_eclipse_quantities_gpu!(wavelength, μs, z_rot, ax_codes,
                 z_rot_sub += (v_orbit_sub / c_ms)
 
                 # get projected area element
-                dA_sub = calc_dA_gpu(sun_radius, ϕc_sub, dϕ, dθ)
+                dA_sub = calc_dA_gpu(1.0, ϕc_sub, dϕ, dθ)
                 dA_sub *= μ_sub
                 dA_sum += dA_sub
 
