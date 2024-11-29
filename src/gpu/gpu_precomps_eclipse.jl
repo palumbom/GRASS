@@ -249,15 +249,15 @@ function calc_eclipse_quantities_gpu!(wavelength, μs, z_rot, ax_codes,
                 dA_sub *= μ_sub
                 dA_sum += dA_sub
 
-                # iterate counter 
-                count += 1
-
                 # calculate distance
                 n2 = CUDA.sqrt(OM_bary[1]^2.0 + OM_bary[2]^2.0 + OM_bary[3]^2.0)  
                 d2 = acos((OM_bary[1] * OP_bary_x + OM_bary[2] * OP_bary_y + OM_bary[3] * OP_bary_z) / (n2 * n1))
                 if (d2 < atan(moon_radius/n2))
                     continue
                 end
+                
+                # iterate counter 
+                count += 1
 
                 # zenith
                 n3 = CUDA.sqrt(EO_bary[1]^2.0 + EO_bary[2]^2.0 + EO_bary[3]^2.0) 

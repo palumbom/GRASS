@@ -6,6 +6,7 @@ import EchelleCCFs: MeasureRvFromCCFGaussian as GaussianFit
 import EchelleCCFs: MeasureRvFromCCFQuadratic as QuadraticFit
 import EchelleCCFs: AbstractCCFMaskShape as MaskShape
 import EchelleCCFs: AbstractMeasureRvFromCCF as FitType
+import RvSpectMLBase: searchsortednearest
 
 """
     calc_ccf(lambdas, flux, lines, depths, resolution; normalize=true)
@@ -238,32 +239,6 @@ Calculate apparent radial velocity from a CCF and velocity grid.
 - `v_grid::AbstractArray{Float64,1}`: List of velocities returned by calc_ccf.
 - `ccf::AbstractArray{Float64,1}`: CCF values returned by calc_ccf.
 """
-function calc_rvs_from_ccf(v_grid::AA{Float64,1}, ccf::AA{Float64,1}, var::AA{Float64,1};
-                           frac_of_width_to_fit::Float64=0.75,
-                           fit_type::Type{T}=GaussianFit) where {T<:FitType}
-    mrv = T(frac_of_width_to_fit=frac_of_width_to_fit)
-    return mrv(v_grid, ccf, var)
-end
-
-function calc_rvs_from_ccf(v_grid::AA{T,1}, ccf::AA{T,2}, var::AA{T,2}; kwargs...) where {T<:Float64}
-    func = x -> calc_rvs_from_ccf(v_grid, x, var; kwargs...)
-    out = mapslices(func, ccf, dims=1)
-    return vec.(unzip(out))
-end  
-
-function calc_rvs_from_ccf(v_grid::AA{Float64,1}, ccf::AA{Float64,1};
-                           frac_of_width_to_fit::Float64=0.75,
-                           fit_type::Type{T}=GaussianFit) where {T<:FitType}
-    mrv = T(frac_of_width_to_fit=frac_of_width_to_fit)
-    return mrv(v_grid, ccf)
-end
-
-function calc_rvs_from_ccf(v_grid::AA{T,1}, ccf::AA{T,2}; kwargs...) where {T<:Float64}
-    func = x -> calc_rvs_from_ccf(v_grid, x; kwargs...)
-    out = mapslices(func, ccf, dims=1)
-    return vec.(unzip(out))
-end  
-
 function calc_rvs_from_ccf(v_grid::AA{Float64,1}, ccf::AA{Float64,1};
                             frac_of_width_to_fit::Float64=0.75,
                             fit_type::Type{T}=GaussianFit) where {T<:FitType}
@@ -276,3 +251,92 @@ function calc_rvs_from_ccf(v_grid::AA{T,1}, ccf::AA{T,2}; kwargs...) where {T<:F
     out = mapslices(func, ccf, dims=1)
     return vec.(unzip(out))
 end   
+
+function calc_rvs_from_ccf(v_grid::AbstractArray{Float64,1}, ccf::AbstractArray{Float64,1}, var::AbstractArray{Float64,1};
+                           frac_of_width_to_fit::Float64=0.75,
+                           fit_type::Type{T}=GaussianFit) where {T<:FitType}
+    mrv = T(frac_of_width_to_fit=frac_of_width_to_fit)
+    return MeasureRvFromCCFGaussian_New(v_grid, ccf, var, mrv)
+end
+
+@. gaussian_line_helper(x, p) = p[4] + p[3] * exp(-0.5*((x-p[1])/p[2])^2)
+
+function MeasureRvFromCCFGaussian_New(vels::A1, ccf::A2, ccf_var::A3, mrv) where {T1<:Real, A1<:AbstractArray{T1,1}, T2<:Real, A2<:AbstractArray{T2,1}, T3<:Real, A3<:AbstractArray{T3,1} }
+    if all(ccf .== zero(eltype(ccf))) return (rv=NaN, σ_rv=NaN)     end
+    # find the min and fit only the part near the minimum of the CCF
+    amin, inds = find_idx_at_and_around_minimum(vels, ccf, frac_of_width_to_fit=mrv.frac_of_width_to_fit, measure_width_at_frac_depth=mrv.measure_width_at_frac_depth)
+    if isnan(amin)  return (rv=NaN, σ_rv=NaN)     end
+
+    # make initial guess parameters
+    μ = vels[amin]
+    σ = mrv.init_guess_ccf_σ                   
+    minccf, maxccf = extrema(ccf)
+    amp = minccf - maxccf
+    y0 = maxccf
+    p0 = [μ, σ, amp, y0]
+
+    local rvfit
+   # fit and return the mean of the distribution
+    result = curve_fit(gaussian_line_helper, view(vels,inds), view(ccf,inds), (1.0 ./ view(ccf_var,inds)),  p0)
+
+    if result.converged
+          rv = coef(result)[1]
+          sigma_rv = stderror_new(result)[1]
+          rvfit = (rv=rv, σ_rv=sigma_rv)
+    end
+    return rvfit
+end
+
+function vcov_new(fit)
+    # computes covariance matrix of fit parameters
+    J = fit.jacobian
+
+    covar = inv(J' * J) * mse(fit)
+    return covar
+end
+
+function stderror_new(fit; rtol::Real=NaN, atol::Real=0)
+    covar = vcov_new(fit)
+    # then the standard errors are given by the sqrt of the diagonal
+    vars = diag(covar)
+    return sqrt.(abs.(vars))
+end
+
+function est_full_width(vels::A1, ccf::A2; measure_width_at_frac_depth::Real = default_measure_width_at_frac_depth ) where  {T1<:Real, A1<:AbstractArray{T1,1}, T2<:Real, A2<:AbstractArray{T2,1} }
+    minccf, maxccf = extrema(ccf)
+    depth = maxccf - minccf
+    target_val = minccf + (1-measure_width_at_frac_depth) * depth
+    ind1 = findfirst(ccf .<= target_val)
+    ind2 = findlast(ccf .<= target_val)
+    if isnothing(ind1) || isnothing(ind2)
+        return NaN
+        println("ccf = ",ccf)
+        println("minccf= ", minccf, " maxccf= ", maxccf, " depth= ", depth, " measure_width_at_frac_depth= ", measure_width_at_frac_depth, " targetval= ",target_val, " ind1= ", ind1, " ind2= ", ind2)
+        @error "est_full_width failed."
+    end
+    return vels[ind2] - vels[ind1]
+end
+
+function find_idx_at_and_around_minimum(vels::A1, ccf::A2; frac_of_width_to_fit::Real = default_frac_of_width_to_fit, measure_width_at_frac_depth::Real = default_measure_width_at_frac_depth) where {T1<:Real, A1<:AbstractArray{T1,1}, T2<:Real, A2<:AbstractArray{T2,1} }
+    # do a prelim fit to get the width
+    full_width = est_full_width(vels, ccf, measure_width_at_frac_depth=measure_width_at_frac_depth)
+    if isnan(full_width)
+       return (NaN, 1:length(vels))
+    end
+
+    # find the min and fit only that
+    amin = argmin(ccf)
+    if amin == 1 || amin==length(vels)
+        offset = max(1,floor(Int64,length(vels)//4))
+        amin = argmin(view(ccf,offset:(length(vels)-offset)))
+        amin += offset-1
+    end
+    lend = vels[amin] - frac_of_width_to_fit * full_width
+    rend = vels[amin] + frac_of_width_to_fit * full_width
+    # get the indices
+    lind = searchsortednearest(view(vels,1:amin), lend)
+    rind = amin + searchsortednearest(view(vels,(amin+1):length(vels)), rend)
+    inds = lind:rind
+
+    return (amin, inds)
+end
