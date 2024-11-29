@@ -75,5 +75,6 @@ plt.imshow(wsp.dA .- Array(gpu_allocs.dA))
 plt.title("dA")
 plt.colorbar()
 plt.savefig("gpu_test.png")
+plt.show()
 plt.clf()
 #z_rot & dA
