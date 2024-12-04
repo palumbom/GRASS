@@ -16,7 +16,7 @@ time_stamps = utc2et.(["2023-10-14T14:29:23.500000"])
 
 N = 50
 Nt = length(time_stamps)
-Nsubgrid = 4
+Nsubgrid = 8
 disk = GRASS.DiskParamsEclipse(N=N, Nt=Nt, Nsubgrid=Nsubgrid)
 
 lines = [5434.5232] # array of line centers 
@@ -49,7 +49,7 @@ zenith_matrix = Matrix{Matrix{Float64}}(undef, length(disk.ϕc), maximum(disk.N�
 t = 1
     
 GRASS.eclipse_compute_quantities!(disk, time_stamps[t], t, obs_long, obs_lat, alt, wsp.ϕc, wsp.θc, 
-                                  wsp.μs, wsp.dA, wsp.xyz, wsp.ax_codes, 
+                                  wsp.μs, wsp.z_rot, wsp.dA, wsp.xyz, wsp.ax_codes, 
                                   mem.dA_total_proj_mean, mem.mean_weight_v_no_cb,
                                   mem.mean_weight_v_earth_orb, mem.pole_vector_grid,
                                   mem.SP_sun_pos, mem.SP_sun_vel, mem.SP_bary, mem.SP_bary_pos,
@@ -69,7 +69,7 @@ gpu_allocs = GRASS.GPUAllocsEclipse(spec, disk, 1)
 GRASS.calc_eclipse_quantities_gpu!(time_stamps[t], obs_long, obs_lat, alt, lines, LD_type, 1.0, 1.0, disk, gpu_allocs)
 
 # make a plot
-plt.imshow(wsp.dA .- Array(gpu_allocs.dA))
+plt.imshow(wsp.z_rot .- Array(gpu_allocs.z_rot))
 # plt.imshow(wsp.z_rot .* GRASS.c_ms, vmin=-2000, vmax=2000, cmap="seismic")
 # plt.imshow(Array(gpu_allocs.z_rot) .* GRASS.c_ms .- wsp.z_rot .* GRASS.c_ms)
 plt.title("dA")

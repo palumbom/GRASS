@@ -15,6 +15,7 @@
 *.bpc
 *.png
 *.tf
+*.nfs*
 
 # specific files/directories
 data/input/

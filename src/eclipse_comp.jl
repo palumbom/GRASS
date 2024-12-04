@@ -1,5 +1,5 @@
 function eclipse_compute_quantities!(disk::DiskParamsEclipse{T}, epoch::T, t::Int64, obs_long::T, obs_lat::T, alt::T, 
-                                        ϕc::AA{T,2}, θc::AA{T,2}, μs::AA{T,3}, dA::AA{T,3}, xyz::AA{T,3}, ax_codes::AA{Int,3},
+                                        ϕc::AA{T,2}, θc::AA{T,2}, μs::AA{T,3}, z_rot::AA{T,3}, dA::AA{T,3}, xyz::AA{T,3}, ax_codes::AA{Int,3},
                                         dA_total_proj_mean::AA{T,3}, mean_weight_v_no_cb::AA{T,3}, mean_weight_v_earth_orb::AA{T,3}, 
                                         pole_vector_grid::Matrix{Vector{Float64}}, SP_sun_pos::Matrix{Vector{Float64}}, 
                                         SP_sun_vel::Matrix{Vector{Float64}}, SP_bary::Matrix{Vector{Float64}}, 
@@ -83,7 +83,7 @@ function eclipse_compute_quantities!(disk::DiskParamsEclipse{T}, epoch::T, t::In
             # calculate mu at each point
             mu_grid_matrix[i,j] = deepcopy(calc_mu_grid!(SP_bary, OP_bary, mu_grid))
             # move on if everything is off the grid
-            all(mu_grid .< zero(T)) && continue
+            all(mu_grid .<= zero(T)) && continue
 
             # get projected velocity for each patch
             projected!(SP_bary, OP_bary, projected_velocities_no_cb)
@@ -100,9 +100,7 @@ function eclipse_compute_quantities!(disk::DiskParamsEclipse{T}, epoch::T, t::In
             end
             # convert from km/s to m/s
             v_earth_orb_proj .*= 1000.0
-
             z_rot_sub .+= v_earth_orb_proj/c_ms
-
             z_rot_matrix[i,j] = z_rot_sub
 
             # calculate the distance between tile corner and moon
@@ -363,7 +361,7 @@ function eclipse_compute_intensity(disk::DiskParamsEclipse{T}, wavelength::Vecto
 
     for i in eachindex(disk.ϕc)
         for j in 1:disk.Nθ[i]
-            if all(x -> x < zero(T), vec(mu_grid[i, j]))
+            if all(x -> x <= zero(T), vec(mu_grid[i, j]))
                 continue
             end
 
@@ -398,13 +396,8 @@ function eclipse_compute_intensity(disk::DiskParamsEclipse{T}, wavelength::Vecto
 
                 ld[i,j,l] = mean(view(ld_sub, boolean_mask)) 
 
-                # z_rot
-                if ext_toggle == false
-                    z_rot[i,j,l] = sum(view(z_rot_sub[i,j] .* ld_sub .* dA_total_proj[i,j], boolean_mask)) ./ sum(view(ld_sub .* dA_total_proj[i,j], boolean_mask))
-                end
-
                 # z_rot + extinction
-                if ext_toggle == true
+                if ext_toggle 
                     extin = map(x -> exp(-((1/cosd(x))*ext_coeff)), zenith_mean[i,j])
                     ext[i,j,l] = mean(view(extin, boolean_mask)) 
 
@@ -414,7 +407,9 @@ function eclipse_compute_intensity(disk::DiskParamsEclipse{T}, wavelength::Vecto
                         ld[i,j,l] = 0.0
                         ext[i,j,l] = 0.0
                         z_rot[i,j,l] = 0.0
-                    end                
+                    end
+                else    
+                    z_rot[i,j,l] = sum(view(z_rot_sub[i,j] .* ld_sub .* dA_total_proj[i,j], boolean_mask)) ./ sum(view(ld_sub .* dA_total_proj[i,j], boolean_mask))             
                 end
        
                 if isnan(ld[i,j,l])
