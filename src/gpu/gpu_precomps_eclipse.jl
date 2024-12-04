@@ -138,9 +138,11 @@ function calc_eclipse_quantities_gpu!(wavelength, μs, z_rot, ax_codes,
 
         # set up sum holders for scalars
         μ_sum = CUDA.zero(CUDA.eltype(μs))
-        z_rot_numerator = CUDA.zero(CUDA.eltype(z_rot))
-        z_rot_denominator = CUDA.zero(CUDA.eltype(z_rot))
-        dA_sum = CUDA.zero(CUDA.eltype(dA))
+        z_rot_numerator = CUDA.zero(CUDA.eltype(μs))
+        z_rot_denominator = CUDA.zero(CUDA.eltype(μs))
+        dA_sum = CUDA.zero(CUDA.eltype(μs))
+        ld_sum = CUDA.zero(CUDA.eltype(μs))
+        ext_sum = CUDA.zero(CUDA.eltype(μs))
         x_sum = CUDA.zero(CUDA.eltype(μs))
         y_sum = CUDA.zero(CUDA.eltype(μs))
         z_sum = CUDA.zero(CUDA.eltype(μs))
@@ -264,19 +266,25 @@ function calc_eclipse_quantities_gpu!(wavelength, μs, z_rot, ax_codes,
 
                 for wl in eachindex(wavelength)
                     # get limb darkening
-                    ld[m,n,wl] += quad_limb_darkening_gpu(μ_sub, u1, u2)
+                    ld_sub = quad_limb_darkening_gpu(μ_sub, u1, u2)
+                    ld_sum += ld_sub
 
-                    if ext_toggle == 1.0
-                        ext[m,n,wl] += CUDA.exp(-((1/(CUDA.cos(zenith)))*ext_coeff_gpu))
+                    if CUDA.isone(ext_toggle)
+                        ext_sub = CUDA.exp(-((1/(CUDA.cos(zenith)))*ext_coeff_gpu))
+                        ext_sum += ext_sub
                     end
                 end
 
+                # recalculate value since local vars from wl for loop are lost
+                ld_sub = quad_limb_darkening_gpu(μ_sub, u1, u2)
+                ext_sub = CUDA.exp(-((1/(CUDA.cos(zenith)))*ext_coeff_gpu))
+
                 if ext_toggle == 1.0
-                    z_rot_numerator += z_rot_sub * dA_sub * ld[m,n,1] * ext[m,n,1]
-                    z_rot_denominator += dA_sub * ld[m,n,1] * ext[m,n,1]
+                    z_rot_numerator += z_rot_sub * dA_sub * ld_sub * ext_sub
+                    z_rot_denominator += dA_sub * ld_sub * ext_sub
                 else
-                    z_rot_numerator += z_rot_sub * dA_sub * ld[m,n,1]
-                    z_rot_denominator += dA_sub * ld[m,n,1]
+                    z_rot_numerator += z_rot_sub * dA_sub * ld_sub
+                    z_rot_denominator += dA_sub * ld_sub 
                 end
             end
         end
@@ -286,8 +294,8 @@ function calc_eclipse_quantities_gpu!(wavelength, μs, z_rot, ax_codes,
             @inbounds μs[m,n] = μ_sum / μ_count
             @inbounds dA[m,n] = dA_sum 
             for wl in eachindex(wavelength)
-                @inbounds ld[m,n,wl] /= count
-                @inbounds ext[m,n,wl] /= count
+                @inbounds ld[m,n,wl] = ld_sum / count
+                @inbounds ext[m,n,wl] = ext_sum / count
             end
             
             if iszero(z_rot_denominator)
