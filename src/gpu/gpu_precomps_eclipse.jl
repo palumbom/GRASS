@@ -256,7 +256,7 @@ function calc_eclipse_quantities_gpu!(wavelength, μs, z_rot, ax_codes,
                 if (d2 < atan(moon_radius/n2))
                     continue
                 end
-                
+
                 # iterate counter 
                 count += 1
 
@@ -311,8 +311,10 @@ function calc_eclipse_quantities_gpu!(wavelength, μs, z_rot, ax_codes,
 
             @inbounds ax_codes[m, n] = find_nearest_ax_gpu(yy / sun_radius, zz / sun_radius)
         else
-            @inbounds μs[m,n] = 0.0
-            @inbounds dA[m,n] = 0.0
+            # @inbounds μs[m,n] = 0.0
+            # @inbounds dA[m,n] = 0.0
+            @inbounds μs[m,n] = μ_sum / μ_count
+            @inbounds dA[m,n] = dA_sum 
             for wl in eachindex(wavelength)
                 @inbounds ld[m,n,wl] = 0.0
                 @inbounds ext[m,n,wl] = 0.0

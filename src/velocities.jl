@@ -20,7 +20,7 @@ Compute the cross correlation function from a spectrum (λs and flux) with a mas
 - `depths::AbstractArray{Float64,1}`: List of line depths for use as weights in CCF mask.
 - `resolution::Float64`: Spectral resolution of spcectrum.
 """
-function calc_ccf(λs::AA{T1,1}, flux::AA{T1,1}, var::AA{T1,1},
+function calc_ccf(λs::AA{T1,1}, flux::AA{T1,1}, var,
                   lines::AA{T1,1}, depths::AA{T1,1},
                   resolution::T1; normalize::Bool=true,
                   mask_width::T1=c_ms/resolution,
@@ -57,12 +57,6 @@ function calc_ccf(λs::AA{T1,1}, flux::AA{T1,1}, var::AA{T1,1},
         # compute the ccf value at the current velocity shift
         ccf[i] = ccf_plan.allow_nans ? nansum(projection .* flux) : sum(projection .* flux)
         ccf_var_out[i] = ccf_plan.allow_nans ? nansum(var .* projection.^2) : sum(var .* projection.^2)
-    end
-
-    # normalize if normalize==true
-    if normalize
-        ccf ./= maximum(ccf)
-        ccf_var_out ./= maximum(ccf)^2
     end
     return v_grid, ccf, ccf_var_out
 end
@@ -281,22 +275,22 @@ function MeasureRvFromCCFGaussian_New(vels::A1, ccf::A2, ccf_var::A3, mrv) where
 
     if result.converged
           rv = coef(result)[1]
-          sigma_rv = stderror_new(result)[1]
+          sigma_rv = stderror_new(result, view(ccf_var ./ maximum(ccf_var),inds))[1]
           rvfit = (rv=rv, σ_rv=sigma_rv)
     end
     return rvfit
 end
 
-function vcov_new(fit)
+function vcov_new(fit, ccf_var)
     # computes covariance matrix of fit parameters
     J = fit.jacobian
 
-    covar = inv(J' * J) * mse(fit)
+    covar = inv(J' * J) * mean(ccf_var)
     return covar
 end
 
-function stderror_new(fit; rtol::Real=NaN, atol::Real=0)
-    covar = vcov_new(fit)
+function stderror_new(fit, ccf_var; rtol::Real=NaN, atol::Real=0)
+    covar = vcov_new(fit, ccf_var)
     # then the standard errors are given by the sqrt of the diagonal
     vars = diag(covar)
     return sqrt.(abs.(vars))

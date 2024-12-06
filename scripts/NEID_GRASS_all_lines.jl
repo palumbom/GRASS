@@ -136,7 +136,7 @@ function neid_all_lines_gpu(neid_time, granulation_status, filename, LD_type, ex
     rv_error = Vector{Vector{Float64}}(undef,size(name)...)
     resolution = 7e5
     # loop over lines
-    for i in eachindex(lp.λrest) 
+    for i in 12:22#eachindex(lp.λrest) 
         println("\t>>> Template: " * string(splitdir(lfile[i])[2]))
         # set up parameters for synthesis
         lines = [λrest[i]]
@@ -243,4 +243,4 @@ function neid_october_nxt_day_var_on(LD_type, ext_toggle)
     end
 end
 
-neid_october_eclipse_var_off_gpu("SSD", false)
+neid_october_eclipse_var_off_gpu("SSD", true)

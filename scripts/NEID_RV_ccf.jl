@@ -381,9 +381,8 @@ function line_rvs_ccf(line_names, vacwav, orders, timestamps, path)
             chunk = NEID.ChunkOfSpectrum(spectrum, order_index, full_pixels) 
             pixels = NEID.find_pixels_for_line_in_chunk(chunk, min_wav, max_wav)
             chunk_flux_full = chunk.flux[pixels]
-            chunk_flux_full ./= maximum(chunk_flux_full)
             chunck_vac_wav = chunk.λ[pixels] 
-            chunck_var = chunk.var[pixels] ./ maximum(chunk_flux_full)^2
+            chunck_var = chunk.var[pixels] 
 
             v_grid_cpu, ccf_cpu, ccf_var_out = GRASS.calc_ccf(chunck_vac_wav, chunk_flux_full, chunck_var, lines, 
                                                 [maximum(chunk_flux_full) - minimum(chunk_flux_full)], resolution,
