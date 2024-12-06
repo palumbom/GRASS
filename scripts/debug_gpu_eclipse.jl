@@ -69,12 +69,11 @@ gpu_allocs = GRASS.GPUAllocsEclipse(spec, disk, 1)
 GRASS.calc_eclipse_quantities_gpu!(time_stamps[t], obs_long, obs_lat, alt, lines, LD_type, 1.0, 1.0, disk, gpu_allocs)
 
 # make a plot
-plt.imshow(wsp.z_rot .- Array(gpu_allocs.z_rot))
+plt.imshow(wsp.ext .- Array(gpu_allocs.ext))
 # plt.imshow(wsp.z_rot .* GRASS.c_ms, vmin=-2000, vmax=2000, cmap="seismic")
 # plt.imshow(Array(gpu_allocs.z_rot) .* GRASS.c_ms .- wsp.z_rot .* GRASS.c_ms)
-plt.title("dA")
+plt.title("ext")
 plt.colorbar()
 plt.savefig("gpu_test.png")
 plt.show()
 plt.clf()
-#z_rot & dA

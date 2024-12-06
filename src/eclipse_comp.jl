@@ -146,7 +146,7 @@ function eclipse_compute_quantities!(disk::DiskParamsEclipse{T}, epoch::T, t::In
     return 
 end
 
-function eclipse_compute_quantities_updated!(disk::DiskParamsEclipse{T}, epoch::T, t::T, obs_id::T, obs_long::T, obs_lat::T, alt::T, 
+function eclipse_compute_quantities_updated!(disk::DiskParamsEclipse{T}, epoch::T, t::Int64, obs_id, obs_long::T, obs_lat::T, alt::T, 
                                         ϕc::AA{T,2}, θc::AA{T,2}, μs::AA{T,3}, dA::AA{T,3}, xyz::AA{T,3}, ax_codes::AA{Int,3}, 
                                         dA_total_proj_mean::AA{T,3}, mean_weight_v_no_cb::AA{T,3}, mean_weight_v_earth_orb::AA{T,3}, 
                                         pole_vector_grid::Matrix{Vector{Float64}}, SP_sun_pos::Matrix{Vector{Float64}}, 
@@ -154,7 +154,7 @@ function eclipse_compute_quantities_updated!(disk::DiskParamsEclipse{T}, epoch::
                                         SP_bary_pos::Matrix{Vector{Float64}}, SP_bary_vel::Matrix{Vector{Float64}}, 
                                         OP_bary::Matrix{Vector{Float64}}, OP_ltt::AA{T,2}, mu_grid::AA{T,2}, projected_velocities_no_cb::AA{T,2}, 
                                         distance::AA{T,2}, v_scalar_grid::AA{T,2}, v_earth_orb_proj::Matrix{Float64}, mu_grid_matrix::Matrix{Matrix{Float64}},
-                                        dA_total_proj_matrix::Matrix{Matrix{Float64}}, idx1_matrix::Matrix{Matrix{Float64}}, idx3_matrix::Matrix{Matrix{Float64}}, 
+                                        dA_total_proj_matrix::Matrix{Matrix{Float64}}, idx1_matrix::Matrix{Matrix{Int}}, idx3_matrix::Matrix{Matrix{Int}}, 
                                         z_rot_matrix::Matrix{Matrix{Float64}}, zenith_matrix::Matrix{Matrix{Float64}}) where T<:AF
 
     # determine state vector for lat/long of observatory

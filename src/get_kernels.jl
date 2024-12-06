@@ -27,8 +27,8 @@ function get_kernels()
     furnsh(joinpath(datdir, "earth_latest_high_prec.bpc"))
     furnsh(joinpath(datdir, "earth_assoc_itrf93.tf"))
     furnsh(joinpath(datdir, "jup365.bsp"))
-    # furnsh(joinpath(datdir, "eclipse_SPK.bsp"))
-    # furnsh(joinpath(datdir, "eclipse_ID_mapping_SPK.txt"))
+    furnsh(joinpath(datdir, "eclipse_SPK.bsp"))
+    furnsh(joinpath(datdir, "eclipse_ID_mapping_SPK.txt"))
 
     return nothing
 end
