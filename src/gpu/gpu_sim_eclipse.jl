@@ -131,8 +131,8 @@ function disk_sim_eclipse_gpu(spec::SpecParams{T1}, disk::DiskParamsEclipse{T1},
                 @cusync z_cbs_avg = CUDA.sum(z_cbs .* dA .* ld[:,:,l]) / sum_wts
             end
 
-            # calculate how much extra shift is needed
-            extra_z = spec.conv_blueshifts .- z_cbs_avg
+            # # calculate how much extra shift is needed
+            # extra_z = spec.conv_blueshifts .- z_cbs_avg
 
             # trim all the bisector data
             @cusync @cuda threads=threads2 blocks=blocks2 trim_bisector_gpu!(spec.depths[l], spec.variability[l],
@@ -145,7 +145,7 @@ function disk_sim_eclipse_gpu(spec::SpecParams{T1}, disk::DiskParamsEclipse{T1},
 
             # assemble line shape on even int grid
             @cusync @cuda threads=threads3 blocks=blocks3 fill_workspaces_2D_eclipse!(spec.lines[l], spec.variability[l],
-                                                                           extra_z[l], tloop, dat_idx,
+                                                                           tloop, dat_idx,
                                                                            z_rot, z_cbs, lenall_gpu,
                                                                            bisall_gpu_loop, intall_gpu_loop,
                                                                            widall_gpu_loop, allwavs, allints)

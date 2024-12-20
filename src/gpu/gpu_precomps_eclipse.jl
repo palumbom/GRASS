@@ -4,6 +4,8 @@ function calc_eclipse_quantities_gpu!(epoch::T1, obs_long::T1, obs_lat::T1, alt:
 
     μs = gpu_allocs.μs
     ld = gpu_allocs.ld
+    projected_v = gpu_allocs.projected_v
+    earth_v = gpu_allocs.earth_v
     ext = gpu_allocs.ext
     dA = gpu_allocs.dA
     z_rot = gpu_allocs.z_rot
@@ -13,6 +15,8 @@ function calc_eclipse_quantities_gpu!(epoch::T1, obs_long::T1, obs_lat::T1, alt:
     @cusync begin
         μs .= 0.0
         ld .= 0.0
+        projected_v .= 0.0
+        earth_v .= 0.0
         ext .= 0.0
         dA .= 0.0
         z_rot .= 0.0
@@ -96,7 +100,7 @@ function calc_eclipse_quantities_gpu!(epoch::T1, obs_long::T1, obs_lat::T1, alt:
     threads1 = 256
     blocks1 = cld(prod(CUDA.size(μs)), prod(threads1))
     @cusync @cuda threads=threads1 blocks=blocks1 calc_eclipse_quantities_gpu!(wavelength_gpu, μs, z_rot, ax_codes,
-                                                                               Nϕ, Nθ, Nsubgrid, Nθ_max, ld, ext, 
+                                                                               Nϕ, Nθ, Nsubgrid, Nθ_max, ld, projected_v, earth_v, ext, 
                                                                                dA, moon_radius, OS_bary_gpu, OM_bary_gpu, EO_bary_gpu,
                                                                                sun_rot_mat_gpu, sun_radius, A, B, C, u1, u2, 
                                                                                ext_toggle, ext_coeff_gpu)
@@ -104,7 +108,7 @@ function calc_eclipse_quantities_gpu!(epoch::T1, obs_long::T1, obs_lat::T1, alt:
 end                               
 
 function calc_eclipse_quantities_gpu!(wavelength, μs, z_rot, ax_codes,
-                                      Nϕ, Nθ, Nsubgrid, Nθ_max, ld, ext,
+                                      Nϕ, Nθ, Nsubgrid, Nθ_max, ld, projected_v, earth_v, ext,
                                       dA, moon_radius, OS_bary, OM_bary, EO_bary,
                                       sun_rot_mat, sun_radius, A, B, C, u1, u2, 
                                       ext_toggle, ext_coeff_gpu)
@@ -142,6 +146,8 @@ function calc_eclipse_quantities_gpu!(wavelength, μs, z_rot, ax_codes,
         z_rot_denominator = CUDA.zero(CUDA.eltype(μs))
         dA_sum = CUDA.zero(CUDA.eltype(μs))
         ld_sum = CUDA.zero(CUDA.eltype(μs))
+        projected_v_sum = CUDA.zero(CUDA.eltype(μs))
+        earth_v_sum = CUDA.zero(CUDA.eltype(μs))
         ext_sum = CUDA.zero(CUDA.eltype(μs))
         x_sum = CUDA.zero(CUDA.eltype(μs))
         y_sum = CUDA.zero(CUDA.eltype(μs))
@@ -237,12 +243,14 @@ function calc_eclipse_quantities_gpu!(wavelength, μs, z_rot, ax_codes,
                 angle = (OP_bary_x * vx + OP_bary_y * vy + OP_bary_z * vz) / (n1 * n2)
                 v_rot_sub = (n2 * angle)
                 v_rot_sub *= 1000.0
+                projected_v_sum += v_rot_sub
                 z_rot_sub = v_rot_sub / c_ms
 
                 n2 = CUDA.sqrt(OS_bary[4]^2.0 + OS_bary[5]^2.0 + OS_bary[6]^2.0)
                 angle = (OP_bary_x * OS_bary[4] + OP_bary_y * OS_bary[5] + OP_bary_z * OS_bary[6]) / (n1 * n2)
                 v_orbit_sub = (n2 * angle)
                 v_orbit_sub *= 1000.0
+                earth_v_sum += v_orbit_sub
                 z_rot_sub += (v_orbit_sub / c_ms)
 
                 # get projected area element
@@ -293,6 +301,9 @@ function calc_eclipse_quantities_gpu!(wavelength, μs, z_rot, ax_codes,
             # set scalar quantity elements as average
             @inbounds μs[m,n] = μ_sum / μ_count
             @inbounds dA[m,n] = dA_sum 
+            @inbounds projected_v[m,n] = projected_v_sum / count
+            @inbounds earth_v[m,n] = earth_v_sum / count
+
             for wl in eachindex(wavelength)
                 @inbounds ld[m,n,wl] = ld_sum / count
                 @inbounds ext[m,n,wl] = ext_sum / count
