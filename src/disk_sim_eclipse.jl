@@ -101,13 +101,13 @@ function disk_sim_eclipse(spec::SpecParams{T}, disk::DiskParamsEclipse{T}, solda
                     wsp.widt .= copy(view(soldata.wid[key], :, tloop[i,j]))
 
                     # get amount of convective blueshift needed
-                    extra_z = spec.conv_blueshifts[l] - z_cbs_avg
+                    # extra_z = spec.conv_blueshifts[l] - z_cbs_avg
 
                     # get shifted line center
                     λΔD = spec.lines[l]
                     λΔD *= (1.0 + z_rot)
                     λΔD *= (1.0 + z_cbs)
-                    λΔD *= (1.0 + extra_z)
+                    # λΔD *= (1.0 + extra_z)
 
                     # fix bisector and width if variability is turned off 
                     if !spec.variability[l]
