@@ -243,14 +243,12 @@ function calc_eclipse_quantities_gpu!(wavelength, μs, z_rot, ax_codes,
                 angle = (OP_bary_x * vx + OP_bary_y * vy + OP_bary_z * vz) / (n1 * n2)
                 v_rot_sub = (n2 * angle)
                 v_rot_sub *= 1000.0
-                projected_v_sum += v_rot_sub
                 z_rot_sub = v_rot_sub / c_ms
 
                 n2 = CUDA.sqrt(OS_bary[4]^2.0 + OS_bary[5]^2.0 + OS_bary[6]^2.0)
                 angle = (OP_bary_x * OS_bary[4] + OP_bary_y * OS_bary[5] + OP_bary_z * OS_bary[6]) / (n1 * n2)
                 v_orbit_sub = (n2 * angle)
                 v_orbit_sub *= 1000.0
-                earth_v_sum += v_orbit_sub
                 z_rot_sub += (v_orbit_sub / c_ms)
 
                 # get projected area element
@@ -264,6 +262,9 @@ function calc_eclipse_quantities_gpu!(wavelength, μs, z_rot, ax_codes,
                 if (d2 < atan(moon_radius/n2))
                     continue
                 end
+
+                projected_v_sum += v_rot_sub
+                earth_v_sum += v_orbit_sub
 
                 # iterate counter 
                 count += 1
@@ -322,8 +323,6 @@ function calc_eclipse_quantities_gpu!(wavelength, μs, z_rot, ax_codes,
 
             @inbounds ax_codes[m, n] = find_nearest_ax_gpu(yy / sun_radius, zz / sun_radius)
         else
-            # @inbounds μs[m,n] = 0.0
-            # @inbounds dA[m,n] = 0.0
             @inbounds μs[m,n] = μ_sum / μ_count
             @inbounds dA[m,n] = dA_sum 
             for wl in eachindex(wavelength)

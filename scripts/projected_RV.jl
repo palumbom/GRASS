@@ -153,12 +153,12 @@ function projected_RV_gpu(time, LD_type, ext_toggle)
         # make the spec composite type instances
         spec = GRASS.SpecParams(lines=lines, depths=depths, variability=variability,
                         blueshifts=blueshifts, templates=templates, resolution=resolution) 
-        gpu_allocs = GRASS.GPUAllocsEclipse(spec, disk, Int(length(lines)), precision=Float64, verbose=true)
 
         RV_list_no_cb = Vector{Float64}(undef,size(time_stamps)...)
         intensity_list = Vector{Float64}(undef,size(time_stamps)...)
         mean_intensity_list = Vector{Matrix{Float64}}(undef,size(time_stamps)...)
         for t in 1:disk.Nt
+            gpu_allocs = GRASS.GPUAllocsEclipse(spec, disk, Int(length(lines)), precision=Float64, verbose=true)
             if t < 25
                 neid_ext_coeff = extinction_coeff[extinction_coeff[!, "Wavelength"] .== λrest[i], "Ext1"][1]
             elseif t >= 25 && t < 46 

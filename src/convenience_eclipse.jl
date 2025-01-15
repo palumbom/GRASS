@@ -104,6 +104,7 @@ function synth_Eclipse_gpu(spec::SpecParams{T}, disk::DiskParamsEclipse{T},
     # allocate memory needed for rossiter computations
     gpu_allocs = GPUAllocsEclipse(spec, disk, Int(length(wavelength)), precision=precision, verbose=verbose)
 
+    brightness_arr = Vector{Vector{Float64}}(undef,size(templates)...)
     # run the simulation and return
     for (idx, file) in enumerate(templates)
         # get temporary specparams with lines for this run
@@ -117,9 +118,9 @@ function synth_Eclipse_gpu(spec::SpecParams{T}, disk::DiskParamsEclipse{T},
         soldata = GPUSolarData(soldata_cpu, precision=precision)
 
         # run the simulation and multiply flux by this spectrum
-        disk_sim_eclipse_gpu(spec_temp, disk, soldata, gpu_allocs, flux, 
+        brightness_arr[idx] = disk_sim_eclipse_gpu(spec_temp, disk, soldata, gpu_allocs, flux, 
                               obs_long, obs_lat, alt, time_stamps, wavelength, 
                               ext_coeff, ext_toggle, LD_type, skip_times=skip_times)
     end
-    return spec.lambdas, flux
+    return spec.lambdas, flux, brightness_arr
 end

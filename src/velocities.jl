@@ -271,12 +271,16 @@ function MeasureRvFromCCFGaussian_New(vels::A1, ccf::A2, ccf_var::A3, mrv) where
 
     local rvfit
    # fit and return the mean of the distribution
+    ccf_var[ccf_var .== 0.0] .= eps()
     result = curve_fit(gaussian_line_helper, view(vels,inds), view(ccf,inds), (1.0 ./ view(ccf_var,inds)),  p0)
-
     if result.converged
           rv = coef(result)[1]
           sigma_rv = stderror_new(result, view(ccf_var ./ maximum(ccf_var),inds))[1]
           rvfit = (rv=rv, σ_rv=sigma_rv)
+    else
+        @warn "Fit of Gaussian to CCF did not converge.  Reverting to fit quadratic to CCF."
+        quad_fit_to_ccf = QuadraticFit(frac_of_width_to_fit=mrv.frac_of_width_to_fit,measure_width_at_frac_depth=mrv.measure_width_at_frac_depth)
+        rvfit = quad_fit_to_ccf(vels,ccf,ccf_var)
     end
     return rvfit
 end
@@ -284,8 +288,7 @@ end
 function vcov_new(fit, ccf_var)
     # computes covariance matrix of fit parameters
     J = fit.jacobian
-
-    covar = inv(J' * J) * mean(ccf_var)
+    covar = pinv(J' * J) * mean(ccf_var)
     return covar
 end
 
