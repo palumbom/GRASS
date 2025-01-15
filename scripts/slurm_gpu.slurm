@@ -6,9 +6,9 @@
 #SBATCH --gpus-per-task=1
 #SBATCH --mem-per-cpu=64GB
 #SBATCH --time=24:00:00
-#SBATCH --job-name=N_convergence
+#SBATCH --job-name=FineTime
 #SBATCH --chdir=/storage/home/efg5335/work/GRASS
-#SBATCH --output=/storage/home/efg5335/work/GRASS/N_convergence.out
+#SBATCH --output=/storage/home/efg5335/work/GRASS/FineTime.out
 
 echo "About to start: $SLURM_JOB_NAME"
 date

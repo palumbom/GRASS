@@ -79,6 +79,7 @@ function disk_sim_eclipse_gpu(spec::SpecParams{T1}, disk::DiskParamsEclipse{T1},
         ext_toggle_gpu = 0.0
     end
     
+    brightness = Vector{Float64}(undef,size(time_stamps)...)
     # loop over time
     for t in 1:Nt
         # sort out the system geometry
@@ -125,14 +126,16 @@ function disk_sim_eclipse_gpu(spec::SpecParams{T1}, disk::DiskParamsEclipse{T1},
                 # get weighted disk average cbs
                 @cusync sum_wts = CUDA.sum(dA .* ld[:,:,l] .* ext[:,:,l])
                 @cusync z_cbs_avg = CUDA.sum(z_cbs .* dA .* ld[:,:,l] .* ext[:,:,l]) / sum_wts
+                brightness[t] = sum_wts
             else
                 # get weighted disk average cbs
                 @cusync sum_wts = CUDA.sum(dA .* ld[:,:,l])
                 @cusync z_cbs_avg = CUDA.sum(z_cbs .* dA .* ld[:,:,l]) / sum_wts
+                brightness[t] = sum_wts
             end
 
-            # # calculate how much extra shift is needed
-            # extra_z = spec.conv_blueshifts .- z_cbs_avg
+            # calculate how much extra shift is needed
+            extra_z = spec.conv_blueshifts .- z_cbs_avg
 
             # trim all the bisector data
             @cusync @cuda threads=threads2 blocks=blocks2 trim_bisector_gpu!(spec.depths[l], spec.variability[l],
@@ -144,7 +147,7 @@ function disk_sim_eclipse_gpu(spec::SpecParams{T1}, disk::DiskParamsEclipse{T1},
                                                                              widall_mean)
 
             # assemble line shape on even int grid
-            @cusync @cuda threads=threads3 blocks=blocks3 fill_workspaces_2D_eclipse!(spec.lines[l], spec.variability[l],
+            @cusync @cuda threads=threads3 blocks=blocks3 fill_workspaces_2D_eclipse!(spec.lines[l], spec.variability[l], extra_z[l],
                                                                            tloop, dat_idx,
                                                                            z_rot, z_cbs, lenall_gpu,
                                                                            bisall_gpu_loop, intall_gpu_loop,
@@ -166,5 +169,5 @@ function disk_sim_eclipse_gpu(spec::SpecParams{T1}, disk::DiskParamsEclipse{T1},
 
     # make sure nothing is still running on GPU
     CUDA.synchronize()
-    return nothing
+    return brightness
 end
