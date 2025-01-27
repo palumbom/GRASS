@@ -95,7 +95,7 @@ end
 function bin_spectrum(wavs::AA{T,2}, flux::AA{T,2}; binsize::Integer=10) where T<:Real
     @assert size(wavs) == size(flux)
     @assert binsize >= 1
-    @assert binsize < size(wavs,2)
+    @assert binsize <= size(wavs,2)
 
     # get sizes
     nwave = size(wavs,1)
@@ -123,7 +123,7 @@ function bin_spectrum_weighted(wavs::AA{T,2}, flux::AA{T,2},
                                nois::AA{T,2}; binsize::Integer=10) where T<:Real
     @assert size(wavs) == size(flux)
     @assert binsize >= 1
-    @assert binsize < size(wavs,2)
+    @assert binsize <= size(wavs,2)
 
     # get sizes
     nwave = size(wavs,1)

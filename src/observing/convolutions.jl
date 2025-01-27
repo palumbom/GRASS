@@ -12,6 +12,9 @@ end
 # TODO algorithm might cause shift based on input wavelength grid?
 # might cause issue if wavelengths shift across
 function rebin_spectrum(xs_old::AA{T,1}, ys_old::AA{T,1}, xs_new::AA{T,1}) where T<:AF
+    @assert issorted(xs_old)
+    @assert issorted(xs_new)
+
     # get edges of bins
     old_edges, old_widths = get_bin_edges(xs_old)
     new_edges, new_widths = get_bin_edges(xs_new)
@@ -63,6 +66,8 @@ end
 # follows from implementation at https://github.com/ACCarnall/SpectRes/blob/master/spectres/spectral_resampling.py
 function rebin_spectrum(xs_old::AA{T,1}, ys_old::AA{T,1}, σs_old::AA{T,1}, xs_new::AA{T,1}, ) where T<:AF
     @assert length(σs_old) == length(ys_old)
+    @assert issorted(xs_old)
+    @assert issorted(xs_new)
 
     # get edges of bins
     old_edges, old_widths = get_bin_edges(xs_old)

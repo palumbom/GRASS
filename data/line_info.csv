@@ -1,4 +1,4 @@
-,Unnamed: 0,name,species,mass,air_wavelength,g_eff,height,lower_level,upper_level,spectra_dir,avg_temp_80,avg_temp_50
+0,0,name,species,mass,air_wavelength,g_eff,height,lower_level,upper_level,spectra_dir,avg_temp_80,avg_temp_50
 0,0,FeI_5250.2,FeI,55.845,5250.2084,3.0,310.0,0.12126572,2.4821184,FeI_5250,4668.117774305033,4602.94165889237
 1,1,FeI_5250.6,FeI,55.845,5250.6453,1.5,360.0,2.1978664,4.55852281,FeI_5250,4583.070499693271,4502.173287786446
 2,2,FeI_5379,FeI,55.845,5379.5734,1.1,,3.69459719,5.99867825,CI_5380,4714.816124373151,4667.378541034683

@@ -44,6 +44,38 @@ function find_wing_index(val::T, arr::AA{T,1}; min::Int=argmin(arr)) where T<:AF
     return clamp(min - lidx, 1, min), clamp(ridx + min, min, length(arr))
 end
 
+function bracket_line(λrest::T, wavs::AA{T,1}, flux::AA{T,1}; level::T=0.95) where T<:AF
+    minbuff = 25
+    lidx = findfirst(x -> x .>= λrest, wavs)
+    lmin = argmin(flux[lidx-minbuff:lidx+minbuff]) + lidx - (minbuff+1)
+    lbot = flux[lmin]
+    depth = 1.0 - lbot
+
+    # bracket the line
+    idx1, idx2 = GRASS.find_wing_index(level * depth + lbot, flux, min=lmin)
+
+    # take views of spectrum 
+    wavs_iso = view(wavs, idx1:idx2)
+    flux_iso = view(flux, idx1:idx2)
+    return wavs_iso, flux_iso
+end
+
+function bracket_line(λrest::T, wavs::AA{T,1}, flux::AA{T,1}, nois::AA{T,1}; level::T=0.95) where T<:AF
+    minbuff = 25
+    lidx = findfirst(x -> x .>= λrest, wavs)
+    lmin = argmin(flux[lidx-minbuff:lidx+minbuff]) + lidx - (minbuff+1)
+    lbot = flux[lmin]
+    depth = 1.0 - lbot
+
+    # bracket the line
+    idx1, idx2 = GRASS.find_wing_index(level * depth + lbot, flux, min=lmin)
+
+    # take views of spectrum 
+    wavs_iso = view(wavs, idx1:idx2)
+    flux_iso = view(flux, idx1:idx2)
+    nois_iso = view(nois, idx1:idx2)
+    return wavs_iso, flux_iso, nois_iso
+end
 
 function fit_line_wings(wavs_iso::AA{T,1}, flux_iso::AA{T,1};
                         nois_iso::AA{T,1}=zeros(length(flux_iso)),
