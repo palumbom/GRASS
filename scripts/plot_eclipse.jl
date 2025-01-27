@@ -91,7 +91,7 @@ time_stamps = ["2023-10-14T15:26:45.500000", "2023-10-14T15:28:07.500000", "2023
 time_stamps = utc2et.(time_stamps)
 
 # set up disk params
-N = 40
+N = 197
 Nt = length(time_stamps)
 Nsubgrid = 40
 disk = GRASS.DiskParamsEclipse(N=N, Nt=Nt, Nsubgrid=Nsubgrid)
@@ -129,7 +129,8 @@ gpu_allocs = GRASS.GPUAllocsEclipse(spec, disk, length(spec.lines))
 
 # initialize figure objects outside time loop
 fig = plt.figure()
-ax1 = plt.subplot(projection=wcs)#projection=w)
+# ax1 = plt.subplot(projection=wcs)#projection=w)
+ax1 = plt.subplot()#projection=w)
 
 # make colormap for data
 cmap = plt.cm.seismic
