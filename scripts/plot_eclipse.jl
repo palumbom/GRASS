@@ -125,6 +125,7 @@ end
 
 # loop over timestamps 
 for t in eachindex(time_stamps)
+    @show t
     # get the geometry data
     GRASS.calc_eclipse_quantities_gpu!(time_stamps[t], obs_long, obs_lat, obs_alt, lines, 
                                        LD_type, 1.0, neid_ext_coeff[1], disk, gpu_allocs)
