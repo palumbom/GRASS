@@ -32,24 +32,20 @@ function calc_eclipse_quantities_gpu!(epoch::T1, obs_long::T1, obs_lat::T1, alt:
         filtered_df = quad_ld_coeff_NL94[quad_ld_coeff_NL94.wavelength .== wavelength, :]
         u1 = convert(T2, filtered_df.u1[1])
         u2 = convert(T2, filtered_df.u2[1])
-    end
-
-    if LD_law == "300"
+    elseif LD_law == "300"
         filtered_df = quad_ld_coeff_300[quad_ld_coeff_300.wavelength .== wavelength, :]
         u1 = convert(T2, filtered_df.u1[1])
         u2 = convert(T2, filtered_df.u2[1])
-    end
-
-    if LD_law == "SSD"
+    elseif LD_law == "SSD"
         filtered_df = quad_ld_coeff_SSD[quad_ld_coeff_SSD.wavelength .== wavelength, :]
         u1 = convert(T2, filtered_df.u1[1])
         u2 = convert(T2, filtered_df.u2[1])
-    end
-
-    if LD_law == "HD"
+    elseif LD_law == "HD"
         filtered_df = quad_ld_coeff_HD[quad_ld_coeff_HD.wavelength .== wavelength, :]
         u1 = convert(T2, filtered_df.u1[1])
         u2 = convert(T2, filtered_df.u2[1])
+    else
+        throw("ERROR: Limb darkening type not defined")
     end
 
     # geometry from disk
