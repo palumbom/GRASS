@@ -8,6 +8,7 @@ using DataFrames
 
 # plotting impors
 import PyPlot; plt = PyPlot; mpl = plt.matplotlib; plt.ioff()
+mpl.use("Agg")
 using PyCall; animation = pyimport("matplotlib.animation");
 using LaTeXStrings
 
@@ -91,9 +92,9 @@ time_stamps_utc = ["2023-10-14T15:26:45.500000", "2023-10-14T15:28:07.500000", "
 time_stamps = utc2et.(time_stamps_utc)
 
 # set up disk params
-N = 40
+N = 197
 Nt = length(time_stamps)
-Nsubgrid = 8
+Nsubgrid = 40
 disk = GRASS.DiskParamsEclipse(N=N, Nt=Nt, Nsubgrid=Nsubgrid)
 
 # stuff for line
@@ -165,22 +166,12 @@ for t in eachindex(time_stamps)
     dat[μs .<= 0.0] .= NaN
     dat[isnan.(μs)] .= NaN
 
-    # create a WCS for the projection 
-    # w = wcs.WCS(naxis=2)
-    # w.wcs.ctype = ["RA---ZEA", "DEC--ZEA"]
-
-    # get the earth location 
-    # earth_loc = EarthLocation(lat=obs_lat * u.deg, lon=obs_long * u.deg, height = obs_alt * u.km)
-
+    # set up wcs
     the_coord = SkyCoord(az[1], alt[1], unit="deg", frame="icrs")
-    # the_frame = AltAz(obstime=apTime(time_stamps_utc[1]), location=earth_loc)
     the_wcs = RegionGeom(CircleSkyRegion(center=the_coord, radius=0.5 * u.deg)).wcs
 
-    # the_wcs = wcs.WCS(naxis=2)
-    # the_wcs.wcs.ctype = ["RA---TAN", "DEC--TAN"]  # Azimuth and Altitude
-    # the_wcs.wcs.crval = [180, 90]  # Reference point
-    # the_wcs.wcs.cdelt = [-1, 1]  # Scaling (degrees/pixel)
-    # the_wcs.wcs.crpix = [180, 45]  # Reference pixel
+    # force alt/az as coordinates
+    the_wcs.wcs.ctype = ["AZIMUTHAL--TAN", "ALTITUDE--TAN"]  # Azimuth and Altitude
 
     # set up figure
     fig = plt.figure()
@@ -189,10 +180,11 @@ for t in eachindex(time_stamps)
     # set unit
     # ax1.coords[1].set_format_unit("deg", show_decimal_unit=true)
     # ax1.coords[2].set_format_unit("deg", show_decimal_unit=true)
-    ax1.coords[1].set_major_formatter("d.dd")
-    ax1.coords[2].set_major_formatter("d.dd")    
-    # ax1.coords[1].set_axislabel("Azimuth (deg)")
-    # ax1.coords[2].set_axislabel("Altitude (deg)")
+    # ax1.coords[1].set_major_formatter("d.dd")
+    # ax1.coords[2].set_major_formatter("d.dd") 
+    # ax1.coords[2].set_ticks(number=4)
+
+    # decorate axes
     ax1.set_xlabel("Azimuth (deg)")
     ax1.set_ylabel("Altitude (deg)")
 
@@ -244,10 +236,13 @@ for t in eachindex(time_stamps)
             push!(fills, this_fill)
         end
     end
+    # ax1.grid(true, color="k", alpha=0.5, ls="--")
+    # ax1.set_axisbelow(true)
     fig.savefig(joinpath(outdir, "eclipse_" * string(t) * ".png"))
     plt.close()
 end
 
 ### then use gifski on command line to stitch together pngs
 ### download the cli exe here: https://gif.ski
-# gifski -o output.gif eclipse_*.png --fps=8
+# gifski -o output.gif eclipse_*.png --fps=8 
+### ^or whatever you want the fps to be
