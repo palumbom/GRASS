@@ -1,0 +1,41 @@
+About to start: SSD_2
+Mon Feb 24 16:51:26 EST 2025
+Job id: 33413031
+About to change into /storage/work/efg5335/GRASS
+About to start Julia
+WARNING: Method definition tmapreduce(Function, Function, Any...) in module ThreadedIterables at /storage/home/efg5335/work/sw/julia_depot/packages/ThreadedIterables/66Xsk/src/mapreduce.jl:8 overwritten at /storage/home/efg5335/work/sw/julia_depot/packages/ThreadedIterables/66Xsk/src/mapreduce.jl:17.
+ERROR: Method overwriting is not permitted during Module precompilation. Use `__precompile__(false)` to opt-out of precompilation.
+WARNING: Method definition tmapreduce(Function, Function, Any...) in module ThreadedIterables at /storage/home/efg5335/work/sw/julia_depot/packages/ThreadedIterables/66Xsk/src/mapreduce.jl:8 overwritten at /storage/home/efg5335/work/sw/julia_depot/packages/ThreadedIterables/66Xsk/src/mapreduce.jl:17.
+ERROR: Method overwriting is not permitted during Module precompilation. Use `__precompile__(false)` to opt-out of precompilation.
+WARNING: Method definition tmapreduce(Function, Function, Any...) in module ThreadedIterables at /storage/home/efg5335/work/sw/julia_depot/packages/ThreadedIterables/66Xsk/src/mapreduce.jl:8 overwritten at /storage/home/efg5335/work/sw/julia_depot/packages/ThreadedIterables/66Xsk/src/mapreduce.jl:17.
+ERROR: Method overwriting is not permitted during Module precompilation. Use `__precompile__(false)` to opt-out of precompilation.
+WARNING: method definition for calc_ccf_sample_covar_helper! at /storage/home/efg5335/work/sw/julia_depot/packages/EchelleCCFs/dC3m8/src/calc_rv/ccf_sample_covar.jl:37 declares type variable T1 but does not use it.
+WARNING: method definition for calc_ccf_sample_covar_helper! at /storage/home/efg5335/work/sw/julia_depot/packages/EchelleCCFs/dC3m8/src/calc_rv/ccf_sample_covar.jl:37 declares type variable T1 but does not use it.
+WARNING: method definition for #calc_ccf_weights_empirical#19 at /storage/home/efg5335/work/sw/julia_depot/packages/EchelleCCFs/dC3m8/src/calc_rv/ccf_sample_covar.jl:92 declares type variable A3 but does not use it.
+WARNING: method definition for calc_ccf_weights_empirical at /storage/home/efg5335/work/sw/julia_depot/packages/EchelleCCFs/dC3m8/src/calc_rv/ccf_sample_covar.jl:92 declares type variable T3 but does not use it.
+WARNING: method definition for calc_ccf_weights_empirical at /storage/home/efg5335/work/sw/julia_depot/packages/EchelleCCFs/dC3m8/src/calc_rv/ccf_sample_covar.jl:92 declares type variable T3 but does not use it.
+WARNING: method definition for calc_ccf_sample_covar_reduced_rank_helper at /storage/home/efg5335/work/sw/julia_depot/packages/EchelleCCFs/dC3m8/src/calc_rv/ccf_covar_model.jl:29 declares type variable T1 but does not use it.
+WARNING: method definition for calc_ccf_sample_covar_reduced_rank_helper at /storage/home/efg5335/work/sw/julia_depot/packages/EchelleCCFs/dC3m8/src/calc_rv/ccf_covar_model.jl:29 declares type variable T1 but does not use it.
+WARNING: method definition for est_covar_for_obs at /storage/home/efg5335/work/sw/julia_depot/packages/EchelleCCFs/dC3m8/src/calc_rv/ccf_covar_model.jl:44 declares type variable A1 but does not use it.
+WARNING: method definition for MeasureRvFromCCFTemplate at /storage/home/efg5335/work/sw/julia_depot/packages/EchelleCCFs/dC3m8/src/calc_rv/fit_template_plus_deriv_to_ccf.jl:68 declares type variable T3 but does not use it.
+WARNING: import of RvSpectMLBase.searchsortednearest into GRASS conflicts with an existing identifier; ignored.
+WARNING: using Downloads.download in module GRASS conflicts with an existing identifier.
+  Activating project at `/storage/work/efg5335/GRASS`
+┌ Warning: Replacing docs for `ThreadedIterables.tmapreduce :: Tuple{Function, Function, Vararg{Any}}` in module `ThreadedIterables`
+└ @ Base.Docs docs/Docs.jl:243
+┌ Warning: Replacing docs for `ThreadedIterables.maptreduce :: Tuple{Function, Function, Vararg{Any}}` in module `ThreadedIterables`
+└ @ Base.Docs docs/Docs.jl:243
+┌ Warning: Replacing docs for `ThreadedIterables.tmaptreduce :: Tuple{Function, Function, Vararg{Any}}` in module `ThreadedIterables`
+└ @ Base.Docs docs/Docs.jl:243
+┌ Warning: Replacing docs for `ThreadedIterables.tmapfoldl :: Union{Tuple{T}, Tuple{Function, Function, T}} where T<:AbstractArray` in module `ThreadedIterables`
+└ @ Base.Docs docs/Docs.jl:243
+┌ Warning: Replacing docs for `ThreadedIterables.tmapfoldr :: Union{Tuple{T}, Tuple{Function, Function, T}} where T<:AbstractArray` in module `ThreadedIterables`
+└ @ Base.Docs docs/Docs.jl:243
+┌ Warning: Replacing docs for `ThreadedIterables.treduce :: Union{Tuple{T}, Tuple{Function, T}} where T<:AbstractArray` in module `ThreadedIterables`
+└ @ Base.Docs docs/Docs.jl:243
+┌ Warning: N should be set to 197 for physical validity
+└ @ GRASS /storage/work/efg5335/GRASS/src/structures/DiskParamsEclipse.jl:37
+	>>> Template: FeI_5250.2.h5
+	>>> Template: FeI_5250.2.h5
+Julia exited
+Mon Feb 24 17:27:59 EST 2025

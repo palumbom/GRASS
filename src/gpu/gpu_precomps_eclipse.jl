@@ -75,6 +75,12 @@ function calc_eclipse_quantities_gpu!(epoch::T1, obs_long::T1, obs_lat::T1, alt:
     # set string for ltt and abberation
     lt_flag = "CN+S"
 
+    # #Europa position vectors: CHANGE
+    # EuE_bary = spkezp(399, epoch, "J2000", lt_flag, 502)[1]
+    # EuS_bary = spkezp(10, epoch, "J2000", lt_flag, 502)[1]
+    # @cusync EuE_bary_gpu = CuArray(EuE_bary)
+    # @cusync EuS_bary_gpu = CuArray(EuS_bary)
+
     # get light travel time corrected OS vector
     OS_bary, OS_lt, OS_dlt = spkltc(10, epoch, "J2000", lt_flag, BO_bary)
     @cusync OS_bary_gpu = CuArray(OS_bary)
@@ -82,6 +88,8 @@ function calc_eclipse_quantities_gpu!(epoch::T1, obs_long::T1, obs_lat::T1, alt:
     # get vector from observatory on earth's surface to moon center
     OM_bary, OM_lt, OM_dlt = spkltc(301, epoch, "J2000", lt_flag, BO_bary)
     @cusync OM_bary_gpu = CuArray(OM_bary)
+
+    @cusync moon_radius_gpu = CuArray([moon_radius])
 
     # get modified epch
     epoch_lt = epoch - OS_lt
@@ -95,15 +103,14 @@ function calc_eclipse_quantities_gpu!(epoch::T1, obs_long::T1, obs_lat::T1, alt:
     end
 
     @cusync wavelength_gpu = CuArray(wavelength)
-
     # compute geometric parameters, average over subtiles
     threads1 = 256
     blocks1 = cld(prod(CUDA.size(μs)), prod(threads1))
     @cusync @cuda threads=threads1 blocks=blocks1 calc_eclipse_quantities_gpu!(wavelength_gpu, μs, z_rot, ax_codes,
                                                                                Nϕ, Nθ, Nsubgrid, Nθ_max, ld, projected_v, earth_v, ext, 
-                                                                               dA, moon_radius, OS_bary_gpu, OM_bary_gpu, EO_bary_gpu,
+                                                                               dA, moon_radius_gpu, OS_bary_gpu, OM_bary_gpu, EO_bary_gpu,
                                                                                sun_rot_mat_gpu, sun_radius, A, B, C, u1, u2, 
-                                                                               ext_toggle, ext_coeff_gpu)
+                                                                               ext_toggle, ext_coeff_gpu)#, EuE_bary_gpu, EuS_bary_gpu, earth_radius) #CHANGE
     return nothing
 end                               
 
@@ -111,7 +118,7 @@ function calc_eclipse_quantities_gpu!(wavelength, μs, z_rot, ax_codes,
                                       Nϕ, Nθ, Nsubgrid, Nθ_max, ld, projected_v, earth_v, ext,
                                       dA, moon_radius, OS_bary, OM_bary, EO_bary,
                                       sun_rot_mat, sun_radius, A, B, C, u1, u2, 
-                                      ext_toggle, ext_coeff_gpu)
+                                      ext_toggle, ext_coeff_gpu)#, EuE_bary_gpu, EuS_bary_gpu, earth_radius) 
     # get indices from GPU blocks + threads
     idx = threadIdx().x + blockDim().x * (blockIdx().x-1)
     sdx = gridDim().x * blockDim().x
@@ -220,9 +227,10 @@ function calc_eclipse_quantities_gpu!(wavelength, μs, z_rot, ax_codes,
                 OP_bary_y = OS_bary[2] + y_new
                 OP_bary_z = OS_bary[3] + z_new
 
-                OP_bary_vx = OS_bary[4] + vx
-                OP_bary_vy = OS_bary[5] + vy
-                OP_bary_vz = OS_bary[6] + vz
+                # # OP_bary state vector CHANGE
+                # EuP_bary_x = EuS_bary_gpu[1] + x_new
+                # EuP_bary_y = EuS_bary_gpu[2] + y_new
+                # EuP_bary_z = EuS_bary_gpu[3] + z_new
 
                 # calculate mu
                 μ_sub = calc_mu_gpu(x_new, y_new, z_new, OP_bary_x, OP_bary_y, OP_bary_z) 
@@ -256,12 +264,20 @@ function calc_eclipse_quantities_gpu!(wavelength, μs, z_rot, ax_codes,
                 dA_sub *= μ_sub
                 dA_sum += dA_sub
 
-                # calculate distance
+                # calculate distance CHANGE
                 n2 = CUDA.sqrt(OM_bary[1]^2.0 + OM_bary[2]^2.0 + OM_bary[3]^2.0)  
                 d2 = acos((OM_bary[1] * OP_bary_x + OM_bary[2] * OP_bary_y + OM_bary[3] * OP_bary_z) / (n2 * n1))
-                if (d2 < atan(moon_radius/n2))
+                if (d2 < atan(moon_radius[1]/n2))
                     continue
                 end
+
+                # # calculate distance CHANGE
+                # n1 = CUDA.sqrt(EuP_bary_x^2.0 + EuP_bary_y^2.0 + EuP_bary_z^2.0)  
+                # n2 = CUDA.sqrt(EuE_bary_gpu[1]^2.0 + EuE_bary_gpu[2]^2.0 + EuE_bary_gpu[3]^2.0)  
+                # d2 = acos((EuE_bary_gpu[1] * EuP_bary_x + EuE_bary_gpu[2] * EuP_bary_y + EuE_bary_gpu[3] * EuP_bary_z) / (n2 * n1))
+                # if (d2 < atan(earth_radius/n2))
+                #     continue
+                # end
 
                 projected_v_sum += v_rot_sub
                 earth_v_sum += v_orbit_sub
@@ -298,22 +314,19 @@ function calc_eclipse_quantities_gpu!(wavelength, μs, z_rot, ax_codes,
             end
         end
         # take averages
+        @inbounds μs[m,n] = μ_sum / μ_count
+        @inbounds dA[m,n] = dA_sum 
+
         if count > 0
             # set scalar quantity elements as average
-            @inbounds μs[m,n] = μ_sum / μ_count
-            @inbounds dA[m,n] = dA_sum 
             @inbounds projected_v[m,n] = projected_v_sum / count
             @inbounds earth_v[m,n] = earth_v_sum / count
+
+            @inbounds z_rot[m,n] = z_rot_numerator / z_rot_denominator
 
             for wl in eachindex(wavelength)
                 @inbounds ld[m,n,wl] = ld_sum / count
                 @inbounds ext[m,n,wl] = ext_sum / count
-            end
-            
-            if iszero(z_rot_denominator)
-                @inbounds z_rot[m,n] = 0.0
-            else 
-                @inbounds z_rot[m,n] = z_rot_numerator / z_rot_denominator
             end
 
             # set vector components as average
@@ -322,14 +335,6 @@ function calc_eclipse_quantities_gpu!(wavelength, μs, z_rot, ax_codes,
             @inbounds zz = z_sum / μ_count
 
             @inbounds ax_codes[m, n] = find_nearest_ax_gpu(yy / sun_radius, zz / sun_radius)
-        else
-            @inbounds μs[m,n] = μ_sum / μ_count
-            @inbounds dA[m,n] = dA_sum 
-            for wl in eachindex(wavelength)
-                @inbounds ld[m,n,wl] = 0.0
-                @inbounds ext[m,n,wl] = 0.0
-            end
-            @inbounds z_rot[m,n] = 0.0
         end
     end
 

@@ -78,7 +78,7 @@ function disk_sim_eclipse_gpu(spec::SpecParams{T1}, disk::DiskParamsEclipse{T1},
     else 
         ext_toggle_gpu = 0.0
     end
-    
+
     brightness = Vector{Float64}(undef,size(time_stamps)...)
     # loop over time
     for t in 1:Nt

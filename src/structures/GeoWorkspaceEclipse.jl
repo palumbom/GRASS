@@ -10,6 +10,7 @@ struct GeoWorkspaceEclipse{T<:AF}
     SP_bary_pos::Matrix{Vector{Float64}}
     SP_bary_vel::Matrix{Vector{Float64}}
     OP_bary::Matrix{Vector{Float64}}
+    # EuP_bary::Matrix{Vector{Float64}}
     OP_ltt::AA{T,2}
 
     mu_grid::AA{T,2}
@@ -33,6 +34,7 @@ function GeoWorkspaceEclipse(disk::DiskParamsEclipse, lines_number::Int, time_nu
     SP_bary_pos = fill(Vector{Float64}(undef, 3), disk.Nsubgrid, disk.Nsubgrid)
     SP_bary_vel = fill(Vector{Float64}(undef, 3), disk.Nsubgrid, disk.Nsubgrid)
     OP_bary = fill(Vector{Float64}(undef, 6), disk.Nsubgrid, disk.Nsubgrid)
+    # EuP_bary = fill(Vector{Float64}(undef, 6), disk.Nsubgrid, disk.Nsubgrid)
     OP_ltt = zeros(disk.Nsubgrid, disk.Nsubgrid)
     
     # scalars

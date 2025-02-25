@@ -34,6 +34,7 @@ spec = GRASS.SpecParams(lines=lines, depths=depths, variability=variability,
 """
 CPU GEOMETRY CODE CALLS BELOW
 """
+gpu_allocs = GRASS.GPUAllocsEclipse(spec, disk, 1)
 
 wsp = GRASS.SynthWorkspaceEclipse(disk, 1, Nt, verbose=true)
 mem = GRASS.GeoWorkspaceEclipse(disk, 1, Nt)
@@ -75,7 +76,6 @@ for t in 1:length(time_stamps)
     """
     GPU GEOMETRY CODE CALLS BELOW
     """
-    gpu_allocs = GRASS.GPUAllocsEclipse(spec, disk, 1)
 
     GRASS.calc_eclipse_quantities_gpu!(time_stamps[t], obs_long, obs_lat, alt, lines, LD_type, 1.0, 1.0, disk, gpu_allocs)
 
@@ -88,17 +88,17 @@ for t in 1:length(time_stamps)
     final_weight_v_no_cb2 = sum(view(Array(gpu_allocs.projected_v) .* brightness2, idx_grid2)) / cheapflux2
     final_weight_v_no_cb2 += mean(view(Array(gpu_allocs.earth_v), idx_grid2))  
 
-    # plt.scatter(t, final_weight_v_no_cb - final_weight_v_no_cb2, color = "r")
+    # plt.imshow(mem.mean_weight_v_earth_orb[:, :, t] .- Array(gpu_allocs.earth_v))
     println(final_weight_v_no_cb - final_weight_v_no_cb2)
 end
 # plt.savefig("test")
 # plt.clf()
 
-# # make a plot
-# plt.imshow(mem.mean_weight_v_earth_orb[:, :, t] .- Array(gpu_allocs.earth_v))
-# # plt.imshow(wsp.z_rot .* GRASS.c_ms, vmin=-2000, vmax=2000, cmap="seismic")
-# # plt.imshow(Array(gpu_allocs.z_rot) .* GRASS.c_ms .- wsp.z_rot .* GRASS.c_ms)
-# plt.title("earth_v")
+# make a plot
+# plt.imshow(wsp.z_rot .- Array(gpu_allocs.z_rot))
+# plt.imshow(wsp.z_rot .* GRASS.c_ms, vmin=-2000, vmax=2000, cmap="seismic")
+# plt.imshow(Array(gpu_allocs.z_rot) .* GRASS.c_ms .- wsp.z_rot .* GRASS.c_ms)
+# plt.title("z_rot")
 # plt.colorbar()
 # plt.savefig("gpu_test.png")
 # plt.show()

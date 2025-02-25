@@ -1,14 +1,14 @@
 #!/bin/bash
 #SBATCH -A dfc13_mri
 #SBATCH -p mgc-mri
-#SBATCH --nodes=1
-#SBATCH --ntasks=1
-#SBATCH --gpus-per-task=1
+#SBATCH --nodes=2
+#SBATCH --ntasks=2
+#SBATCH --gpus-per-task=2
 #SBATCH --mem-per-cpu=64GB
-#SBATCH --time=24:00:00
-#SBATCH --job-name=FineTime
+#SBATCH --time=48:00:00
+#SBATCH --job-name=SSD_2
 #SBATCH --chdir=/storage/home/efg5335/work/GRASS
-#SBATCH --output=/storage/home/efg5335/work/GRASS/FineTime.out
+#SBATCH --output=/storage/home/efg5335/work/GRASS/icymoons.out
 
 echo "About to start: $SLURM_JOB_NAME"
 date

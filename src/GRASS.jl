@@ -46,7 +46,7 @@ include("get_kernels.jl")
 #E,S,M radii (units:km)
 earth_radius = bodvrd("EARTH", "RADII")[1]	
 earth_radius_pole = bodvrd("EARTH", "RADII")[3]	
-sun_radius = bodvrd("SUN","RADII")[1]
+sun_radius = 1.0#bodvrd("SUN","RADII")[1]
 moon_radius = bodvrd("MOON", "RADII")[1] 
 
 #collect LD info as global variables - (units: nm)
