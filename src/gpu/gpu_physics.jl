@@ -50,7 +50,7 @@ end
 
 function rotation_period_gpu(ϕ, A, B, C)
     sinϕ = sin(ϕ)
-    return 360.0/(A + B * sinϕ^2.0 + C * sinϕ^4.0)
+    return 360.0/(A + B * sinϕ^2.0 + C * sinϕ^4.0) 
 end
 
 function calc_dA_gpu(ρs, ϕc, dϕ, dθ)

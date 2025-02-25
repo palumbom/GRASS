@@ -5,12 +5,14 @@ using Revise
 using CSV
 using DataFrames
 using Statistics
+# import PyPlot; plt = PyPlot; mpl = plt.matplotlib; plt.ioff()
 
 GRASS.get_kernels()
 
 function projected_RV(time, filename, LD_type, ext_toggle)
     # convert from utc to et as needed by SPICE
-    time_stamps = utc2et.(time)
+    time_stamps = collect(time)
+    println(1)
 
     variable_names = ["dA_total_proj_mean", "mean_weight_v_no_cb", "mean_weight_v_earth_orb", "zenith", "dA_total_proj", "idx1", "idx3", "mu_grid", "z_rot_sub", "N"]
 
@@ -18,6 +20,9 @@ function projected_RV(time, filename, LD_type, ext_toggle)
     data = jldopen("data/solar_disk/$(filename).jld2", "r") do file
         Dict(var => read(file, var) for var in variable_names)
     end
+
+    println(2)
+
     
     dA_total_proj_mean = deepcopy(data["dA_total_proj_mean"])
     mean_weight_v_no_cb = deepcopy(data["mean_weight_v_no_cb"])
@@ -42,6 +47,9 @@ function projected_RV(time, filename, LD_type, ext_toggle)
     λrest = GRASS.get_rest_wavelength(lp)
     lfile = GRASS.get_file(lp)
 
+    println(3)
+
+
     if LD_type == "SSD"
         extinction_coeff = GRASS.ext_file_KSSD
     elseif LD_type == "300"
@@ -52,7 +60,7 @@ function projected_RV(time, filename, LD_type, ext_toggle)
     intensity_list_final = Vector{Vector{Float64}}(undef,size(lp.λrest)...)
     mean_intensity_final = Vector{Vector{Matrix{Float64}}}(undef,size(lp.λrest)...)
     # loop over lines
-    for i in eachindex(lp.λrest) 
+    for i in 1:1#eachindex(lp.λrest) 
         println("\t>>> Template: " * string(splitdir(lfile[i])[2]))
         # set up parameters for synthesis
         lines = [λrest[i]]
@@ -61,6 +69,7 @@ function projected_RV(time, filename, LD_type, ext_toggle)
         intensity_list = Vector{Float64}(undef,size(time_stamps)...)
         mean_intensity_list = Vector{Matrix{Float64}}(undef,size(time_stamps)...)
         for t in 1:disk.Nt
+            println(t)
             if t < 25
                 neid_ext_coeff = extinction_coeff[extinction_coeff[!, "Wavelength"] .== λrest[i], "Ext1"][1]
             elseif t >= 25 && t < 46 
@@ -68,6 +77,14 @@ function projected_RV(time, filename, LD_type, ext_toggle)
             elseif t >= 46 
                 neid_ext_coeff = extinction_coeff[extinction_coeff[!, "Wavelength"] .== λrest[i], "Ext3"][1]
             end
+            # println(size(idx1))
+
+            # println(idx1[t], idx3[t])
+            # println(mu_grid[t], mean_weight_v_no_cb[:, :, t])
+            # println(mean_weight_v_earth_orb[:, :, t])
+            # println(z_rot_sub[t], dA_total_proj[t])
+            # println(zenith_mean[t])
+            # println(idx1)
             mean_intensity = GRASS.eclipse_compute_intensity(disk, lines, neid_ext_coeff, LD_type, idx1[t], idx3[t],
                                                                         mu_grid[t], mean_weight_v_no_cb[:, :, t], mean_weight_v_earth_orb[:, :, t],
                                                                         z_rot_sub[t], dA_total_proj[t], wsp.ld, wsp.z_rot, zenith_mean[t], ext_toggle, wsp.ext)
@@ -95,6 +112,9 @@ function projected_RV(time, filename, LD_type, ext_toggle)
         intensity_list_final[i] = deepcopy(intensity_list)
         mean_intensity_final[i] = deepcopy(mean_intensity_list)
     end
+    # plt.plot(1:length(RV_list_no_cb_final[1]),RV_list_no_cb_final[1])
+    # plt.savefig("test")
+    # plt.clf()
 
     @save "$(filename)_$(LD_type).jld2"
     jldopen("$(filename)_$(LD_type).jld2", "a+") do file
@@ -106,7 +126,7 @@ end
 
 function projected_RV_gpu(time, LD_type, ext_toggle)
     # convert from utc to et as needed by SPICE
-    time_stamps = utc2et.(time)
+    time_stamps = collect(time)
 
     # NEID location
     obs_lat = 31.9583 
@@ -114,7 +134,7 @@ function projected_RV_gpu(time, LD_type, ext_toggle)
     alt = 2.097938 
 
     # set up paramaters for disk
-    N = 50
+    N = 120
     Nt = length(time_stamps)
     disk = GRASS.DiskParamsEclipse(N=N, Nt=Nt, Nsubgrid=10)
 
@@ -220,4 +240,10 @@ function neid_october_nxt_day(LD_type, ext_toggle)
     projected_RV(neid_1015, "neid_october_N_50_nxt_day", LD_type, ext_toggle)
 end
 
-neid_october_eclipse_gpu("SSD", true)
+function icymoons(LD_type, ext_toggle)
+    time_stamps = range(utc2et("2026-01-10T07:00:00.0"), utc2et.("2026-01-10T12:00:00.0"), step = 105.0)
+    # projected_RV(time_stamps, "icymoons", LD_type, ext_toggle)
+    projected_RV_gpu(time_stamps, LD_type, ext_toggle)
+end
+
+icymoons("SSD", false)

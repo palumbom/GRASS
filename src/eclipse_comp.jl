@@ -4,7 +4,7 @@ function eclipse_compute_quantities!(disk::DiskParamsEclipse{T}, epoch::T, t::In
                                         pole_vector_grid::Matrix{Vector{Float64}}, SP_sun_pos::Matrix{Vector{Float64}}, 
                                         SP_sun_vel::Matrix{Vector{Float64}}, SP_bary::Matrix{Vector{Float64}}, 
                                         SP_bary_pos::Matrix{Vector{Float64}}, SP_bary_vel::Matrix{Vector{Float64}}, 
-                                        OP_bary::Matrix{Vector{Float64}}, mu_grid::AA{T,2}, projected_velocities_no_cb::AA{T,2}, 
+                                        OP_bary::Matrix{Vector{Float64}}, mu_grid::AA{T,2}, projected_velocities_no_cb::AA{T,2}, #CHANGE EuP_bary::Matrix{Vector{Float64}}
                                         distance::AA{T,2}, v_scalar_grid::AA{T,2}, v_earth_orb_proj::Matrix{Float64}, mu_grid_matrix::Matrix{Matrix{Float64}},
                                         dA_total_proj_matrix::Matrix{Matrix{Float64}}, idx1_matrix::Matrix{Matrix{Int}}, idx3_matrix::Matrix{Matrix{Int}}, 
                                         z_rot_matrix::Matrix{Matrix{Float64}}, zenith_matrix::Matrix{Matrix{Float64}}) where T<:AF
@@ -25,6 +25,10 @@ function eclipse_compute_quantities!(disk::DiskParamsEclipse{T}, epoch::T, t::In
 
     # set string for ltt and abberation
     lt_flag = "CN+S"
+
+    # #Europa position vectors: CHANGE
+    # EuE_bary = spkezp(399, epoch, "J2000", lt_flag, 502)[1]
+    # EuS_bary = spkezp(10, epoch, "J2000", lt_flag, 502)[1]
 
     # get light travel time corrected OS vector
     OS_bary, OS_lt, OS_dlt = spkltc(10, epoch, "J2000", lt_flag, BO_bary)
@@ -80,6 +84,10 @@ function eclipse_compute_quantities!(disk::DiskParamsEclipse{T}, epoch::T, t::In
                 OP_bary[k] = OS_bary .+ SP_bary[k]
             end
 
+            # for k in eachindex(OP_bary) #CHANGE
+            #     EuP_bary[k][1:3] = EuS_bary .+ SP_bary[k][1:3]
+            # end
+
             # calculate mu at each point
             mu_grid_matrix[i,j] = deepcopy(calc_mu_grid!(SP_bary, OP_bary, mu_grid))
             # move on if everything is off the grid
@@ -108,9 +116,19 @@ function eclipse_compute_quantities!(disk::DiskParamsEclipse{T}, epoch::T, t::In
                 distance[i] = calc_proj_dist(OM_bary[1:3], OP_bary[i][1:3])
             end
 
+            # # calculate the distance between tile corner and moon CHANGE
+            # for i in eachindex(EuP_bary)
+            #     distance[i] = calc_proj_dist(EuE_bary[1:3], EuP_bary[i][1:3])
+            # end
+
             # get indices for visible patches
             idx1 = mu_grid .> 0.0
-            idx3 = (idx1) .& (distance .> atan((moon_radius)/norm(OM_bary[1:3])))
+            idx3 = (idx1) .& (distance .> atan((moon_radius)/norm(OM_bary[1:3]))) #CHANGE
+            # idx3 = (idx1) .& (distance .> atan((earth_radius)/norm(EuE_bary[1:3])))
+            # if idx3 != idx1
+            #     print(idx3 == idx1)
+            # end
+            
             idx1_matrix[i,j] = idx1
             idx3_matrix[i,j] = idx3
             # assign the mean mu as the mean of visible mus
@@ -331,18 +349,18 @@ function eclipse_compute_intensity(disk::DiskParamsEclipse{T}, wavelength::Vecto
                     if isnan(ext[i,j,l])
                         ld[i,j,l] = 0.0
                         ext[i,j,l] = 0.0
-                        mean_weight_v_no_cb[i,j] = 0.0
-                        mean_weight_v_earth_orb[i,j] = 0.0
-                        z_rot[i,j,l] = 0.0
+                        # mean_weight_v_no_cb[i,j] = 0.0
+                        # mean_weight_v_earth_orb[i,j] = 0.0
+                        # z_rot[i,j,l] = 0.0
                     end                
                 end
        
                 if isnan(ld[i,j,l])
                     ld[i,j,l] = 0.0
                     ext[i,j,l] = 0.0
-                    mean_weight_v_no_cb[i,j] = 0.0
-                    mean_weight_v_earth_orb[i,j] = 0.0
-                    z_rot[i,j,l] = 0.0
+                    # mean_weight_v_no_cb[i,j] = 0.0
+                    # mean_weight_v_earth_orb[i,j] = 0.0
+                    # z_rot[i,j,l] = 0.0
                 end
             end
         end

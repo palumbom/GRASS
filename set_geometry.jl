@@ -9,7 +9,7 @@ GRASS.get_kernels()
 
 function set_geometry(time, obs_lat, obs_long, alt, N, filename)
     # convert from utc to et as needed by SPICE
-    time_stamps = utc2et.(time)
+    time_stamps = collect(time)
 
     Nt = length(time_stamps)
     disk = GRASS.DiskParamsEclipse(N=N, Nt=Nt, Nsubgrid=10)
@@ -34,14 +34,13 @@ function set_geometry(time, obs_lat, obs_long, alt, N, filename)
     Threads.@threads for t in 1:disk.Nt
         # compute geometry for timestamp
         GRASS.eclipse_compute_quantities!(disk, time_stamps[t], t, obs_long, obs_lat, alt, wsp.ϕc, wsp.θc, 
-                                            wsp.μs, wsp.dA, wsp.xyz, wsp.ax_codes,
+                                            wsp.μs, wsp.z_rot, wsp.dA, wsp.xyz, wsp.ax_codes,
                                             mem.dA_total_proj_mean, mem.mean_weight_v_no_cb,
                                             mem.mean_weight_v_earth_orb, mem.pole_vector_grid,
                                             mem.SP_sun_pos, mem.SP_sun_vel, mem.SP_bary, mem.SP_bary_pos,
-                                            mem.SP_bary_vel, mem.OP_bary, mem.mu_grid, mem.projected_velocities_no_cb, 
+                                            mem.SP_bary_vel, mem.OP_bary, mem.EuP_bary, mem.mu_grid, mem.projected_velocities_no_cb, 
                                             mem.distance, mem.v_scalar_grid, mem.v_earth_orb_proj, mu_grid_matrix,
                                             dA_total_proj_matrix, idx1_matrix, idx3_matrix, z_rot_matrix, zenith_matrix)
-         
         mu_grid_eclipse[t] = deepcopy(mu_grid_matrix)
         dA_total_proj_eclipse[t] = deepcopy(dA_total_proj_matrix)
         idx1_eclipse[t] = deepcopy(idx1_matrix)
@@ -101,4 +100,16 @@ function boulder_october_eclipse()
     set_geometry(boulder_october, obs_lat, obs_long, alt, 50, "boulder_october_N_50")
 end
 
-boulder_october_eclipse()
+function icymoons()
+    time_stamps = range(utc2et("2026-01-10T07:00:00.0"), utc2et.("2026-01-10T12:00:00.0"), step = 105.0)
+    # NEID location
+    obs_lat = 31.9583 
+    obs_long = -111.5967  
+    alt = 2.097938 
+
+    set_geometry(time_stamps, obs_lat, obs_long, alt, 120, "icymoons")
+end
+
+icymoons()
+#time stamps: not matching eclipse? step too large that eclipse missed? 
+#grid: grid too large that occulted patches not determined? 
