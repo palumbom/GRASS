@@ -31,7 +31,7 @@ function measure_convective_blueshifts(fname)
                 end
 
                 # loop over time
-                for j in 1:size(bis,2)
+                for j in 1:size(bis, 2)
                     # get views for time slice
                     bist = view(bis, :, j)
                     intt = view(int, :, j)
@@ -54,7 +54,7 @@ function measure_convective_blueshifts(fname)
 
                 # now turn that λ into a velocity
                 # gravitational redshift from Stief et al. (2019)
-                vlos[i] = c_ms * (vlos[i] - λrest)/λrest - 633.5
+                vlos[i] = c_ms * (vlos[i] - λrest) / λrest - 633.5
             end
 
             # write it as an attribute for this disk position

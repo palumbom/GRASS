@@ -61,7 +61,8 @@ include("disk_sim.jl")
 include("disk_precomps.jl")
 
 # processing spectra
-include("velocities.jl")
+include("ccfs/ccf.jl")
+include("ccfs/template.jl")
 
 # preprocessing of data
 include("preprocessing/voigt.jl")

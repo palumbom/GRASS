@@ -45,7 +45,7 @@ function find_wing_index(val::T, arr::AA{T,1}; min::Int=argmin(arr)) where T<:AF
 end
 
 function bracket_line(λrest::T, wavs::AA{T,1}, flux::AA{T,1}; level::T=0.95) where T<:AF
-    minbuff = 25
+    minbuff = 100
     lidx = findfirst(x -> x .>= λrest, wavs)
     lmin = argmin(flux[lidx-minbuff:lidx+minbuff]) + lidx - (minbuff+1)
     lbot = flux[lmin]
@@ -61,7 +61,8 @@ function bracket_line(λrest::T, wavs::AA{T,1}, flux::AA{T,1}; level::T=0.95) wh
 end
 
 function bracket_line(λrest::T, wavs::AA{T,1}, flux::AA{T,1}, nois::AA{T,1}; level::T=0.95) where T<:AF
-    minbuff = 25
+    minbuff = 10
+    @show minbuff
     lidx = findfirst(x -> x .>= λrest, wavs)
     lmin = argmin(flux[lidx-minbuff:lidx+minbuff]) + lidx - (minbuff+1)
     lbot = flux[lmin]
