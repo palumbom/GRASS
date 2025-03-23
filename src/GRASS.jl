@@ -9,6 +9,7 @@ using SharedArrays
 using SPICE
 using CSV
 using HDF5
+using JLD2
 using Dates
 using LsqFit
 using FITSIO
@@ -46,8 +47,11 @@ include("get_kernels.jl")
 #E,S,M radii (units:km)
 earth_radius = bodvrd("EARTH", "RADII")[1]	
 earth_radius_pole = bodvrd("EARTH", "RADII")[3]	
-sun_radius = 1.0#bodvrd("SUN","RADII")[1]
+sun_radius = bodvrd("SUN","RADII")[1]
 moon_radius = bodvrd("MOON", "RADII")[1] 
+
+rotation_matrices = jldopen("data/rotation_matrices.jld2", "r")
+rotation_matrices_sxform = jldopen("data/rotation_matrices_sxform.jld2", "r")
 
 #collect LD info as global variables - (units: nm)
 quad_ld_coeff_SSD = CSV.read(joinpath(datdir, "quad_ld_coeff_SSD.csv"), DataFrame)

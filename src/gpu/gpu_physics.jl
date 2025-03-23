@@ -60,3 +60,23 @@ end
 function quad_limb_darkening_gpu(μ, u1, u2)
     return 1.0 - u1 * (1.0 - μ) - u2 * (1.0 - μ)^2.0
 end
+
+function lorentzian_phase_curve(theta)
+    # B_CB = 0.45
+    # h_CB = 0.00045
+
+    # x = tan(theta / 2) / h_CB
+    # delta_CB = (B_CB/2) * ((1 + ((1- exp(-x)) / (x))) / ((1 + x)^2)) 
+    # return (1 + delta_CB)
+
+    B_SH = 0.65
+    h_SH = 0.00033
+    delta_SH = B_SH / (1 + (1/h_SH) * tan(theta / 2)) 
+    return (1 + delta_SH)
+
+    # B_SH = 0.85
+    # h_SH = 0.00033
+    # delta_SH = B_SH / (1 + (1/h_SH) * tan(theta / 2)) 
+
+    # return 0.15*(1 + delta_SH) + (1 + delta_CB)
+end
