@@ -63,20 +63,16 @@ end
 
 function lorentzian_phase_curve(theta)
     # B_CB = 0.45
-    # h_CB = 0.00045
+    # h_CB = 0.00055
 
     # x = tan(theta / 2) / h_CB
     # delta_CB = (B_CB/2) * ((1 + ((1- exp(-x)) / (x))) / ((1 + x)^2)) 
     # return (1 + delta_CB)
 
-    B_SH = 0.65
-    h_SH = 0.00033
+    B_SH = 0.55
+    h_SH = 0.00019
     delta_SH = B_SH / (1 + (1/h_SH) * tan(theta / 2)) 
     return (1 + delta_SH)
 
-    # B_SH = 0.85
-    # h_SH = 0.00033
-    # delta_SH = B_SH / (1 + (1/h_SH) * tan(theta / 2)) 
-
-    # return 0.15*(1 + delta_SH) + (1 + delta_CB)
+    # return ((1 + delta_SH) + (1 + delta_CB)) / 2
 end
