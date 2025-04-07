@@ -108,15 +108,15 @@ function projected_RV_gpu(time, LD_type, ext_toggle)
     # convert from utc to et as needed by SPICE
     time_stamps = collect(time)
 
-    # NEID location
-    obs_lat = 31.9583 
-    obs_long = -111.5967  
-    alt = 2.097938
+    # # NEID location
+    # obs_lat = 31.9583 
+    # obs_long = -111.5967  
+    # alt = 2.097938
     
-    # # HARPS-N location 
-    # obs_lat = 28.754081
-    # obs_long = -17.889242  
-    # alt = 2.359
+    # HARPS-N location 
+    obs_lat = 28.754081
+    obs_long = -17.889242  
+    alt = 2.359
 
     # set up paramaters for disk
     N = 100
@@ -202,8 +202,8 @@ function projected_RV_gpu(time, LD_type, ext_toggle)
         phase_angle_final[i] = deepcopy(phase_angle)
     end
 
-    @save "2026Transit/projected_$(LD_type)_gpu_2026_SH.jld2"
-    jldopen("2026Transit/projected_$(LD_type)_gpu_2026_SH.jld2", "a+") do file
+    @save "2014Transit/projected_$(LD_type)_gpu_2014_model1.jld2"
+    jldopen("2014Transit/projected_$(LD_type)_gpu_2014_model1.jld2", "a+") do file
         file["RV_list_no_cb"] = deepcopy(RV_list_no_cb_final) 
         file["intensity"] = deepcopy(intensity_list_final) 
         file["phase_angle"] = deepcopy(phase_angle_final) 
@@ -230,8 +230,8 @@ function neid_october_nxt_day(LD_type, ext_toggle)
 end
 
 function icymoons(LD_type, ext_toggle)
-    time_stamps = range(utc2et("2026-01-09T00:00:00.0"), utc2et.("2026-01-11T06:30:00.0"), step = 750.0)
-    # time_stamps = range(utc2et("2014-01-05T00:00:00.0"), utc2et.("2014-01-07T06:30:00.0"), step = 750.0)
+    # time_stamps = range(utc2et("2026-01-08T06:00:00.0"), utc2et.("2026-01-12T06:00:00.0"), step = 1300.0)
+    time_stamps = range(utc2et("2014-01-04T00:00:00.0"), utc2et.("2014-01-08T00:00:00.0"), step = 1300.0)
     projected_RV_gpu(time_stamps, LD_type, ext_toggle)
 end
 

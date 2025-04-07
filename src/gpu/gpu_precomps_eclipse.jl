@@ -113,7 +113,7 @@ function calc_eclipse_quantities_gpu!(epoch::T1, obs_long::T1, obs_lat::T1, alt:
                                                                                dA, moon_radius_gpu, OS_bary_gpu, OM_bary_gpu, EO_bary_gpu,
                                                                                sun_rot_mat_gpu, sun_radius_gpu, A, B, C, u1, u2, 
                                                                                ext_toggle, ext_coeff_gpu, EuE_bary_gpu, EuS_bary_gpu, earth_radius_gpu) #Europa
-    return nothing#rad2deg(phase_angle)
+    return #rad2deg(phase_angle)
 end                               
 
 function calc_eclipse_quantities_gpu!(wavelength, μs, z_rot, ax_codes,
@@ -278,12 +278,6 @@ function calc_eclipse_quantities_gpu!(wavelength, μs, z_rot, ax_codes,
                 # n1 = CUDA.sqrt(EuP_bary_x^2.0 + EuP_bary_y^2.0 + EuP_bary_z^2.0)  
                 # n2 = CUDA.sqrt(EuE_bary_gpu[1]^2.0 + EuE_bary_gpu[2]^2.0 + EuE_bary_gpu[3]^2.0)  
                 # d2 = acos((EuE_bary_gpu[1] * EuP_bary_x + EuE_bary_gpu[2] * EuP_bary_y + EuE_bary_gpu[3] * EuP_bary_z) / (n2 * n1))
-                # # if (d2 < atan(earth_radius[1]/n2))
-                # #     # continue
-                # #     projected_v_sum += v_rot_sub*lorentzian_phase_curve(rad2deg(d2))
-                # # else 
-                # #     projected_v_sum += v_rot_sub
-                # # end
 
                 projected_v_sum += v_rot_sub
                 earth_v_sum += v_orbit_sub
@@ -301,9 +295,12 @@ function calc_eclipse_quantities_gpu!(wavelength, μs, z_rot, ax_codes,
                     ld_sub = quad_limb_darkening_gpu(μ_sub, u1, u2)
                     ld_sum += ld_sub
 
-                    # if (rad2deg(d2) < 0.4)
+                    # # if (rad2deg(d2) < 0.4)
+                    # #     # continue
+                    # #     ld_sum += ld_sub*lorentzian_phase_curve(d2)
+                    # if (d2 < atan(earth_radius[1]/n2))
                     #     # continue
-                    #     ld_sum += ld_sub*lorentzian_phase_curve(d2)
+                    #     ld_sum += ld_sub*275
                     # else 
                     #     ld_sum += ld_sub
                     # end
