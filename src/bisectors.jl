@@ -159,7 +159,7 @@ end
 
 
 function calc_line_quantity(wavs::AA{T,1}, flux::AA{T,1}; continuum::T=1.0,
-                            n::Int=2, top::T=maximum(flux),
+                            n::Int=2, top::T=0.99,
                             nflux::Int=length(flux), f::Function) where T<:Real
     # check lengths
     @assert n >= 0
@@ -168,7 +168,7 @@ function calc_line_quantity(wavs::AA{T,1}, flux::AA{T,1}; continuum::T=1.0,
     # get min and max flux, depth of line
     min_flux_idx = argmin(flux)
     min_flux = minimum(flux)
-    max_flux = continuum
+    max_flux = maximum(flux)
     depth = 1.0 - min_flux/max_flux # TODO check
 
     # get views on either side of line
@@ -179,7 +179,7 @@ function calc_line_quantity(wavs::AA{T,1}, flux::AA{T,1}; continuum::T=1.0,
 
     # allocate memory
     x_out = zeros(nflux)
-    y_out = range(minimum(flux), top, length=nflux)
+    y_out = range(minimum(flux), top * max_flux, length=nflux)
 
     # loop over flux values and measure quantity defined by f function
     for i in eachindex(y_out)
