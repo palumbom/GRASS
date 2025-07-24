@@ -88,7 +88,7 @@ function check_tloop_gpu!(tloop, dat_idx, lenall)
     return nothing
 end
 
-function generate_tloop_gpu!(tloop::AA{Int32,1}, gpu_allocs::GPUAllocs{T}, soldata::GPUSolarData{T}) where T<:AF
+function generate_tloop_gpu!(tloop::AA{Int32,1}, gpu_allocs::T1, soldata::GPUSolarData{T2}) where {T1<:AbstractGPUAllocs, T2<:AF}
     dat_idx = gpu_allocs.dat_idx
     lenall = soldata.len
 
