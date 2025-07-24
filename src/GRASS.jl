@@ -88,6 +88,7 @@ include("iag_utils.jl")
 
 # lastly include convenciece synthesis
 include("convenience.jl")
+include("resolved.jl")
 
 # precompile stuff
 # if !isempty(soldir)
