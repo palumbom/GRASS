@@ -1,16 +1,13 @@
 # get Pkg manager stuff handled
 using Pkg
 
-# install PyPlot in global project (Khaled: uncomment on first run)
+# install PyPlot in global project
 # Pkg.add("PyPlot")
 using PyPlot
 
-# Khaled: switch commenting on the next two lines (and change the path)
 # Pkg.activate("PATH/TO/GRASS")
 Pkg.activate(".")
 
-# Khaled: for your first run uncomment the next two lines (and change the path)
-# Khaled: you can comment these back out on subsequent runs
 # Pkg.develop(path="PATH/TO/GRASS")
 # Pkg.instantiate()
 
