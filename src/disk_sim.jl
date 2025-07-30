@@ -7,7 +7,7 @@ function disk_sim(spec::SpecParams{T}, disk::DiskParams{T}, soldata::SolarData{T
     z_cbs_avg = sum(wsp.wts .* wsp.cbs) / sum_wts
 
     # loop over time
-    for t in 1:disk.Nt
+    @showprogress for t in 1:disk.Nt
         # if skip times is true, continue to next iter
         if skip_times[t]
             tloop .+= 1

@@ -2,43 +2,61 @@
 using GRASS
 using Printf
 using Revise
+using CSV, HDF5
+using DataFrames
 using Statistics
 using EchelleCCFs
 using ProgressMeter
 using BenchmarkTools
 
-# plotting
-using LaTeXStrings
-import PyPlot; plt = PyPlot; mpl = plt.matplotlib; plt.ioff()
-mpl.style.use(GRASS.moddir * "fig.mplstyle")
-mpl.use("Qt5Agg")
+# # plotting
+# using LaTeXStrings
+# import PyPlot; plt = PyPlot; mpl = plt.matplotlib; plt.ioff()
+# mpl.style.use(GRASS.moddir * "fig.mplstyle")
+# mpl.use("Qt5Agg")
 
-# set up paramaters for spectrum
-N = 197
-Nt = 500
+# output directory
+outdir = abspath("/mnt/ceph/users/mpalumbo/data_for_eduardo/")
+!isdir(outdir) && mkdir(outdir)
 
-lines = [5432.0]#, 5432.9]
-depths = [0.6]#, 0.75]
-templates = ["FeI_5432"]#, "FeI_6173"]
-variability = trues(length(lines))
-blueshifts = zeros(length(lines))
-resolution = 7e5
-seed_rng = false
+# get the idx to run
+template_idx = tryparse(Int, ARGS[1])
 
-disk = DiskParams(N=N, Nt=Nt, inclination=90.0, Nsubgrid=40)#, u1=0.3033, u2=0.3133, vsini=33950.0, A=0.7, B=0.0, C=0.0)
-spec = SpecParams(lines=lines, depths=depths, variability=variability,
-                   blueshifts=blueshifts, templates=templates,
-                   resolution=resolution, buffer=0.5)
+# get data for the template lines in GRASS library
+lp = GRASS.LineProperties()
+wavelength = lp.λrest
+depth = lp.depth
+dfile = lp.file
+lname = GRASS.get_name(lp)
 
-# set mu bins
-μ_bins = range(0.15, 0.95, step=0.1)
+# set up parameters for synthetic spectrum
+Nt = 1920 # number of 15-second time steps in simulation
+disk = DiskParams(Nt=Nt)
 
-# do the synthesis
-println(">>> Synthesizing on GPU...")
-tstart = time()
-lambdas_gpu, outspec_gpu = GRASS.synthesize_spectra_resolved(μ_bins, spec, disk, seed_rng=seed_rng, verbose=true, use_gpu=true)
-tstop = time()
-@printf(">>> Synthesis time --> %.3f seconds \n", tstop - tstart)
+let i = template_idx
+    # parameters for synthetic spectrum
+    lines = [wavelength[i]]
+    depths = [depth[i]]
+    templates = [dfile[i]]
+    variability = trues(length(lines)) # control whether lines dance
+    resolution = 7e5 # don't set resolution here, rather convolve it down later
+
+    # spec object
+    spec = SpecParams(lines=lines, depths=depths, variability=variability,
+                      templates=templates, resolution=resolution, 
+                      oversampling=4.0)
+
+    # set mu bins
+    μ_bins = range(0.15, 0.95, step=0.1)
+
+    # synthesize
+    wavs, flux = GRASS.synthesize_spectra_resolved(μ_bins, spec, disk, verbose=true, use_gpu=true)
+
+    # write noiseless, full res spectra to disk
+    fname = joinpath(outdir, lname[i] * "_noiseless.h5")
+    h5open(fname, "w") do file
+        write(file, "wavs", wavs, "flux", flux) 
+    end
 
 # for μ_idx in eachindex(μ_bins)
 #     # plt.plot(lambdas_gpu, outspec_gpu[:,μ_idx,1] ./ maximum(outspec_gpu[:,μ_idx,1]))
@@ -61,7 +79,7 @@ tstop = time()
 # end
 # plt.show()
 
-nbins = range(3, 5, step=1)
+nbins = range(3, 10, step=1)
 ntrials = 10
 @showprogress for nn in eachindex(nbins)
     rms_rv = zeros(ntrials)
@@ -84,5 +102,5 @@ ntrials = 10
     plt.errorbar([nbins[nn]], [mean(rms_rv)], yerr=[std(rms_rv)], c="k")
 end
 plt.xlabel(L"{\rm Number\ of\ \mu\ bins}")
-plt.ylabel(L"{\rm RMS\ RV\ of\ disk-center\ bin\ (m/s)}")
+plt.ylabel(L"{\rm RMS\ RV\ of\ disk\ center\ bin\ (m/s)}")
 plt.show()

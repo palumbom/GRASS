@@ -19,6 +19,7 @@ using Statistics
 using Polynomials
 using LinearAlgebra
 using Distributions
+using ProgressMeter
 using ImageFiltering
 using Interpolations
 using PrecompileTools

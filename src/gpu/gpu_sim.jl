@@ -66,7 +66,7 @@ function disk_sim_gpu(spec::SpecParams{T1}, disk::DiskParams{T1}, soldata::GPUSo
     extra_z = spec.conv_blueshifts .- z_cbs_avg
 
     # loop over time
-    for t in 1:Nt
+    @showprogress for t in 1:Nt
         # don't synthesize spectrum if skip_times is true, but iterate t index
         if skip_times[t]
             @cusync @captured @cuda threads=threads1 blocks=blocks1 iterate_tloop_gpu!(tloop, dat_idx, lenall_gpu)
@@ -178,7 +178,7 @@ function disk_sim_resolved_gpu(spec::SpecParams{T1}, disk::DiskParams{T1}, solda
     extra_z = spec.conv_blueshifts .- z_cbs_avg
 
     # loop over time
-    for t in 1:Nt
+    @showprogress for t in 1:Nt
         # don't synthesize spectrum if skip_times is true, but iterate t index
         if skip_times[t]
             @cusync @captured @cuda threads=threads1 blocks=blocks1 iterate_tloop_gpu!(tloop, dat_idx, lenall_gpu)
