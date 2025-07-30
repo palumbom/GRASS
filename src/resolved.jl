@@ -11,10 +11,12 @@ function synthesize_spectra_resolved(μ_bins::AA{T,1}, spec::SpecParams{T}, disk
                                      seed_rng::Bool=false, verbose::Bool=true,
                                      use_gpu::Bool=false, precision::DataType=Float64,
                                      skip_times::BitVector=falses(disk.Nt),
-                                     contiguous_only::Bool=false) where T<:AF
+                                     contiguous_only::Bool=false,
+                                     show_progress::Bool=true) where T<:AF
     # call appropriate simulation function on cpu or gpu
     if use_gpu
-        return synth_gpu_resolved(μ_bins, spec, disk, seed_rng, verbose, precision, skip_times, contiguous_only)
+        return synth_gpu_resolved(μ_bins, spec, disk, seed_rng, verbose, precision, 
+                                  skip_times, contiguous_only, show_progress)
     else
         # return synth_cpu_resolved(μ_bins, spec, disk, seed_rng, verbose, skip_times, contiguous_only)
         throw("Disk-resolved synthesis on the CPU not yet implemented 😢")
@@ -24,7 +26,7 @@ end
 
 #= function synth_cpu_resolved(μ_bins::AA{T,1}, spec::SpecParams{T}, disk::DiskParams{T}, 
                             seed_rng::Bool, verbose::Bool, skip_times::BitVector, 
-                            contiguous_only::Bool) where T<:AF
+                            contiguous_only::Bool, show_progress::Bool) where T<:AF
     # parse out dimensions for memory allocation
     N = disk.N
     Nt = disk.Nt
@@ -80,7 +82,8 @@ end =#
 
 function synth_gpu_resolved(μ_bins::AA{T,1}, spec::SpecParams{T}, disk::DiskParams{T}, 
                             seed_rng::Bool, verbose::Bool, precision::DataType, 
-                            skip_times::BitVector, contiguous_only::Bool) where T<:AF
+                            skip_times::BitVector, contiguous_only::Bool,
+                            show_progress::Bool) where T<:AF
     # make sure there is actually a GPU to use
     @assert CUDA.functional()
 
@@ -155,7 +158,8 @@ function synth_gpu_resolved(μ_bins::AA{T,1}, spec::SpecParams{T}, disk::DiskPar
 
         # run the simulation and multiply flux by this spectrum
         disk_sim_resolved_gpu(spec_temp, disk, soldata, μ_bins, gpu_allocs, flux,
-                              verbose=verbose, skip_times=skip_times)
+                              verbose=verbose, skip_times=skip_times,
+                              show_progress=show_progress)
     end
     return spec.lambdas, flux
 end

@@ -1,6 +1,7 @@
 function disk_sim_gpu(spec::SpecParams{T1}, disk::DiskParams{T1}, soldata::GPUSolarData{T2},
                       gpu_allocs::GPUAllocs{T2}, flux_cpu::AA{T1,3}; verbose::Bool=false,
-                      seed_rng::Bool=false,  skip_times::BitVector=falses(disk.Nt)) where {T1<:AF, T2<:AF}
+                      seed_rng::Bool=false,  skip_times::BitVector=falses(disk.Nt),
+                      show_progress::Bool=true) where {T1<:AF, T2<:AF}
     # get dimensions for memory alloc
     N = disk.N
     Nt = disk.Nt
@@ -66,7 +67,8 @@ function disk_sim_gpu(spec::SpecParams{T1}, disk::DiskParams{T1}, soldata::GPUSo
     extra_z = spec.conv_blueshifts .- z_cbs_avg
 
     # loop over time
-    @showprogress for t in 1:Nt
+    p = Progress(Nt; enabled=show_progress)
+    for t in 1:Nt
         # don't synthesize spectrum if skip_times is true, but iterate t index
         if skip_times[t]
             @cusync @captured @cuda threads=threads1 blocks=blocks1 iterate_tloop_gpu!(tloop, dat_idx, lenall_gpu)
@@ -98,6 +100,9 @@ function disk_sim_gpu(spec::SpecParams{T1}, disk::DiskParams{T1}, soldata::GPUSo
 
         # iterate tloop
         @cusync @captured @cuda threads=threads1 blocks=blocks1 iterate_tloop_gpu!(tloop, dat_idx, lenall_gpu)
+
+        # iterate progress meter
+        next!(p)
     end
 
     # copy over flux
@@ -111,7 +116,8 @@ end
 function disk_sim_resolved_gpu(spec::SpecParams{T1}, disk::DiskParams{T1}, soldata::GPUSolarData{T2},
                                μ_bins::AA{T1,1}, gpu_allocs::GPUAllocsResolved{T2}, flux_cpu::AA{T1,3}; 
                                verbose::Bool=false, seed_rng::Bool=false,  
-                               skip_times::BitVector=falses(disk.Nt)) where {T1<:AF, T2<:AF}
+                               skip_times::BitVector=falses(disk.Nt),
+                               show_progress::Bool=true) where {T1<:AF, T2<:AF}
     # get dimensions for memory alloc
     N = disk.N
     Nt = disk.Nt
@@ -178,7 +184,8 @@ function disk_sim_resolved_gpu(spec::SpecParams{T1}, disk::DiskParams{T1}, solda
     extra_z = spec.conv_blueshifts .- z_cbs_avg
 
     # loop over time
-    @showprogress for t in 1:Nt
+    p = Progress(Nt; enabled=show_progress)
+    for t in 1:Nt
         # don't synthesize spectrum if skip_times is true, but iterate t index
         if skip_times[t]
             @cusync @captured @cuda threads=threads1 blocks=blocks1 iterate_tloop_gpu!(tloop, dat_idx, lenall_gpu)
@@ -210,6 +217,9 @@ function disk_sim_resolved_gpu(spec::SpecParams{T1}, disk::DiskParams{T1}, solda
 
         # iterate tloop
         @cusync @captured @cuda threads=threads1 blocks=blocks1 iterate_tloop_gpu!(tloop, dat_idx, lenall_gpu)
+
+        # iterate progress meter
+        next!(p)
     end
 
     # copy over flux

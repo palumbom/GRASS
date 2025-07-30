@@ -28,8 +28,10 @@ outdir = "/mnt/ceph/users/mpalumbo/data_for_eduardo/"
 
 # get the idx to run
 if !isempty(ARGS)
+    show_progress = false
     template_idx = tryparse(Int, ARGS[1])
 else
+    show_progress = true
     template_idx = 9
 end
 
@@ -41,7 +43,7 @@ dfile = lp.file
 lname = GRASS.get_name(lp)
 
 # set up parameters for synthetic spectrum
-Nt = 240#00 # number of 15-second time steps in simulation
+Nt = 24000 # number of 15-second time steps in simulation
 disk = DiskParams(Nt=Nt)
 
 # loop over lines in library
@@ -62,7 +64,8 @@ let i = template_idx
     μ_bins = range(0.025, 0.975, step=0.05)
 
     # synthesize
-    wavs, flux = GRASS.synthesize_spectra_resolved(μ_bins, spec, disk, verbose=true, use_gpu=true)
+    wavs, flux = GRASS.synthesize_spectra_resolved(μ_bins, spec, disk, verbose=true, 
+                                                   use_gpu=true, show_progress=show_progress)
 
     # write noiseless, full res spectra to disk
     fname = joinpath(outdir, lname[i] * ".h5")
