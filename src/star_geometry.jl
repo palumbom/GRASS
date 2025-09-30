@@ -58,6 +58,20 @@ function sphere_to_cart(ρ::T, ϕ::T, θ::T) where T
     return [x, y, z]
 end
 
+function sphere_to_cart_eclipse(ρ::T, ϕ::T, θ::T) where T
+    # compute trig quantitites
+    sinϕ = sin(ϕ)
+    sinθ = sin(θ)
+    cosϕ = cos(ϕ)
+    cosθ = cos(θ)
+
+    # now get cartesian coords
+    x = ρ * cosϕ * cosθ
+    y = ρ * cosϕ * sinθ
+    z = ρ * sinϕ
+    return [x, y, z]
+end
+
 function calc_mu(xyz::AA{T,1}, O⃗::AA{T,1}) where T
     return dot(O⃗, xyz) / (norm(O⃗) * norm(xyz))
 end

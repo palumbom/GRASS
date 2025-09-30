@@ -242,7 +242,7 @@ function fill_workspaces_2D_eclipse!(line, variability, extra_z, tloop, dat_idx,
         t = tloop[m,n]
 
         # calculate shifted line center
-        λΔD = line * (1.0 + z_rot[m,n]) * (1.0 + z_cbs[m,n]) * (1.0 + extra_z)
+        λΔD = line * (1.0 + z_rot[m,n]) * (1.0 + z_cbs[m,n] * variability) * (1.0 + extra_z * variability)
 
         # get length of input data arrays to loop over
         lent = 100
