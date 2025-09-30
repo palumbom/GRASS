@@ -104,7 +104,6 @@ function synth_Eclipse_gpu(spec::SpecParams{T}, disk::DiskParamsEclipse{T},
     # allocate memory needed for rossiter computations
     gpu_allocs = GPUAllocsEclipse(spec, disk, Int(length(wavelength)), precision=precision, verbose=verbose)
 
-    brightness_arr = Vector{Vector{Float64}}(undef,size(templates)...)
     # run the simulation and return
     for (idx, file) in enumerate(templates)
         # get temporary specparams with lines for this run
@@ -118,9 +117,55 @@ function synth_Eclipse_gpu(spec::SpecParams{T}, disk::DiskParamsEclipse{T},
         soldata = GPUSolarData(soldata_cpu, precision=precision)
 
         # run the simulation and multiply flux by this spectrum
-        brightness_arr[idx] = disk_sim_eclipse_gpu(spec_temp, disk, soldata, gpu_allocs, flux, 
+        disk_sim_eclipse_gpu(spec_temp, disk, soldata, gpu_allocs, flux, 
                               obs_long, obs_lat, alt, time_stamps, wavelength, 
                               ext_coeff, ext_toggle, LD_type, skip_times=skip_times)
     end
-    return spec.lambdas, flux, brightness_arr
+    return spec.lambdas, flux
+end
+
+function synth_Eclipse_gpu(spec::SpecParams{T}, disk::DiskParamsEclipse{T},
+                            verbose::Bool, precision::DataType, skip_times::BitVector, LD_type::String, 
+                            obs_long::T, obs_lat::T, alt::T, time_stamps::Vector{Float64}, 
+                            wavelength, ext_coeff, ext_toggle::Bool, LD1, LD2, LD3, LD4, CB1, CB2, CB3) where T<:AF
+    # make sure there is actually a GPU to use
+    @assert CUDA.functional()
+
+    # warn user if precision is single
+    if precision <: Float32
+       @warn "Single-precision GPU implementation produces large flux and velocity errors!"
+    end
+
+    # parse out dimensions for memory allocation
+    N = disk.N
+    Nt = disk.Nt
+    Nλ = length(spec.lambdas)
+
+    # allocate memory
+    flux = ones(Nλ, Nt)
+
+    # get number of calls to disk_sim needed
+    templates = unique(spec.templates)
+
+    # allocate memory needed for rossiter computations
+    gpu_allocs = GPUAllocsEclipse(spec, disk, Int(length(wavelength)), precision=precision, verbose=verbose)
+
+    # run the simulation and return
+    for (idx, file) in enumerate(templates)
+        # get temporary specparams with lines for this run
+        spec_temp = SpecParams(spec, file)
+
+        # load in the appropriate input data
+        if verbose
+            println("\t>>> Template: " * splitdir(file)[end])
+        end
+        soldata_cpu = SolarData(fname=file)
+        soldata = GPUSolarData(soldata_cpu, precision=precision)
+
+        # run the simulation and multiply flux by this spectrum
+        disk_sim_eclipse_gpu(spec_temp, disk, soldata, gpu_allocs, flux, 
+                              obs_long, obs_lat, alt, time_stamps, wavelength, 
+                              ext_coeff, ext_toggle, LD_type, LD1, LD2, LD3, LD4, CB1, CB2, CB3, skip_times=skip_times)
+    end
+    return spec.lambdas, flux
 end

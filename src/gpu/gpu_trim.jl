@@ -1,6 +1,5 @@
 function trim_bisector_gpu!(depth, variability, depcontrast, lenall, bisall_out,
-                            intall_out, widall_out, bisall_in, intall_in, widall_in,
-                            bisall_mean, intall_mean, widall_mean)
+                            intall_out, widall_out, bisall_in, intall_in, widall_in)
     # get indices from GPU blocks + threads
     idx = threadIdx().x + blockDim().x * (blockIdx().x-1)
     sdx = blockDim().x * gridDim().x
@@ -21,19 +20,18 @@ function trim_bisector_gpu!(depth, variability, depcontrast, lenall, bisall_out,
                 continue
             end
 
+            # get views of the correct time slice in input
+            bist_in = CUDA.view(bisall_in, :, j, i)
+            intt_in = CUDA.view(intall_in, :, j, i)
+
             # get views of the correct time slice in output
             bist_out = CUDA.view(bisall_out, :, j, i)
             intt_out = CUDA.view(intall_out, :, j, i)
-            widt_out = CUDA.view(widall_out, :, j, i)
 
-            if variability == true
-                # get views of the correct time slice in input
-                bist_in = CUDA.view(bisall_in, :, j, i)
-                intt_in = CUDA.view(intall_in, :, j, i)
+            # get step size for loop over length of bisector
+            step = dtrim/(CUDA.length(intt_in) - 1)
 
-                # get step size for loop over length of bisector
-                step = dtrim/(CUDA.length(intt_in) - 1)
-
+            if variability
                 # set up interpolator
                 itp = linear_interp_gpu(intt_in, bist_in)
 
@@ -45,26 +43,11 @@ function trim_bisector_gpu!(depth, variability, depcontrast, lenall, bisall_out,
                     end
                     @inbounds intt_out[k] = new_intt
                 end
-            elseif variability == false
-                # get views of the correct time slice in input
-                bist_in = CUDA.view(bisall_mean, :, i)
-                intt_in = CUDA.view(intall_mean, :, i)
-                widt_in = CUDA.view(widall_mean, :, i)
-                
-                # get step size for loop over length of bisector
-                step = dtrim/(CUDA.length(intt_in) - 1)
-
-                # set up interpolator
-                itp = linear_interp_gpu(intt_in, bist_in)
-
-                # loop over the length of the bisector
+            else
                 for k in idz:sdz:CUDA.size(bisall_in, 1)
-                    new_intt = (1.0 - dtrim) + (k-1) * step
-                    if (1.0 - dtrim) >= CUDA.first(intt_in)
-                        @inbounds bist_out[k] = itp(new_intt)
-                    end
-                    @inbounds intt_out[k] = new_intt
-                    @inbounds widt_out[k] = widt_in[k]
+                    @inbounds intt_out[k] = (1.0 - dtrim) + (k-1) * step
+                    @inbounds bist_out[k] = 0.0
+                    @inbounds widall_out[k,j,i] = widall_in[k,1,i]
                 end
             end
         end

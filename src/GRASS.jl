@@ -50,17 +50,17 @@ earth_radius_pole = bodvrd("EARTH", "RADII")[3]
 sun_radius = bodvrd("SUN","RADII")[1]
 moon_radius = bodvrd("MOON", "RADII")[1] 
 
-rotation_matrices = jldopen("data/rotation_matrices.jld2", "r")
-rotation_matrices_sxform = jldopen("data/rotation_matrices_sxform.jld2", "r")
-
 #collect LD info as global variables - (units: nm)
-quad_ld_coeff_SSD = CSV.read(joinpath(datdir, "quad_ld_coeff_SSD.csv"), DataFrame)
-quad_ld_coeff_300 = CSV.read(joinpath(datdir, "quad_ld_coeff_300.csv"), DataFrame)
-quad_ld_coeff_HD = CSV.read(joinpath(datdir, "quad_ld_coeff_HD.csv"), DataFrame)
-quad_ld_coeff_NL94 = CSV.read(joinpath(datdir, "quad_ld_coeff_NL94.csv"), DataFrame)
+quad_ld_coeff_SSD = CSV.read("data/LD_coeff_SSD.csv", DataFrame)
+quad_ld_coeff_300 = CSV.read("data/LD_coeff_300.csv", DataFrame)
+quad_ld_coeff_HD = CSV.read("data/LD_coeff_HD.csv", DataFrame)
 
-ext_file_KSSD = DataFrame(CSV.File(joinpath(datdir, "NEID_three_ext_coeff_KSSD.csv")))
-ext_file_K300 = DataFrame(CSV.File(joinpath(datdir, "NEID_three_ext_coeff_K300.csv")))
+ext_coeff_file = DataFrame(CSV.File(joinpath("/storage/home/efg5335/work/GRASS/data", "NEID_two_ext_SSD_4parameter.csv")))
+spots_info = DataFrame(CSV.File("/storage/home/efg5335/work/Eclipse_GRASS/investigations/sunspots/sunspots.csv"))
+file = jldopen("data/sunspots_ra_dec.jld2", "r")
+spots_ra_time_arr  = deepcopy(file["spots_ra_time_arr"])
+spots_dec_time_arr = deepcopy(file["spots_dec_time_arr"])
+close(file)
 
 # ancillary functions + constants
 include("utils.jl")
