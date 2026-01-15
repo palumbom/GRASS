@@ -6,6 +6,8 @@ struct GPUAllocsEclipse{T1<:AF}
     μs::CuArray{T1,2}
     dA::CuArray{T1,2}
     ld::CuArray{T1,3}
+    mf::CuArray{T1,2}
+    contrast::CuArray{T1,2}
     projected_v::CuArray{T1,2}
     earth_v::CuArray{T1,2}
     ext::CuArray{T1,3}
@@ -41,6 +43,8 @@ function GPUAllocsEclipse(spec::SpecParams, disk::DiskParamsEclipse, lines_numbe
         μs = CUDA.zeros(precision, Nϕ, Nθ_max)
         dA = CUDA.zeros(precision, Nϕ, Nθ_max)
         ld = CUDA.zeros(precision, Nϕ, Nθ_max, lines_number)
+        mf = CUDA.zeros(precision, Nϕ, Nθ_max)
+        contrast = CUDA.zeros(precision, Nϕ, Nθ_max)
         projected_v = CUDA.zeros(precision, Nϕ, Nθ_max)
         earth_v = CUDA.zeros(precision, Nϕ, Nθ_max)
         ext = CUDA.zeros(precision, Nϕ, Nθ_max, lines_number)
@@ -63,6 +67,6 @@ function GPUAllocsEclipse(spec::SpecParams, disk::DiskParamsEclipse, lines_numbe
         allints = CUDA.zeros(precision, Nϕ, Nθ_max, 200)
     end
 
-    return GPUAllocsEclipse(λs_gpu, prof_gpu, flux_gpu, μs, dA, ld, projected_v, earth_v, ext, z_rot, z_cbs, tloop_gpu,
+    return GPUAllocsEclipse(λs_gpu, prof_gpu, flux_gpu, μs, dA, ld, mf, contrast, projected_v, earth_v, ext, z_rot, z_cbs, tloop_gpu,
                      dat_idx, ax_code, allwavs, allints)
 end
