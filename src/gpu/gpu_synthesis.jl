@@ -212,7 +212,7 @@ function apply_line!(t, prof, flux, sum_wts)
 end
 
 function fill_workspaces_2D_eclipse!(line, variability, extra_z, tloop, dat_idx, z_rot,
-    z_cbs, lenall, bisall, intall, widall, allwavs, allints)
+    z_cbs, lenall, bisall, intall, widall, allwavs, allints, contrast)
     # get indices from GPU blocks + threads
     idx = threadIdx().x + blockDim().x * (blockIdx().x-1)
     sdx = blockDim().x * gridDim().x
@@ -242,7 +242,7 @@ function fill_workspaces_2D_eclipse!(line, variability, extra_z, tloop, dat_idx,
         t = tloop[m,n]
 
         # calculate shifted line center
-        λΔD = line * (1.0 + z_rot[m,n]) * (1.0 + z_cbs[m,n] * variability) * (1.0 + extra_z * variability)
+        λΔD = line * (1.0 + z_rot[m,n]) * (1.0 + z_cbs[m,n] * variability * contrast[m,n]) * (1.0 + extra_z * variability * contrast[m,n])
 
         # get length of input data arrays to loop over
         lent = 100

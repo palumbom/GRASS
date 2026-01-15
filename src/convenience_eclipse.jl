@@ -8,11 +8,7 @@ Synthesize spectra given parameters in `spec` and `disk` instances.
 - `disk::DiskParams`: DiskParams instance
 """
 function synthesize_spectra_eclipse(spec::SpecParams{T}, disk::DiskParamsEclipse{T}, wavelength::Vector{Float64}, LD_type::String, 
-                                    obs_long::T, obs_lat::T, alt::T, time_stamps::Vector{Float64},
-                                    zenith_mean::Vector{Matrix{Matrix{Float64}}}, dA_total_proj::Vector{Matrix{Matrix{Float64}}}, 
-                                    idx1::Vector{Matrix{Matrix{Int}}}, idx3::Vector{Matrix{Matrix{Int}}}, mu_grid::Vector{Matrix{Matrix{Float64}}}, 
-                                    z_rot_sub::Vector{Matrix{Matrix{Float64}}}, stored_μs::AA{T,3}, 
-                                    stored_ax_codes::AA{Int,3}, stored_dA::AA{T,3}, 
+                                    obs_long::T, obs_lat::T, alt::T, time_stamps::Vector{Float64},                              
                                     ext_coeff; ext_toggle::Bool=false, seed_rng::Bool=false, verbose::Bool=true,
                                     use_gpu::Bool=false, precision::DataType=Float64,
                                     skip_times::BitVector=falses(disk.Nt)) where T<:AF
@@ -23,17 +19,13 @@ function synthesize_spectra_eclipse(spec::SpecParams{T}, disk::DiskParamsEclipse
                                     obs_long, obs_lat, alt, time_stamps, wavelength, ext_coeff, ext_toggle)
     else
         return synth_Eclipse_cpu(spec, disk, seed_rng, verbose, skip_times, LD_type, wavelength, 
-                                    zenith_mean, dA_total_proj, idx1, idx3, mu_grid, z_rot_sub,
-                                    stored_μs, stored_ax_codes, stored_dA, ext_coeff, ext_toggle)
+                                    time_stamps, obs_long, obs_lat, alt, ext_coeff, ext_toggle)
     end
 end
 
 function synth_Eclipse_cpu(spec::SpecParams{T}, disk::DiskParamsEclipse{T}, seed_rng::Bool,
                             verbose::Bool, skip_times::BitVector, LD_type::String, wavelength::Vector{Float64}, 
-                            zenith_mean::Vector{Matrix{Matrix{Float64}}}, dA_total_proj::Vector{Matrix{Matrix{Float64}}}, 
-                            idx1::Vector{Matrix{Matrix{Int}}}, idx3::Vector{Matrix{Matrix{Int}}}, mu_grid::Vector{Matrix{Matrix{Float64}}}, 
-                            z_rot_sub::Vector{Matrix{Matrix{Float64}}}, stored_μs::AA{T,3}, stored_ax_codes::AA{Int,3}, 
-                            stored_dA::AA{T,3}, ext_coeff, ext_toggle::Bool) where T<:AF
+                            time_stamps::Vector{Float64}, obs_long::T, obs_lat::T, alt::T, ext_coeff, ext_toggle::Bool) where T<:AF
 
     # parse out dimensions for memory allocation
     N = disk.N
@@ -72,8 +64,7 @@ function synth_Eclipse_cpu(spec::SpecParams{T}, disk::DiskParamsEclipse{T}, seed
 
         # run the simulation and multiply flux by this spectrum
         disk_sim_eclipse(spec_temp, disk, soldata, wsp, prof, flux, tloop, tloop_init, templates, idx, LD_type, wavelength, 
-                        zenith_mean, dA_total_proj, idx1, idx3, mu_grid, z_rot_sub,
-                        stored_μs, stored_ax_codes, stored_dA, ext_coeff, ext_toggle, skip_times=skip_times)
+                        time_stamps, obs_long, obs_lat, alt, ext_coeff, ext_toggle, skip_times=skip_times)
     end
     return spec.lambdas, flux
 end
@@ -81,7 +72,7 @@ end
 function synth_Eclipse_gpu(spec::SpecParams{T}, disk::DiskParamsEclipse{T},
                             verbose::Bool, precision::DataType, skip_times::BitVector, LD_type::String, 
                             obs_long::T, obs_lat::T, alt::T, time_stamps::Vector{Float64}, 
-                            wavelength, ext_coeff, ext_toggle::Bool) where T<:AF
+                            wavelength, ext_coeff, ext_toggle::Bool, spot_toggle::Bool) where T<:AF
     # make sure there is actually a GPU to use
     @assert CUDA.functional()
 
@@ -119,15 +110,15 @@ function synth_Eclipse_gpu(spec::SpecParams{T}, disk::DiskParamsEclipse{T},
         # run the simulation and multiply flux by this spectrum
         disk_sim_eclipse_gpu(spec_temp, disk, soldata, gpu_allocs, flux, 
                               obs_long, obs_lat, alt, time_stamps, wavelength, 
-                              ext_coeff, ext_toggle, LD_type, skip_times=skip_times)
+                              ext_coeff, ext_toggle, spot_toggle, LD_type, skip_times=skip_times)
     end
     return spec.lambdas, flux
 end
 
 function synth_Eclipse_gpu(spec::SpecParams{T}, disk::DiskParamsEclipse{T},
-                            verbose::Bool, precision::DataType, skip_times::BitVector, LD_type::String, 
+                            verbose::Bool, precision::DataType, skip_times::BitVector, 
                             obs_long::T, obs_lat::T, alt::T, time_stamps::Vector{Float64}, 
-                            wavelength, ext_coeff, ext_toggle::Bool, LD1, LD2, LD3, LD4, CB1, CB2, CB3) where T<:AF
+                            wavelength, ext_coeff, CB1, CB2, CB3, MF1, MF2) where T<:AF
     # make sure there is actually a GPU to use
     @assert CUDA.functional()
 
@@ -165,7 +156,7 @@ function synth_Eclipse_gpu(spec::SpecParams{T}, disk::DiskParamsEclipse{T},
         # run the simulation and multiply flux by this spectrum
         disk_sim_eclipse_gpu(spec_temp, disk, soldata, gpu_allocs, flux, 
                               obs_long, obs_lat, alt, time_stamps, wavelength, 
-                              ext_coeff, ext_toggle, LD_type, LD1, LD2, LD3, LD4, CB1, CB2, CB3, skip_times=skip_times)
+                              ext_coeff, CB1, CB2, CB3, MF1, MF2, skip_times=skip_times)
     end
     return spec.lambdas, flux
 end

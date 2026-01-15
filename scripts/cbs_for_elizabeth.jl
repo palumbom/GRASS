@@ -24,7 +24,7 @@ files = GRASS.get_file(lp)
 line_names = GRASS.get_name(lp)
 
 # get lines to do 
-lines_to_do = ["FeI_6301"]
+lines_to_do = ["FeI_5434"]
 
 # marker/colors for directions
 cs = ["k", "tab:blue", "tab:orange", "tab:green", "tab:pink"]
@@ -38,7 +38,7 @@ end
 
 # Define all coefficient sets with labels
 datasets = [
-    ("Fe I 6302 Å", [0.35307584066147335, -1.5598072436415944,-0.041862773597766745])
+    ("Fe I 5434 Å", [0.48680233581206817,-2.360771253495881,2.168676429569747]) #(CB + MF)
 ]
 
 μ_vals = range(0, 1, length=1000)
@@ -105,7 +105,7 @@ for i in eachindex(files)
 
     label, (CB1, CB2, CB3) = datasets[1]
     y_solid = [model(μ, CB1, CB2, CB3) for μ in μ_vals]
-    ax1.plot(μ_vals, y_solid .* 1000 .+ 1450, color = "k")
+    ax1.plot(μ_vals, y_solid .* 1000 .+ 500, color = "k")
     
     plt.xticks(fontsize=12)
     plt.yticks(fontsize=12)

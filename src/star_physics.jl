@@ -28,6 +28,11 @@ function quad_limb_darkening(μ::T, u1::T, u2::T) where T<:AF
     return !iszero(μ) * (one(T) - u1*(one(T)-μ) - u2*(one(T)-μ)^2)
 end
 
+function quad_limb_darkening(μ::T, u1::T, u2::T, u3::T, u4::T) where T<:AF
+    μ < zero(T) && return 0.0
+    return !iszero(μ) * (one(T) - u1*(one(T)-μ^0.5) - u2*(one(T)-μ) - u3*(one(T)-μ^1.5) - u4*(one(T)-μ^2.0))
+end
+
 """
     rotation_period(sin_lat; A=14.713, B=2.396, C=1.787)
 

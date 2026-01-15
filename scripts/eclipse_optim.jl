@@ -28,18 +28,7 @@ py"""
 import sys
 sys.path.append(".")
 """
-neid_asymmetric_lsf = pyimport("NeidLsf")
-np = pyimport("numpy")
-pd = pyimport("pandas")
-mdates = pyimport("matplotlib.dates")
 datetime = pyimport("datetime")
-
-# plotting
-using LaTeXStrings
-import PyPlot
-plt = PyPlot
-mpl = plt.matplotlib
-colors = ["#56B4E9", "#E69F00", "#009E73", "#CC79A7"]
 
 GRASS.get_kernels()
 
@@ -61,7 +50,7 @@ alt = 2.097938
 line_data = jldopen("/storage/home/efg5335/work/Eclipse_GRASS/figures/NEID_October/data/neid_RVlinebyline.jld2", "r") do file
     Dict(var => read(file, var) for var in ["rv"])
 end
-observed_data = line_data["rv"][10] 
+observed_data = line_data["rv"][6] 
 observed_data = observed_data .- observed_data[length(observed_data)]
 
 rv = Vector{Float64}(undef,size(time_stamps)...)
@@ -77,10 +66,10 @@ N = 197
 Nt = length(time_stamps)
 disk = GRASS.DiskParamsEclipse(N=N, Nt=Nt, Nsubgrid=40)
 
-extinction_coeff = DataFrame(CSV.File("data/NEID_two_ext_SSD_4parameter.csv"))
+ext_coeff_array = [0.15452995224327976, 0.15256098077094832, 0.14720055859068512, 0.154895798933504, 0.15181381895180662, 0.15107508233588227, 0.15116772762156633, 0.14882114581650618, 0.14865707189399568, 0.1494903120065096, 0.16011027092744037, 0.15593033972594958, 0.14195968590211427, 0.15401904166429853, 0.1277699772941639, 0.12709315507233226, 0.12820346527304866, 0.11702310600015708, 0.1435320747844216, 0.12380490304619193, 0.12450734135297492, 0.12101777355247835]
 
 function projected_RV_gpu(params)
-    for i in 10:10#eachindex(lp.λrest) 
+    for i in 6:6
         println("\t>>> Template: " * string(splitdir(lfile[i])[2]))
         # set up parameters for synthesis
         lines = [λrest[i]]
@@ -93,15 +82,10 @@ function projected_RV_gpu(params)
         spec = GRASS.SpecParams(lines=lines, depths=depths, variability=variability,
                         blueshifts=blueshifts, templates=templates, resolution=resolution) 
         for t in 1:disk.Nt
-            if t < 48
-                neid_ext_coeff = extinction_coeff[extinction_coeff[!, "Wavelength"] .== λrest[i], "ext1"][1]
-            elseif t >= 48 
-                neid_ext_coeff = extinction_coeff[extinction_coeff[!, "Wavelength"] .== λrest[i], "ext2"][1]
-            end
 
             gpu_allocs = GRASS.GPUAllocsEclipse(spec, disk, Int(length(lines)), precision=Float64, verbose=true)
-            GRASS.calc_eclipse_quantities_gpu!(time_stamps[t], obs_long, obs_lat, alt, lines, 
-                                        1.0, neid_ext_coeff, disk, gpu_allocs, NaN, NaN, NaN, NaN, params[1], params[2], params[3])
+            GRASS.calc_eclipse_quantities_gpu!(time_stamps[t], obs_long, obs_lat, alt, lines, ext_coeff_array[i], disk, gpu_allocs,
+                                                params[1], params[2], params[3], params[4], params[5])
 
             idx_grid = Array(gpu_allocs.ld[:, :, 1]) .> 0.0
 
@@ -119,49 +103,14 @@ function projected_RV_gpu(params)
     return rv .- rv[length(rv)]
 end
 
-function model_CB(CB1, CB2, CB3)
-    return CB1 * exp(1.0)^2.0 + CB2 * exp(1.0) + CB3
-end
-
 function rms(params, _)
     model_output = projected_RV_gpu(params)
     loss = sqrt(sum((observed_data .- model_output).^2) / length(observed_data))
 
-    # Manual bounds
-    lower = [-400]
-    upper = [0.0]
-
-    penalty = 0.0
-    p = model_CB(params[1], params[2], params[3])
-    if p < lower[1] || p > upper[1]
-        penalty += 1e6 + 1e3 * abs(p - clamp(p, lower[1], upper[1]))
-    end
-
-    return loss + penalty
+    return loss 
 end
 
-x0 = [0.1683291622593575, -0.8639769476580192, -0.04466892424146258]
+x0 = [0.31030251182557, -1.4138084241294868, -28.857187676819656, 393.9453708988727, -542.4932089212795]
 prob = Optimization.OptimizationProblem(rms, x0, nothing)
 sol = solve(prob, Optim.NelderMead())
 print(sol)
-
-#--------------------------------------------------------------------------------------------------
-# GRASS_rv = projected_RV_gpu([-3.1079052008682484, -0.04999999999878997, 2.435955630584907, -0.12515108772129377, 0.3752068552019834, -1.604999389244464, 1.5904160406184125])
-# fig, axs = plt.subplots(2, sharex=true, sharey=false, gridspec_kw=Dict("hspace" => 0, "height_ratios" => [3, 1]))
-# axs[1].scatter(neid_time, observed_data, color = "y", marker = "x", s = 18, label = "NEID line RVs") 
-# axs[1].plot(neid_time, GRASS_rv, color = "b", linewidth = 2, label = "GRASS")
-# axs[1].xaxis.set_major_formatter(mdates.DateFormatter("%H:%M"))
-# axs[1].set_xlabel("Time (UTC)", fontsize=12)
-# axs[1].set_ylabel("RV [m/s]", fontsize=12)
-# axs[1].legend(fontsize=12)
-# rms_grass_no_cb = np.round(np.sqrt((np.nansum((observed_data - GRASS_rv).^2))/length(observed_data - GRASS_rv)),2)
-# axs[1].text(neid_time[length(neid_time)-40], 500, "GRASS RMS $(rms_grass_no_cb)")
-# plt.yticks(fontsize=12)
-# #residuals
-# axs[2].scatter(neid_time, observed_data - GRASS_rv, color = "b", marker = "x", s = 3)  
-# axs[2].xaxis.set_major_formatter(mdates.DateFormatter("%H:%M"))
-# axs[2].set_xlabel("Time (UTC)", fontsize=12)
-# axs[2].set_ylabel("Residuals", fontsize=12) 
-# plt.yticks(fontsize=12)
-# plt.savefig("test.png")
-# plt.clf()
