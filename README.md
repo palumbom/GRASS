@@ -66,7 +66,6 @@ Additional details and examples can be found in [the documentation](https://palu
 
 ## Citation
 [![DOI](https://zenodo.org/badge/364662564.svg)](https://zenodo.org/badge/latestdoi/364662564)
-<a href="https://ascl.net/2110.011"><img src="https://img.shields.io/badge/ascl-2110.011-blue.svg?colorB=262255" alt="ascl:2110.011" /></a>
 [![arXiv](https://img.shields.io/badge/arXiv-2110.11839-b31b1b.svg)](https://arxiv.org/abs/2110.11839)
 [![arXiv](https://img.shields.io/badge/arXiv-2405.07945-b31b1b.svg)](https://arxiv.org/abs/2405.07945)
 
