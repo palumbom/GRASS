@@ -9,7 +9,7 @@ readme_path = joinpath(docs_base, "..", "README.md")
 target_path = joinpath(docs_base, "src", "index.md")
 readme_text = read(readme_path, String)
 readme_text = replace(readme_text, "./docs/src/" => "./")
-readme_text = replace(readme_text, "<img src=\"docs/src/assets/logo.png\" height=\"48\">" => "")
+readme_text = replace(readme_text, "<img src=\"docs/src/assets/logo.png\" height=\"24\">" => "")
 
 function replace_admonition(text, github_style, documenter_style)
     github_marker = startswith(github_style, "[!") ? github_style : "[!$(github_style)]"
