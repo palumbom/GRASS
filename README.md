@@ -5,7 +5,11 @@
 [![arXiv](https://img.shields.io/badge/arXiv-2110.11839-b31b1b.svg)](https://arxiv.org/abs/2110.11839)
 [![arXiv](https://img.shields.io/badge/arXiv-2405.07945-b31b1b.svg)](https://arxiv.org/abs/2405.07945)
 
-GRASS is a Juliavpackage designed to produce time series of stellar spectra with realistic line-shape changes from solar granulation. GRASS v1.0.x is described in detail in [Palumbo et al. (2022)](https://arxiv.org/abs/2110.11839); the results of this paper can be reproduced using the [showyourwork workflow](https://github.com/showyourwork/showyourwork) from [this repo](https://github.com/palumbom/palumbo22). GRASS v2.0.x is presented in [Palumbo et al. (2024a)](https://arxiv.org/abs/2405.07945); [this repo](https://github.com/palumbom/grass-two) reproduces the figures and quantitative results presented therein. 
+GRASS is a Julia package designed to produce time series of stellar spectra with realistic line-shape changes from solar granulation. 
+
+GRASS v1.0.x is described in detail in [Palumbo et al. (2022)](https://arxiv.org/abs/2110.11839); the results of this paper can be reproduced using the [showyourwork workflow](https://github.com/showyourwork/showyourwork) from [this repo](https://github.com/palumbom/palumbo22). 
+
+GRASS v2.0.x is presented in [Palumbo et al. (2024a)](https://arxiv.org/abs/2405.07945); [this repo](https://github.com/palumbom/grass-two) reproduces the figures and quantitative results presented therein. 
 
 ## Installation
 
