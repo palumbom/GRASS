@@ -15,7 +15,7 @@ jobs:
 
       # Python actions
       - name: Set up 🐍 ${{ matrix.python }}
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python }}
 
