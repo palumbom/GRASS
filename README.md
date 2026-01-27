@@ -73,7 +73,7 @@ Additional details and examples can be found in [the documentation](https://palu
 [![arXiv](https://img.shields.io/badge/arXiv-2110.11839-b31b1b.svg)](https://arxiv.org/abs/2110.11839)
 [![arXiv](https://img.shields.io/badge/arXiv-2405.07945-b31b1b.svg)](https://arxiv.org/abs/2405.07945)
 
-If you use GRASS in your research, please cite the relevant [software release](https://zenodo.org/badge/latestdoi/364662564) and [paper(s)](https://arxiv.org/abs/2110.11839).
+If you use GRASS in your research, please cite the relevant [software release](https://zenodo.org/badge/latestdoi/364662564) and [paper(s)](https://arxiv.org/abs/2110.11839). The [`cffconvert` tool](https://github.com/citation-file-format/cffconvert) can be used to generate a bibtex entry from the included [CITATION.cff](https://github.com/palumbom/GRASS/blob/main/CITATION.cff) (or just use the "cite this repository" button on the GitHub sidebar).
 
 ## Author & Contact 
 [![GitHub followers](https://img.shields.io/github/followers/palumbom?label=Follow&style=social)](https://github.com/palumbom)
