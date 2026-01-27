@@ -1,7 +1,7 @@
 name = "GRASS"
 uuid = "beaa24b3-4aa0-42b2-a8f3-c93b81cbd48b"
-authors = ["Michael Palumbo"]
 version = "2.0.0"
+authors = ["Michael Palumbo"]
 
 [deps]
 BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
@@ -55,7 +55,10 @@ ProgressMeter = "1.10.4"
 julia = "≥ 1.9.0"
 
 [extras]
+Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
+Markdown = "d6f4376e-aef5-505a-96c1-9c027394607a"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [targets]
+docs = ["Markdown", "Documenter"]
 test = ["Test"]
