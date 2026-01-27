@@ -1,5 +1,9 @@
 cff-version: 1.2.0
-message: "If you use this software, please cite it as below."
+title: GRASS
+message: >-
+  If you use this software, please cite it using the
+  metadata from this file.
+type: software
 authors:
 - family-names: "Palumbo III"
   given-names: "Michael L."
@@ -18,6 +22,11 @@ authors:
   orcid: "https://orcid.org/0000-0002-5013-5769"
 - family-names: "Lohner-Bottcher"
   given-names: "Johannes"
-title: "GRASS"
-version: 1.0.0
-
+identifiers:
+  - type: url
+    value: 'https://arxiv.org/abs/2110.11839'
+  - type: url
+    value: 'https://arxiv.org/abs/2405.07945'
+repository-code: 'https://github.com/palumbom/GRASS'
+license: MIT
+version: 2.0.0
