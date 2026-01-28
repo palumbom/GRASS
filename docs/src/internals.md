@@ -44,3 +44,9 @@ calc_bisector_span
 calc_bisector_bottom
 calc_bisector_curvature
 ```
+
+## Utilities 
+
+```docs
+calc_rms
+```
