@@ -22,7 +22,6 @@ using Distributions
 using ProgressMeter
 using ImageFiltering
 using Interpolations
-using PrecompileTools
 using OrderedCollections
 
 # import specific methods

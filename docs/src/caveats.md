@@ -1,6 +1,9 @@
 # Caveats
 
-TODO.
+Simulations produced by GRASS are subject to a number of caveats. For a full explanation of these limitations, it is recommended to read the relevant papers presenting GRASS:
+
+   * [Palumbo et al. (2022)](https://arxiv.org/abs/2110.11839)
+   * [Palumbo et al. (2024a)](https://arxiv.org/abs/2405.07945)
 
 ## GPU Implementation
 
