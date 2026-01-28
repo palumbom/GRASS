@@ -8,16 +8,24 @@ import EchelleCCFs: AbstractCCFMaskShape as MaskShape
 import EchelleCCFs: AbstractMeasureRvFromCCF as FitType
 
 """
-    calc_ccf(lambdas, flux, lines, depths, resolution; normalize=true)
+    calc_ccf(λs, flux, lines, depths, resolution; normalize=true, mask_width=c_ms/resolution,
+             Δv_max=15e3, Δv_step=100.0, mask_type=TopHatMask)
 
-Compute the cross correlation function from a spectrum (λs and flux) with a mask computed from a line list (lines).
+Compute the cross-correlation function (CCF) from a spectrum (λs, flux) using a line-list mask.
 
 # Arguments
-- `lambdas::AbstractArray{Float64,1}`: List of wavelengths in spectrum.
-- `flux::AbstractArray{Float64,1}`: List of flux in spectrum.
-- `lines::AbstractArray{Float64,1}`: List of line centers for use in CCF mask.
-- `depths::AbstractArray{Float64,1}`: List of line depths for use as weights in CCF mask.
-- `resolution::Float64`: Spectral resolution of spcectrum.
+- `λs::AbstractArray{Float64,1}`: wavelength grid for the spectrum.
+- `flux::AbstractArray{Float64,1}`: flux values on the wavelength grid.
+- `lines::AbstractArray{Float64,1}`: line centers for the CCF mask.
+- `depths::AbstractArray{Float64,1}`: line depths used as mask weights.
+- `resolution::Float64`: spectral resolution of the spectrum.
+
+# Keyword Arguments
+- `normalize::Bool=true`: normalize the CCF to its maximum value.
+- `mask_width::Float64=c_ms/resolution`: mask width in velocity units.
+- `Δv_max::Float64=15e3`: maximum velocity shift (m/s) for the CCF grid.
+- `Δv_step::Float64=100.0`: velocity step size (m/s) for the CCF grid.
+- `mask_type::Type=TopHatMask`: mask shape type from `EchelleCCFs`.
 """
 function calc_ccf(λs::AA{T1,1}, flux::AA{T1,1},
                   lines::AA{T1,1}, depths::AA{T1,1},
@@ -179,13 +187,17 @@ end
 
 
 """
-    calc_rvs_from_ccf(v_grid, ccf)
+    calc_rvs_from_ccf(v_grid, ccf; frac_of_width_to_fit=0.75, fit_type=GaussianFit)
 
 Calculate apparent radial velocity from a CCF and velocity grid.
 
 # Arguments
-- `v_grid::AbstractArray{Float64,1}`: List of velocities returned by calc_ccf.
-- `ccf::AbstractArray{Float64,1}`: CCF values returned by calc_ccf.
+- `v_grid::AbstractArray{Float64,1}`: velocity grid returned by `calc_ccf`.
+- `ccf::AbstractArray{Float64,1}`: CCF values returned by `calc_ccf`.
+
+# Keyword Arguments
+- `frac_of_width_to_fit::Float64=0.75`: fraction of the CCF width used in the fit.
+- `fit_type::Type=GaussianFit`: fit model from `EchelleCCFs`.
 """
 function calc_rvs_from_ccf(v_grid::AA{Float64,1}, ccf::AA{Float64,1};
                            frac_of_width_to_fit::Float64=0.75,

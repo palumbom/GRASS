@@ -52,6 +52,7 @@ Generating synthetic spectra with GRASS only takes a few lines of Julia:
 
 ```julia
 using GRASS
+using PyPlot
 
 # parameters for lines in the spectra
 lines = [5434.5]     # array of line centers in angstroms
@@ -64,7 +65,14 @@ disk = DiskParams(Nt=25)
 
 # synthesize the spectra
 wavelengths, flux = synthesize_spectra(spec, disk)
+
+# plot the result
+plt.plot(wavelengths, flux)
+plt.xlabel("Air Wavelength [Å]")
+plt.ylabel("Normalized Flux")
+plt.show()
 ```
+![spectrum](static/spectrum.png)
 
 Additional details and examples can be found in [the documentation](https://palumbom.github.io/GRASS/stable).
 

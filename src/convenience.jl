@@ -1,11 +1,30 @@
 """
-    synthesize_spectra(spec, disk; seed_rng=false, verbose=true, top=NaN)
+    synthesize_spectra(
+        spec,
+        disk;
+        seed_rng=false,
+        verbose=true,
+        use_gpu=false,
+        precision=Float64,
+        skip_times=falses(disk.Nt),
+        contiguous_only=false,
+        show_progress=true,
+    )
 
 Synthesize spectra given parameters in `spec` and `disk` instances.
 
 # Arguments
-- `spec::SpecParams`: SpecParams instance
-- `disk::DiskParams`: DiskParams instance
+- `spec::SpecParams`: spectral synthesis parameters (line list, templates, wavelength grid).
+- `disk::DiskParams`: disk simulation parameters (grid size, time samples, geometry).
+
+# Keyword Arguments
+- `seed_rng::Bool=false`: re-seed RNG with a fixed seed per template.
+- `verbose::Bool=true`: print progress messages for template loading and simulation.
+- `use_gpu::Bool=false`: run the GPU implementation when available.
+- `precision::DataType=Float64`: GPU precision (`Float32` or `Float64`); see [Caveats](@ref "Caveats")
+- `skip_times::BitVector=falses(disk.Nt)`: time indices to skip in the simulation loop.
+- `contiguous_only::Bool=false`: restrict to contiguous line groups when loading templates.
+- `show_progress::Bool=true`: enable progress reporting inside the simulation.
 """
 function synthesize_spectra(spec::SpecParams{T}, disk::DiskParams{T};
                             seed_rng::Bool=false, verbose::Bool=true,
@@ -15,15 +34,15 @@ function synthesize_spectra(spec::SpecParams{T}, disk::DiskParams{T};
                             show_progress::Bool=true) where T<:AF
     # call appropriate simulation function on cpu or gpu
     if use_gpu
-        return synth_gpu(spec, disk, seed_rng, verbose, precision, skip_times, contiguous_only, show_progress)
+        return _synth_gpu(spec, disk, seed_rng, verbose, precision, skip_times, contiguous_only, show_progress)
     else
-        return synth_cpu(spec, disk, seed_rng, verbose, skip_times, contiguous_only, show_progress)
+        return _synth_cpu(spec, disk, seed_rng, verbose, skip_times, contiguous_only, show_progress)
     end
 end
 
-function synth_cpu(spec::SpecParams{T}, disk::DiskParams{T}, seed_rng::Bool,
-                   verbose::Bool, skip_times::BitVector, contiguous_only::Bool,
-                   show_progress::Bool) where T<:AF
+function _synth_cpu(spec::SpecParams{T}, disk::DiskParams{T}, seed_rng::Bool,
+                    verbose::Bool, skip_times::BitVector, contiguous_only::Bool,
+                    show_progress::Bool) where T<:AF
     # parse out dimensions for memory allocation
     N = disk.N
     Nt = disk.Nt
@@ -78,9 +97,9 @@ function synth_cpu(spec::SpecParams{T}, disk::DiskParams{T}, seed_rng::Bool,
     return spec.lambdas, flux
 end
 
-function synth_gpu(spec::SpecParams{T}, disk::DiskParams{T}, seed_rng::Bool,
-                   verbose::Bool, precision::DataType, skip_times::BitVector,
-                   contiguous_only::Bool, show_progress::Bool) where T<:AF
+function _synth_gpu(spec::SpecParams{T}, disk::DiskParams{T}, seed_rng::Bool,
+                    verbose::Bool, precision::DataType, skip_times::BitVector,
+                    contiguous_only::Bool, show_progress::Bool) where T<:AF
     # make sure there is actually a GPU to use
     @assert CUDA.functional()
 

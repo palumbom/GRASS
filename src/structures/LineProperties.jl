@@ -1,3 +1,8 @@
+"""
+    LineProperties
+
+Container for metadata about available line templates on disk.
+"""
 struct LineProperties{T<:AF}
     species::AA{String,1}
     mass::AA{T,1}             # amu
@@ -10,6 +15,16 @@ struct LineProperties{T<:AF}
     file::AA{String,1}
 end
 
+"""
+    LineProperties(; dir=GRASS.soldir, exclude=["CI_5380", "NaI_5896"], verbose=false)
+
+Load line template metadata from HDF5 files in `dir`.
+
+# Keyword Arguments
+- `dir::String=GRASS.soldir`: directory containing template `.h5` files.
+- `exclude::AbstractArray{String,1}=["CI_5380", "NaI_5896"]`: line names to skip.
+- `verbose::Bool=false`: print exclusions while scanning.
+"""
 function LineProperties(;dir=GRASS.soldir, exclude::AA{String,1}=["CI_5380", "NaI_5896"], verbose::Bool=false)
     @assert isdir(dir)
 

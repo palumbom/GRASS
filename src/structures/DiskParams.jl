@@ -28,16 +28,18 @@ the x- and z- axes are sky-plane, and the y-axis is along the observer-to-star-
 center vector.
 
 # Arguments
-- `N=197`: Number of stellar latitude grid elements. Should be set to 197 for physical validity.
-- `Nt=50`: Number of 15-second time steps.
-- `radius=1.0`: Radius of model star. Default is one solar radius.
-- `inclination=90.0`: Sky-plane inclination of model stellar disk. 90 degrees is equator on.
-- `u1=0.4`: Quadratic limb darkening law coefficient.
-- `u2=0.25`: Quadratic limb darkening law coefficient
-- `vsini=2067.03346686649251345`: Equatorial rotational velocity magnitude in units of meters per second.
-- `A=14.713`: Differential rotation coefficient. Units of deg/day.
-- `B=-2.396`: Differential rotation coefficient. Units of deg/day.
-- `C=-1.787`: Differential rotation coefficient. Units of deg/day.
+- `N=197`: number of stellar latitude grid elements; 197 recommended for physical validity.
+- `Nt`: number of 15-second time steps (required; must be provided).
+- `Nsubgrid=40`: number of subgrid points per surface element for integration.
+- `radius=1.0`: stellar radius in solar units.
+- `inclination=90.0`: sky-plane inclination of the stellar disk (90 degrees is equator-on).
+- `u1=0.4`: quadratic limb-darkening coefficient.
+- `u2=0.26`: quadratic limb-darkening coefficient.
+- `vsini=2067.033467`: equatorial rotational velocity magnitude in meters per second.
+- `A=14.713`: differential rotation coefficient (deg/day).
+- `B=-2.396`: differential rotation coefficient (deg/day).
+- `C=-1.787`: differential rotation coefficient (deg/day).
+- `offset=false`: randomize longitude grid edges by a half-step offset.
 """
 function DiskParams(;N=197, Nt=NaN, Nsubgrid=40, radius=1.0,
                      inclination=90.0, u1=0.4, u2=0.26,

@@ -1,4 +1,4 @@
-# Advanced Usage
+# Manipulating Input Data
 
 Examples of more advanced usage of GRASS can be found in the [figures/ directory](https://github.com/palumbom/GRASS/tree/main/figures). These scripts were used to generate the figures that can be found in the GRASS paper. For clarity, a few specific advanced use cases are highlighted below.
 

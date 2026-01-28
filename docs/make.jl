@@ -45,11 +45,12 @@ write(target_path, readme_text)
 
 # pages
 Introduction = "Quickstart" => "index.md"
-Getting_Started = "Tutorials" => ["examples/basic.md", "examples/advanced.md"]
-Input_Data = "Input Data" => ["input_data/description.md", "input_data/manipulation.md"]
+Getting_Started = "Tutorials" => ["examples/basic.md", "examples/input_data.md"]
+Caveats = "Caveats" => "caveats.md"
+Internals = "Public Functions" => "internals.md"
 License = "License" => "license.md"
 Index = "Full Index" => "longlist.md"
-pages = [Introduction, Getting_Started, Input_Data, Index, License]
+pages = [Introduction, Getting_Started, Caveats, Internals, Index, License]
 
 makedocs(;
     modules=[GRASS],
