@@ -72,7 +72,7 @@ plt.xlabel("Air Wavelength [Å]")
 plt.ylabel("Normalized Flux")
 plt.show()
 ```
-![spectrum](static/spectrum.png)
+![spectrum](./docs/src/assets/spectrum.png)
 
 Additional details and examples can be found in [the documentation](https://palumbom.github.io/GRASS/stable).
 
