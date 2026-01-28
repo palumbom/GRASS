@@ -12,8 +12,8 @@ GRASS provides a few high-level convenience wrappers for generating spectra.
 
 ```@docs
 synthesize_spectra
-spec
-disk
+SpecParams
+DiskParams
 ```
 
 

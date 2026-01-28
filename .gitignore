@@ -11,6 +11,7 @@
 *.ipynb_checkpoints
 
 # specific files/directories
+docs/src/index.md
 data/input/
 docs/build/
 docs/Manifest.toml

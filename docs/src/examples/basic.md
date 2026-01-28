@@ -8,7 +8,7 @@ The simplest use case for GRASS is the generation of time series of synthetic sp
 
 ```@eval
 using Markdown
-code = read(joinpath(pwd(), "scripts", "simple.jl"), String)
+code = read(joinpath(pwd(), "..", "scripts", "simple.jl"), String)
 break_marker = "# BREAK1"
 stop_idx = findfirst(break_marker, code)
 code = stop_idx === nothing ? code : code[1:prevind(code, stop_idx.start)]
@@ -22,7 +22,7 @@ GRASS wraps the [EchelleCCFs package](https://github.com/RvSpectML/EchelleCCFs.j
 
 ```@eval
 using Markdown
-code = read(joinpath(pwd(), "examples", "cont_func.jl"), String)
+code = read(joinpath(pwd(), "..", "scripts", "simple.jl"), String)
 start_marker = "# BREAK1"
 end_marker = "# BREAK2"
 start_idx = findfirst(start_marker, code)
@@ -43,7 +43,7 @@ GRASS wraps the [EchelleCCFs package](https://github.com/RvSpectML/EchelleCCFs.j
 
 ```@eval
 using Markdown
-code = read(joinpath(pwd(), "examples", "cont_func.jl"), String)
+code = read(joinpath(pwd(), "..", "scripts", "simple.jl"), String)
 start_marker = "# BREAK2"
 end_marker = "# BREAK3"
 start_idx = findfirst(start_marker, code)
@@ -62,7 +62,7 @@ We can also examine the mean-subtracted bisectors to better see the temporal var
 
 ```@eval
 using Markdown
-code = read(joinpath(pwd(), "examples", "cont_func.jl"), String)
+code = read(joinpath(pwd(), "..", "scripts", "simple.jl"), String)
 start_marker = "# BREAK3"
 end_marker = "# BREAK4"
 start_idx = findfirst(start_marker, code)
