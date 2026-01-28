@@ -1,9 +1,7 @@
 module GRASS
 
-# parallelization modules
+# parallelization
 using CUDA; CUDA.allowscalar(false)
-using Distributed
-using SharedArrays
 
 # import external modules
 using CSV
