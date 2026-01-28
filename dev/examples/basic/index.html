@@ -1,18 +1,124 @@
 <!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Basic Usage · GRASS</title><meta name="title" content="Basic Usage · GRASS"/><meta property="og:title" content="Basic Usage · GRASS"/><meta property="twitter:title" content="Basic Usage · GRASS"/><meta name="description" content="Documentation for GRASS."/><meta property="og:description" content="Documentation for GRASS."/><meta property="twitter:description" content="Documentation for GRASS."/><meta property="og:url" content="https://palumbom.github.io/GRASS/examples/basic/"/><meta property="twitter:url" content="https://palumbom.github.io/GRASS/examples/basic/"/><link rel="canonical" href="https://palumbom.github.io/GRASS/examples/basic/"/><script data-outdated-warner src="../../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.050/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../search_index.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-mocha.css" data-theme-name="catppuccin-mocha"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-macchiato.css" data-theme-name="catppuccin-macchiato"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-frappe.css" data-theme-name="catppuccin-frappe"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-latte.css" data-theme-name="catppuccin-latte"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><a class="docs-logo" href="../../"><img src="../../assets/logo.png" alt="GRASS logo"/></a><div class="docs-package-name"><span class="docs-autofit"><a href="../../">GRASS</a></span></div><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="../../">Quickstart</a></li><li><span class="tocitem">Tutorials</span><ul><li class="is-active"><a class="tocitem" href>Basic Usage</a><ul class="internal"><li><a class="tocitem" href="#Generating-Synthetic-Spectra"><span>Generating Synthetic Spectra</span></a></li><li><a class="tocitem" href="#Measuring-Velocities"><span>Measuring Velocities</span></a></li></ul></li><li><a class="tocitem" href="../advanced/">Advanced Usage</a></li></ul></li><li><span class="tocitem">Input Data</span><ul><li><a class="tocitem" href="../../input_data/description/">Input Data Description</a></li><li><a class="tocitem" href="../../input_data/manipulation/">Input Data Manipulation</a></li></ul></li><li><a class="tocitem" href="../../longlist/">Full Index</a></li><li><a class="tocitem" href="../../license/">License</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Tutorials</a></li><li class="is-active"><a href>Basic Usage</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Basic Usage</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/palumbom/GRASS" title="View the repository on GitHub"><span class="docs-icon fa-brands"></span><span class="docs-label is-hidden-touch">GitHub</span></a><a class="docs-navbar-link" href="https://github.com/palumbom/GRASS/blob/main/docs/src/examples/basic.md" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><h1 id="Basic-Usage"><a class="docs-heading-anchor" href="#Basic-Usage">Basic Usage</a><a id="Basic-Usage-1"></a><a class="docs-heading-anchor-permalink" href="#Basic-Usage" title="Permalink"></a></h1><p>The most basic use case of GRASS is generating time series of synthetic spectra and measuring apparent velocities. These can both be done in only a few lines of code.</p><h2 id="Generating-Synthetic-Spectra"><a class="docs-heading-anchor" href="#Generating-Synthetic-Spectra">Generating Synthetic Spectra</a><a id="Generating-Synthetic-Spectra-1"></a><a class="docs-heading-anchor-permalink" href="#Generating-Synthetic-Spectra" title="Permalink"></a></h2><p>The simplest use case for GRASS is the generation of time series of synthetic spectra. This can be done in only a few lines of code. The following example generates 25 spectra consisting of a single line at 5434.5 Angstroms. By default, the temporal spacing of the spectra is 15 seconds.</p><pre><code class="language-julia hljs">using GRASS
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Basic Usage · GRASS</title><meta name="title" content="Basic Usage · GRASS"/><meta property="og:title" content="Basic Usage · GRASS"/><meta property="twitter:title" content="Basic Usage · GRASS"/><meta name="description" content="Documentation for GRASS."/><meta property="og:description" content="Documentation for GRASS."/><meta property="twitter:description" content="Documentation for GRASS."/><meta property="og:url" content="https://palumbom.github.io/GRASS/examples/basic/"/><meta property="twitter:url" content="https://palumbom.github.io/GRASS/examples/basic/"/><link rel="canonical" href="https://palumbom.github.io/GRASS/examples/basic/"/><script data-outdated-warner src="../../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.050/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../search_index.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-mocha.css" data-theme-name="catppuccin-mocha"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-macchiato.css" data-theme-name="catppuccin-macchiato"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-frappe.css" data-theme-name="catppuccin-frappe"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-latte.css" data-theme-name="catppuccin-latte"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><a class="docs-logo" href="../../"><img src="../../assets/logo.png" alt="GRASS logo"/></a><div class="docs-package-name"><span class="docs-autofit"><a href="../../">GRASS</a></span></div><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="../../">Quickstart</a></li><li><span class="tocitem">Tutorials</span><ul><li class="is-active"><a class="tocitem" href>Basic Usage</a><ul class="internal"><li><a class="tocitem" href="#Generating-Synthetic-Spectra"><span>Generating Synthetic Spectra</span></a></li><li><a class="tocitem" href="#Measuring-Velocities"><span>Measuring Velocities</span></a></li><li><a class="tocitem" href="#Measuring-Bisectors"><span>Measuring Bisectors</span></a></li></ul></li><li><a class="tocitem" href="../advanced/">Manipulating Input Data</a></li></ul></li><li><a class="tocitem" href="../../caveats/">Caveats</a></li><li><a class="tocitem" href="../../internals/">Public Functions</a></li><li><a class="tocitem" href="../../longlist/">Full Index</a></li><li><a class="tocitem" href="../../license/">License</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Tutorials</a></li><li class="is-active"><a href>Basic Usage</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Basic Usage</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/palumbom/GRASS" title="View the repository on GitHub"><span class="docs-icon fa-brands"></span><span class="docs-label is-hidden-touch">GitHub</span></a><a class="docs-navbar-link" href="https://github.com/palumbom/GRASS/blob/main/docs/src/examples/basic.md" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><h1 id="Basic-Usage"><a class="docs-heading-anchor" href="#Basic-Usage">Basic Usage</a><a id="Basic-Usage-1"></a><a class="docs-heading-anchor-permalink" href="#Basic-Usage" title="Permalink"></a></h1><p>The most basic use case of GRASS is generating time series of synthetic spectra and measuring apparent velocities. These can both be done in only a few lines of code.</p><h2 id="Generating-Synthetic-Spectra"><a class="docs-heading-anchor" href="#Generating-Synthetic-Spectra">Generating Synthetic Spectra</a><a id="Generating-Synthetic-Spectra-1"></a><a class="docs-heading-anchor-permalink" href="#Generating-Synthetic-Spectra" title="Permalink"></a></h2><p>The simplest use case for GRASS is the generation of time series of synthetic spectra. This can be done in only a few lines of code. The following example generates 25 spectra consisting of a single line at 5434.5 Angstroms. By default, the temporal spacing of the spectra is 15 seconds.</p><pre><code class="language-julia hljs">using GRASS
+using PyPlot
+using Statistics
 
 # parameters for lines in the spectra
-lines = [5434.5]     # array of line centers in angstroms
+λrest = 5434.5
+lines = [λrest]     # array of line centers in angstroms
 depths = [0.75]      # continuum-normalized depth of lines
 resolution = 7e5     # spectral resolution of the output spectra
 spec = SpecParams(lines=lines, depths=depths, resolution=resolution)
 
 # specify number of epochs (default 15-second spacing)
-disk = DiskParams(Nt=25)
+disk = DiskParams(Nt=50)
 
 # synthesize the spectra
-wavelengths, flux = synthesize_spectra(spec, disk)</code></pre><h2 id="Measuring-Velocities"><a class="docs-heading-anchor" href="#Measuring-Velocities">Measuring Velocities</a><a id="Measuring-Velocities-1"></a><a class="docs-heading-anchor-permalink" href="#Measuring-Velocities" title="Permalink"></a></h2><p>GRASS wraps the <a href="https://github.com/RvSpectML/EchelleCCFs.jl">EchelleCCFs package</a> to measure apparent Doppler velocities from spectra.</p><pre><code class="language-julia hljs"># generate a velocity grid and compute the cross-correlation function
+wavelengths, flux = synthesize_spectra(spec, disk)
+
+# get the residuals
+resid_flux = flux .- mean(flux, dims=2)
+
+# get a colormap for time
+cmap = plt.get_cmap(&quot;viridis&quot;)
+colors = cmap(range(0, 1, length=disk.Nt))
+norm = plt.matplotlib.colors.Normalize(vmin=15, vmax=15*disk.Nt)
+smap = plt.matplotlib.cm.ScalarMappable(norm=norm, cmap=cmap)
+
+# plot the result
+fig, (ax1, ax2) = plt.subplots(nrows=2, ncols=1, height_ratios=[3,1], sharex=true)
+for i in 1:disk.Nt
+    xs = wavelengths
+    ys1 = view(flux, :, i)
+    ys2 = view(resid_flux, :, i)
+    ax1.plot(xs, ys1, c = colors[i, :])
+    ax2.plot(xs, ys2, c = colors[i, :])
+end
+ax2.set_xlabel(&quot;Air Wavelength [Å]&quot;)
+ax1.set_ylabel(&quot;Normalized Flux&quot;)
+ax2.set_ylabel(&quot;Residual Flux&quot;)
+ax1.grid(ls = &quot;:&quot;, alpha=0.5)
+ax2.grid(ls = &quot;:&quot;, alpha=0.5)
+ax1.set_xlim(λrest - 0.5, λrest + 0.5)
+fname = joinpath(GRASS.moddir, &quot;docs&quot;, &quot;src&quot;, &quot;assets&quot;, &quot;spectrum.png&quot;)
+plt.savefig(fname, bbox_inches=&quot;tight&quot;)
+plt.show()
+
+</code></pre><p><img src="../../assets/spectrum.png" alt="formation_temps"/></p><h2 id="Measuring-Velocities"><a class="docs-heading-anchor" href="#Measuring-Velocities">Measuring Velocities</a><a id="Measuring-Velocities-1"></a><a class="docs-heading-anchor-permalink" href="#Measuring-Velocities" title="Permalink"></a></h2><p>GRASS wraps the <a href="https://github.com/RvSpectML/EchelleCCFs.jl">EchelleCCFs package</a> to measure apparent Doppler velocities from spectra.</p><pre><code class="language-julia hljs">
+# generate a velocity grid and compute the cross-correlation function
 vel_grid, ccf = calc_ccf(wavelengths, flux, spec, normalize=true)
 
 # measure radial velocities and uncertainties from the ccfs
-rvs, sigs = calc_rvs_from_ccf(vel_grid, ccf)</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../../">« Quickstart</a><a class="docs-footer-nextpage" href="../advanced/">Advanced Usage »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.16.1 on <span class="colophon-date" title="Wednesday 28 January 2026 00:02">Wednesday 28 January 2026</span>. Using Julia version 1.12.4.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+rvs, sigs = calc_rvs_from_ccf(vel_grid, ccf)
+
+# measure an rms
+rms = calc_rms(rvs)
+rms_string = string(round(rms, digits=3))
+
+# plot the RVs
+plt.scatter(15 .* collect(1:disk.Nt), rvs, c=&quot;k&quot;, s=5)
+plt.xlabel(&quot;Time [s]&quot;)
+plt.ylabel(&quot;RV [m/s]&quot;)
+# plt.xlim(0, 15 * disk.Nt + 1)
+# plt.ylim(minimum(rvs) - rms, maximum(rvs) + rms)
+plt.title(&quot;RMS ≈ $rms_string [m/s]&quot;)
+plt.grid(ls = &quot;:&quot;, alpha=0.5)
+fname = joinpath(GRASS.moddir, &quot;docs&quot;, &quot;src&quot;, &quot;assets&quot;, &quot;rvs.png&quot;)
+plt.savefig(fname, bbox_inches=&quot;tight&quot;)
+plt.show()
+
+</code></pre><p><img src="../../assets/rvs.png" alt="formation_temps"/></p><h2 id="Measuring-Bisectors"><a class="docs-heading-anchor" href="#Measuring-Bisectors">Measuring Bisectors</a><a id="Measuring-Bisectors-1"></a><a class="docs-heading-anchor-permalink" href="#Measuring-Bisectors" title="Permalink"></a></h2><p>GRASS wraps the <a href="https://github.com/RvSpectML/EchelleCCFs.jl">EchelleCCFs package</a> to measure apparent Doppler velocities from spectra.</p><pre><code class="language-julia hljs">
+# measure bisectors
+bis_wavs, bis_flux = calc_bisector(wavelengths, flux, nflux=200)
+
+# cut off the bottom-most noisy measurement
+bis_wavs = bis_wavs[2:end, :]
+bis_flux = bis_flux[2:end, :]
+
+# convert to from a wavelength to a velocity scale
+bis_vels = GRASS.c_ms .* (bis_wavs .- λrest) ./ λrest 
+
+# plot it 
+for i in 1:disk.Nt
+    xs = view(bis_vels, :, i)
+    ys = view(bis_flux, :, i)
+    plt.plot(xs, ys, c=colors[i,:])
+end
+plt.xlabel(&quot;Velocity [m/s]&quot;)
+plt.ylabel(&quot;Normalized Flux&quot;)
+plt.colorbar(smap, label = &quot;Time [s]&quot;, ax=plt.gca())
+plt.grid(ls = &quot;:&quot;, alpha=0.5)
+fname = joinpath(GRASS.moddir, &quot;docs&quot;, &quot;src&quot;, &quot;assets&quot;, &quot;bisectors.png&quot;)
+plt.savefig(fname, bbox_inches=&quot;tight&quot;)
+plt.show()
+
+</code></pre><p><img src="../../assets/bisectors.png" alt="formation_temps"/></p><p>We can also examine the mean-subtracted bisectors to better see the temporal variability in line shape created by granulation.</p><pre><code class="language-julia hljs">
+# now measure the means
+mean_bis_wavs = mean(bis_wavs, dims=2)
+mean_bis_vels = mean(bis_vels, dims=2)
+
+# get residuals
+resid_bis_wavs = bis_wavs .- mean_bis_wavs
+resid_bis_vels = bis_vels .- mean_bis_vels
+
+# smooth them
+n = 10
+resid_bis_wavs_smooth = moving_average(resid_bis_wavs, n)
+resid_bis_vels_smooth = moving_average(resid_bis_vels, n)
+bis_flux_smooth = moving_average(bis_flux, n)
+
+# plot it
+for i in 1:disk.Nt
+    xs = view(resid_bis_vels_smooth, :, i)
+    ys = view(bis_flux_smooth, :, i)
+    plt.plot(xs, ys, c=colors[i,:])
+end
+plt.xlabel(&quot;Residual Velocity [m/s]&quot;)
+plt.ylabel(&quot;Normalized Flux&quot;)
+plt.colorbar(smap, label = &quot;Time [s]&quot;, ax=plt.gca())
+plt.grid(ls = &quot;:&quot;, alpha=0.5)
+fname = joinpath(GRASS.moddir, &quot;docs&quot;, &quot;src&quot;, &quot;assets&quot;, &quot;bisector_resids.png&quot;)
+plt.savefig(fname, bbox_inches=&quot;tight&quot;)
+plt.show()
+
+</code></pre><p><img src="../../assets/bisector_resids.png" alt="formation_temps"/></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../../">« Quickstart</a><a class="docs-footer-nextpage" href="../advanced/">Manipulating Input Data »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.16.1 on <span class="colophon-date" title="Wednesday 28 January 2026 21:26">Wednesday 28 January 2026</span>. Using Julia version 1.12.4.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
