@@ -9,7 +9,7 @@ GRASS is a Julia package designed to produce time series of stellar spectra with
 
 GRASS v1.0.x is described in detail in [Palumbo et al. (2022)](https://arxiv.org/abs/2110.11839); the results of this paper can be reproduced using the [showyourwork workflow](https://github.com/showyourwork/showyourwork) from [this repo](https://github.com/palumbom/palumbo22). 
 
-GRASS v2.0.x is presented in [Palumbo et al. (2024a)](https://arxiv.org/abs/2405.07945); [this repo](https://github.com/palumbom/grass-two) reproduces the figures and quantitative results presented therein. 
+GRASS v2.0.x is presented in [Palumbo et al. (2024a)](https://arxiv.org/abs/2405.07945); the figures and quantitative results presented therein are reproducable with [this repo](https://github.com/palumbom/grass-two). 
 
 ## Installation
 
