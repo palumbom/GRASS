@@ -45,7 +45,7 @@ write(target_path, readme_text)
 
 # pages
 Introduction = "Quickstart" => "index.md"
-Getting_Started = "Tutorials" => ["examples/basic.md", "examples/input_data.md"]
+Getting_Started = "Tutorials" => ["examples/basic.md", "examples/advanced.md"]
 Caveats = "Caveats" => "caveats.md"
 Internals = "Public Functions" => "internals.md"
 License = "License" => "license.md"

@@ -26,30 +26,3 @@ In the above code, ```wav``` is a 2D array of wavelengths. Each column contains 
 plt.plot(wav[:,1], bis[:,1])
 plt.show()
 ```
-
-## Measuring a Line Bisector
-GRASS can also compute bisectors for absorption lines or CCF profiles. A detailed example of this can be seen in [the code for Figure 3](https://github.com/palumbom/GRASS/blob/main/figures/fig3.jl). A streamlined version is presented below. First, GRASS is used to generate some synthetic spectra (exactly as in the [basic use example](https://palumbom.github.io/GRASS/dev/examples/examples/#Generating-Synthetic-Spectra)):
-
-```julia
-using GRASS
-
-# parameters for lines in the spectra
-lines = [5434.5]     # array of line centers in angstroms
-depths = [0.75]      # continuum-normalized depth of lines
-resolution = 7e5     # spectral resolution of the output spectra
-spec = SpecParams(lines=lines, depths=depths, resolution=resolution)
-
-# specify number of epochs (default 15-second spacing)
-disk = DiskParams(Nt=25)
-
-# synthesize the spectra
-wavelengths, flux = synthesize_spectra(spec, disk)
-```
-
-Then, we call the ```GRASS.measure_bisector``` function:
-
-```julia
-wav_synth, bis_synth = GRASS.measure_bisector(wavelengths, flux, interpolate=true, top=0.9)
-```
-
-Two methods for calculating bisectors are implemented. By default, GRASS will attempt to interpolate the absorption line profile onto a uniform grid of flux values. Then the bisector is calculated as the average wavelength value on the left and right wings of the absorption line. Interpolation usually provides cleaner results, but it will fail if the line profile is sufficiently noisy. In this case, if ```interpolation=false```, GRASS will use an iterative approach that is more stable, but less precise.
