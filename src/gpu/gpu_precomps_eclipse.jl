@@ -13,7 +13,7 @@ function calc_eclipse_quantities_gpu!(epoch::T1, obs_long::T1, obs_lat::T1, alt:
     ax_codes = gpu_allocs.ax_codes
 
     # re-zero everything
-    @cusync begin
+    CUDA.@sync  begin
         μs .= 0.0
         ld .= 0.0
         contrast .= 0.0
@@ -93,7 +93,7 @@ function calc_eclipse_quantities_gpu!(epoch::T1, obs_long::T1, obs_lat::T1, alt:
     EO_earth = vcat(EO_earth_pos, [0.0, 0.0, 0.0])
     # transform into ICRF frame
     EO_bary = sxform("IAU_EARTH", "J2000", epoch) * EO_earth
-    @cusync EO_bary_gpu = CuArray(EO_bary)
+    CUDA.@sync  EO_bary_gpu = CuArray(EO_bary)
 
     # get vector from barycenter to observatory on Earth's surface
     BO_bary = BE_bary .+ EO_bary
@@ -101,40 +101,40 @@ function calc_eclipse_quantities_gpu!(epoch::T1, obs_long::T1, obs_lat::T1, alt:
     # set string for ltt and abberation
     lt_flag = "CN+S"
 
-    @cusync moon_radius_gpu = CuArray([moon_radius])
-    @cusync sun_radius_gpu = CuArray([sun_radius])
+    CUDA.@sync  moon_radius_gpu = CuArray([moon_radius])
+    CUDA.@sync  sun_radius_gpu = CuArray([sun_radius])
 
     # get light travel time corrected OS vector
     OS_bary, OS_lt, OS_dlt = spkltc(10, epoch, "J2000", lt_flag, BO_bary)
-    @cusync OS_bary_gpu = CuArray(OS_bary)
+    CUDA.@sync  OS_bary_gpu = CuArray(OS_bary)
 
     # get vector from observatory on earth's surface to moon center
     OM_bary, OM_lt, OM_dlt = spkltc(301, epoch, "J2000", lt_flag, BO_bary)
-    @cusync OM_bary_gpu = CuArray(OM_bary)
+    CUDA.@sync  OM_bary_gpu = CuArray(OM_bary)
 
     # get modified epch
     epoch_lt = epoch - OS_lt
 
     # get rotation matrix for sun
     sun_rot_mat = pxform("IAU_SUN", "J2000", epoch_lt)
-    @cusync sun_rot_mat_gpu = CuArray(sun_rot_mat)
+    CUDA.@sync  sun_rot_mat_gpu = CuArray(sun_rot_mat)
 
-    @cusync begin
+    CUDA.@sync  begin
         Nθ = CuArray{Float64}(disk.Nθ)
     end
 
-    spot_xyz = map((x,y) -> sphere_to_cart_eclipse.(sun_radius, x, y), deg2rad.(spots_info.lat), deg2rad.(spots_info.lon))
+    spot_xyz = map((x,y) -> GRASS.sphere_to_cart_eclipse.(sun_radius, x, y), deg2rad.(spots_info.lat), deg2rad.(spots_info.lon))
     spot_xyz = map(x -> (sun_rot_mat * x) .+ OS_bary[1:3], spot_xyz)
     spot_xyz_mat = reduce(hcat, spot_xyz)
     spot_xyz_gpu = CuArray(spot_xyz_mat)
     contrast_array = CuArray(spots_info.contrast)
     diameter_km = CuArray(spots_info.diameter_km)
 
-    @cusync wavelength_gpu = CuArray(wavelength)
+    CUDA.@sync  wavelength_gpu = CuArray(wavelength)
     # compute geometric parameters, average over subtiles
     threads1 = 256
     blocks1 = cld(prod(CUDA.size(μs)), prod(threads1))
-    @cusync @cuda threads=threads1 blocks=blocks1 calc_eclipse_quantities_gpu!(wavelength_gpu, μs, z_rot, ax_codes,
+    CUDA.@sync  @cuda threads=threads1 blocks=blocks1 calc_eclipse_quantities_gpu!(wavelength_gpu, μs, z_rot, ax_codes,
                                                                                Nϕ, Nθ, Nsubgrid, Nθ_max, ld, contrast, projected_v, earth_v, ext, 
                                                                                dA, moon_radius_gpu, OS_bary_gpu, OM_bary_gpu, EO_bary_gpu,
                                                                                sun_rot_mat_gpu, sun_radius_gpu, A, B, C, u1, u2, u3, u4,
@@ -294,8 +294,8 @@ function calc_eclipse_quantities_gpu!(wavelength, μs, z_rot, ax_codes,
                     continue
                 end
 
-                z_rot_sub = v_rot_sub / c_ms
-                z_rot_sub += (v_orbit_sub / c_ms)
+                z_rot_sub = v_rot_sub / GRASS.c_ms
+                z_rot_sub += (v_orbit_sub / GRASS.c_ms)
 
                 projected_v_sum += v_rot_sub
                 earth_v_sum += v_orbit_sub
@@ -393,7 +393,7 @@ function calc_eclipse_quantities_gpu!(wavelength, μs, z_rot, ax_codes,
             @inbounds yy = y_sum / μ_count
             @inbounds zz = z_sum / μ_count
 
-            @inbounds ax_codes[m, n] = find_nearest_ax_gpu(yy / sun_radius, zz / sun_radius)
+            @inbounds ax_codes[m, n] = GRASS.find_nearest_ax_gpu(yy / sun_radius, zz / sun_radius)
         end
     end
 
@@ -415,7 +415,7 @@ function calc_eclipse_quantities_gpu!(epoch::T1, obs_long::T1, obs_lat::T1, alt:
     ax_codes = gpu_allocs.ax_codes
 
     # re-zero everything
-    @cusync begin
+    CUDA.@sync  begin
         μs .= 0.0
         ld .= 0.0
         contrast .= 0.0
@@ -461,7 +461,7 @@ function calc_eclipse_quantities_gpu!(epoch::T1, obs_long::T1, obs_lat::T1, alt:
     EO_earth = vcat(EO_earth_pos, [0.0, 0.0, 0.0])
     # transform into ICRF frame
     EO_bary = sxform("IAU_EARTH", "J2000", epoch) * EO_earth
-    @cusync EO_bary_gpu = CuArray(EO_bary)
+    CUDA.@sync  EO_bary_gpu = CuArray(EO_bary)
 
     # get vector from barycenter to observatory on Earth's surface
     BO_bary = BE_bary .+ EO_bary
@@ -469,45 +469,45 @@ function calc_eclipse_quantities_gpu!(epoch::T1, obs_long::T1, obs_lat::T1, alt:
     # set string for ltt and abberation
     lt_flag = "CN+S"
 
-    @cusync moon_radius_gpu = CuArray([moon_radius])
-    @cusync sun_radius_gpu = CuArray([sun_radius])
+    CUDA.@sync  moon_radius_gpu = CuArray([moon_radius])
+    CUDA.@sync  sun_radius_gpu = CuArray([sun_radius])
 
     # get light travel time corrected OS vector
     OS_bary, OS_lt, OS_dlt = spkltc(10, epoch, "J2000", lt_flag, BO_bary)
-    @cusync OS_bary_gpu = CuArray(OS_bary)
+    CUDA.@sync  OS_bary_gpu = CuArray(OS_bary)
 
     # get vector from observatory on earth's surface to moon center
     OM_bary, OM_lt, OM_dlt = spkltc(301, epoch, "J2000", lt_flag, BO_bary)
-    @cusync OM_bary_gpu = CuArray(OM_bary)
+    CUDA.@sync  OM_bary_gpu = CuArray(OM_bary)
 
     # get modified epch
     epoch_lt = epoch - OS_lt
 
     # get rotation matrix for sun
     sun_rot_mat = pxform("IAU_SUN", "J2000", epoch_lt)
-    @cusync sun_rot_mat_gpu = CuArray(sun_rot_mat)
+    CUDA.@sync  sun_rot_mat_gpu = CuArray(sun_rot_mat)
 
-    @cusync begin
+    CUDA.@sync  begin
         Nθ = CuArray{Float64}(disk.Nθ)
     end
 
-    vmap_xyz = map((x,y) -> sphere_to_cart_eclipse.(sun_radius, x, y), deg2rad.(vmap_info.lat_deg), deg2rad.(vmap_info.lon_deg))
+    vmap_xyz = map((x,y) -> GRASS.sphere_to_cart_eclipse.(sun_radius, x, y), deg2rad.(vmap_info.lat_deg), deg2rad.(vmap_info.lon_deg))
     vmap_xyz_mat = reduce(hcat, vmap_xyz)
     vmap_xyz_gpu = CuArray(vmap_xyz_mat)
     vmap_array = CuArray(vmap_info.velocity)
 
-    spot_xyz = map((x,y) -> sphere_to_cart_eclipse.(sun_radius, x, y), deg2rad.(spots_info.lat), deg2rad.(spots_info.lon))
+    spot_xyz = map((x,y) -> GRASS.sphere_to_cart_eclipse.(sun_radius, x, y), deg2rad.(spots_info.lat), deg2rad.(spots_info.lon))
     spot_xyz = map(x -> (sun_rot_mat * x) .+ OS_bary[1:3], spot_xyz)
     spot_xyz_mat = reduce(hcat, spot_xyz)
     spot_xyz_gpu = CuArray(spot_xyz_mat)
     contrast_array = CuArray(spots_info.contrast)
     diameter_km = CuArray(spots_info.diameter_km)
 
-    @cusync wavelength_gpu = CuArray(wavelength)
+    CUDA.@sync  wavelength_gpu = CuArray(wavelength)
     # compute geometric parameters, average over subtiles
     threads1 = 256
     blocks1 = cld(prod(CUDA.size(μs)), prod(threads1))
-    @cusync @cuda threads=threads1 blocks=blocks1 calc_eclipse_quantities_gpu!(wavelength_gpu, μs, z_rot, ax_codes,
+    CUDA.@sync  @cuda threads=threads1 blocks=blocks1 calc_eclipse_quantities_gpu!(wavelength_gpu, μs, z_rot, ax_codes,
                                                                                Nϕ, Nθ, Nsubgrid, Nθ_max, ld, contrast, mf, projected_v, earth_v, ext, 
                                                                                dA, moon_radius_gpu, OS_bary_gpu, OM_bary_gpu, EO_bary_gpu,
                                                                                sun_rot_mat_gpu, sun_radius_gpu, A, B, C, u1, u2, u3, u4, CB1, CB2, CB3, MF1, MF2,
@@ -715,14 +715,14 @@ function calc_eclipse_quantities_gpu!(wavelength, μs, z_rot, ax_codes,
                 if !skip_patch
                     ld_sub = quad_limb_darkening_gpu(μ_sub, u1, u2, u3, u4)
                     projected_v_sum += v_rot_sub
-                    z_rot_sub = v_rot_sub / c_ms
-                    z_rot_sub += (v_orbit_sub / c_ms)
+                    z_rot_sub = v_rot_sub / GRASS.c_ms
+                    z_rot_sub += (v_orbit_sub / GRASS.c_ms)
                 end
                 if skip_patch
                     ld_sub = contrast_value*quad_limb_darkening_gpu(μ_sub, u1, u2, u3, u4)
                     projected_v_sum += v_rot_sub_no_cb
-                    z_rot_sub = v_rot_sub_no_cb / c_ms
-                    z_rot_sub += (v_orbit_sub / c_ms)
+                    z_rot_sub = v_rot_sub_no_cb / GRASS.c_ms
+                    z_rot_sub += (v_orbit_sub / GRASS.c_ms)
                 end
 
                 ext_sub = CUDA.exp(-((1/(CUDA.cos(zenith)))*ext_coeff_gpu))
@@ -756,7 +756,7 @@ function calc_eclipse_quantities_gpu!(wavelength, μs, z_rot, ax_codes,
             # @inbounds mf[m,n] = nearest_velocity_device(xx,yy,zz,vmap_xyz_gpu, vmap_array)
             # @inbounds projected_v[m,n] = projected_v[m,n] + nearest_velocity_device(xx,yy,zz,vmap_xyz_gpu, vmap_array)         
 
-            @inbounds ax_codes[m, n] = find_nearest_ax_gpu(yy / sun_radius, zz / sun_radius)
+            @inbounds ax_codes[m, n] = GRASS.find_nearest_ax_gpu(yy / sun_radius, zz / sun_radius)
         end
     end
 
@@ -824,7 +824,7 @@ function calc_grid_edge_xyz(epoch, obs_long, obs_lat, alt,
 
     # transform into ICRF frame
     EO_bary = sxform("ITRF93", "J2000", epoch) * EO_earth
-    @cusync EO_bary_gpu = CuArray(EO_bary)
+    CUDA.@sync  EO_bary_gpu = CuArray(EO_bary)
 
     # get vector from barycenter to observatory on Earth's surface
     BO_bary = BE_bary .+ EO_bary
@@ -834,7 +834,7 @@ function calc_grid_edge_xyz(epoch, obs_long, obs_lat, alt,
 
     # get light travel time corrected OS vector
     OS_bary, OS_lt, OS_dlt = spkltc(10, epoch, "J2000", lt_flag, BO_bary)
-    @cusync OS_bary_gpu = CuArray(OS_bary)
+    CUDA.@sync  OS_bary_gpu = CuArray(OS_bary)
 
     # get modified epch
     epoch_lt = epoch - OS_lt
@@ -844,8 +844,29 @@ function calc_grid_edge_xyz(epoch, obs_long, obs_lat, alt,
 
     threads1 = (16,16)
     blocks1 = cld(prod(CUDA.size(θe)), prod(threads1))
-    GRASS.@cusync @cuda threads=threads1 blocks=blocks1 calc_grid_edge_xyz!(ϕe, θe, xs, ys, zs, sun_radius, sun_rot_mat, OS_bary_gpu)
+    CUDA.@sync  @cuda threads=threads1 blocks=blocks1 calc_grid_edge_xyz!(ϕe, θe, xs, ys, zs, sun_radius, sun_rot_mat, OS_bary_gpu)
     return Array(xs), Array(ys), Array(zs)
+end
+
+function get_keys_and_cbs_gpu!(gpu_allocs::GPUAllocsEclipse{T}, soldata::GPUSolarData{T}) where T<:AF
+    # parse out gpu allocs
+    μs = gpu_allocs.μs
+    z_cbs = gpu_allocs.z_cbs
+    dat_idx = gpu_allocs.dat_idxG
+    ax_codes = gpu_allocs.ax_codes
+
+    # parse out soldata
+    cbsall = soldata.cbs
+    disc_mu = soldata.mu
+    disc_ax = soldata.ax
+
+    threads1 = 256
+    blocks1 = cld(length(μs), prod(threads1))
+
+    CUDA.@sync  @captured @cuda threads=threads1 blocks=blocks1 get_keys_and_cbs_gpu!(dat_idx, z_cbs, μs, ax_codes,
+                                                                                  cbsall, disc_mu, disc_ax)
+    CUDA.synchronize()
+    return nothing
 end
 
 function calc_grid_edge_xyz!(ϕe, θe, xs, ys, zs, sun_radius, sun_rot_mat, OS_bary)

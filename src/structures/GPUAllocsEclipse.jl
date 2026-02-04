@@ -28,7 +28,7 @@ function GPUAllocsEclipse(spec::SpecParams, disk::DiskParamsEclipse, lines_numbe
     Nt = disk.Nt
     Nλ = length(spec.lambdas)
 
-    @cusync begin
+    CUDA.@sync  begin
         λs_gpu = CuArray{precision}(spec.lambdas)
         prof_gpu = CUDA.zeros(precision, Nλ)
         flux_gpu = CUDA.ones(precision, Nλ, Nt)
@@ -39,7 +39,7 @@ function GPUAllocsEclipse(spec::SpecParams, disk::DiskParamsEclipse, lines_numbe
     Nθ_max = maximum(disk.Nθ)
 
     # allocate memory for pre-computations
-    @cusync begin
+    CUDA.@sync  begin
         μs = CUDA.zeros(precision, Nϕ, Nθ_max)
         dA = CUDA.zeros(precision, Nϕ, Nθ_max)
         ld = CUDA.zeros(precision, Nϕ, Nθ_max, lines_number)
@@ -53,16 +53,16 @@ function GPUAllocsEclipse(spec::SpecParams, disk::DiskParamsEclipse, lines_numbe
     end
 
     # allocate memory for convective blueshifts
-    @cusync z_cbs = CUDA.zeros(precision, Nϕ, Nθ_max)
+    CUDA.@sync  z_cbs = CUDA.zeros(precision, Nϕ, Nθ_max)
 
     # allocate memory for indices
-    @cusync begin
+    CUDA.@sync  begin
         tloop_gpu = CUDA.zeros(Int32, Nϕ, Nθ_max)
         dat_idx = CUDA.zeros(Int32, Nϕ, Nθ_max)
     end
 
     # allocated memory for synthesis
-    @cusync begin
+    CUDA.@sync  begin
         allwavs = CUDA.zeros(precision, Nϕ, Nθ_max, 200)
         allints = CUDA.zeros(precision, Nϕ, Nθ_max, 200)
     end
