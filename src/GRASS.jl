@@ -127,7 +127,6 @@ quad_ld_coeff_300 = CSV.read("data/LD_coeff_300.csv", DataFrame)
 quad_ld_coeff_HD = CSV.read("data/LD_coeff_HD.csv", DataFrame)
 
 spots_info = DataFrame(CSV.File("data/sunspots.csv"))
-vmap_info = DataFrame(CSV.File("data/velocity_field.csv"))
 
 # structures 
 include("structures/DiskParamsEclipse.jl")
