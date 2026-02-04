@@ -6,7 +6,6 @@ using Distributed
 using SharedArrays
 
 # import external packages
-using SPICE
 using CSV
 using HDF5
 using JLD2
@@ -108,7 +107,11 @@ export SpecParams, DiskParams, DiskParamsEclipse, LineProperties, SolarData, Pla
 module Eclipse # eclipse submodule
 
 # inherit from parent module
+using CSV
+using SPICE
 using GRASS
+using DataFrames
+using Statistics
 datdir = GRASS.datdir
 
 # get kernels for SPICE stuff
