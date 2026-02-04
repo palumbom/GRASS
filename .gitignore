@@ -27,3 +27,4 @@ sftp-config*.json
 data/input/*.h5
 LocalPreferences.toml
 __pycache__
+.vscode
