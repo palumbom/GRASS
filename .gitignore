@@ -26,3 +26,4 @@ data/iag_blueshifts.dat
 sftp-config*.json
 data/input/*.h5
 LocalPreferences.toml
+__pycache__
