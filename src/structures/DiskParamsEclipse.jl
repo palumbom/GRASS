@@ -44,7 +44,7 @@ function DiskParamsEclipse(;N=197, Nt=NaN, Nsubgrid=40, radius=sun_radius,
 
     # get latitude grid edges and centers
     ϕe = range(deg2rad(-90.0), deg2rad(90.0), length=N+1)
-    ϕc = get_grid_centers(ϕe)
+    ϕc = GRASS.get_grid_centers(ϕe)
 
     # number of longitudes in each latitude slice
     Nθ = get_Nθ.(ϕc, step(ϕe)) 
@@ -54,7 +54,7 @@ function DiskParamsEclipse(;N=197, Nt=NaN, Nsubgrid=40, radius=sun_radius,
     θc = zeros(N, maximum(Nθ))
     for i in eachindex(Nθ)
         edges = range(deg2rad(0.0), deg2rad(360.0), length=Nθ[i]+1)
-        θc[i, 1:Nθ[i]] .= get_grid_centers(edges)
+        θc[i, 1:Nθ[i]] .= GRASS.get_grid_centers(edges)
         θe[i, 1:Nθ[i]+1] .= collect(edges)
     end
 

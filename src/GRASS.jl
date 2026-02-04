@@ -46,13 +46,7 @@ include("constants.jl")
 include("interpolate.jl")
 
 # composite types
-include("structures/LineProperties.jl") # need to load LineProperties first
-include("structures/SolarData.jl")
-include("structures/SpecParams.jl")
-include("structures/DiskParams.jl")
-include("structures/SynthWorkspace.jl")
-include("structures/GPUAllocs.jl")
-include("structures/GPUSolarData.jl")
+include("structures.jl") 
 
 # star geometry + thermal/RT physics
 include("star_geometry.jl")
@@ -104,15 +98,18 @@ export SpecParams, DiskParams, DiskParamsEclipse, LineProperties, SolarData, Pla
        check_plot_dirs, read_iag
 
 
-module Eclipse # eclipse submodule
-
+module GRASSe # eclipse submodule
 # inherit from parent module
 using CSV
 using SPICE
 using GRASS
+using CUDA
 using DataFrames
 using Statistics
 datdir = GRASS.datdir
+
+import Base: AbstractArray as AA
+import Base: AbstractFloat as AF
 
 # get kernels for SPICE stuff
 include("get_kernels.jl")
@@ -125,36 +122,28 @@ sun_radius = bodvrd("SUN","RADII")[1]
 moon_radius = bodvrd("MOON", "RADII")[1] 
 
 #collect LD info as global variables - (units: nm)
-quad_ld_coeff_SSD = CSV.read("data/LD_coeff_SSD.csv", DataFrame)
-quad_ld_coeff_300 = CSV.read("data/LD_coeff_300.csv", DataFrame)
-quad_ld_coeff_HD = CSV.read("data/LD_coeff_HD.csv", DataFrame)
+quad_ld_coeff_SSD = CSV.read(joinpath(datdir, "LD_coeff_SSD.csv"), DataFrame)
+quad_ld_coeff_300 = CSV.read(joinpath(datdir, "LD_coeff_300.csv"), DataFrame)
+quad_ld_coeff_HD = CSV.read(joinpath(datdir, "LD_coeff_HD.csv"), DataFrame)
 
-spots_info = DataFrame(CSV.File("data/sunspots.csv"))
-vmap_info = DataFrame(CSV.File("data/velocity_field.csv"))
+spots_info = DataFrame(CSV.File(joinpath(datdir, "sunspots.csv")))
 
 # structures 
 include("structures/DiskParamsEclipse.jl")
-include("structures/Planet.jl")
-include("structures/RossiterAllocs.jl")
 include("structures/SynthWorkspaceEclipse.jl")
 include("structures/GPUAllocsEclipse.jl")
-
-# geometry for orbiting bodies
-include("state_vectors.jl")
-include("kepler_equation.jl")
+include("structures/GPUSolarData.jl")
 
 # eclipse stuff
 include("synthesize_eclipse.jl")
 include("eclipse_comp.jl")
 include("disk_sim_eclipse.jl")
-include("convenience_rossiter.jl")
 include("convenience_eclipse.jl")
 
 # gpu implementation
+include("gpu/gpu_physics_eclipse.jl")
 include("gpu/gpu_precomps_eclipse.jl")
-# include("gpu/gpu_precomps_europa.jl")
 include("gpu/gpu_sim_eclipse.jl")
-include("gpu/gpu_state_vectors.jl")
 
 export synthesize_spectra_eclipse
 
