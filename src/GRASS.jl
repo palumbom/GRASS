@@ -40,24 +40,6 @@ import Base: AbstractFloat as AF
 # configure directories
 include("config.jl")
 
-# get kernels for SPICE stuff
-include("get_kernels.jl")
-
-#set required body paramters as global variables 
-#E,S,M radii (units:km)
-earth_radius = bodvrd("EARTH", "RADII")[1]	
-earth_radius_pole = bodvrd("EARTH", "RADII")[3]	
-sun_radius = bodvrd("SUN","RADII")[1]
-moon_radius = bodvrd("MOON", "RADII")[1] 
-
-#collect LD info as global variables - (units: nm)
-quad_ld_coeff_SSD = CSV.read("data/LD_coeff_SSD.csv", DataFrame)
-quad_ld_coeff_300 = CSV.read("data/LD_coeff_300.csv", DataFrame)
-quad_ld_coeff_HD = CSV.read("data/LD_coeff_HD.csv", DataFrame)
-
-spots_info = DataFrame(CSV.File("/storage/home/efg5335/work/Eclipse_GRASS/investigations/sunspots/sunspots.csv"))
-vmap_info = DataFrame(CSV.File("/storage/home/efg5335/work/Eclipse_GRASS/investigations/sdo_velocity_fields/velocity_field.csv"))
-
 # ancillary functions + constants
 include("utils.jl")
 include("gpu/gpu_utils.jl")
@@ -83,8 +65,6 @@ include("bisectors.jl")
 include("trim.jl")
 include("synthesize.jl")
 include("disk_sim.jl")
-include("eclipse_comp.jl")
-include("disk_sim_eclipse.jl")
 include("disk_precomps.jl")
 
 # processing spectra
@@ -119,13 +99,48 @@ include("iag_utils.jl")
 
 # include convenience functions for synthtesis
 include("convenience.jl")
-include("convenience_rossiter.jl")
-include("convenience_eclipse.jl")
 
 # export some stuff
 export SpecParams, DiskParams, DiskParamsEclipse, LineProperties, SolarData, Planet,
        synthesize_spectra, simulate_rossiter, calc_ccf,
        calc_rvs_from_ccf, calc_rms, parse_args,
        check_plot_dirs, read_iag
+
+module Eclipse # eclipse submodule
+
+# get kernels for SPICE stuff
+include("get_kernels.jl")
+
+#set required body paramters as global variables 
+#E,S,M radii (units:km)
+earth_radius = bodvrd("EARTH", "RADII")[1]	
+earth_radius_pole = bodvrd("EARTH", "RADII")[3]	
+sun_radius = bodvrd("SUN","RADII")[1]
+moon_radius = bodvrd("MOON", "RADII")[1] 
+
+#collect LD info as global variables - (units: nm)
+quad_ld_coeff_SSD = CSV.read("data/LD_coeff_SSD.csv", DataFrame)
+quad_ld_coeff_300 = CSV.read("data/LD_coeff_300.csv", DataFrame)
+quad_ld_coeff_HD = CSV.read("data/LD_coeff_HD.csv", DataFrame)
+
+spots_info = DataFrame(CSV.File("data/sunspots.csv"))
+vmap_info = DataFrame(CSV.File("data/velocity_field.csv"))
+
+# structures 
+include("structures/DiskParamsEclipse.jl")
+include("structures/Planet.jl")
+include("structures/RossiterAllocs.jl")
+include("structures/SynthWorkspaceEclipse.jl")
+include("structures/GPUAllocsEclipse.jl")
+
+# files to include
+include("eclipse_comp.jl")
+include("disk_sim_eclipse.jl")
+include("convenience_rossiter.jl")
+include("convenience_eclipse.jl")
+
+export synthesize_spectra_eclipse
+
+end # submodule
 
 end # module
