@@ -1,11 +1,11 @@
-module GRASS
+module GRASS # parent module
 
-# parallelization modules
+# parallelization packages
 using CUDA; CUDA.allowscalar(false)
 using Distributed
 using SharedArrays
 
-# import external modules
+# import external packages
 using SPICE
 using CSV
 using HDF5
@@ -47,15 +47,17 @@ include("constants.jl")
 include("interpolate.jl")
 
 # composite types
-include("structures.jl")
+include("structures/LineProperties.jl") # need to load LineProperties first
+include("structures/SolarData.jl")
+include("structures/SpecParams.jl")
+include("structures/DiskParams.jl")
+include("structures/SynthWorkspace.jl")
+include("structures/GPUAllocs.jl")
+include("structures/GPUSolarData.jl")
 
 # star geometry + thermal/RT physics
 include("star_geometry.jl")
 include("star_physics.jl")
-
-# geometry for orbiting bodies
-include("state_vectors.jl")
-include("kepler_equation.jl")
 
 # data read-in + calculations
 include("inputIO.jl")
@@ -85,13 +87,9 @@ include("observing/ObservationPlan.jl")
 include("gpu/gpu_physics.jl")
 include("gpu/gpu_data.jl")
 include("gpu/gpu_precomps.jl")
-include("gpu/gpu_precomps_eclipse.jl")
-# include("gpu/gpu_precomps_europa.jl")
 include("gpu/gpu_trim.jl")
 include("gpu/gpu_sim.jl")
-include("gpu/gpu_sim_eclipse.jl")
 include("gpu/gpu_synthesis.jl")
-include("gpu/gpu_state_vectors.jl")
 
 # functions for plotting figures
 include("fig_functions.jl")
@@ -106,7 +104,12 @@ export SpecParams, DiskParams, DiskParamsEclipse, LineProperties, SolarData, Pla
        calc_rvs_from_ccf, calc_rms, parse_args,
        check_plot_dirs, read_iag
 
+
 module Eclipse # eclipse submodule
+
+# inherit from parent module
+using GRASS
+datdir = GRASS.datdir
 
 # get kernels for SPICE stuff
 include("get_kernels.jl")
@@ -133,14 +136,25 @@ include("structures/RossiterAllocs.jl")
 include("structures/SynthWorkspaceEclipse.jl")
 include("structures/GPUAllocsEclipse.jl")
 
-# files to include
+# geometry for orbiting bodies
+include("state_vectors.jl")
+include("kepler_equation.jl")
+
+# eclipse stuff
+include("synthesize_eclipse.jl")
 include("eclipse_comp.jl")
 include("disk_sim_eclipse.jl")
 include("convenience_rossiter.jl")
 include("convenience_eclipse.jl")
 
+# gpu implementation
+include("gpu/gpu_precomps_eclipse.jl")
+# include("gpu/gpu_precomps_europa.jl")
+include("gpu/gpu_sim_eclipse.jl")
+include("gpu/gpu_state_vectors.jl")
+
 export synthesize_spectra_eclipse
 
 end # submodule
 
-end # module
+end # parent module
