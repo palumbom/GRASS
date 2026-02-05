@@ -208,7 +208,7 @@ function precompute_quantities_gpu!(ϕc, θc, μs, wts, z_rot, ax_codes, Nϕ, N�
 end
 
 
-function get_keys_and_cbs_gpu!(gpu_allocs::GPUAllocs{T}, soldata::GPUSolarData{T}) where T<:AF
+function get_keys_and_cbs_gpu!(gpu_allocs::T1, soldata::GPUSolarData{T2}) where {T1<:AbstractGPUAllocs, T2<:AF}
     # parse out gpu allocs
     μs = gpu_allocs.μs
     z_cbs = gpu_allocs.z_cbs

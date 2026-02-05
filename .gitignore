@@ -18,9 +18,11 @@
 *.nfs*
 
 # specific files/directories
+docs/src/index.md
 data/input/
 docs/build/
-Manifest.toml
+docs/Manifest.toml
+Manifest*.toml
 data/spvis.dat
 data/iag_blueshifts.dat
 sftp-config*.json

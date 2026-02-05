@@ -1,5 +1,18 @@
 """
-From Queloz et al. 2001
+    calc_bisector_inverse_slope(bis, int; b1=0.10, b2=0.4, b3=0.55, b4=0.90)
+
+Compute the bisector inverse slope (BIS) from a line bisector and intensity profile.
+Following Queloz et al. 2001.
+
+# Arguments
+- `bis::AbstractArray{<:Real,1}`: bisector values as a function of intensity.
+- `int::AbstractArray{<:Real,1}`: normalized intensities corresponding to `bis`.
+
+# Keyword Arguments
+- `b1::Real=0.10`: upper depth fraction for the top region.
+- `b2::Real=0.4`: lower depth fraction for the top region.
+- `b3::Real=0.55`: upper depth fraction for the bottom region.
+- `b4::Real=0.90`: lower depth fraction for the bottom region.
 """
 function calc_bisector_inverse_slope(bis::AA{T,1}, int::AA{T,1}; b1::T=0.10,
                                      b2::T=0.4, b3::T=0.55, b4::T=0.90) where T<:AF
@@ -33,7 +46,13 @@ function calc_bisector_inverse_slope(bis::AA{T,2}, int::AA{T,2}; b1::T=0.10,
 end
 
 """
-From various (TODO)
+    calc_bisector_span(bis, int)
+
+Compute the bisector span using the line core and blue wing.
+
+# Arguments
+- `bis::AbstractArray{<:Real,1}`: bisector values as a function of intensity.
+- `int::AbstractArray{<:Real,1}`: normalized intensities corresponding to `bis`.
 """
 function calc_bisector_span(bis::AA{T,1}, int::AA{T,1}) where T<:AF
     @assert maximum(int) <= 1.0
@@ -57,7 +76,15 @@ function calc_bisector_span(bis::AA{T,2}, int::AA{T,2}) where T<:AF
 end
 
 """
-From Dall et al. 2006
+    calc_bisector_bottom(bis, int, rv)
+
+Compute the bisector bottom relative to a reference radial velocity.
+Following Dall et al. 2006.
+
+# Arguments
+- `bis::AbstractArray{<:Real,1}`: bisector values as a function of intensity.
+- `int::AbstractArray{<:Real,1}`: normalized intensities corresponding to `bis`.
+- `rv::Real`: reference radial velocity to subtract.
 """
 function calc_bisector_slope(bis::AA{T,1}, int::AA{T,1}) where T<:AF
     @assert maximum(int) <= 1.0
@@ -92,7 +119,23 @@ function calc_bisector_slope(bis::AA{T,2}, int::AA{T,2}) where T<:AF
 end
 
 """
-From Dall et al. 2006
+    calc_bisector_curvature(bis, int; c1=0.20, c2=0.30, c3=0.40,
+                            c4=0.55, c5=0.75, c6=0.95)
+
+Compute the bisector curvature from three depth regions.
+Following Dall et al. 2006.
+
+# Arguments
+- `bis::AbstractArray{<:Real,1}`: bisector values as a function of intensity.
+- `int::AbstractArray{<:Real,1}`: normalized intensities corresponding to `bis`.
+
+# Keyword Arguments
+- `c1::Real=0.20`: upper depth fraction for the top region.
+- `c2::Real=0.30`: lower depth fraction for the top region.
+- `c3::Real=0.40`: upper depth fraction for the middle region.
+- `c4::Real=0.55`: lower depth fraction for the middle region.
+- `c5::Real=0.75`: upper depth fraction for the bottom region.
+- `c6::Real=0.95`: lower depth fraction for the bottom region.
 """
 function calc_bisector_bottom(bis::AA{T,1}, int::AA{T,1}, rv::T) where T<:AF
     @assert maximum(int) <= 1.0
@@ -159,7 +202,7 @@ end
 
 
 function calc_line_quantity(wavs::AA{T,1}, flux::AA{T,1}; continuum::T=1.0,
-                            n::Int=2, top::T=maximum(flux),
+                            n::Int=2, top::T=0.99,
                             nflux::Int=length(flux), f::Function) where T<:Real
     # check lengths
     @assert n >= 0
@@ -168,7 +211,7 @@ function calc_line_quantity(wavs::AA{T,1}, flux::AA{T,1}; continuum::T=1.0,
     # get min and max flux, depth of line
     min_flux_idx = argmin(flux)
     min_flux = minimum(flux)
-    max_flux = continuum
+    max_flux = maximum(flux)
     depth = 1.0 - min_flux/max_flux # TODO check
 
     # get views on either side of line
@@ -179,7 +222,7 @@ function calc_line_quantity(wavs::AA{T,1}, flux::AA{T,1}; continuum::T=1.0,
 
     # allocate memory
     x_out = zeros(nflux)
-    y_out = range(minimum(flux), top, length=nflux)
+    y_out = range(minimum(flux), top * max_flux, length=nflux)
 
     # loop over flux values and measure quantity defined by f function
     for i in eachindex(y_out)
@@ -241,6 +284,21 @@ function calc_width_function(wavs::AA{T,2}, flux::AA{T,2}; kwargs...) where T<:R
 end
 
 
+"""
+    calc_bisector(wavs, flux; kwargs...)
+
+Compute the line bisector from a wavelength grid and flux profile.
+
+# Arguments
+- `wavs::AbstractArray{<:Real,1}`: wavelength grid.
+- `flux::AbstractArray{<:Real,1}`: flux values on the grid.
+
+# Keyword Arguments
+Keyword arguments are forwarded to `calc_line_quantity`, including:
+- `continuum::Real=1.0`: continuum level for normalization.
+- `top::Real=0.99`: maximum fraction of the continuum to sample.
+- `nflux::Int=length(flux)`: number of bisector points to compute.
+"""
 function calc_bisector(wavs::AA{T,1}, flux::AA{T,1}; kwargs...) where T<:Real
     # check lengths
     @assert length(wavs) == length(flux)

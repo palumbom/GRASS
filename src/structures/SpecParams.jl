@@ -71,10 +71,15 @@ end
 Construct a `SpecParams` composite type instance. If `variability` is not specified, all lines are variable by default.
 
 # Arguments
-- `lines::AbstractArray{Float64,1}=[]`: List of line centers (in angstroms)
-- `depths::AbstractArray{Float64,1}=[]`: List of line depths
-- `variability::AbstractArray{Bool,1}=[]`: Array of booleans controlling whether corresponding line has variability.
-- `resolution::Float64=7e8`: Spectral resolution of spectrum
+- `lines::AbstractArray{Float64,1}=[]`: list of line centers (angstroms).
+- `depths::AbstractArray{Float64,1}=[]`: list of line depths (0 < depth < 1).
+- `geffs::AbstractArray{Float64,1}=[]`: Lande g-factors for each line.
+- `variability::AbstractArray{Bool,1}=[]`: per-line variability flags (defaults to all true).
+- `templates::AbstractArray{String,1}=[]`: template HDF5 filenames per line.
+- `blueshifts::AbstractArray{Float64,1}=[]`: convective blueshifts per line (m/s; converted to z=v/c).
+- `resolution::Float64=7e5`: spectral resolution of the spectrum.
+- `buffer::Float64=2.0`: wavelength padding (angstroms) around the min/max line center.
+- `oversampling::Float64=1.0`: multiplicative oversampling for the wavelength grid.
 """
 function SpecParams(;lines=[], depths=[], geffs=[], variability=[],
                     templates=[], blueshifts=[], resolution=7e5, buffer=2.0,

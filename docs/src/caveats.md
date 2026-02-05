@@ -1,0 +1,12 @@
+# Caveats
+
+Simulations produced by GRASS are subject to a number of caveats. For a full explanation of these limitations, it is recommended to read the relevant papers presenting GRASS:
+
+   * [Palumbo et al. (2022)](https://arxiv.org/abs/2110.11839)
+   * [Palumbo et al. (2024a)](https://arxiv.org/abs/2405.07945)
+
+## GPU Implementation
+
+GRASS includes a GPU implementation that has been validated to reproduce the results of the fiducial CPU implementation within numerical precision. However, catastrophic cancellation in an internal interpolation operation can create large flux errors when using single precision floats (see the figure below, reproduced from [Palumbo et al. 2024a](https://arxiv.org/abs/2405.07945)). By default, GRASS uses double precision floats in the GPU implementation, but this may incur a performance penalty for certain hardware. 
+
+<img src="assets/gpu_accuracy.png" alt="gpu_accuracy" width="50%"/>

@@ -1,18 +1,58 @@
-# GRASS - GRanulation and Spectrum Simulator 
+# <img src="docs/src/assets/logo.png" height="24"> GRASS - GRanulation And Spectrum Simulator 
 [![Stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://palumbom.github.io/GRASS/stable)
 [![Dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://palumbom.github.io/GRASS/dev)
 [![Build Status](https://github.com/palumbom/GRASS/workflows/CI/badge.svg)](https://github.com/palumbom/GRASS/actions)
-[![DOI](https://zenodo.org/badge/364662564.svg)](https://zenodo.org/badge/latestdoi/364662564)
-<a href="https://ascl.net/2110.011"><img src="https://img.shields.io/badge/ascl-2110.011-blue.svg?colorB=262255" alt="ascl:2110.011" /></a>
 [![arXiv](https://img.shields.io/badge/arXiv-2110.11839-b31b1b.svg)](https://arxiv.org/abs/2110.11839)
+[![arXiv](https://img.shields.io/badge/arXiv-2405.07945-b31b1b.svg)](https://arxiv.org/abs/2405.07945)
 
-GRASS is a package designed to produce realistic time series of stellar spectra with realistic line-shape changes from solar-like granulation. GRASS v1.0.x is described in detail in [Palumbo et al. (2022)](https://arxiv.org/abs/2110.11839). The results of this paper can be reproduced using the [showyourwork workflow](https://github.com/showyourwork/showyourwork) from [this repo](https://github.com/palumbom/palumbo22).
+GRASS is a Julia package designed to produce time series of stellar spectra with realistic line-shape changes from solar granulation. 
 
-## Examples
+GRASS v1.0.x is described in detail in [Palumbo et al. (2022)](https://arxiv.org/abs/2110.11839); the results of this paper can be reproduced using the [showyourwork workflow](https://github.com/showyourwork/showyourwork) from [this repo](https://github.com/palumbom/palumbo22). 
+
+GRASS v2.0.x is presented in [Palumbo et al. (2024a)](https://arxiv.org/abs/2405.07945); the figures and quantitative results presented therein are reproducable with [this repo](https://github.com/palumbom/grass-two). 
+
+## Installation
+
+GRASS is written entirely in Julia and requires Julia v1.9 or greater. Installation instructions for Julia are available from [julialang.org](https://julialang.org/downloads/).
+
+GRASS itself only requires a few steps to install. Simply clone the repo to your desired directory...
+
+```bash
+git clone git@github.com:palumbom/GRASS.git
+cd GRASS 
+julia
+```
+
+... and then add it with Julia's built-in package manager, `Pkg`:
+
+```julia
+using Pkg
+Pkg.add(path=".") # assuming you are in /PATH/TO/GRASS
+using GRASS
+```
+
+If you wish to develop or otherwise contribute to GRASS, instead add the package in develop mode:
+
+```julia
+using Pkg
+Pkg.develop(path=".") # assuming you are in /PATH/TO/GRASS
+using GRASS
+```
+
+Upon first invocation of GRASS, Julia will automatically install the package dependencies and download the required input data. The input data can be re-installed by invoking
+
+```julia
+Pkg.build("GRASS")
+```
+
+Alternatively, these data can be directly downloaded from [Zenodo](https://zenodo.org/records/8271417).
+
+## Basic Example
 Generating synthetic spectra with GRASS only takes a few lines of Julia:
 
 ```julia
 using GRASS
+using PyPlot
 
 # parameters for lines in the spectra
 lines = [5434.5]     # array of line centers in angstroms
@@ -25,14 +65,25 @@ disk = DiskParams(Nt=25)
 
 # synthesize the spectra
 wavelengths, flux = synthesize_spectra(spec, disk)
+
+# plot the result
+plt.plot(wavelengths, flux)
+plt.xlabel("Air Wavelength [Å]")
+plt.ylabel("Normalized Flux")
+plt.show()
 ```
+![spectrum](./docs/src/assets/spectrum.png)
 
 Additional details and examples can be found in [the documentation](https://palumbom.github.io/GRASS/stable).
 
 ## Citation
-If you use GRASS in your research, please cite the relevant [software release](https://zenodo.org/badge/latestdoi/364662564) and [paper(s)](https://arxiv.org/abs/2110.11839).
+[![DOI](https://zenodo.org/badge/364662564.svg)](https://zenodo.org/badge/latestdoi/364662564)
+[![arXiv](https://img.shields.io/badge/arXiv-2110.11839-b31b1b.svg)](https://arxiv.org/abs/2110.11839)
+[![arXiv](https://img.shields.io/badge/arXiv-2405.07945-b31b1b.svg)](https://arxiv.org/abs/2405.07945)
+
+If you use GRASS in your research, please cite the relevant [software release](https://zenodo.org/badge/latestdoi/364662564) and [paper(s)](https://arxiv.org/abs/2110.11839). The [`cffconvert` tool](https://github.com/citation-file-format/cffconvert) can be used to generate a bibtex entry from the included [CITATION.cff](https://github.com/palumbom/GRASS/blob/main/CITATION.cff) (or just use the "cite this repository" button on the GitHub sidebar).
 
 ## Author & Contact 
-[![Twitter Follow](https://img.shields.io/twitter/follow/michael_palumbo?style=social)](https://twitter.com/michael_palumbo) [![GitHub followers](https://img.shields.io/github/followers/palumbom?label=Follow&style=social)](https://github.com/palumbom)
+[![GitHub followers](https://img.shields.io/github/followers/palumbom?label=Follow&style=social)](https://github.com/palumbom)
 
-This repo is maintained by Michael Palumbo. You may may contact him via his email - [palumbo@psu.edu](mailto:palumbo@psu.edu)
+This repo is maintained by [Michael Palumbo](https://michaelpalumbo.me). You may may contact him via his email - [mpalumbo@flatironinstitute.org](mailto:mpalumbo@flatironinstitute.org)

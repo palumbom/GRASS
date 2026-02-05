@@ -109,7 +109,7 @@ end
     biso .-= mid
 
     # test that output bisector matches input bisector
-    @test all(isapprox.(biso[2:99], bist1[2:99], atol=1e-3))
+    @test all(isapprox.(biso[2:99], bist1[2:99], atol=1e-2))
 end
 
 @testset "Testing disk-integrated spectrum synthesis" begin

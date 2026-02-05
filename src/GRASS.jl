@@ -1,9 +1,7 @@
 module GRASS # parent module
 
-# parallelization packages
+# parallelization
 using CUDA; CUDA.allowscalar(false)
-using Distributed
-using SharedArrays
 
 # import external packages
 using CSV
@@ -20,9 +18,9 @@ using Statistics
 using Polynomials
 using LinearAlgebra
 using Distributions
+using ProgressMeter
 using ImageFiltering
 using Interpolations
-using PrecompileTools
 using OrderedCollections
 
 # import specific methods
@@ -63,7 +61,7 @@ include("disk_sim.jl")
 include("disk_precomps.jl")
 
 # processing spectra
-include("velocities.jl")
+include("ccfs/ccf.jl")
 
 # preprocessing of data
 include("preprocessing/voigt.jl")
@@ -90,15 +88,18 @@ include("iag_utils.jl")
 
 # include convenience functions for synthtesis
 include("convenience.jl")
+include("resolved.jl")
 
 # export some stuff
-export SpecParams, DiskParams, DiskParamsEclipse, LineProperties, SolarData, Planet,
-       synthesize_spectra, simulate_rossiter, calc_ccf,
-       calc_rvs_from_ccf, calc_rms, parse_args,
-       check_plot_dirs, read_iag
+export SpecParams, DiskParams, LineProperties, SolarData, synthesize_spectra,
+       calc_ccf, calc_rvs_from_ccf, calc_rms, parse_args, check_plot_dirs,
+       read_iag, calc_bisector, calc_bisector_inverse_slope, calc_bisector_span,
+       calc_bisector_bottom, calc_bisector_curvature, moving_average#,
+       #DiskParamsEclipse, simulate_rossiter, Planet
 
 
 module GRASSe # eclipse submodule
+
 # inherit from parent module
 using CSV
 using SPICE

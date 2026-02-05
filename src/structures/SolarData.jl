@@ -1,3 +1,8 @@
+"""
+    SolarData
+
+Container for line profile data and metadata loaded from a template HDF5 file.
+"""
 struct SolarData{T1<:AF}
     bis::Dict{Tuple{Symbol,Symbol}, AbstractArray{T1,2}}
     int::Dict{Tuple{Symbol,Symbol}, AbstractArray{T1,2}}
@@ -11,13 +16,21 @@ struct SolarData{T1<:AF}
 end
 
 """
-    SolarData(; dir=soldir, relative=true, ...)
+    SolarData(; fname="", relative=true, extrapolate=true, adjust_mean=true,
+              contiguous_only=false, fixed_width=false, fixed_bisector=false,
+              strip_cols=true)
 
-Construct a `SpecParams` composite type instance.
+Load solar line profile data from a template HDF5 file.
 
-# Arguments
-- `dir::String=soldir`: Directory containing the pre-processed input data. Default directory is set in src/config.jl
-- `relative::Bool=true`: Set whether bisectors are measured on absolute wavelength scale or expressed relative to rest wavelength of the line.
+# Keyword Arguments
+- `fname::String=""`: template filename; defaults to `soldir/FeI_5434.h5`.
+- `relative::Bool=true`: store bisectors relative to the rest wavelength.
+- `extrapolate::Bool=true`: extrapolate bisectors when intensities fall below 0.75.
+- `adjust_mean::Bool=true`: match means across noncontiguous datasets.
+- `contiguous_only::Bool=false`: load only the first contiguous time series per disk position.
+- `fixed_width::Bool=false`: use a fixed width for all epochs at a disk position.
+- `fixed_bisector::Bool=false`: use a fixed bisector for all epochs at a disk position.
+- `strip_cols::Bool=true`: remove columns flagged as bad before processing.
 """
 function SolarData(;fname::String="", relative::Bool=true, extrapolate::Bool=true,
                     adjust_mean::Bool=true, contiguous_only::Bool=false,
@@ -121,7 +134,7 @@ function SolarData(fname::String; relative::Bool=true, extrapolate::Bool=true,
                 end
             end
 
-            if extrapolate & (minimum(int1) < 0.75) & !(contains(fname, "FeI_5383"))
+            if extrapolate & (minimum(int1) < 0.75)# & !(contains(fname, "FeI_5383"))
                 extrapolate_input_data(bis, int1, wid, int2, parse_mu_string(mu))
             end
 

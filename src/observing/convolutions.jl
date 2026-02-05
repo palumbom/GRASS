@@ -12,6 +12,9 @@ end
 # TODO algorithm might cause shift based on input wavelength grid?
 # might cause issue if wavelengths shift across
 function rebin_spectrum(xs_old::AA{T,1}, ys_old::AA{T,1}, xs_new::AA{T,1}) where T<:AF
+    @assert issorted(xs_old)
+    @assert issorted(xs_new)
+
     # get edges of bins
     old_edges, old_widths = get_bin_edges(xs_old)
     new_edges, new_widths = get_bin_edges(xs_new)
@@ -63,6 +66,8 @@ end
 # follows from implementation at https://github.com/ACCarnall/SpectRes/blob/master/spectres/spectral_resampling.py
 function rebin_spectrum(xs_old::AA{T,1}, ys_old::AA{T,1}, σs_old::AA{T,1}, xs_new::AA{T,1}, ) where T<:AF
     @assert length(σs_old) == length(ys_old)
+    @assert issorted(xs_old)
+    @assert issorted(xs_new)
 
     # get edges of bins
     old_edges, old_widths = get_bin_edges(xs_old)
@@ -123,15 +128,14 @@ end
 function convolve_gauss(xs::AA{T,1}, ys::AA{T,1}; new_res::T=1.17e5,
                         oversampling::T=1.0) where T<:AbstractFloat
     # get kernel
-    σ(x) = x / new_res / 2.354
+    σ(x) = x / new_res / (2.0 * sqrt(2 * log(2)))
     g(x, n) = (one(T)/(σ(x) * sqrt(2.0 * π))) * exp(-0.5 * ((x - n)/σ(x))^2)
     kernel = g.(xs, xs[Int(round(length(xs)/2))])
-
 
     # pad the signal
     signal = vcat(zeros(100), ys[:,1], zeros(100))
     signal[1:100] .= first(ys[:,1])
-    signal[101:end-100] .= ys[:,1]
+    signal[101:end-100] .= ys
     signal[end-100:end] .= last(ys[:,1])
 
     # do the convolution
@@ -152,7 +156,7 @@ end
 function convolve_gauss(xs::AA{T,1}, ys::AA{T,2}; new_res::T=1.17e5,
                         oversampling::T=1.0) where T<:AbstractFloat
     # get kernel
-    σ(x) = x / new_res / 2.354
+    σ(x) = x / new_res / (2.0 * sqrt(2 * log(2)))
     g(x, n) = (one(T)/(σ(x) * sqrt(2.0 * π))) * exp(-0.5 * ((x - n)/σ(x))^2)
     kernel = g.(xs, xs[Int(round(length(xs)/2))])
 
