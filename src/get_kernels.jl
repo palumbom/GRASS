@@ -8,6 +8,8 @@ const EARTH_BPC = "https://naif.jpl.nasa.gov/pub/naif/generic_kernels/pck/earth_
 const EARTH_default = "https://naif.jpl.nasa.gov/pub/naif/generic_kernels/fk/planets/earth_assoc_itrf93.tf"
 const TPC = "https://naif.jpl.nasa.gov/pub/naif/generic_kernels/pck/pck00010.tpc"
 
+import Downloads.download
+
 # function to download and load kernels
 function get_kernels()
     # Download kernels
