@@ -6,7 +6,7 @@ import EchelleCCFs: MeasureRvFromCCFGaussian as GaussianFit
 import EchelleCCFs: MeasureRvFromCCFQuadratic as QuadraticFit
 import EchelleCCFs: AbstractCCFMaskShape as MaskShape
 import EchelleCCFs: AbstractMeasureRvFromCCF as FitType
-import RvSpectMLBase: searchsortednearest
+import RvSpectMLBase: searchsortednearest as rv_searchsortednearest
 
 """
     calc_ccf(λs, flux, lines, depths, resolution; normalize=true, mask_width=c_ms/resolution,
@@ -343,8 +343,8 @@ function find_idx_at_and_around_minimum(vels::A1, ccf::A2; frac_of_width_to_fit:
     lend = vels[amin] - frac_of_width_to_fit * full_width
     rend = vels[amin] + frac_of_width_to_fit * full_width
     # get the indices
-    lind = searchsortednearest(view(vels,1:amin), lend)
-    rind = amin + searchsortednearest(view(vels,(amin+1):length(vels)), rend)
+    lind = rv_searchsortednearest(view(vels,1:amin), lend)
+    rind = amin + rv_searchsortednearest(view(vels,(amin+1):length(vels)), rend)
     inds = lind:rind
 
     return (amin, inds)
