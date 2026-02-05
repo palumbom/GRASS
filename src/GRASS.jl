@@ -127,7 +127,7 @@ quad_ld_coeff_SSD = CSV.read(joinpath(datdir, "LD_coeff_SSD.csv"), DataFrame)
 quad_ld_coeff_300 = CSV.read(joinpath(datdir, "LD_coeff_300.csv"), DataFrame)
 quad_ld_coeff_HD = CSV.read(joinpath(datdir, "LD_coeff_HD.csv"), DataFrame)
 
-spots_info = DataFrame(CSV.File(joinpath(datdir "sunspots.csv")))
+spots_info = DataFrame(CSV.File(joinpath(datdir, "sunspots.csv")))
 
 # structures 
 include("structures/DiskParamsEclipse.jl")
