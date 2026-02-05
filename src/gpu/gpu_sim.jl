@@ -59,30 +59,6 @@ function disk_sim_gpu(spec::SpecParams{T1}, disk::DiskParams{T1}, soldata::GPUSo
     threads5 = 1024
     blocks5 = cld(CUDA.length(prof), prod(threads5))
 
-<<<<<<< HEAD
-    # allocate destinations for interpolations
-    @cusync begin
-        bisall_gpu_loop = CUDA.copy(bisall_gpu)
-        intall_gpu_loop = CUDA.copy(intall_gpu)
-        widall_gpu_loop = CUDA.copy(widall_gpu)
-    end
-
-    # allocate memory for means
-    @cusync begin
-        bisall_mean = CUDA.zeros(CUDA.eltype(bisall_gpu_loop), 100, CUDA.size(bisall_gpu_loop, 3))
-        intall_mean = CUDA.zeros(CUDA.eltype(intall_gpu_loop), 100, CUDA.size(intall_gpu_loop, 3))
-        widall_mean = CUDA.zeros(CUDA.eltype(widall_gpu_loop), 100, CUDA.size(widall_gpu_loop, 3))
-    end
-
-    threads6 = (4, 16)
-    blocks6 = cld(length(lenall_gpu) * 100, prod(threads6))
-
-    @cusync @cuda threads=threads6 blocks=blocks6 time_average_bis!(lenall_gpu, bisall_mean, intall_mean, 
-                                                                    widall_mean, bisall_gpu, intall_gpu, 
-                                                                    widall_gpu)
-
-=======
->>>>>>> main
     # get weighted disk average cbs
     @cusync sum_wts = CUDA.sum(wts)
     @cusync z_cbs_avg = CUDA.sum(z_cbs .* wts) / sum_wts

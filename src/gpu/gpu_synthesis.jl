@@ -146,18 +146,13 @@ function line_profile_gpu!(prof, μs, wts, λs, allwavs, allints)
     return nothing
 end
 
-<<<<<<< HEAD
 function line_profile_gpu!(l, prof, μs, ld, dA, ext, λs, allwavs, allints, ext_toggle)
-=======
-function line_profile_resolved_gpu!(prof, μ_bins, μs, wts, λs, allwavs, allints)
->>>>>>> main
     # get indices from GPU blocks + threads
     idx = threadIdx().x + blockDim().x * (blockIdx().x-1)
     sdx = blockDim().x * gridDim().x
     idy = threadIdx().y + blockDim().y * (blockIdx().y-1)
     sdy = blockDim().y * gridDim().y
 
-<<<<<<< HEAD
     Nθ_max = CUDA.size(μs, 2)
 
     # parallelized loop over grid
@@ -176,26 +171,10 @@ function line_profile_resolved_gpu!(prof, μ_bins, μs, wts, λs, allwavs, allin
         # take view of arrays to pass to interpolater
         allwavs_i = CUDA.view(allwavs, m, n, :)
         allints_i = CUDA.view(allints, m, n, :)
-=======
-    # parallelized loop over grid
-    for i in idx:sdx:CUDA.length(μs)
-        # move to next iter if off disk
-        if μs[i] <= 0.0
-            continue
-        end
-
-        # get mu_idx
-        μ_idx = searchsortednearest_gpu(μ_bins, μs[i])
-
-        # take view of arrays to pass to interpolater
-        allwavs_i = CUDA.view(allwavs, i, :)
-        allints_i = CUDA.view(allints, i, :)
->>>>>>> main
 
         # set up interpolator
         itp = linear_interp_gpu(allwavs_i, allints_i)
 
-<<<<<<< HEAD
         if ext_toggle == 1.0
             # loop over wavelengths
             for j in idy:sdy:CUDA.length(λs)
@@ -213,14 +192,42 @@ function line_profile_resolved_gpu!(prof, μ_bins, μs, wts, λs, allwavs, allin
                 else
                     @inbounds CUDA.@atomic prof[j] += itp(λs[j]) * dA[m,n] * ld[m,n,l]
                 end
-=======
+            end
+        end
+    end
+    return nothing
+end
+
+function line_profile_resolved_gpu!(prof, μ_bins, μs, wts, λs, allwavs, allints)
+    # get indices from GPU blocks + threads
+    idx = threadIdx().x + blockDim().x * (blockIdx().x-1)
+    sdx = blockDim().x * gridDim().x
+    idy = threadIdx().y + blockDim().y * (blockIdx().y-1)
+    sdy = blockDim().y * gridDim().y
+
+    # parallelized loop over grid
+    for i in idx:sdx:CUDA.length(μs)
+        # move to next iter if off disk
+        if μs[i] <= 0.0
+            continue
+        end
+
+        # get mu_idx
+        μ_idx = searchsortednearest_gpu(μ_bins, μs[i])
+
+        # take view of arrays to pass to interpolater
+        allwavs_i = CUDA.view(allwavs, i, :)
+        allints_i = CUDA.view(allints, i, :)
+
+        # set up interpolator
+        itp = linear_interp_gpu(allwavs_i, allints_i)
+
         # loop over wavelengths
         for j in idy:sdy:CUDA.length(λs)
             if ((λs[j] < CUDA.first(allwavs_i)) || (λs[j] > CUDA.last(allwavs_i)))
                 @inbounds CUDA.@atomic prof[j, μ_idx] += wts[i]
             else
                 @inbounds CUDA.@atomic prof[j, μ_idx] += itp(λs[j]) * wts[i]
->>>>>>> main
             end
         end
     end
