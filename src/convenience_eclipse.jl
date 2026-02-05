@@ -1,11 +1,7 @@
 """
-    synthesize_spectra(spec, disk; seed_rng=false, verbose=true, top=NaN)
+    synthesize_spectra_eclipse(spec, disk; seed_rng=false, verbose=true, top=NaN)
 
-Synthesize spectra given parameters in `spec` and `disk` instances.
-
-# Arguments
-- `spec::SpecParams`: SpecParams instance
-- `disk::DiskParams`: DiskParams instance
+TODO: finish this docstring
 """
 function synthesize_spectra_eclipse(spec::SpecParams{T}, disk::DiskParamsEclipse{T}, wavelength::Vector{Float64}, LD_type::String, 
                                     obs_long::T, obs_lat::T, alt::T, time_stamps::Vector{Float64},                              

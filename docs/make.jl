@@ -2,6 +2,7 @@
 push!(LOAD_PATH,"../src/")
 
 using Documenter, GRASS
+using GRASS.Eclipse
 
 # sync the readme and the landing page
 docs_base = basename(pwd()) == "docs" ? "." : "./docs"
