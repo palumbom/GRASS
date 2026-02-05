@@ -44,7 +44,9 @@ center vector.
 function DiskParams(;N=197, Nt=NaN, Nsubgrid=40, radius=1.0,
                      inclination=90.0, u1=0.4, u2=0.26,
                      vsini=2067.033467, A=14.713,
-                     B=-2.396, C=-1.787, offset=false)
+                     B=-2.396, C=-1.787, dist=4.435e7,
+                     offset=false)
+
     # assertions and warnings
     @assert !isnan(Nt)
 

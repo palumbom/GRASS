@@ -1,48 +1,18 @@
-"""
-    synthesize_spectra(
-        spec,
-        disk;
-        seed_rng=false,
-        verbose=true,
-        use_gpu=false,
-        precision=Float64,
-        skip_times=falses(disk.Nt),
-        contiguous_only=false,
-        show_progress=true,
-    )
-
-Synthesize spectra given parameters in `spec` and `disk` instances.
-
-# Arguments
-- `spec::SpecParams`: spectral synthesis parameters (line list, templates, wavelength grid).
-- `disk::DiskParams`: disk simulation parameters (grid size, time samples, geometry).
-
-# Keyword Arguments
-- `seed_rng::Bool=false`: re-seed RNG with a fixed seed per template.
-- `verbose::Bool=true`: print progress messages for template loading and simulation.
-- `use_gpu::Bool=false`: run the GPU implementation when available.
-- `precision::DataType=Float64`: GPU precision (`Float32` or `Float64`); see [Caveats](@ref "Caveats")
-- `skip_times::BitVector=falses(disk.Nt)`: time indices to skip in the simulation loop.
-- `contiguous_only::Bool=false`: restrict to contiguous line groups when loading templates.
-- `show_progress::Bool=true`: enable progress reporting inside the simulation.
-"""
-function synthesize_spectra(spec::SpecParams{T}, disk::DiskParams{T};
-                            seed_rng::Bool=false, verbose::Bool=true,
-                            use_gpu::Bool=false, precision::DataType=Float64,
-                            skip_times::BitVector=falses(disk.Nt),
-                            contiguous_only::Bool=false,
-                            show_progress::Bool=true) where T<:AF
+function simulate_rossiter(spec::SpecParams{T}, disk::DiskParams{T},
+                           planet::Planet{T}; seed_rng::Bool=false, verbose::Bool=true,
+                           use_gpu::Bool=false, precision::DataType=Float64,
+                           skip_times::BitVector=falses(disk.Nt)) where T<:AF
     # call appropriate simulation function on cpu or gpu
     if use_gpu
-        return _synth_gpu(spec, disk, seed_rng, verbose, precision, skip_times, contiguous_only, show_progress)
+        return rossiter_gpu(spec, disk, planet, seed_rng, verbose, precision, skip_times)
     else
-        return _synth_cpu(spec, disk, seed_rng, verbose, skip_times, contiguous_only, show_progress)
+        return rossiter_cpu(spec, disk, planet, seed_rng, verbose, skip_times)
     end
 end
 
-function _synth_cpu(spec::SpecParams{T}, disk::DiskParams{T}, seed_rng::Bool,
-                    verbose::Bool, skip_times::BitVector, contiguous_only::Bool,
-                    show_progress::Bool) where T<:AF
+function rossiter_cpu(spec::SpecParams{T}, disk::DiskParams{T},
+                      planet::Planet{T}, seed_rng::Bool,
+                      verbose::Bool, skip_times::BitVector) where T<:AF
     # parse out dimensions for memory allocation
     N = disk.N
     Nt = disk.Nt
@@ -52,8 +22,17 @@ function _synth_cpu(spec::SpecParams{T}, disk::DiskParams{T}, seed_rng::Bool,
     prof = ones(Nλ)
     flux = ones(Nλ, Nt)
 
+    # allocate memory for weighted sum of velocities
+    vels = zeros(Nt)
+
     # pre-allocate memory and pre-compute geometric quantities
     wsp = SynthWorkspace(disk, verbose=verbose)
+
+    # allocate memory needed for rossiter computations
+    ros_allocs = RossiterAllocs(wsp, disk)
+
+    # get the projected position of the center of the planet
+    calc_state_vector!(ros_allocs, planet)
 
     # allocate memory for time indices
     tloop = zeros(Int, size(wsp.μs))
@@ -71,7 +50,7 @@ function _synth_cpu(spec::SpecParams{T}, disk::DiskParams{T}, seed_rng::Bool,
         if verbose
             println("\t>>> Template: " * splitdir(file)[end])
         end
-        soldata = SolarData(fname=file, contiguous_only=contiguous_only)
+        soldata = SolarData(fname=file)
 
         # get conv. blueshift and keys from input data
         get_keys_and_cbs!(wsp, soldata)
@@ -90,16 +69,16 @@ function _synth_cpu(spec::SpecParams{T}, disk::DiskParams{T}, seed_rng::Bool,
         end
 
         # run the simulation and multiply flux by this spectrum
-        disk_sim(spec_temp, disk, soldata, wsp, prof, flux, tloop,
-                 skip_times=skip_times, verbose=verbose, 
-                 show_progress=show_progress)
+        disk_sim_rossiter(spec_temp, disk, planet, soldata, wsp, ros_allocs,
+                          prof, flux, vels, tloop, skip_times=skip_times,
+                          verbose=verbose)
     end
-    return spec.lambdas, flux
+    return spec.lambdas, flux, vels
 end
 
-function _synth_gpu(spec::SpecParams{T}, disk::DiskParams{T}, seed_rng::Bool,
-                    verbose::Bool, precision::DataType, skip_times::BitVector,
-                    contiguous_only::Bool, show_progress::Bool) where T<:AF
+function rossiter_gpu(spec::SpecParams{T}, disk::DiskParams{T},
+                      planet::Planet{T}, seed_rng::Bool,
+                      verbose::Bool, precision::DataType, skip_times::BitVector) where T<:AF
     # make sure there is actually a GPU to use
     @assert CUDA.functional()
 
@@ -115,12 +94,19 @@ function _synth_gpu(spec::SpecParams{T}, disk::DiskParams{T}, seed_rng::Bool,
 
     # allocate memory
     flux = ones(Nλ, Nt)
+    vels = zeros(Nt)
 
     # get number of calls to disk_sim needed
     templates = unique(spec.templates)
 
     # pre-allocate memory for gpu and pre-compute geometric quantities
     gpu_allocs = GPUAllocs(spec, disk, precision=precision, verbose=verbose)
+
+    # allocate memory needed for rossiter computations
+    ros_allocs = RossiterAllocsGPU(gpu_allocs, disk)
+
+    # get the projected position of the center of the planet
+    calc_state_vector!(ros_allocs, planet)
 
     # allocate additional memory if generating random numbers on the cpu
     if seed_rng
@@ -146,7 +132,7 @@ function _synth_gpu(spec::SpecParams{T}, disk::DiskParams{T}, seed_rng::Bool,
         if verbose
             println("\t>>> Template: " * splitdir(file)[end])
         end
-        soldata_cpu = SolarData(fname=file, contiguous_only=contiguous_only)
+        soldata_cpu = SolarData(fname=file)
         soldata = GPUSolarData(soldata_cpu, precision=precision)
 
         # get conv. blueshift and keys from input data
@@ -172,9 +158,9 @@ function _synth_gpu(spec::SpecParams{T}, disk::DiskParams{T}, seed_rng::Bool,
         end
 
         # run the simulation and multiply flux by this spectrum
-        disk_sim_gpu(spec_temp, disk, soldata, gpu_allocs, flux,
-                     verbose=verbose, skip_times=skip_times,
-                     show_progress=show_progress)
+        disk_sim_rossiter_gpu(spec_temp, disk, planet, soldata, gpu_allocs,
+                              ros_allocs, flux, vels, verbose=verbose,
+                              skip_times=skip_times)
     end
-    return spec.lambdas, flux
+    return spec.lambdas, flux, vels
 end

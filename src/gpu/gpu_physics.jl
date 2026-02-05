@@ -5,6 +5,13 @@ function calc_mu_gpu(x, y, z, O⃗)
     return dp / (n1 * n2)
 end
 
+function calc_mu_gpu(x, y, z, Ox, Oy, Oz)
+    dp = x * Ox + y * Oy + z * Oz
+    n1 = CUDA.sqrt(Ox^2.0 + Oy^2.0 + Oz^2.0)
+    n2 = CUDA.sqrt(x^2.0 + y^2.0 + z^2.0)
+    return dp / (n1 * n2)
+end
+
 function sphere_to_cart_gpu(ρ, ϕ, θ)
     # compute trig quantities
     sinϕ = CUDA.sin(ϕ)
@@ -29,7 +36,7 @@ end
 
 function rotation_period_gpu(ϕ, A, B, C)
     sinϕ = sin(ϕ)
-    return 360.0/(A + B * sinϕ^2.0 + C * sinϕ^4.0)
+    return 360.0/(A + B * sinϕ^2.0 + C * sinϕ^4.0) 
 end
 
 function calc_dA_gpu(ρs, ϕc, dϕ, dθ)

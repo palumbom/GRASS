@@ -9,6 +9,13 @@
 *.DS_Store
 *.sublime-workspace
 *.ipynb_checkpoints
+*.bsp
+*.tls
+*.tpc
+*.bpc
+*.png
+*.tf
+*.nfs*
 
 # specific files/directories
 docs/src/index.md
@@ -21,3 +28,5 @@ data/iag_blueshifts.dat
 sftp-config*.json
 data/input/*.h5
 LocalPreferences.toml
+__pycache__
+.vscode

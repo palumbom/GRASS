@@ -114,3 +114,26 @@ function generate_tloop_gpu!(tloop, dat_idx, lenall)
     end
     return nothing
 end
+
+function generate_tloop_gpu_2D!(tloop, dat_idx, lenall)
+    # get indices from GPU blocks + threads
+    idx = threadIdx().x + blockDim().x * (blockIdx().x-1)
+    sdx = blockDim().x * gridDim().x
+
+    Nθ_max = CUDA.size(dat_idx, 2)
+
+    # parallelized loop over grid
+    for i in idx:sdx:CUDA.length(dat_idx)
+        row = (i - 1) ÷ Nθ_max
+        col = (i - 1) % Nθ_max
+        m = row + 1
+        n = col + 1
+
+        if CUDA.iszero(dat_idx[m,n])
+            continue
+        end
+        idx = dat_idx[m,n]
+        @inbounds tloop[m,n] = CUDA.floor(Int32, rand() * lenall[idx]) + 1
+    end
+    return nothing
+end
