@@ -27,8 +27,8 @@ function GPUSolarData(soldata::SolarData{T}; precision::DataType=Float64) where 
     end
 
     # get the value of mu and ax codes
-    disc_ax = parse_ax_string.(getindex.(keys(soldata.len),1))
-    disc_mu = parse_mu_string.(getindex.(keys(soldata.len),2))
+    disc_ax = GRASS.parse_ax_string.(getindex.(keys(soldata.len),1))
+    disc_mu = GRASS.parse_mu_string.(getindex.(keys(soldata.len),2))
 
     # get indices to sort by mus
     inds_mu = sortperm(disc_mu)

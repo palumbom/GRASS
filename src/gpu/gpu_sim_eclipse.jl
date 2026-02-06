@@ -69,7 +69,7 @@ function disk_sim_eclipse_gpu(spec::SpecParams{T1}, disk::DiskParamsEclipse{T1},
     threads6 = (4, 16)
     blocks6 = cld(length(lenall_gpu) * 100, prod(threads6))
 
-    CUDA.@sync  @cuda threads=threads6 blocks=blocks6 time_average_bis!(lenall_gpu, bisall_mean, intall_mean, 
+    CUDA.@sync  @cuda threads=threads6 blocks=blocks6 GRASS.time_average_bis!(lenall_gpu, bisall_mean, intall_mean, 
                                                                     widall_mean, bisall_gpu, intall_gpu, 
                                                                     widall_gpu)
 
@@ -95,12 +95,12 @@ function disk_sim_eclipse_gpu(spec::SpecParams{T1}, disk::DiskParamsEclipse{T1},
 
         if isone(t)
             # generate the random numbers on the gpu
-            CUDA.@sync  @cuda threads=threads1 blocks=blocks1 generate_tloop_gpu!(tloop, dat_idx, lenall_gpu)
+            CUDA.@sync  @cuda threads=threads1 blocks=blocks1 GRASS.generate_tloop_gpu!(tloop, dat_idx, lenall_gpu)
         end
 
         # don't synthesize spectrum if skip_times is true, but iterate t index
         if skip_times[t]
-            CUDA.@sync  @captured @cuda threads=threads1 blocks=blocks1 iterate_tloop_gpu!(tloop, dat_idx, lenall_gpu)
+            CUDA.@sync  @captured @cuda threads=threads1 blocks=blocks1 GRASS.iterate_tloop_gpu!(tloop, dat_idx, lenall_gpu)
         end
 
         # loop over lines to synthesize
@@ -119,7 +119,7 @@ function disk_sim_eclipse_gpu(spec::SpecParams{T1}, disk::DiskParamsEclipse{T1},
             extra_z = spec.conv_blueshifts .- z_cbs_avg
 
             # trim all the bisector data
-            CUDA.@sync  @cuda threads=threads2 blocks=blocks2 trim_bisector_gpu!(spec.depths[l], spec.variability[l],
+            CUDA.@sync  @cuda threads=threads2 blocks=blocks2 GRASS.trim_bisector_gpu!(spec.depths[l], spec.variability[l],
                                                                              depcontrast_gpu, lenall_gpu,
                                                                              bisall_gpu_loop, intall_gpu_loop,
                                                                              widall_gpu_loop, bisall_gpu,
@@ -133,14 +133,14 @@ function disk_sim_eclipse_gpu(spec::SpecParams{T1}, disk::DiskParamsEclipse{T1},
                                                                            widall_gpu_loop, allwavs, allints, contrast)
             
             # do the line synthesis, interp back onto wavelength grid
-            CUDA.@sync  @cuda threads=threads4 blocks=blocks4 line_profile_gpu!(l, prof, μs, ld, dA, ext, λs, allwavs, allints, ext_toggle_gpu)
+            CUDA.@sync  @cuda threads=threads4 blocks=blocks4 GRASS.line_profile_gpu!(l, prof, μs, ld, dA, ext, λs, allwavs, allints, ext_toggle_gpu)
 
             # copy data from GPU to CPU
-            CUDA.@sync  @cuda threads=threads5 blocks=blocks5 apply_line!(t, prof, flux, sum_wts)
+            CUDA.@sync  @cuda threads=threads5 blocks=blocks5 GRASS.apply_line!(t, prof, flux, sum_wts)
         end
 
         # iterate tloop
-        CUDA.@sync  @captured @cuda threads=threads1 blocks=blocks1 iterate_tloop_gpu!(tloop, dat_idx, lenall_gpu)
+        CUDA.@sync  @captured @cuda threads=threads1 blocks=blocks1 GRASS.iterate_tloop_gpu!(tloop, dat_idx, lenall_gpu)
     end
 
     # copy over flux
@@ -221,7 +221,7 @@ function disk_sim_eclipse_gpu(spec::SpecParams{T1}, disk::DiskParamsEclipse{T1},
     threads6 = (4, 16)
     blocks6 = cld(length(lenall_gpu) * 100, prod(threads6))
 
-    CUDA.@sync  @cuda threads=threads6 blocks=blocks6 time_average_bis!(lenall_gpu, bisall_mean, intall_mean, 
+    CUDA.@sync  @cuda threads=threads6 blocks=blocks6 GRASS.time_average_bis!(lenall_gpu, bisall_mean, intall_mean, 
                                                                     widall_mean, bisall_gpu, intall_gpu, 
                                                                     widall_gpu)
 
@@ -235,12 +235,12 @@ function disk_sim_eclipse_gpu(spec::SpecParams{T1}, disk::DiskParamsEclipse{T1},
 
         if isone(t)
             # generate the random numbers on the gpu
-            CUDA.@sync  @cuda threads=threads1 blocks=blocks1 generate_tloop_gpu!(tloop, dat_idx, lenall_gpu)
+            CUDA.@sync  @cuda threads=threads1 blocks=blocks1 GRASS.generate_tloop_gpu!(tloop, dat_idx, lenall_gpu)
         end
 
         # don't synthesize spectrum if skip_times is true, but iterate t index
         if skip_times[t]
-            CUDA.@sync  @captured @cuda threads=threads1 blocks=blocks1 iterate_tloop_gpu!(tloop, dat_idx, lenall_gpu)
+            CUDA.@sync  @captured @cuda threads=threads1 blocks=blocks1 GRASS.iterate_tloop_gpu!(tloop, dat_idx, lenall_gpu)
         end
 
         # loop over lines to synthesize
@@ -259,7 +259,7 @@ function disk_sim_eclipse_gpu(spec::SpecParams{T1}, disk::DiskParamsEclipse{T1},
             extra_z = spec.conv_blueshifts .- z_cbs_avg
 
             # trim all the bisector data
-            CUDA.@sync  @cuda threads=threads2 blocks=blocks2 trim_bisector_gpu!(spec.depths[l], spec.variability[l],
+            CUDA.@sync  @cuda threads=threads2 blocks=blocks2 GRASS.trim_bisector_gpu!(spec.depths[l], spec.variability[l],
                                                                              depcontrast_gpu, lenall_gpu,
                                                                              bisall_gpu_loop, intall_gpu_loop,
                                                                              widall_gpu_loop, bisall_gpu,
@@ -273,14 +273,14 @@ function disk_sim_eclipse_gpu(spec::SpecParams{T1}, disk::DiskParamsEclipse{T1},
                                                                            widall_gpu_loop, allwavs, allints, contrast)
             
             # do the line synthesis, interp back onto wavelength grid
-            CUDA.@sync  @cuda threads=threads4 blocks=blocks4 line_profile_gpu!(l, prof, μs, ld, dA, ext, λs, allwavs, allints, ext_toggle_gpu)
+            CUDA.@sync  @cuda threads=threads4 blocks=blocks4 GRASS.line_profile_gpu!(l, prof, μs, ld, dA, ext, λs, allwavs, allints, ext_toggle_gpu)
 
             # copy data from GPU to CPU
-            CUDA.@sync  @cuda threads=threads5 blocks=blocks5 apply_line!(t, prof, flux, sum_wts)
+            CUDA.@sync  @cuda threads=threads5 blocks=blocks5 GRASS.apply_line!(t, prof, flux, sum_wts)
         end
 
         # iterate tloop
-        CUDA.@sync  @captured @cuda threads=threads1 blocks=blocks1 iterate_tloop_gpu!(tloop, dat_idx, lenall_gpu)
+        CUDA.@sync  @captured @cuda threads=threads1 blocks=blocks1 GRASS.iterate_tloop_gpu!(tloop, dat_idx, lenall_gpu)
     end
 
     # copy over flux

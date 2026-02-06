@@ -144,6 +144,7 @@ include("convenience_eclipse.jl")
 # gpu implementation
 include("gpu/gpu_physics_eclipse.jl")
 include("gpu/gpu_precomps_eclipse.jl")
+include("gpu/gpu_synthesis_eclipse.jl")
 include("gpu/gpu_sim_eclipse.jl")
 
 export synthesize_spectra_eclipse
