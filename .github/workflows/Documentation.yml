@@ -37,8 +37,6 @@ jobs:
         env:
           PYTHON: python
       - uses: julia-actions/julia-docdeploy@latest
-        with:
-          project: docs
         env:
           PYTHON: python
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # If authenticating with GitHub Actions token
