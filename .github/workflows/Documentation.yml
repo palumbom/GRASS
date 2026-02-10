@@ -26,6 +26,11 @@ jobs:
       - name: Install Python deps for PyCall
         run: python -m pip install --upgrade pip matplotlib
       - uses: julia-actions/cache@v2
+      - name: Develop project
+        shell: julia --color=yes --project=docs {0}
+        run: |
+          using Pkg
+          Pkg.develop(PackageSpec(path=pwd()))
       - uses: julia-actions/julia-buildpkg@v1
         with:
           project: docs
