@@ -852,7 +852,7 @@ function get_keys_and_cbs_gpu!(gpu_allocs::GPUAllocsEclipse{T}, soldata::GPUSola
     # parse out gpu allocs
     μs = gpu_allocs.μs
     z_cbs = gpu_allocs.z_cbs
-    dat_idx = gpu_allocs.dat_idxG
+    dat_idx = gpu_allocs.dat_idx
     ax_codes = gpu_allocs.ax_codes
 
     # parse out soldata
@@ -863,7 +863,7 @@ function get_keys_and_cbs_gpu!(gpu_allocs::GPUAllocsEclipse{T}, soldata::GPUSola
     threads1 = 256
     blocks1 = cld(length(μs), prod(threads1))
 
-    CUDA.@sync  @captured @cuda threads=threads1 blocks=blocks1 get_keys_and_cbs_gpu!(dat_idx, z_cbs, μs, ax_codes,
+    CUDA.@sync  @captured @cuda threads=threads1 blocks=blocks1 GRASS.get_keys_and_cbs_gpu!(dat_idx, z_cbs, μs, ax_codes,
                                                                                   cbsall, disc_mu, disc_ax)
     CUDA.synchronize()
     return nothing
