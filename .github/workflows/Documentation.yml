@@ -26,16 +26,14 @@ jobs:
       - name: Install Python deps for PyCall
         run: python -m pip install --upgrade pip matplotlib
       - uses: julia-actions/cache@v2
-      - name: Install dependencies
-        shell: julia --color=yes --project=docs {0}
+      - uses: julia-actions/julia-buildpkg@v1
+        with:
+          project: docs
         env:
           PYTHON: python
-        run: |
-          using Pkg
-          Pkg.develop(PackageSpec(path=pwd()))
-          Pkg.instantiate()
-      - name: Build and deploy
-        run: julia --color=yes --project=docs docs/make.jl
+      - uses: julia-actions/julia-docdeploy@latest
+        with:
+          project: docs
         env:
           PYTHON: python
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # If authenticating with GitHub Actions token
