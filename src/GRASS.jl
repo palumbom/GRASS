@@ -108,27 +108,46 @@ using CUDA
 using DataFrames
 using Statistics
 using LinearAlgebra
-datdir = GRASS.datdir
+const datdir = GRASS.datdir
 
 import Base: AbstractArray as AA
 import Base: AbstractFloat as AF
 
-# get kernels for SPICE stuff
+# get kernels for SPICE stuff (defines download_kernels() and furnsh_kernels())
 include("get_kernels.jl")
 
-#set required body paramters as global variables 
-#E,S,M radii (units:km)
-earth_radius = bodvrd("EARTH", "RADII")[1]	
-earth_radius_pole = bodvrd("EARTH", "RADII")[3]	
-sun_radius = bodvrd("SUN","RADII")[1]
-moon_radius = bodvrd("MOON", "RADII")[1] 
+# body radii (km) and limb-darkening / sunspot tables — declared here with concrete
+# types for type-stable access, but populated at runtime in __init__ (not at precompile)
+global earth_radius::Float64
+global earth_radius_pole::Float64
+global sun_radius::Float64
+global moon_radius::Float64
+global quad_ld_coeff_SSD::DataFrame
+global quad_ld_coeff_300::DataFrame
+global quad_ld_coeff_HD::DataFrame
+global spots_info::DataFrame
 
-#collect LD info as global variables - (units: nm)
-quad_ld_coeff_SSD = CSV.read(joinpath(datdir, "LD_coeff_SSD.csv"), DataFrame)
-quad_ld_coeff_300 = CSV.read(joinpath(datdir, "LD_coeff_300.csv"), DataFrame)
-quad_ld_coeff_HD = CSV.read(joinpath(datdir, "LD_coeff_HD.csv"), DataFrame)
+# furnish SPICE kernels and load data tables at runtime, NOT at module-load/precompile time
+function __init__()
+    # download_kernels() is a no-op once Pkg.build has fetched the kernels; it guards the
+    # kernels-missing-but-input-present case (config.jl's self-heal only checks data/input/)
+    download_kernels()
+    furnsh_kernels()
 
-spots_info = DataFrame(CSV.File(joinpath(datdir, "sunspots.csv")))
+    # E, S, M radii (units: km) — requires the kernel pool to be furnished above
+    global earth_radius = bodvrd("EARTH", "RADII")[1]
+    global earth_radius_pole = bodvrd("EARTH", "RADII")[3]
+    global sun_radius = bodvrd("SUN", "RADII")[1]
+    global moon_radius = bodvrd("MOON", "RADII")[1]
+
+    # limb-darkening coefficients and sunspot info (units: nm)
+    global quad_ld_coeff_SSD = CSV.read(joinpath(datdir, "LD_coeff_SSD.csv"), DataFrame)
+    global quad_ld_coeff_300 = CSV.read(joinpath(datdir, "LD_coeff_300.csv"), DataFrame)
+    global quad_ld_coeff_HD = CSV.read(joinpath(datdir, "LD_coeff_HD.csv"), DataFrame)
+    global spots_info = DataFrame(CSV.File(joinpath(datdir, "sunspots.csv")))
+
+    return nothing
+end
 
 include("utils.jl")
 

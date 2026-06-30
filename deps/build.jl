@@ -40,3 +40,8 @@ for f in files
     #     Tar.extract(out, datadir)
     # end
 end
+
+# download the SPICE kernels (download_kernels() uses the `datdir` defined above);
+# furnshing them is deferred to GRASS.Eclipse's __init__ at runtime
+include(joinpath(@__DIR__, "..", "src", "get_kernels.jl"))
+download_kernels()

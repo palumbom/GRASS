@@ -10,9 +10,8 @@ const TPC = "https://naif.jpl.nasa.gov/pub/naif/generic_kernels/pck/pck00010.tpc
 
 import Downloads.download
 
-# function to download and load kernels
-function get_kernels()
-    # Download kernels
+# download the SPICE kernels (no SPICE dependency, so deps/build.jl can include this file)
+function download_kernels()
     if !isfile(joinpath(datdir, "de440.bsp")); download(SPK, joinpath(datdir, "de440.bsp")); end
     if !isfile(joinpath(datdir, "naif0012.tls")); download(LSK, joinpath(datdir, "naif0012.tls")); end
     if !isfile(joinpath(datdir, "pck00010.tpc")); download(TPC, joinpath(datdir, "pck00010.tpc")); end
@@ -21,16 +20,18 @@ function get_kernels()
     if !isfile(joinpath(datdir, "earth_latest_high_prec.bpc")); download(EARTH_BPC, joinpath(datdir, "earth_latest_high_prec.bpc")); end
     if !isfile(joinpath(datdir, "earth_assoc_itrf93.tf")); download(EARTH_default, joinpath(datdir, "earth_assoc_itrf93.tf")); end
 
-    # load into memory
+    return nothing
+end
+
+# furnish the (already-downloaded) kernels into the SPICE kernel pool; must run at runtime
+function furnsh_kernels()
     furnsh(joinpath(datdir, "naif0012.tls"))
     furnsh(joinpath(datdir, "de440.bsp"))
     furnsh(joinpath(datdir, "moon_pa_de440_200625.bpc"))
     furnsh(joinpath(datdir, "pck00010.tpc"))
-    furnsh(joinpath(datdir, "earth_latest_high_prec.bpc")) 
+    furnsh(joinpath(datdir, "earth_latest_high_prec.bpc"))
     furnsh(joinpath(datdir, "earth_assoc_itrf93.tf"))
     furnsh(joinpath(datdir, "jup365.bsp"))
 
     return nothing
 end
-
-get_kernels()

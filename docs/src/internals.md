@@ -21,23 +21,23 @@ DiskParams
 
 GRASS wraps [EchelleCCFs.jl](https://github.com/RvSpectML/EchelleCCFs.jl) to measure velocities from spectra using the CCF method. 
 
-```docs
+```@docs
 calc_ccf
 calc_rvs_from_ccf
 ```
 
 ## Input Data 
 
-GRASS uses solar observations as input to simulate granulation in spectra. There are a few functions and composite types used to manipulate these data. See also [Input Data](@ref "Input Data").
+GRASS uses solar observations as input to simulate granulation in spectra. There are a few functions and composite types used to manipulate these data. See also the [Manipulating Input Data](@ref "Manipulating Input Data") tutorial.
 
-```docs
+```@docs
 LineProperties
 SolarData
 ```
 
 ## Bisector Measurement
 
-```docs
+```@docs
 calc_bisector
 calc_bisector_inverse_slope
 calc_bisector_span
@@ -47,6 +47,6 @@ calc_bisector_curvature
 
 ## Utilities 
 
-```docs
+```@docs
 calc_rms
 ```

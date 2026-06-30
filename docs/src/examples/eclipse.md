@@ -9,9 +9,11 @@ the `GRASS.Eclipse` submodule and uses [SPICE](https://naif.jpl.nasa.gov/naif/)
 ephemerides to compute the Sun–Moon–observer geometry at each epoch.
 
 !!! note
-    The first call to [`synthesize_spectra_eclipse`](@ref) downloads and furnishes
-    the required SPICE kernels (planetary/lunar ephemerides and orientation
-    constants). This requires network access and may take some time.
+    The eclipse machinery relies on SPICE kernels (planetary/lunar ephemerides and
+    orientation constants). These are downloaded once by `Pkg.build("GRASS")` and
+    are furnished into the SPICE kernel pool automatically when GRASS is loaded
+    (`using GRASS`). If the kernels are missing at load time, GRASS downloads them
+    then — this requires network access and may take some time.
 
 ## Generating Eclipse Spectra
 
@@ -33,8 +35,9 @@ spec = SpecParams(lines=[λrest], depths=[0.75], resolution=7e5)
 t0 = DateTime("2024-04-08T18:00:00")
 time_stamps = [string(t0 + Second(15 * (i - 1))) for i in 1:50]
 
-# eclipse disk parameters; Nt must match length(time_stamps)
-disk = DiskParamsEclipse(Nt=length(time_stamps))
+# eclipse disk parameters; Nt must match length(time_stamps).
+# DiskParamsEclipse is not exported, so it must be qualified with the module.
+disk = GRASS.Eclipse.DiskParamsEclipse(Nt=length(time_stamps))
 
 # observer location (geodetic longitude/latitude in degrees, altitude in km)
 obs_long = -104.0

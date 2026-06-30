@@ -50,8 +50,8 @@ function synthesize_spectra_eclipse(spec::SpecParams{T}, disk::DiskParamsEclipse
                                     ext_coeff; ext_toggle::Bool=false, seed_rng::Bool=false, verbose::Bool=true,
                                     use_gpu::Bool=false, precision::DataType=Float64,
                                     skip_times::BitVector=falses(disk.Nt)) where T<:AF
-    GRASS.Eclipse.get_kernels()
-    
+    # SPICE kernels are furnished at package load time in GRASS.Eclipse.__init__
+
     # call appropriate simulation function on cpu or gpu
     if use_gpu
         return synth_Eclipse_gpu(spec, disk, verbose, precision, skip_times, LD_type,
