@@ -1,6 +1,6 @@
 name = "GRASS"
 uuid = "beaa24b3-4aa0-42b2-a8f3-c93b81cbd48b"
-version = "3.0.0-alpha"
+version = "2.1.0"
 authors = ["Michael Palumbo", "Elizabeth Gonzalez"]
 
 [deps]

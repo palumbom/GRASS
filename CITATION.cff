@@ -32,4 +32,4 @@ identifiers:
     value: 'https://arxiv.org/abs/2405.07945'
 repository-code: 'https://github.com/palumbom/GRASS'
 license: MIT
-version: 3.0.0
+version: 2.1.0
