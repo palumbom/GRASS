@@ -1,5 +1,9 @@
 # Eclipse Synthesis
 
+```@meta
+CurrentModule = GRASS.Eclipse
+```
+
 GRASS can synthesize the time series of solar spectra observed from the ground
 during a solar eclipse. As the Moon transits the solar disk, it occults
 different regions of the rotating, granulating surface, imprinting a

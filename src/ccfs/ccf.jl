@@ -28,7 +28,6 @@ Compute the cross-correlation function (CCF) from a spectrum (λs, flux) using a
 - `Δv_step::Float64=100.0`: velocity step size (m/s) for the CCF grid.
 - `mask_type::Type=TopHatMask`: mask shape type from `EchelleCCFs`.
 """
-
 function calc_ccf(λs::AA{T1,1}, flux::AA{T1,1},
                   lines::AA{T1,1}, depths::AA{T1,1},
                   resolution::T1; normalize::Bool=true,
