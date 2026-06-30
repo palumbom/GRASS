@@ -79,7 +79,7 @@ plt.show()
 Additional details and examples can be found in [the documentation](https://palumbom.github.io/GRASS/stable).
 
 ## Citation
-[![DOI](https://zenodo.org/badge/364662564.svg)](https://zenodo.org/badge/latestdoi/364662564)
+[![DOI](https://zenodo.org/badge/364662564.svg)](https://doi.org/10.5281/zenodo.5512774)
 [![arXiv](https://img.shields.io/badge/arXiv-2110.11839-b31b1b.svg)](https://arxiv.org/abs/2110.11839)
 [![arXiv](https://img.shields.io/badge/arXiv-2405.07945-b31b1b.svg)](https://arxiv.org/abs/2405.07945)
 
