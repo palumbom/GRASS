@@ -46,7 +46,7 @@ write(target_path, readme_text)
 
 # pages
 Introduction = "Quickstart" => "index.md"
-Getting_Started = "Tutorials" => ["examples/basic.md", "examples/advanced.md"]
+Getting_Started = "Tutorials" => ["examples/basic.md", "examples/advanced.md", "examples/eclipse.md"]
 Caveats = "Caveats" => "caveats.md"
 Internals = "Public Functions" => "internals.md"
 License = "License" => "license.md"
@@ -54,7 +54,7 @@ Index = "Full Index" => "longlist.md"
 pages = [Introduction, Getting_Started, Caveats, Internals, Index, License]
 
 makedocs(;
-    modules=[GRASS],
+    modules=[GRASS, GRASS.Eclipse],
     authors="Michael Palumbo",
     # repo="https://github.com/palumbom/GRASS/blob/{commit}{path}#{line}",
     sitename="GRASS",

@@ -14,19 +14,23 @@ struct DiskParamsEclipse{T<:AF}
 end
 
 """
-    DiskParams(; N=132, Nt=50, inclination=90.0)
+    DiskParamsEclipse(; N=197, Nt, Nsubgrid=40, radius=sun_radius,
+                      A=14.713, B=-2.396, C=-1.787)
 
-Construct a `DiskParams` composite type instance. In the coordinate system,
-the y- and z- axes are sky-plane, and the x-axis is along the observer-to-star-
-center vector.
+Construct a `DiskParamsEclipse` instance describing the solar disk grid used for
+eclipse spectral synthesis. The grid is built in heliographic latitude/longitude;
+the observer geometry (and therefore which cells are occulted by the Moon) is
+computed per epoch from SPICE ephemerides at synthesis time, rather than being
+fixed at construction. This is the eclipse counterpart to [`DiskParams`](@ref).
 
-# Arguments
-- `N=197`: Number of stellar latitude grid elements. Should be set to 197 for physical validity.
-- `Nt=50`: Number of 15-second time steps.
-- `radius=1.0`: Radius of model star. Default is one solar radius.
-- `A=14.713`: Differential rotation coefficient. Units of deg/day.
-- `B=-2.396`: Differential rotation coefficient. Units of deg/day.
-- `C=-1.787`: Differential rotation coefficient. Units of deg/day.
+# Keyword Arguments
+- `N=197`: number of stellar latitude grid elements. Should be set to 197 for physical validity; other values emit a warning.
+- `Nt`: number of time steps (epochs) to synthesize. **Required** — defaults to a `NaN` sentinel that trips an assertion if not supplied. Must equal `length(time_stamps)` passed to [`synthesize_spectra_eclipse`](@ref).
+- `Nsubgrid=40`: subgrid resolution used to refine partially-occulted cells near the lunar limb. Must be greater than 1.
+- `radius=sun_radius`: stellar radius in km (defaults to the SPICE solar radius).
+- `A=14.713`: differential rotation coefficient (deg/day).
+- `B=-2.396`: differential rotation coefficient (deg/day).
+- `C=-1.787`: differential rotation coefficient (deg/day).
 """
 function DiskParamsEclipse(;N=197, Nt=NaN, Nsubgrid=40, radius=sun_radius,
                             A=14.713, B=-2.396, C=-1.787)

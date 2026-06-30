@@ -1,15 +1,15 @@
 """
-    synthesize_spectra(
+    synthesize_spectra_eclipse(
         spec,
         disk,
         wavelength,
         LD_type,
         obs_long,
-        obs_lat, 
+        obs_lat,
         alt,
         time_stamps,
         ext_coeff;
-        ext_toggle,
+        ext_toggle=false,
         seed_rng=false,
         verbose=true,
         use_gpu=false,
@@ -17,24 +17,33 @@
         skip_times=falses(disk.Nt),
     )
 
-Synthesize spectra given parameters in `spec` and `disk` instances.
+Synthesize a time series of solar spectra as seen from a ground-based observer
+during a solar eclipse. For each epoch in `time_stamps`, the Sun–Moon–observer
+geometry is computed from SPICE ephemerides, the lunar disk is projected onto the
+solar grid to mask occulted cells, and the remaining surface is integrated to
+produce a spectrum. Returns a tuple `(λs, flux)` where `λs::Vector` is the
+wavelength grid (`spec.lambdas`) and `flux::Matrix` has size `(length(λs), disk.Nt)`,
+one column per epoch.
+
+Required SPICE kernels are fetched and furnished on the first call.
 
 # Arguments
 - `spec::SpecParams`: spectral synthesis parameters (line list, templates, wavelength grid).
-- `disk::DiskParams`: disk simulation parameters (grid size, time samples, geometry).
-- 'wavelength::Vector{Float64}' : vector of wavelengths to be synthesized
-- 'LD_type::String' : specifies which limb darkening law to use
-- 'obs_long::T', 'obs_lat::T', 'alt::T' : coordinate information for observer (degrees, km)
-- 'time_stamps::Vector{Float64}' : vector of timestamps to evaluate (UTC string)
-- 'ext_coeff' : extinction coefficient to be used
+- `disk::DiskParamsEclipse`: eclipse disk parameters; see [`DiskParamsEclipse`](@ref).
+- `wavelength::Vector{Float64}`: line-center wavelength(s) used to look up limb-darkening coefficients.
+- `LD_type::String`: limb-darkening law. One of `"SSD_quadratic"`, `"SSD_4parameter"`, `"300_quadratic"`, `"300_4parameter"`, `"HD_quadratic"`, `"HD_4parameter"` (dataset `SSD`/`300`/`HD` × quadratic or 4-parameter law).
+- `obs_long::T`, `obs_lat::T`: observer geodetic longitude and latitude (degrees).
+- `alt::T`: observer altitude (km).
+- `time_stamps::Vector{String}`: UTC timestamp strings (SPICE-parseable), one per epoch. Length must equal `disk.Nt`.
+- `ext_coeff`: atmospheric extinction coefficient (used only when `ext_toggle=true`).
 
 # Keyword Arguments
-- 'ext_toggle::Bool=false' : toggle for whether or not to include extinction 
-- `seed_rng::Bool=false`: re-seed RNG with a fixed seed per template.
+- `ext_toggle::Bool=false`: include airmass-dependent atmospheric extinction.
+- `seed_rng::Bool=false`: re-seed the RNG with a fixed seed per template for reproducible granulation.
 - `verbose::Bool=true`: print progress messages for template loading and simulation.
-- `use_gpu::Bool=false`: run the GPU implementation when available.
-- `precision::DataType=Float64`: GPU precision (`Float32` or `Float64`); see [Caveats](@ref "Caveats")
-- `skip_times::BitVector=falses(disk.Nt)`: time indices to skip in the simulation loop.
+- `use_gpu::Bool=false`: run the GPU implementation (requires a functional CUDA device).
+- `precision::DataType=Float64`: GPU precision (`Float32` or `Float64`); see [Caveats](@ref "Caveats").
+- `skip_times::BitVector=falses(disk.Nt)`: epochs to skip in the simulation loop.
 """
 function synthesize_spectra_eclipse(spec::SpecParams{T}, disk::DiskParamsEclipse{T}, wavelength::Vector{Float64}, LD_type::String, 
                                     obs_long::T, obs_lat::T, alt::T, time_stamps::Vector{String},                              
