@@ -1,8 +1,7 @@
 # variance-weighted Gaussian fits to a CCF, yielding an RV and its uncertainty
 import LsqFit: LsqFitResult
-# these live in the RVFromCCF submodule and are not re-exported by EchelleCCFs;
-# importing them from the parent yields a binding that throws only when a caller
-# omits the kwarg, since Julia evaluates a default expression only when it is taken
+# bindings of the RVFromCCF submodule, not re-exported by EchelleCCFs: importing
+# them from the parent module yields an unassigned binding rather than an error
 import EchelleCCFs.RVFromCCF: default_frac_of_width_to_fit, default_measure_width_at_frac_depth
 
 @. gaussian_line_helper(x, p) = p[4] + p[3] * exp(-0.5*((x-p[1])/p[2])^2)
@@ -56,8 +55,10 @@ function find_idx_at_and_around_minimum(vels::AA{T1,1}, ccf::AA{T2,1};
         amin = argmin(view(ccf,offset:(length(vels)-offset)))
         amin += offset-1
     end
-    lend = vels[amin] - frac_of_width_to_fit * full_width
-    rend = vels[amin] + frac_of_width_to_fit * full_width
+    # convert to T1 so the bounds share the element type of vels: searchsortednearest
+    # in utils.jl dispatches on the needle and the haystack eltype being identical
+    lend = vels[amin] - T1(frac_of_width_to_fit) * full_width
+    rend = vels[amin] + T1(frac_of_width_to_fit) * full_width
 
     # get the indices
     lind = searchsortednearest(view(vels,1:amin), lend)
@@ -92,6 +93,11 @@ the Gaussian fit does not converge.
 `calc_ccf(λs, flux, var, ...)`; normalizing one without the other changes σ_rv.
 `mrv` supplies `frac_of_width_to_fit`, `measure_width_at_frac_depth`, and
 `init_guess_ccf_σ`, so it must be a Gaussian measurement type.
+
+Weighting by `1 ./ ccf_var` treats the velocity lags as independent, which they are
+not, so σ_rv scales with the CCF grid spacing and understates the true velocity
+scatter. See the `calc_rvs_from_ccf(v_grid, ccf, ccf_var)` docstring before relying
+on it as an error bar.
 """
 function measure_rv_from_ccf_gaussian(vels::AA{T1,1}, ccf::AA{T2,1},
                                       ccf_var::AA{T3,1}, mrv

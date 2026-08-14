@@ -84,10 +84,15 @@ end
     @test out.σ_rv > 0.0
     @test abs(out.rv - rv_plain) < 1.0  # m/s
 
-    # the caller's variance array survives the call unchanged
+    # the caller's variance array survives the call unchanged. the zero must be
+    # planted: the internal substitution only writes where an element is exactly
+    # 0.0, and a ccf variance off a tophat mask is strictly positive everywhere,
+    # so without this the assertion holds against a mutating implementation too
+    ccf_var[1] = 0.0
     ccf_var_before = copy(ccf_var)
     calc_rvs_from_ccf(v_grid, ccf, ccf_var)
     @test ccf_var == ccf_var_before
+    @test ccf_var[1] == 0.0
 
     # normalize was silently ignored on the variance path; it is now rejected
     @test_throws MethodError calc_ccf(wavs, flux, var, [mid], [dep], res, normalize=true)

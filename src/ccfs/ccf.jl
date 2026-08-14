@@ -290,6 +290,16 @@ and a velocity grid.
 `ccf` and `ccf_var` must be on a common absolute scale, as returned together by
 `calc_ccf(λs, flux, var, ...)`.
 
+!!! warning "σ_rv is not a calibrated uncertainty"
+    `calc_ccf` returns only the diagonal of the CCF covariance, and the fit weights
+    by `1 ./ ccf_var`, so neighbouring velocity lags are treated as independent when
+    they are not: the tophat mask spans `c_ms/resolution` in velocity, several times
+    the default `Δv_step`. The returned `σ_rv` therefore shrinks as `sqrt(Δv_step)`
+    without bound and understates the true scatter of recovered velocities. Use it
+    as a relative weight between epochs sharing one `Δv_step`, not as an absolute
+    error bar. Handling this properly needs the off-diagonal covariance
+    (`EchelleCCFs.RVFromCCF` provides `ccf_sample_covar.jl` for that).
+
 # Arguments
 - `v_grid::AbstractArray{Float64,1}`: velocity grid returned by `calc_ccf`.
 - `ccf::AbstractArray{Float64,1}`: CCF values returned by `calc_ccf`.
