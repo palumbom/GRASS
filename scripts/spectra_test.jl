@@ -43,7 +43,7 @@ let i = template_idx
 
     # spec object
     spec = SpecParams(lines=lines, depths=depths, variability=variability,
-                      templates=templates, resolution=resolution, 
+                      templates=templates, resolution=resolution,
                       oversampling=4.0)
 
     # set mu bins
@@ -55,8 +55,9 @@ let i = template_idx
     # write noiseless, full res spectra to disk
     fname = joinpath(outdir, lname[i] * "_noiseless.h5")
     h5open(fname, "w") do file
-        write(file, "wavs", wavs, "flux", flux) 
+        write(file, "wavs", wavs, "flux", flux)
     end
+end
 
 # for μ_idx in eachindex(μ_bins)
 #     # plt.plot(lambdas_gpu, outspec_gpu[:,μ_idx,1] ./ maximum(outspec_gpu[:,μ_idx,1]))
@@ -79,6 +80,7 @@ let i = template_idx
 # end
 # plt.show()
 
+"""
 nbins = range(3, 10, step=1)
 ntrials = 10
 @showprogress for nn in eachindex(nbins)
@@ -104,3 +106,4 @@ end
 plt.xlabel(L"{\rm Number\ of\ \mu\ bins}")
 plt.ylabel(L"{\rm RMS\ RV\ of\ disk\ center\ bin\ (m/s)}")
 plt.show()
+"""

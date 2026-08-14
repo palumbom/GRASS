@@ -1,9 +1,8 @@
 function disk_sim_gpu(spec::SpecParams{T1}, disk::DiskParams{T1}, soldata::GPUSolarData{T2},
-                      gpu_allocs::GPUAllocs{T2}, flux_cpu::AA{T1,2}; verbose::Bool=false,
-                      seed_rng::Bool=false,  skip_times::BitVector=falses(disk.Nt),
+                      gpu_allocs::GPUAllocs{T2}, flux_cpu::AA{T1,2};
+                      skip_times::BitVector=falses(disk.Nt),
                       show_progress::Bool=true) where {T1<:AF, T2<:AF}
     # get dimensions for memory alloc
-    N = disk.N
     Nt = disk.Nt
     Nλ = length(spec.lambdas)
 
@@ -24,10 +23,7 @@ function disk_sim_gpu(spec::SpecParams{T1}, disk::DiskParams{T1}, soldata::GPUSo
     allints = gpu_allocs.allints
 
     # alias the input data from GPUSolarData
-    disc_mu_gpu = soldata.mu
-    disc_ax_gpu = soldata.ax
     lenall_gpu = soldata.len
-    cbsall_gpu = soldata.cbs
     bisall_gpu = soldata.bis
     intall_gpu = soldata.int
     widall_gpu = soldata.wid

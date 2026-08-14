@@ -1,7 +1,6 @@
 function disk_sim(spec::SpecParams{T}, disk::DiskParams{T}, soldata::SolarData{T},
                   wsp::SynthWorkspace{T}, prof::AA{T,1}, flux::AA{T,2},
-                  tloop::AA{Int,1}; verbose::Bool=true,
-                  skip_times::BitVector=falses(disk.Nt),
+                  tloop::AA{Int,1}; skip_times::BitVector=falses(disk.Nt),
                   show_progress::Bool=true) where T<:AF
     # get sum of weights
     sum_wts = sum(wsp.wts)
@@ -43,9 +42,9 @@ function disk_sim(spec::SpecParams{T}, disk::DiskParams{T}, soldata::SolarData{T
                 end
 
                 # get views needed for line synthesis
-                wsp.bist .= copy(view(soldata.bis[key], :, tloop[i]))
-                wsp.intt .= copy(view(soldata.int[key], :, tloop[i]))
-                wsp.widt .= copy(view(soldata.wid[key], :, tloop[i]))
+                wsp.bist .= view(soldata.bis[key], :, tloop[i])
+                wsp.intt .= view(soldata.int[key], :, tloop[i])
+                wsp.widt .= view(soldata.wid[key], :, tloop[i])
 
                 # get amount of convective blueshift needed
                 extra_z = spec.conv_blueshifts[l] - z_cbs_avg
@@ -78,7 +77,7 @@ function disk_sim(spec::SpecParams{T}, disk::DiskParams{T}, soldata::SolarData{T
 
         # iterate tloop
         tloop .+= 1
-        
+
         # iterate progress meter
         next!(p)
     end

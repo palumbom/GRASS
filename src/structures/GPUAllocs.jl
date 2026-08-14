@@ -1,6 +1,8 @@
 abstract type AbstractGPUAllocs end
 
-struct GPUAllocs{T1<:AF} <: AbstractGPUAllocs
+# keyword-only construction: tloop, tloop_init and dat_idx are all zero-filled
+# CuArray{Int32,1} of the same length, so a positional mix-up between them is silent
+Base.@kwdef struct GPUAllocs{T1<:AF} <: AbstractGPUAllocs
     λs::CuArray{T1,1}
     prof::CuArray{T1,1}
     flux::CuArray{T1,2}
@@ -137,8 +139,10 @@ function GPUAllocs(spec::SpecParams, disk::DiskParams; precision::DataType=Float
         allints = CUDA.zeros(precision, num_nonzero, 200)
     end
 
-    return GPUAllocs(λs_gpu, prof_gpu, flux_gpu, ϕc, θc, μs, wts, z_rot, z_cbs, ax_code,
-                     dat_idx, tloop_gpu, tloop_init, allwavs, allints)
+    return GPUAllocs(λs=λs_gpu, prof=prof_gpu, flux=flux_gpu, ϕc=ϕc, θc=θc, μs=μs,
+                     wts=wts, z_rot=z_rot, z_cbs=z_cbs, ax_codes=ax_code,
+                     tloop=tloop_gpu, tloop_init=tloop_init, dat_idx=dat_idx,
+                     allwavs=allwavs, allints=allints)
 end
 
 function GPUAllocsResolved(μ_bins::AA{T,1}, spec::SpecParams, disk::DiskParams; precision::DataType=Float64, verbose::Bool=true) where T<:AF
