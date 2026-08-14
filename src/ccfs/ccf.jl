@@ -307,12 +307,16 @@ and a velocity grid.
 
 # Keyword Arguments
 - `frac_of_width_to_fit::Float64=0.75`: fraction of the CCF width used in the fit.
-- `fit_type::Type=GaussianFit`: supplies the fit hyperparameters; the Gaussian path
-  is always used.
+- `fit_type::Type=GaussianFit`: supplies the fit hyperparameters. Must be `GaussianFit`;
+  any other `FitType` raises `AssertionError`.
 """
 function calc_rvs_from_ccf(v_grid::AA{Float64,1}, ccf::AA{Float64,1}, ccf_var::AA{Float64,1};
                            frac_of_width_to_fit::Float64=0.75,
                            fit_type::Type{T}=GaussianFit) where {T<:FitType}
+    # only the Gaussian path is implemented, and it reads init_guess_ccf_σ off the
+    # measurement type; the quadratic type has no such field, so reject it here
+    # rather than partway through the fit
+    @assert T <: GaussianFit "fit_type must be $GaussianFit, got $T"
     mrv = T(frac_of_width_to_fit=frac_of_width_to_fit)
     return measure_rv_from_ccf_gaussian(v_grid, ccf, ccf_var, mrv)
 end

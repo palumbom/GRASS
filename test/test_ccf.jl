@@ -96,6 +96,12 @@ end
 
     # normalize was silently ignored on the variance path; it is now rejected
     @test_throws MethodError calc_ccf(wavs, flux, var, [mid], [dep], res, normalize=true)
+
+    # only the Gaussian path is implemented: a quadratic fit_type is rejected at the
+    # boundary rather than failing on the missing init_guess_ccf_σ field mid-fit
+    @test_throws AssertionError calc_rvs_from_ccf(v_grid, ccf, ccf_var,
+                                                 fit_type=GRASS.QuadraticFit)
+    @test calc_rvs_from_ccf(v_grid, ccf, ccf_var, fit_type=GRASS.GaussianFit).rv == out.rv
 end
 
 end
