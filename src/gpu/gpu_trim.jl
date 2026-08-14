@@ -1,3 +1,4 @@
+# the _out buffers persist across lines, so every branch must write every element
 function trim_bisector_gpu!(depth, variability, depcontrast, lenall, bisall_out,
                             intall_out, widall_out, bisall_in, intall_in, widall_in)
     # get indices from GPU blocks + threads
@@ -28,13 +29,7 @@ function trim_bisector_gpu!(depth, variability, depcontrast, lenall, bisall_out,
             bist_out = CUDA.view(bisall_out, :, j, i)
             intt_out = CUDA.view(intall_out, :, j, i)
 
-            # Resampled intensity grid endpoint is branch-dependent, mirroring the CPU:
-            # trim_bisector_chop! runs to maximum(intt), trim_bisector_scale! to 1.0.
-            # They coincide only for templates whose intensities reach the continuum;
-            # FeI_5382 tops out at 0.985, and using 1.0 there costs 44 m/s against the CPU.
-            # intt is ascending (linear_interp_gpu below already requires it), so the
-            # maximum is the last element -- do not replace this with a scan, every
-            # z-thread would repeat it.
+            # chop resamples to maximum(intt), scale to 1.0; intt is ascending
             int_top = 1.0
             if (1.0 - dtrim) >= CUDA.first(intt_in)
                 int_top = CUDA.last(intt_in)
@@ -51,18 +46,12 @@ function trim_bisector_gpu!(depth, variability, depcontrast, lenall, bisall_out,
                     if (1.0 - dtrim) >= CUDA.first(intt_in)
                         @inbounds bist_out[k] = itp(new_intt)
                     else
-                        # scaling, not chopping: trim_bisector_scale! rewrites only the
-                        # intensities, leaving the bisector at its untrimmed input value.
-                        # bisall_out persists across lines, so this must be written
-                        # explicitly or line l inherits line l-1's chopped bisector.
+                        # scaling leaves the bisector untrimmed
                         @inbounds bist_out[k] = bist_in[k]
                     end
                     @inbounds intt_out[k] = new_intt
 
-                    # widall_out has the same cross-line lifetime as bisall_out, and the
-                    # non-variability branch below overwrites every epoch with epoch 1.
-                    # A variable line must restore its own epoch's widths or it inherits
-                    # the fixed ones -- across lines and across time steps.
+                    # variable widths pass through unchanged
                     @inbounds widall_out[k,j,i] = widall_in[k,j,i]
                 end
             else

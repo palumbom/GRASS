@@ -104,8 +104,7 @@ function disk_sim_gpu(spec::SpecParams{T1}, disk::DiskParams{T1}, soldata::GPUSo
     # copy over flux
     @cusync flux_cpu .= Array(flux)
 
-    # zero the skipped epochs to match disk_sim; simulate_observations divides binned
-    # flux by the number of unskipped epochs, so a leftover continuum is not harmless
+    # skipped epochs must be zero, not continuum; binning divides by the unskipped count
     flux_cpu[:, skip_times] .= zero(T1)
 
     # make sure nothing is still running on GPU

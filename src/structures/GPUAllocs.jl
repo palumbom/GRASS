@@ -1,7 +1,6 @@
 abstract type AbstractGPUAllocs end
 
-# keyword-only construction: tloop, tloop_init and dat_idx are all zero-filled
-# CuArray{Int32,1} of the same length, so a positional mix-up between them is silent
+# keyword-only: tloop, tloop_init and dat_idx are interchangeable by type
 Base.@kwdef struct GPUAllocs{T1<:AF} <: AbstractGPUAllocs
     λs::CuArray{T1,1}
     prof::CuArray{T1,1}

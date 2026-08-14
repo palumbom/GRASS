@@ -173,7 +173,7 @@ function SolarData(fname::String; relative::Bool=true, extrapolate::Bool=true,
         end
     end
 
-    # compute mean depth at disk center; every depth contrast is relative to it
+    # compute mean depth at disk center; all depth contrasts are relative to it
     @assert haskey(intdict, (:c, :mu10)) "no disk-center (:c, :mu10) data in " * fname
     dep_dc = mean(1.0 .- view(intdict[(:c, :mu10)], 1, :))
 

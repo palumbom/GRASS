@@ -1,23 +1,10 @@
-# CPU/GPU parity for the disk-integrated synthesis path.
-#
-# disk_sim and disk_sim_gpu are independent implementations of one model, so each is an
-# oracle for the other. With seed_rng=true -- which routes tloop generation through the
-# CPU for both paths -- they agree to ~5e-15 in flux and 0.0000 m/s in RV when correct.
-#
-# TOLERANCE. The GPU is not bitwise reproducible run to run: line_profile_gpu!
-# accumulates into prof with CUDA.@atomic, so the reduction order varies between
-# launches. Measured spread over repeated runs is 4.2e-15 relative. PARITY_RTOL sits
-# ~240x above that floor and ~1e10 below the smallest divergence these tests exist to
-# catch (6.8e-4 in flux). Do not tighten it to bitwise equality -- the reproducibility
-# testset below will fail first and tell you why. Do not widen it without re-measuring
-# the floor on the hardware in question.
-#
-# Parity also assumes the CPU and GPU geometry precomputes assign identical disk-position
-# keys (get_key_for_pos vs find_data_index_gpu). If these tests fail inexplicably after a
-# change to either precompute, check the keys before suspecting the physics.
+# CPU/GPU parity: disk_sim and disk_sim_gpu are independent, so each oracles the other.
+# seed_rng=true routes tloop generation through the CPU for both, and parity assumes both
+# geometry precomputes assign the same disk-position keys. The GPU is not bitwise
+# reproducible -- line_profile_gpu! accumulates prof with atomics -- hence rtol, not ==.
 
 const PARITY_RTOL = 1e-12
-const PARITY_N = 50    # coarse on purpose: parity is geometry-independent, and N=197 is slow
+const PARITY_N = 50    # coarse; parity does not depend on geometry
 const PARITY_NT = 4
 
 parity_relerr(a, b) = maximum(abs.(a .- b) ./ max.(abs.(b), eps()))
@@ -50,16 +37,14 @@ disk = DiskParams(N=PARITY_N, Nt=PARITY_NT)
 @testset "Testing reproducibility of each path" begin
     spec = SpecParams(lines=[λ5434], depths=[0.75], templates=["FeI_5434"])
 
-    # the CPU path is bitwise deterministic; the baseline harness relies on this
+    # the cpu path is bitwise deterministic
     _, c1 = synthesize_spectra(spec, disk, seed_rng=true, use_gpu=false,
                                verbose=false, show_progress=false)
     _, c2 = synthesize_spectra(spec, disk, seed_rng=true, use_gpu=false,
                                verbose=false, show_progress=false)
     @test c1 == c2
 
-    # the GPU path is not, because prof is accumulated with atomics. It must still land
-    # inside the parity tolerance -- if this fails, the tolerance is too tight for the
-    # hardware, and every other test in this file is about to fail for the wrong reason.
+    # the gpu path is not, but must stay inside the parity tolerance
     _, g1 = synthesize_spectra(spec, disk, seed_rng=true, use_gpu=true,
                                verbose=false, show_progress=false)
     _, g2 = synthesize_spectra(spec, disk, seed_rng=true, use_gpu=true,
@@ -75,11 +60,7 @@ end
     @test parity_rv_delta(spec, fc, fg) < 1e-6
 end
 
-# Two lines sharing one template put both lines inside a single disk_sim_gpu call, so
-# they share bisall_gpu_loop. The GPU trim kernel used to skip writing the bisector on
-# its scaling branch, leaving the previous line's chopped values in place (60 m/s).
-# The scale branch fires on 0% of profiles at depth <= 0.6, 58% at 0.75, 100% at 0.9,
-# so the mixed pair below is the trigger and the shallow pair is the control.
+# two lines in one template share bisall_gpu_loop; depth 0.9 scales, 0.5 chops
 @testset "Testing bisector reuse across the line loop" begin
     trigger = SpecParams(lines=[5434.2, 5434.8], depths=[0.5, 0.9],
                          templates=["FeI_5434", "FeI_5434"])
@@ -92,10 +73,7 @@ end
     end
 end
 
-# widall_gpu_loop has the same cross-line lifetime as bisall_gpu_loop, and only the
-# non-variability branch of the trim kernel writes it. A fixed-width line used to
-# overwrite every epoch with epoch 1, contaminating any variable line that read it
-# afterwards -- across lines and across time steps, so both orderings mattered (0.6 m/s).
+# widall_gpu_loop is shared too, and only the fixed-width branch writes it
 @testset "Testing width reuse with mixed variability" begin
     for var in ([false, true], [true, false], [true, true], [false, false])
         spec = SpecParams(lines=[5434.2, 5434.8], depths=[0.5, 0.5],
@@ -106,9 +84,7 @@ end
     end
 end
 
-# trim_bisector_chop! resamples up to maximum(intt); the GPU kernel hardcoded 1.0. These
-# agree only for templates reaching the continuum. FeI_5382 tops out at 0.98542, and
-# chops at depth 0.1 but scales at 0.4, giving a trigger and a control from one template.
+# FeI_5382 intensities stop short of the continuum; it chops at 0.1 and scales at 0.4
 @testset "Testing chop endpoint below the continuum" begin
     for dep in (0.1, 0.4)
         spec = SpecParams(lines=[λ5382], depths=[dep], templates=["FeI_5382"])
@@ -118,9 +94,7 @@ end
     end
 end
 
-# disk_sim zeroes skipped epochs; disk_sim_gpu left them at the CUDA.ones initialization.
-# simulate_observations divides binned flux by the count of unskipped epochs, so a
-# leftover continuum silently inflates the result.
+# skipped epochs must be zero on both paths; binning divides by the unskipped count
 @testset "Testing skip_times parity and semantics" begin
     spec = SpecParams(lines=[λ5434], depths=[0.75], templates=["FeI_5434"])
     skip = falses(PARITY_NT); skip[2] = true; skip[3] = true
@@ -133,13 +107,11 @@ end
     @test parity_relerr(fg, fc) <= PARITY_RTOL
 end
 
-# Consecutive templates in the same line group reuse tloop_init; templates in different
-# groups regenerate it. Both branches of that decision need covering.
+# same-group templates reuse tloop_init, different groups regenerate it
 @testset "Testing parity across multiple templates" begin
     same_group = SpecParams(lines=[parity_λof("FeI_5250.2"), parity_λof("FeI_5250.6")],
                             depths=[0.6, 0.4], templates=["FeI_5250.2", "FeI_5250.6"])
-    # cross-group templates are >=140 A apart, so R=7e5 would make a ~10^5 point grid;
-    # this case only exercises the regenerate branch, which is grid-spacing independent
+    # cross-group lines are far apart; drop the resolution to keep the grid small
     diff_group = SpecParams(lines=[λ5434, parity_λof("FeI_5576")], depths=[0.6, 0.4],
                             templates=["FeI_5434", "FeI_5576"], resolution=1e5)
     for spec in (same_group, diff_group)

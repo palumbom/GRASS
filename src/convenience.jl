@@ -32,12 +32,11 @@ function synthesize_spectra(spec::SpecParams{T}, disk::DiskParams{T};
                             skip_times::BitVector=falses(disk.Nt),
                             contiguous_only::Bool=false,
                             show_progress::Bool=true) where T<:AF
-    # a mismatched skip_times is a BoundsError deep in the time loop if short,
-    # and silently wrong flux columns if long
+    # a wrong length is a BoundsError or silently wrong flux columns
     @assert length(skip_times) == disk.Nt
     @assert precision <: AbstractFloat
 
-    # precision only reaches the GPU allocations; the CPU path is Float64 throughout
+    # precision only reaches the gpu allocations; the cpu path is Float64 throughout
     if !use_gpu && precision != Float64
         @warn "precision is ignored when use_gpu=false; synthesis will run in Float64"
     end
@@ -57,7 +56,7 @@ function _synth_cpu(spec::SpecParams{T}, disk::DiskParams{T}, seed_rng::Bool,
     Nt = disk.Nt
     Nλ = length(spec.lambdas)
 
-    # allocate memory for synthsis; disk_sim zeroes prof before each line
+    # allocate memory for synthsis
     prof = zeros(Nλ)
     flux = ones(Nλ, Nt)
 
@@ -134,7 +133,7 @@ function _synth_gpu(spec::SpecParams{T}, disk::DiskParams{T}, seed_rng::Bool,
         tloop_init = zeros(Int, CUDA.length(gpu_allocs.μs))
         keys_cpu = repeat([(:off,:off)], CUDA.length(gpu_allocs.μs))
 
-        # write-only scratch for get_keys_and_cbs!, which needs eltype(cbs) == eltype(μs)
+        # scratch for get_keys_and_cbs!; eltype must match μs_cpu
         cbs_cpu = zeros(precision, CUDA.length(gpu_allocs.μs))
 
         # copy data to CPU

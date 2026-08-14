@@ -34,10 +34,7 @@ function searchsortednearest_gpu(a,x)
     end
 end
 
-# SEQUENTIAL BY CONSTRUCTION: n is passed by value, so each thread keeps its own running
-# output index and threads would overwrite each other's slots. Callers must launch this
-# with the default single thread and single block (i.e. plain `@cuda f(...)`, no
-# threads=/blocks=). Giving it a launch configuration silently corrupts every output.
+# n is passed by value, so this is only correct on one thread: launch with a bare @cuda
 function filter_array_gpu!(output, input, pred, n)
     # get indices from GPU blocks + threads
     idx = threadIdx().x + blockDim().x * (blockIdx().x-1)

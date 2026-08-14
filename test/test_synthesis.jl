@@ -135,16 +135,14 @@ end
     @test calc_rms(rvs) < 1.0
 end
 
-# Everything below runs on the CPU only, so it is the part of the synthesis contract CI
-# can enforce. The CPU/GPU parity suite in test_gpu.jl always skips on GitHub runners.
+# cpu-only tests; the parity suite in test_gpu.jl always skips in CI
 @testset "Testing template grouping" begin
-    # in_same_group feeds `if (idx > 1) && in_same_group(...)` in the synthesis driver,
-    # so returning nothing for an unrecognized template throws a TypeError there
+    # the synthesis driver uses this in a boolean context, so it must return Bool
     @test GRASS.in_same_group("FeI_5250.2", "FeI_5250.6") isa Bool
     @test GRASS.in_same_group("FeI_5250.2", "FeI_5250.6")
     @test !GRASS.in_same_group("FeI_5250.2", "FeI_6301")
 
-    # a user-preprocessed template absent from line_groups groups with nothing
+    # unlisted templates match nothing
     @test GRASS.in_same_group("SomeLine_1234", "FeI_5250.6") isa Bool
     @test !GRASS.in_same_group("SomeLine_1234", "FeI_5250.6")
     @test !GRASS.in_same_group("FeI_5250.2", "SomeLine_1234")
@@ -155,8 +153,7 @@ end
     spec = SpecParams(lines=[5434.5], depths=[dep], templates=["FeI_5434"])
     disk = DiskParams(N=50, Nt=Nt)
 
-    # a short skip_times used to be a BoundsError deep in the time loop, and a long one
-    # silently wrote flux columns that did not exist
+    # a wrong length is a BoundsError or silently wrong flux columns
     @test_throws AssertionError synthesize_spectra(spec, disk, skip_times=falses(Nt - 1),
                                                    verbose=false, show_progress=false)
     @test_throws AssertionError synthesize_spectra(spec, disk, skip_times=falses(Nt + 1),
@@ -174,8 +171,7 @@ end
     wavs, flux = synthesize_spectra(spec, disk, skip_times=skip, verbose=false,
                                     show_progress=false)
 
-    # skipped epochs are exactly zero, not continuum: simulate_observations divides
-    # binned flux by the number of unskipped epochs and relies on this
+    # skipped epochs are exactly zero, not continuum; binning relies on this
     @test size(flux, 2) == Nt
     @test all(iszero, flux[:, skip])
     @test !any(iszero, flux[:, .!skip])
@@ -194,8 +190,7 @@ end
     @test all(isapprox.(maximum(flux, dims=1), 1.0, atol=1e-8))
     @test all(minimum(flux, dims=1) .< 0.75)
 
-    # mixed variability must also synthesize; the widths of a variable line must not be
-    # replaced by the fixed-width line's epoch-1 widths
+    # mixed variability must synthesize too
     spec_mixed = SpecParams(lines=[5434.2, 5434.8], depths=[0.5, 0.5],
                             templates=["FeI_5434", "FeI_5434"], variability=[false, true])
     wavs2, flux2 = synthesize_spectra(spec_mixed, disk, verbose=false, show_progress=false)
