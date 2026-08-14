@@ -20,6 +20,7 @@
 docs/src/index.md
 data/input/
 docs/build/
+docs/superpowers/
 docs/Manifest.toml
 Manifest*.toml
 data/spvis.dat
