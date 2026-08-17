@@ -87,6 +87,7 @@ function disk_sim_gpu(spec::SpecParams{T1}, disk::DiskParams{T1}, soldata::GPUSo
             # don't synthesize spectrum if skip_times is true, but iterate t index
             if skip_times[t]
                 @cusync @captured @cuda threads=threads1 blocks=blocks1 iterate_tloop_gpu!(tloop, dat_idx, lenall_gpu)
+                next!(p)
                 continue
             end
 

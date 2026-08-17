@@ -13,6 +13,9 @@ function synthesize_spectra_resolved(μ_bins::AA{T,1}, spec::SpecParams{T}, disk
                                      skip_times::BitVector=falses(disk.Nt),
                                      contiguous_only::Bool=false,
                                      show_progress::Bool=true) where T<:AF
+    # a wrong length is a BoundsError or silently wrong flux columns
+    @assert length(skip_times) == disk.Nt
+
     # call appropriate simulation function on cpu or gpu
     if use_gpu
         return synth_gpu_resolved(μ_bins, spec, disk, seed_rng, verbose, precision, 

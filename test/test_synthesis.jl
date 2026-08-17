@@ -178,6 +178,22 @@ end
     @test all(isapprox.(maximum(flux[:, .!skip], dims=1), 1.0, atol=1e-8))
 end
 
+# the guard precedes the use_gpu branch, so this runs without a GPU
+@testset "Testing resolved synthesis argument validation" begin
+    Nt = 4
+    spec = SpecParams(lines=[5434.5], depths=[dep], templates=["FeI_5434"])
+    disk = DiskParams(N=50, Nt=Nt)
+    μ_bins = [0.25, 0.55, 0.85]
+
+    # a wrong length is a BoundsError or silently wrong flux columns
+    @test_throws AssertionError GRASS.synthesize_spectra_resolved(μ_bins, spec, disk,
+                                    skip_times=falses(Nt - 1), verbose=false,
+                                    show_progress=false)
+    @test_throws AssertionError GRASS.synthesize_spectra_resolved(μ_bins, spec, disk,
+                                    skip_times=falses(Nt + 1), verbose=false,
+                                    show_progress=false)
+end
+
 @testset "Testing multiple lines from one template" begin
     Nt = 2
     # two lines sharing a template exercise the line loop inside a single disk_sim call

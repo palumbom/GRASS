@@ -12,6 +12,7 @@ function disk_sim(spec::SpecParams{T}, disk::DiskParams{T}, soldata::SolarData{T
         # if skip times is true, continue to next iter
         if skip_times[t]
             tloop .+= 1
+            next!(p)
             continue
         end
 

@@ -29,8 +29,10 @@ function trim_bisector_gpu!(depth, variability, depcontrast, lenall, bisall_out,
             bist_out = CUDA.view(bisall_out, :, j, i)
             intt_out = CUDA.view(intall_out, :, j, i)
 
-            # chop resamples to maximum(intt), scale to 1.0; intt is ascending
-            int_top = 1.0
+            # chop resamples to maximum(intt), scale to 1.0; intt is ascending.
+            # int_top must follow eltype(intt_in): a Float64 literal here makes it
+            # Union{Float64,eltype} under precision=Float32
+            int_top = one(eltype(intt_in))
             if (1.0 - dtrim) >= CUDA.first(intt_in)
                 int_top = CUDA.last(intt_in)
             end
