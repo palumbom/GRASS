@@ -121,4 +121,58 @@ end
     end
 end
 
+# The trim buffers are reused across lines within one disk_sim_gpu call but reallocated
+# per template, so lines-per-template and the template loop are separate axes. Cross them:
+# testing each at the other's minimum leaves the interaction untested.
+@testset "Testing parity with several lines per template, several templates" begin
+    a, b = parity_λof("FeI_5250.2"), parity_λof("FeI_5250.6")
+    same_group = SpecParams(lines=[a-0.15, a+0.15, b-0.15, b+0.15], depths=[0.5,0.9,0.6,0.4],
+                            templates=["FeI_5250.2","FeI_5250.2","FeI_5250.6","FeI_5250.6"])
+    diff_group = SpecParams(lines=[λ5434-0.15, λ5434+0.15,
+                                   parity_λof("FeI_5576")-0.15, parity_λof("FeI_5576")+0.15],
+                            depths=[0.5,0.9,0.6,0.4],
+                            templates=["FeI_5434","FeI_5434","FeI_5576","FeI_5576"],
+                            resolution=1e5)
+    # crossed with variability as well, since the width buffer has the same lifetime
+    mixed_var = SpecParams(lines=[a-0.15, a+0.15, b-0.15, b+0.15], depths=[0.5,0.5,0.5,0.5],
+                           templates=["FeI_5250.2","FeI_5250.2","FeI_5250.6","FeI_5250.6"],
+                           variability=[true,false,true,false])
+    for spec in (same_group, diff_group, mixed_var)
+        fc, fg = parity_fluxes(spec, disk)
+        @test parity_relerr(fg, fc) <= PARITY_RTOL
+        @test parity_rv_delta(spec, fc, fg) < 1e-6
+    end
+end
+
+# three lines in one template: the line loop is where the trim runs, so line count is a
+# distinct axis from the two-line case above
+@testset "Testing parity with three lines in one template" begin
+    spec = SpecParams(lines=[5434.0, 5434.5, 5435.0], depths=[0.4, 0.6, 0.9],
+                      templates=["FeI_5434", "FeI_5434", "FeI_5434"])
+    fc, fg = parity_fluxes(spec, disk)
+    @test parity_relerr(fg, fc) <= PARITY_RTOL
+    @test parity_rv_delta(spec, fc, fg) < 1e-6
+end
+
+# Every test above passes seed_rng=true, which routes tloop generation through the CPU.
+# generate_tloop_gpu! and the unseeded branch of _synth_gpu are otherwise never executed.
+# Unseeded output is not reproducible, so assert structure rather than values.
+@testset "Testing unseeded GPU synthesis" begin
+    spec = SpecParams(lines=[λ5434], depths=[0.75], templates=["FeI_5434"])
+    _, f = synthesize_spectra(spec, disk, seed_rng=false, use_gpu=true,
+                              verbose=false, show_progress=false)
+    @test size(f) == (length(spec.lambdas), PARITY_NT)
+    @test all(isfinite, f)
+    @test all(isapprox.(maximum(f, dims=1), 1.0, atol=1e-8))
+    @test all(0.0 .< minimum(f, dims=1) .< 1.0 - 0.5)
+
+    # two lines in one template, unseeded: exercises the line loop on that path too
+    spec2 = SpecParams(lines=[5434.2, 5434.8], depths=[0.5, 0.9],
+                       templates=["FeI_5434", "FeI_5434"])
+    _, f2 = synthesize_spectra(spec2, disk, seed_rng=false, use_gpu=true,
+                               verbose=false, show_progress=false)
+    @test all(isfinite, f2)
+    @test all(isapprox.(maximum(f2, dims=1), 1.0, atol=1e-8))
+end
+
 end

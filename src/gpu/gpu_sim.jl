@@ -62,23 +62,33 @@ function disk_sim_gpu(spec::SpecParams{T1}, disk::DiskParams{T1}, soldata::GPUSo
     # calculate how much extra shift is needed
     extra_z = spec.conv_blueshifts .- z_cbs_avg
 
-    # loop over time
-    p = Progress(Nt; enabled=show_progress)
-    for t in 1:Nt
-        # don't synthesize spectrum if skip_times is true, but iterate t index
-        if skip_times[t]
-            @cusync @captured @cuda threads=threads1 blocks=blocks1 iterate_tloop_gpu!(tloop, dat_idx, lenall_gpu)
-            continue
-        end
+    # every line replays the same tloop sequence, and fill_workspaces! and
+    # iterate_tloop_gpu! both mutate it, so snapshot the starting indices. snapshot the
+    # live array: gpu_allocs.tloop_init is only populated when seed_rng is false
+    @cusync tloop_start = CUDA.copy(tloop)
 
-        # loop over lines to synthesize
-        for l in eachindex(spec.lines)
-            # trim all the bisector data
-            @cusync @cuda threads=threads2 blocks=blocks2 trim_bisector_gpu!(spec.depths[l], spec.variability[l],
-                                                                             depcontrast_gpu, lenall_gpu,
-                                                                             bisall_gpu_loop, intall_gpu_loop,
-                                                                             widall_gpu_loop, bisall_gpu,
-                                                                             intall_gpu, widall_gpu)
+    # loop over lines to synthesize; the trim depends only on l, so it is hoisted out of
+    # the time loop. it must stay inside this loop -- one trim for all lines would apply
+    # one line's depth to every line
+    p = Progress(Nt * length(spec.lines); enabled=show_progress)
+    for l in eachindex(spec.lines)
+        # trim all the bisector data
+        @cusync @cuda threads=threads2 blocks=blocks2 trim_bisector_gpu!(spec.depths[l], spec.variability[l],
+                                                                         depcontrast_gpu, lenall_gpu,
+                                                                         bisall_gpu_loop, intall_gpu_loop,
+                                                                         widall_gpu_loop, bisall_gpu,
+                                                                         intall_gpu, widall_gpu)
+
+        # rewind the time index for this line
+        @cusync CUDA.copyto!(tloop, tloop_start)
+
+        # loop over time
+        for t in 1:Nt
+            # don't synthesize spectrum if skip_times is true, but iterate t index
+            if skip_times[t]
+                @cusync @captured @cuda threads=threads1 blocks=blocks1 iterate_tloop_gpu!(tloop, dat_idx, lenall_gpu)
+                continue
+            end
 
             # assemble line shape on even int grid
             @cusync @cuda threads=threads3 blocks=blocks3 fill_workspaces!(spec.lines[l], spec.variability[l],
@@ -92,13 +102,13 @@ function disk_sim_gpu(spec::SpecParams{T1}, disk::DiskParams{T1}, soldata::GPUSo
 
             # copy data from GPU to CPU
             @cusync @cuda threads=threads5 blocks=blocks5 apply_line!(t, prof, flux, sum_wts)
+
+            # iterate tloop
+            @cusync @captured @cuda threads=threads1 blocks=blocks1 iterate_tloop_gpu!(tloop, dat_idx, lenall_gpu)
+
+            # iterate progress meter
+            next!(p)
         end
-
-        # iterate tloop
-        @cusync @captured @cuda threads=threads1 blocks=blocks1 iterate_tloop_gpu!(tloop, dat_idx, lenall_gpu)
-
-        # iterate progress meter
-        next!(p)
     end
 
     # copy over flux
