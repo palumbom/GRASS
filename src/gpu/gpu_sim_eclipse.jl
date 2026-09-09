@@ -101,6 +101,7 @@ function disk_sim_eclipse_gpu(spec::SpecParams{T1}, disk::DiskParamsEclipse{T1},
         # don't synthesize spectrum if skip_times is true, but iterate t index
         if skip_times[t]
             CUDA.@sync  @captured @cuda threads=threads1 blocks=blocks1 GRASS.iterate_tloop_gpu!(tloop, dat_idx, lenall_gpu)
+            continue
         end
 
         # loop over lines to synthesize
@@ -143,8 +144,9 @@ function disk_sim_eclipse_gpu(spec::SpecParams{T1}, disk::DiskParamsEclipse{T1},
         CUDA.@sync  @captured @cuda threads=threads1 blocks=blocks1 GRASS.iterate_tloop_gpu!(tloop, dat_idx, lenall_gpu)
     end
 
-    # copy over flux
+    # copy over flux; skipped epochs are zero, as in the CPU eclipse path
     CUDA.@sync  flux_cpu .= Array(flux)
+    flux_cpu[:, skip_times] .= zero(eltype(flux_cpu))
 
     # make sure nothing is still running on GPU
     CUDA.synchronize()
@@ -241,6 +243,7 @@ function disk_sim_eclipse_gpu(spec::SpecParams{T1}, disk::DiskParamsEclipse{T1},
         # don't synthesize spectrum if skip_times is true, but iterate t index
         if skip_times[t]
             CUDA.@sync  @captured @cuda threads=threads1 blocks=blocks1 GRASS.iterate_tloop_gpu!(tloop, dat_idx, lenall_gpu)
+            continue
         end
 
         # loop over lines to synthesize
@@ -283,8 +286,9 @@ function disk_sim_eclipse_gpu(spec::SpecParams{T1}, disk::DiskParamsEclipse{T1},
         CUDA.@sync  @captured @cuda threads=threads1 blocks=blocks1 GRASS.iterate_tloop_gpu!(tloop, dat_idx, lenall_gpu)
     end
 
-    # copy over flux
+    # copy over flux; skipped epochs are zero, as in the CPU eclipse path
     CUDA.@sync  flux_cpu .= Array(flux)
+    flux_cpu[:, skip_times] .= zero(eltype(flux_cpu))
 
     # make sure nothing is still running on GPU
     CUDA.synchronize()

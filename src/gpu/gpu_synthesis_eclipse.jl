@@ -26,6 +26,8 @@ function fill_workspaces_2D_eclipse!(line, variability, extra_z, tloop, dat_idx,
         t = mod1(tloop[m,n], len)
         @inbounds tloop[m,n] = t
 
+        # absolute wavelengths are computed in Float64 on purpose; storing them in a
+        # Float32 allwavs is the precision-limiting step of the single-precision path
         # calculate shifted line center
         λΔD = line * (1.0 + z_rot[m,n]) * (1.0 + z_cbs[m,n] * variability * contrast[m,n]) * (1.0 + extra_z * variability * contrast[m,n])
 

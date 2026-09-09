@@ -175,8 +175,10 @@ function GPUAllocsResolved(μ_bins::AA{T,1}, spec::SpecParams, disk::DiskParams;
     Nθ_max = maximum(disk.Nθ)
     num_tiles = Nϕ * Nθ_max
 
-    # allocate memory for pre-computations
+    # allocate memory for pre-computations (ϕc, θc are only needed by the precompute)
     @cusync begin
+        ϕc = CUDA.zeros(precision, Nϕ, Nθ_max)
+        θc = CUDA.zeros(precision, Nϕ, Nθ_max)
         μs = CUDA.zeros(precision, Nϕ, Nθ_max)
         wts = CUDA.zeros(precision, Nϕ, Nθ_max)
         z_rot = CUDA.zeros(precision, Nϕ, Nθ_max)
@@ -184,7 +186,7 @@ function GPUAllocsResolved(μ_bins::AA{T,1}, spec::SpecParams, disk::DiskParams;
     end
 
     # perform the pre-computations
-    precompute_quantities_gpu!(disk, μs, wts, z_rot, ax_code)
+    precompute_quantities_gpu!(disk, ϕc, θc, μs, wts, z_rot, ax_code)
 
     # reshape to a vector
     @cusync μs = CUDA.reshape(μs, num_tiles)
