@@ -16,6 +16,7 @@ function calc_eclipse_quantities_gpu!(epoch::String, obs_long::T1, obs_lat::T1, 
     # re-zero everything
     CUDA.@sync  begin
         μs .= 0.0
+        ax_codes .= 0
         ld .= 0.0
         contrast .= 0.0
         projected_v .= 0.0
@@ -379,7 +380,7 @@ function calc_eclipse_quantities_gpu!(wavelength, μs, z_rot, ax_codes,
             end
         end
         # take averages
-        @inbounds μs[m,n] = μ_sum / μ_count
+        @inbounds μs[m,n] = μ_count > 0 ? μ_sum / μ_count : CUDA.zero(CUDA.eltype(μs))
         @inbounds dA[m,n] = dA_sum 
 
         if count > 0
@@ -432,6 +433,7 @@ function calc_eclipse_quantities_gpu!(epoch::String, obs_long::T1, obs_lat::T1, 
     # re-zero everything
     CUDA.@sync  begin
         μs .= 0.0
+        ax_codes .= 0
         ld .= 0.0
         contrast .= 0.0
         projected_v .= 0.0
@@ -740,7 +742,7 @@ function calc_eclipse_quantities_gpu!(wavelength, μs, z_rot, ax_codes,
             end
         end
         # take averages
-        @inbounds μs[m,n] = μ_sum / μ_count
+        @inbounds μs[m,n] = μ_count > 0 ? μ_sum / μ_count : CUDA.zero(CUDA.eltype(μs))
         @inbounds dA[m,n] = dA_sum 
 
         if count > 0
@@ -794,6 +796,7 @@ function calc_eclipse_quantities_gpu!(epoch::String, obs_long::T1, obs_lat::T1, 
     # re-zero everything
     CUDA.@sync  begin
         μs .= 0.0
+        ax_codes .= 0
         ld .= 0.0
         contrast .= 0.0
         projected_v .= 0.0
@@ -1120,7 +1123,7 @@ function calc_eclipse_quantities_gpu!(wavelength, μs, z_rot, ax_codes,
             end
         end
         # take averages
-        @inbounds μs[m,n] = μ_sum / μ_count
+        @inbounds μs[m,n] = μ_count > 0 ? μ_sum / μ_count : CUDA.zero(CUDA.eltype(μs))
         @inbounds dA[m,n] = dA_sum 
 
         if count > 0

@@ -21,12 +21,10 @@ function fill_workspaces_2D_eclipse!(line, variability, extra_z, tloop, dat_idx,
             continue
         end
 
-        # alias time index
+        # alias time index, wrapped into the data length of this tile's current key
         len = lenall[k]
-        if tloop[m,n] > len
-            @inbounds tloop[m,n] -= len
-        end
-        t = tloop[m,n]
+        t = mod1(tloop[m,n], len)
+        @inbounds tloop[m,n] = t
 
         # calculate shifted line center
         λΔD = line * (1.0 + z_rot[m,n]) * (1.0 + z_cbs[m,n] * variability * contrast[m,n]) * (1.0 + extra_z * variability * contrast[m,n])

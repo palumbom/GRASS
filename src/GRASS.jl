@@ -109,6 +109,7 @@ using CUDA
 using DataFrames
 using Statistics
 using LinearAlgebra
+using Random
 const datdir = GRASS.datdir
 
 import Base: AbstractArray as AA
