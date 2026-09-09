@@ -116,6 +116,7 @@ import Base: AbstractFloat as AF
 
 # get kernels for SPICE stuff (defines download_kernels() and furnsh_kernels())
 include("get_kernels.jl")
+include("earth_frame.jl")
 
 # body radii (km) and limb-darkening / sunspot tables — declared here with concrete
 # types for type-stable access, but populated at runtime in __init__ (not at precompile)
@@ -133,6 +134,15 @@ function __init__()
     # download_kernels() is a no-op once Pkg.build has fetched the kernels; it guards the
     # kernels-missing-but-input-present case (config.jl's self-heal only checks data/input/)
     download_kernels()
+
+    # the high-precision Earth PCK expires about three months after NAIF generates it
+    if earth_pck_stale()
+        try
+            download_earth_pck!()
+        catch err
+            @warn "Could not refresh earth_latest_high_prec.bpc from NAIF; ITRF93 may lack coverage for recent epochs" exception=err
+        end
+    end
     furnsh_kernels()
 
     # E, S, M radii (units: km) — requires the kernel pool to be furnished above

@@ -93,7 +93,7 @@ function calc_eclipse_quantities_gpu!(epoch::String, obs_long::T1, obs_lat::T1, 
     # set earth velocity vectors
     EO_earth = vcat(EO_earth_pos, [0.0, 0.0, 0.0])
     # transform into ICRF frame
-    EO_bary = sxform("IAU_EARTH", "J2000", epoch) * EO_earth
+    EO_bary = sxform(earth_frame(epoch), "J2000", epoch) * EO_earth
     CUDA.@sync  EO_bary_gpu = CuArray(EO_bary)
 
     # get vector from barycenter to observatory on Earth's surface
@@ -148,7 +148,11 @@ function calc_eclipse_quantities_gpu!(wavelength, μs, z_rot, ax_codes,
                                       dA, moon_radius, OS_bary, OM_bary, EO_bary,
                                       sun_rot_mat, sun_radius, A, B, C, u1, u2, u3, u4,
                                       ext_toggle, spot_toggle, ext_coeff_gpu, spot_xyz_gpu, contrast_array, diameter_km)
-    sun_radius = sun_radius[1] 
+    sun_radius = sun_radius[1]
+
+    # observer's sky frame: projected solar north and west unit vectors
+    nx, ny, nz, wx, wy, wz = sky_frame_gpu(OS_bary, sun_rot_mat)
+
     # get indices from GPU blocks + threads
     idx = threadIdx().x + blockDim().x * (blockIdx().x-1)
     sdx = gridDim().x * blockDim().x
@@ -259,7 +263,7 @@ function calc_eclipse_quantities_gpu!(wavelength, μs, z_rot, ax_codes,
                 OP_bary_z = OS_bary[3] + z_new
 
                 # calculate mu
-                μ_sub = calc_mu_gpu(x_new, y_new, z_new, OP_bary_x, OP_bary_y, OP_bary_z) 
+                μ_sub = calc_mu_eclipse_gpu(x_new, y_new, z_new, OP_bary_x, OP_bary_y, OP_bary_z) 
                 if μ_sub <= 0.0
                     continue
                 end
@@ -286,7 +290,6 @@ function calc_eclipse_quantities_gpu!(wavelength, μs, z_rot, ax_codes,
                 # get projected area element
                 dA_sub = calc_dA_gpu(sun_radius, ϕc_sub, dϕ, dθ)
                 dA_sub *= μ_sub
-                dA_sum += dA_sub
 
                 # calculate distance (Solar Eclipse)
                 n2 = CUDA.sqrt(OM_bary[1]^2.0 + OM_bary[2]^2.0 + OM_bary[3]^2.0)  
@@ -301,8 +304,11 @@ function calc_eclipse_quantities_gpu!(wavelength, μs, z_rot, ax_codes,
                 projected_v_sum += v_rot_sub
                 earth_v_sum += v_orbit_sub
 
-                # iterate counter 
+                # iterate counter
                 count += 1
+
+                # projected area of the visible, unocculted part of the tile
+                dA_sum += dA_sub
 
                 # zenith
                 n1 = CUDA.sqrt(OP_bary_x^2.0 + OP_bary_y^2.0 + OP_bary_z^2.0)
@@ -394,7 +400,15 @@ function calc_eclipse_quantities_gpu!(wavelength, μs, z_rot, ax_codes,
             @inbounds yy = y_sum / μ_count
             @inbounds zz = z_sum / μ_count
 
-            @inbounds ax_codes[m, n] = GRASS.find_nearest_ax_gpu(yy / sun_radius, zz / sun_radius)
+            # rotate the mean position for SP bary and project onto the sky
+            xb = sun_rot_mat[1] * xx + sun_rot_mat[4] * yy + sun_rot_mat[7] * zz
+            yb = sun_rot_mat[2] * xx + sun_rot_mat[5] * yy + sun_rot_mat[8] * zz
+            zb = sun_rot_mat[3] * xx + sun_rot_mat[6] * yy + sun_rot_mat[9] * zz
+            sky_w = (xb * wx + yb * wy + zb * wz) / sun_radius
+            sky_n = (xb * nx + yb * ny + zb * nz) / sun_radius
+
+            # get axis code (i.e., N, E, S, W) from the position on the observer's sky
+            @inbounds ax_codes[m, n] = GRASS.find_nearest_ax_gpu(sky_w, sky_n)
         end
     end
 
@@ -457,7 +471,7 @@ function calc_eclipse_quantities_gpu!(epoch::String, obs_long::T1, obs_lat::T1, 
     # set earth velocity vectors
     EO_earth = vcat(EO_earth_pos, [0.0, 0.0, 0.0])
     # transform into ICRF frame
-    EO_bary = sxform("IAU_EARTH", "J2000", epoch) * EO_earth
+    EO_bary = sxform(earth_frame(epoch), "J2000", epoch) * EO_earth
     CUDA.@sync  EO_bary_gpu = CuArray(EO_bary)
 
     # get vector from barycenter to observatory on Earth's surface
@@ -512,7 +526,11 @@ function calc_eclipse_quantities_gpu!(wavelength, μs, z_rot, ax_codes,
                                       dA, moon_radius, OS_bary, OM_bary, EO_bary,
                                       sun_rot_mat, sun_radius, A, B, C, u1, u2, u3, u4, CB1, CB2, CB3,
                                       ext_coeff_gpu, spot_xyz_gpu, contrast_array, diameter_km)
-    sun_radius = sun_radius[1] 
+    sun_radius = sun_radius[1]
+
+    # observer's sky frame: projected solar north and west unit vectors
+    nx, ny, nz, wx, wy, wz = sky_frame_gpu(OS_bary, sun_rot_mat)
+
     # get indices from GPU blocks + threads
     idx = threadIdx().x + blockDim().x * (blockIdx().x-1)
     sdx = gridDim().x * blockDim().x
@@ -623,7 +641,7 @@ function calc_eclipse_quantities_gpu!(wavelength, μs, z_rot, ax_codes,
                 OP_bary_z = OS_bary[3] + z_new
 
                 # calculate mu
-                μ_sub = calc_mu_gpu(x_new, y_new, z_new, OP_bary_x, OP_bary_y, OP_bary_z) 
+                μ_sub = calc_mu_eclipse_gpu(x_new, y_new, z_new, OP_bary_x, OP_bary_y, OP_bary_z) 
                 if μ_sub <= 0.0
                     continue
                 end
@@ -653,7 +671,6 @@ function calc_eclipse_quantities_gpu!(wavelength, μs, z_rot, ax_codes,
                 # get projected area element
                 dA_sub = calc_dA_gpu(sun_radius, ϕc_sub, dϕ, dθ)
                 dA_sub *= μ_sub
-                dA_sum += dA_sub
 
                 # calculate distance (Solar Eclipse)
                 n2 = CUDA.sqrt(OM_bary[1]^2.0 + OM_bary[2]^2.0 + OM_bary[3]^2.0)  
@@ -662,8 +679,11 @@ function calc_eclipse_quantities_gpu!(wavelength, μs, z_rot, ax_codes,
                     continue
                 end
 
-                # iterate counter 
+                # iterate counter
                 count += 1
+
+                # projected area of the visible, unocculted part of the tile
+                dA_sum += dA_sub
 
                 earth_v_sum += v_orbit_sub
 
@@ -741,7 +761,15 @@ function calc_eclipse_quantities_gpu!(wavelength, μs, z_rot, ax_codes,
             @inbounds yy = y_sum / μ_count
             @inbounds zz = z_sum / μ_count       
 
-            @inbounds ax_codes[m, n] = GRASS.find_nearest_ax_gpu(yy / sun_radius, zz / sun_radius)
+            # rotate the mean position for SP bary and project onto the sky
+            xb = sun_rot_mat[1] * xx + sun_rot_mat[4] * yy + sun_rot_mat[7] * zz
+            yb = sun_rot_mat[2] * xx + sun_rot_mat[5] * yy + sun_rot_mat[8] * zz
+            zb = sun_rot_mat[3] * xx + sun_rot_mat[6] * yy + sun_rot_mat[9] * zz
+            sky_w = (xb * wx + yb * wy + zb * wz) / sun_radius
+            sky_n = (xb * nx + yb * ny + zb * nz) / sun_radius
+
+            # get axis code (i.e., N, E, S, W) from the position on the observer's sky
+            @inbounds ax_codes[m, n] = GRASS.find_nearest_ax_gpu(sky_w, sky_n)
         end
     end
 
@@ -809,7 +837,7 @@ function calc_eclipse_quantities_gpu!(epoch::String, obs_long::T1, obs_lat::T1, 
     # set earth velocity vectors
     EO_earth = vcat(EO_earth_pos, [0.0, 0.0, 0.0])
     # transform into ICRF frame
-    EO_bary = sxform("IAU_EARTH", "J2000", epoch) * EO_earth
+    EO_bary = sxform(earth_frame(epoch), "J2000", epoch) * EO_earth
     CUDA.@sync  EO_bary_gpu = CuArray(EO_bary)
 
     # get vector from barycenter to observatory on Earth's surface
@@ -864,7 +892,11 @@ function calc_eclipse_quantities_gpu!(wavelength, μs, z_rot, ax_codes,
                                       dA, moon_radius, OS_bary, OM_bary, EO_bary,
                                       sun_rot_mat, sun_radius, A, B, C, u1, u2, u3, u4, CB1, CB2, CB3, MF1, MF2,
                                       ext_coeff_gpu, spot_xyz_gpu, contrast_array, diameter_km)
-    sun_radius = sun_radius[1] 
+    sun_radius = sun_radius[1]
+
+    # observer's sky frame: projected solar north and west unit vectors
+    nx, ny, nz, wx, wy, wz = sky_frame_gpu(OS_bary, sun_rot_mat)
+
     # get indices from GPU blocks + threads
     idx = threadIdx().x + blockDim().x * (blockIdx().x-1)
     sdx = gridDim().x * blockDim().x
@@ -970,13 +1002,19 @@ function calc_eclipse_quantities_gpu!(wavelength, μs, z_rot, ax_codes,
                 vy = sun_rot_mat[2] * d + sun_rot_mat[5] * e + sun_rot_mat[8] * f
                 vz = sun_rot_mat[3] * d + sun_rot_mat[6] * e + sun_rot_mat[9] * f
 
+                # southward unit tangent at the patch, rotated for SP bary
+                tx, ty, tz = colat_tangent_gpu_eclipse(ϕc_sub, θc_sub)
+                tx_new = sun_rot_mat[1] * tx + sun_rot_mat[4] * ty + sun_rot_mat[7] * tz
+                ty_new = sun_rot_mat[2] * tx + sun_rot_mat[5] * ty + sun_rot_mat[8] * tz
+                tz_new = sun_rot_mat[3] * tx + sun_rot_mat[6] * ty + sun_rot_mat[9] * tz
+
                 # OP_bary state vector
                 OP_bary_x = OS_bary[1] + x_new
                 OP_bary_y = OS_bary[2] + y_new
                 OP_bary_z = OS_bary[3] + z_new
 
                 # calculate mu
-                μ_sub = calc_mu_gpu(x_new, y_new, z_new, OP_bary_x, OP_bary_y, OP_bary_z) 
+                μ_sub = calc_mu_eclipse_gpu(x_new, y_new, z_new, OP_bary_x, OP_bary_y, OP_bary_z) 
                 if μ_sub <= 0.0
                     continue
                 end
@@ -994,8 +1032,13 @@ function calc_eclipse_quantities_gpu!(wavelength, μs, z_rot, ax_codes,
                 angle = (OP_bary_x * vx + OP_bary_y * vy + OP_bary_z * vz) / (n1 * n2)
                 v_rot_sub = (n2 * angle) + (CB1*CUDA.exp(μ_sub)^2.0 + CB2*CUDA.exp(μ_sub) + CB3)
                 v_rot_sub *= 1000.0
-                v_rot_sub += (MF1*meridional_terms(90 - rad2deg(ϕc_sub), rad2deg(θc_sub), 5.94)[1] + MF2*meridional_terms(90 - rad2deg(ϕc_sub), rad2deg(θc_sub), 5.94)[2])
-                mf_sum += MF1*meridional_terms(90 - rad2deg(ϕc_sub), rad2deg(θc_sub), 5.94)[1] + MF2*meridional_terms(90 - rad2deg(ϕc_sub), rad2deg(θc_sub), 5.94)[2]
+
+                # line-of-sight projection of the southward tangent, positive away
+                # from the observer (same convention as the rotation term above)
+                lt = (OP_bary_x * tx_new + OP_bary_y * ty_new + OP_bary_z * tz_new) / n1
+                v_mer_sub = meridional_velocity_gpu(π/2 - ϕc_sub, lt, MF1, MF2)
+                v_rot_sub += v_mer_sub
+                mf_sum += v_mer_sub
 
                 v_rot_sub_no_cb = (n2 * angle)
                 v_rot_sub_no_cb *= 1000.0
@@ -1008,7 +1051,6 @@ function calc_eclipse_quantities_gpu!(wavelength, μs, z_rot, ax_codes,
                 # get projected area element
                 dA_sub = calc_dA_gpu(sun_radius, ϕc_sub, dϕ, dθ)
                 dA_sub *= μ_sub
-                dA_sum += dA_sub
 
                 # calculate distance (Solar Eclipse)
                 n2 = CUDA.sqrt(OM_bary[1]^2.0 + OM_bary[2]^2.0 + OM_bary[3]^2.0)  
@@ -1017,8 +1059,11 @@ function calc_eclipse_quantities_gpu!(wavelength, μs, z_rot, ax_codes,
                     continue
                 end
 
-                # iterate counter 
+                # iterate counter
                 count += 1
+
+                # projected area of the visible, unocculted part of the tile
+                dA_sum += dA_sub
 
                 earth_v_sum += v_orbit_sub
 
@@ -1097,7 +1142,15 @@ function calc_eclipse_quantities_gpu!(wavelength, μs, z_rot, ax_codes,
             @inbounds yy = y_sum / μ_count
             @inbounds zz = z_sum / μ_count
 
-            @inbounds ax_codes[m, n] = GRASS.find_nearest_ax_gpu(yy / sun_radius, zz / sun_radius)
+            # rotate the mean position for SP bary and project onto the sky
+            xb = sun_rot_mat[1] * xx + sun_rot_mat[4] * yy + sun_rot_mat[7] * zz
+            yb = sun_rot_mat[2] * xx + sun_rot_mat[5] * yy + sun_rot_mat[8] * zz
+            zb = sun_rot_mat[3] * xx + sun_rot_mat[6] * yy + sun_rot_mat[9] * zz
+            sky_w = (xb * wx + yb * wy + zb * wz) / sun_radius
+            sky_n = (xb * nx + yb * ny + zb * nz) / sun_radius
+
+            # get axis code (i.e., N, E, S, W) from the position on the observer's sky
+            @inbounds ax_codes[m, n] = GRASS.find_nearest_ax_gpu(sky_w, sky_n)
         end
     end
 
@@ -1135,7 +1188,7 @@ function calc_grid_edge_xyz(epoch, obs_long, obs_lat, alt,
     EO_earth = vcat(EO_earth_pos, [0.0, 0.0, 0.0])
 
     # transform into ICRF frame
-    EO_bary = sxform("ITRF93", "J2000", epoch) * EO_earth
+    EO_bary = sxform(earth_frame(epoch), "J2000", epoch) * EO_earth
     CUDA.@sync  EO_bary_gpu = CuArray(EO_bary)
 
     # get vector from barycenter to observatory on Earth's surface
