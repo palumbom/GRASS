@@ -125,8 +125,10 @@ function calc_eclipse_quantities_gpu!(epoch::String, obs_long::T1, obs_lat::T1, 
         Nθ = CuArray{Float64}(disk.Nθ)
     end
 
+    # Sun-centred spot positions rotated to the inertial frame with the same matrix as the
+    # patches; the table's lat/lon are body-fixed (IAU_SUN) angles in degrees
     spot_xyz = map((x,y) -> GRASS.sphere_to_cart_eclipse.(sun_radius, x, y), deg2rad.(spots_info.lat), deg2rad.(spots_info.lon))
-    spot_xyz = map(x -> (sun_rot_mat * x) .+ OS_bary[1:3], spot_xyz)
+    spot_xyz = map(x -> sun_rot_mat * x, spot_xyz)
     spot_xyz_mat = reduce(hcat, spot_xyz)
     spot_xyz_gpu = CuArray(spot_xyz_mat)
     contrast_array = CuArray(spots_info.contrast)
@@ -268,13 +270,6 @@ function calc_eclipse_quantities_gpu!(wavelength, μs, z_rot, ax_codes,
                 if μ_sub <= 0.0
                     continue
                 end
-                μ_sum += μ_sub
-                μ_count += 1
-
-                # sum on vector components
-                x_sum += x
-                y_sum += y
-                z_sum += z
 
                 # get OP_bary and SP_bary between them and find projected_velocities_no_cb
                 n1 = CUDA.sqrt(OP_bary_x^2.0 + OP_bary_y^2.0 + OP_bary_z^2.0)
@@ -311,6 +306,16 @@ function calc_eclipse_quantities_gpu!(wavelength, μs, z_rot, ax_codes,
                 # projected area of the visible, unocculted part of the tile
                 dA_sum += dA_sub
 
+                # mu and the mean position accumulate over the UNOCCULTED sub-patches only, so
+                # that the tile mean mu (which selects the bisector template and the cbs key)
+                # and the sky position behind the axis code describe the light that actually
+                # reaches the observer. Keeps mu_count equal to count.
+                μ_sum += μ_sub
+                μ_count += 1
+                x_sum += x
+                y_sum += y
+                z_sum += z
+
                 # zenith
                 n1 = CUDA.sqrt(OP_bary_x^2.0 + OP_bary_y^2.0 + OP_bary_z^2.0)
                 n3 = CUDA.sqrt(EO_bary[1]^2.0 + EO_bary[2]^2.0 + EO_bary[3]^2.0) 
@@ -320,55 +325,38 @@ function calc_eclipse_quantities_gpu!(wavelength, μs, z_rot, ax_codes,
                 if CUDA.isone(spot_toggle)
                     contrast_value = 0.0
                     for s in 1:size(spot_xyz_gpu, 2)
-                        n2 = CUDA.sqrt(spot_xyz_gpu[1, s]^2.0 + spot_xyz_gpu[2, s]^2.0 + spot_xyz_gpu[3, s]^2.0)  
-                        d2 = acos((spot_xyz_gpu[1, s] * OP_bary_x + spot_xyz_gpu[2, s] * OP_bary_y + spot_xyz_gpu[3, s] * OP_bary_z) / (n2 * n1))
-                        if (d2 < atan((diameter_km[s]/2)/n2))
+                        # sub-patch is inside the spot when its angular separation from the spot
+                        # centre, measured at the Sun's centre, is within the spot's surface radius
+                        cos_sep = (spot_xyz_gpu[1, s] * x_new + spot_xyz_gpu[2, s] * y_new + spot_xyz_gpu[3, s] * z_new) / sun_radius^2.0
+                        if (cos_sep > CUDA.cos((diameter_km[s] / 2.0) / sun_radius))
                             skip_patch = true
-                            contrast_value = contrast_array[s]
+                            contrast_value = contrast_array[s] # fractional intensity deficit of the spot
                             break 
                         end
                     end
                 end
 
-                for wl in eachindex(wavelength)
-                    # get limb darkening
-                    if isnan(u3)
-                        ld_sub = quad_limb_darkening_gpu(μ_sub, u1, u2)
-                    else
-                        ld_sub = quad_limb_darkening_gpu(μ_sub, u1, u2, u3, u4)
-                    end
-                    if !skip_patch
-                        ld_sum += ld_sub
-                        contrast_sum += 1.0
-                    end
-                    if skip_patch
-                        ld_sum += contrast_value*ld_sub
-                        contrast_sum += 0.0
-                    end
-
-                    if CUDA.isone(ext_toggle)
-                        ext_sub = CUDA.exp(-((1/(CUDA.cos(zenith)))*ext_coeff_gpu))
-                        ext_sum += ext_sub
-                    end
-                end
-
-                # recalculate value since local vars from wl for loop are lost
-                if !skip_patch
-                    if isnan(u3)
-                        ld_sub = quad_limb_darkening_gpu(μ_sub, u1, u2)
-                    else
-                        ld_sub = quad_limb_darkening_gpu(μ_sub, u1, u2, u3, u4)
-                    end
+                # limb darkening of the sub-patch, reduced by the spot intensity deficit where a
+                # spot covers it. Accumulated once: ld_sub does not depend on the wavelength
+                # index, so accumulating inside a loop over `wavelength` would scale ld_sum,
+                # ext_sum and contrast_sum by length(wavelength) while they are divided by
+                # `count` below.
+                if isnan(u3)
+                    ld_sub = quad_limb_darkening_gpu(μ_sub, u1, u2)
+                else
+                    ld_sub = quad_limb_darkening_gpu(μ_sub, u1, u2, u3, u4)
                 end
                 if skip_patch
-                    if isnan(u3)
-                        ld_sub = contrast_value*quad_limb_darkening_gpu(μ_sub, u1, u2)
-                    else
-                        ld_sub = contrast_value*quad_limb_darkening_gpu(μ_sub, u1, u2, u3, u4)
-                    end
+                    ld_sub = (1.0 - contrast_value) * ld_sub
+                else
+                    contrast_sum += 1.0
                 end
+                ld_sum += ld_sub
 
                 ext_sub = CUDA.exp(-((1/(CUDA.cos(zenith)))*ext_coeff_gpu))
+                if CUDA.isone(ext_toggle)
+                    ext_sum += ext_sub
+                end
 
                 if ext_toggle == 1.0
                     z_rot_numerator += z_rot_sub * dA_sub * ld_sub * ext_sub
@@ -391,6 +379,9 @@ function calc_eclipse_quantities_gpu!(wavelength, μs, z_rot, ax_codes,
 
             @inbounds z_rot[m,n] = z_rot_numerator / z_rot_denominator
 
+            # ld_sum and ext_sum are sums over the unocculted sub-patches, so the mean is per
+            # sub-patch; the same value goes to every wavelength slot because the sub-patch
+            # limb darkening and extinction carry no wavelength dependence here
             for wl in eachindex(wavelength)
                 @inbounds ld[m,n,wl] = ld_sum / count
                 @inbounds ext[m,n,wl] = ext_sum / count
@@ -504,8 +495,10 @@ function calc_eclipse_quantities_gpu!(epoch::String, obs_long::T1, obs_lat::T1, 
         Nθ = CuArray{Float64}(disk.Nθ)
     end
 
+    # Sun-centred spot positions rotated to the inertial frame with the same matrix as the
+    # patches; the table's lat/lon are body-fixed (IAU_SUN) angles in degrees
     spot_xyz = map((x,y) -> GRASS.sphere_to_cart_eclipse.(sun_radius, x, y), deg2rad.(spots_info.lat), deg2rad.(spots_info.lon))
-    spot_xyz = map(x -> (sun_rot_mat * x) .+ OS_bary[1:3], spot_xyz)
+    spot_xyz = map(x -> sun_rot_mat * x, spot_xyz)
     spot_xyz_mat = reduce(hcat, spot_xyz)
     spot_xyz_gpu = CuArray(spot_xyz_mat)
     contrast_array = CuArray(spots_info.contrast)
@@ -647,19 +640,14 @@ function calc_eclipse_quantities_gpu!(wavelength, μs, z_rot, ax_codes,
                 if μ_sub <= 0.0
                     continue
                 end
-                μ_sum += μ_sub
-                μ_count += 1
-
-                # sum on vector components
-                x_sum += x
-                y_sum += y
-                z_sum += z
 
                 # get OP_bary and SP_bary between them and find projected_velocities_no_cb
                 n1 = CUDA.sqrt(OP_bary_x^2.0 + OP_bary_y^2.0 + OP_bary_z^2.0)
                 n2 = CUDA.sqrt(vx^2.0 + vy^2.0 + vz^2.0)
                 angle = (OP_bary_x * vx + OP_bary_y * vy + OP_bary_z * vz) / (n1 * n2)
-                v_rot_sub = (n2 * angle) + (CB1*CUDA.exp(μ_sub)^2.0 + CB2*CUDA.exp(μ_sub) + CB3)
+                # NOTE: THE ORIGINAL CB LAW BELOW WAS A QUADRATIC IN exp(mu), NOT IN mu; ALL PUBLISHED CB1/CB2/CB3 VALUES REFER TO IT
+                # v_rot_sub = (n2 * angle) + (CB1*CUDA.exp(μ_sub)^2.0 + CB2*CUDA.exp(μ_sub) + CB3)
+                v_rot_sub = (n2 * angle) + (CB1 * μ_sub^2.0 + CB2 * μ_sub + CB3) # convective blueshift, quadratic in mu, km/s
                 v_rot_sub *= 1000.0
 
                 v_rot_sub_no_cb = (n2 * angle)
@@ -687,6 +675,16 @@ function calc_eclipse_quantities_gpu!(wavelength, μs, z_rot, ax_codes,
                 # projected area of the visible, unocculted part of the tile
                 dA_sum += dA_sub
 
+                # mu and the mean position accumulate over the UNOCCULTED sub-patches only, so
+                # that the tile mean mu (which selects the bisector template and the cbs key)
+                # and the sky position behind the axis code describe the light that actually
+                # reaches the observer. Keeps mu_count equal to count.
+                μ_sum += μ_sub
+                μ_count += 1
+                x_sum += x
+                y_sum += y
+                z_sum += z
+
                 earth_v_sum += v_orbit_sub
 
                 # zenith
@@ -697,46 +695,38 @@ function calc_eclipse_quantities_gpu!(wavelength, μs, z_rot, ax_codes,
                 skip_patch = false
                 contrast_value = 0.0
                 for s in 1:size(spot_xyz_gpu, 2)
-                    n2 = CUDA.sqrt(spot_xyz_gpu[1, s]^2.0 + spot_xyz_gpu[2, s]^2.0 + spot_xyz_gpu[3, s]^2.0)  
-                    d2 = acos((spot_xyz_gpu[1, s] * OP_bary_x + spot_xyz_gpu[2, s] * OP_bary_y + spot_xyz_gpu[3, s] * OP_bary_z) / (n2 * n1))
-                    if (d2 < atan((diameter_km[s]/2)/n2))
+                    # sub-patch is inside the spot when its angular separation from the spot
+                    # centre, measured at the Sun's centre, is within the spot's surface radius
+                    cos_sep = (spot_xyz_gpu[1, s] * x_new + spot_xyz_gpu[2, s] * y_new + spot_xyz_gpu[3, s] * z_new) / sun_radius^2.0
+                    if (cos_sep > CUDA.cos((diameter_km[s] / 2.0) / sun_radius))
                         skip_patch = true
                         contrast_value = contrast_array[s]
                         break 
                     end
                 end
 
-                for wl in eachindex(wavelength)
-                    # get limb darkening
-                    ld_sub = quad_limb_darkening_gpu(μ_sub, u1, u2, u3, u4)
-                    if !skip_patch
-                        ld_sum += ld_sub
-                        contrast_sum += 1.0
-                    end
-                    if skip_patch
-                        ld_sum += contrast_value*ld_sub
-                        contrast_sum += 0.0
-                    end
-
-                    ext_sub = CUDA.exp(-((1/(CUDA.cos(zenith)))*ext_coeff_gpu))
-                    ext_sum += ext_sub
-                end
-
-                # recalculate value since local vars from wl for loop are lost
-                if !skip_patch
-                    ld_sub = quad_limb_darkening_gpu(μ_sub, u1, u2, u3, u4)
+                # limb darkening of the sub-patch, reduced by the spot intensity deficit where a
+                # spot covers it, and the sub-patch velocity: a spotted sub-patch carries no
+                # convective blueshift. Accumulated once: neither quantity depends on the
+                # wavelength index, so accumulating inside a loop over `wavelength` would scale
+                # ld_sum, ext_sum and contrast_sum by length(wavelength) while they are divided
+                # by `count` below.
+                ld_sub = quad_limb_darkening_gpu(μ_sub, u1, u2, u3, u4)
+                if skip_patch
+                    ld_sub = (1.0 - contrast_value) * ld_sub
+                    projected_v_sum += v_rot_sub_no_cb
+                    z_rot_sub = v_rot_sub_no_cb / GRASS.c_ms
+                    z_rot_sub += (v_orbit_sub / GRASS.c_ms)
+                else
+                    contrast_sum += 1.0
                     projected_v_sum += v_rot_sub
                     z_rot_sub = v_rot_sub / GRASS.c_ms
                     z_rot_sub += (v_orbit_sub / GRASS.c_ms)
                 end
-                if skip_patch
-                    ld_sub = contrast_value*quad_limb_darkening_gpu(μ_sub, u1, u2, u3, u4)
-                    projected_v_sum += v_rot_sub_no_cb
-                    z_rot_sub = v_rot_sub_no_cb / GRASS.c_ms
-                    z_rot_sub += (v_orbit_sub / GRASS.c_ms)
-                end
+                ld_sum += ld_sub
 
                 ext_sub = CUDA.exp(-((1/(CUDA.cos(zenith)))*ext_coeff_gpu))
+                ext_sum += ext_sub
                 z_rot_numerator += z_rot_sub * dA_sub * ld_sub * ext_sub
                 z_rot_denominator += dA_sub * ld_sub * ext_sub
             end
@@ -753,6 +743,9 @@ function calc_eclipse_quantities_gpu!(wavelength, μs, z_rot, ax_codes,
 
             @inbounds z_rot[m,n] = z_rot_numerator / z_rot_denominator
 
+            # ld_sum and ext_sum are sums over the unocculted sub-patches, so the mean is per
+            # sub-patch; the same value goes to every wavelength slot because the sub-patch
+            # limb darkening and extinction carry no wavelength dependence here
             for wl in eachindex(wavelength)
                 @inbounds ld[m,n,wl] = ld_sum / count
                 @inbounds ext[m,n,wl] = ext_sum / count
@@ -871,8 +864,10 @@ function calc_eclipse_quantities_gpu!(epoch::String, obs_long::T1, obs_lat::T1, 
         Nθ = CuArray{Float64}(disk.Nθ)
     end
 
+    # Sun-centred spot positions rotated to the inertial frame with the same matrix as the
+    # patches; the table's lat/lon are body-fixed (IAU_SUN) angles in degrees
     spot_xyz = map((x,y) -> GRASS.sphere_to_cart_eclipse.(sun_radius, x, y), deg2rad.(spots_info.lat), deg2rad.(spots_info.lon))
-    spot_xyz = map(x -> (sun_rot_mat * x) .+ OS_bary[1:3], spot_xyz)
+    spot_xyz = map(x -> sun_rot_mat * x, spot_xyz)
     spot_xyz_mat = reduce(hcat, spot_xyz)
     spot_xyz_gpu = CuArray(spot_xyz_mat)
     contrast_array = CuArray(spots_info.contrast)
@@ -1021,19 +1016,14 @@ function calc_eclipse_quantities_gpu!(wavelength, μs, z_rot, ax_codes,
                 if μ_sub <= 0.0
                     continue
                 end
-                μ_sum += μ_sub
-                μ_count += 1
-
-                # sum on vector components
-                x_sum += x
-                y_sum += y
-                z_sum += z
 
                 # get OP_bary and SP_bary between them and find projected_velocities_no_cb
                 n1 = CUDA.sqrt(OP_bary_x^2.0 + OP_bary_y^2.0 + OP_bary_z^2.0)
                 n2 = CUDA.sqrt(vx^2.0 + vy^2.0 + vz^2.0)
                 angle = (OP_bary_x * vx + OP_bary_y * vy + OP_bary_z * vz) / (n1 * n2)
-                v_rot_sub = (n2 * angle) + (CB1*CUDA.exp(μ_sub)^2.0 + CB2*CUDA.exp(μ_sub) + CB3)
+                # NOTE: THE ORIGINAL CB LAW BELOW WAS A QUADRATIC IN exp(mu), NOT IN mu; ALL PUBLISHED CB1/CB2/CB3 VALUES REFER TO IT
+                # v_rot_sub = (n2 * angle) + (CB1*CUDA.exp(μ_sub)^2.0 + CB2*CUDA.exp(μ_sub) + CB3)
+                v_rot_sub = (n2 * angle) + (CB1 * μ_sub^2.0 + CB2 * μ_sub + CB3) # convective blueshift, quadratic in mu, km/s
                 v_rot_sub *= 1000.0
 
                 # line-of-sight projection of the southward tangent, positive away
@@ -1068,6 +1058,16 @@ function calc_eclipse_quantities_gpu!(wavelength, μs, z_rot, ax_codes,
                 # projected area of the visible, unocculted part of the tile
                 dA_sum += dA_sub
 
+                # mu and the mean position accumulate over the UNOCCULTED sub-patches only, so
+                # that the tile mean mu (which selects the bisector template and the cbs key)
+                # and the sky position behind the axis code describe the light that actually
+                # reaches the observer. Keeps mu_count equal to count.
+                μ_sum += μ_sub
+                μ_count += 1
+                x_sum += x
+                y_sum += y
+                z_sum += z
+
                 earth_v_sum += v_orbit_sub
 
                 # zenith
@@ -1078,46 +1078,38 @@ function calc_eclipse_quantities_gpu!(wavelength, μs, z_rot, ax_codes,
                 skip_patch = false
                 contrast_value = 0.0
                 for s in 1:size(spot_xyz_gpu, 2)
-                    n2 = CUDA.sqrt(spot_xyz_gpu[1, s]^2.0 + spot_xyz_gpu[2, s]^2.0 + spot_xyz_gpu[3, s]^2.0)  
-                    d2 = acos((spot_xyz_gpu[1, s] * OP_bary_x + spot_xyz_gpu[2, s] * OP_bary_y + spot_xyz_gpu[3, s] * OP_bary_z) / (n2 * n1))
-                    if (d2 < atan((diameter_km[s]/2)/n2))
+                    # sub-patch is inside the spot when its angular separation from the spot
+                    # centre, measured at the Sun's centre, is within the spot's surface radius
+                    cos_sep = (spot_xyz_gpu[1, s] * x_new + spot_xyz_gpu[2, s] * y_new + spot_xyz_gpu[3, s] * z_new) / sun_radius^2.0
+                    if (cos_sep > CUDA.cos((diameter_km[s] / 2.0) / sun_radius))
                         skip_patch = true
                         contrast_value = contrast_array[s]
                         break 
                     end
                 end
 
-                for wl in eachindex(wavelength)
-                    # get limb darkening
-                    ld_sub = quad_limb_darkening_gpu(μ_sub, u1, u2, u3, u4)
-                    if !skip_patch
-                        ld_sum += ld_sub
-                        contrast_sum += 1.0
-                    end
-                    if skip_patch
-                        ld_sum += contrast_value*ld_sub
-                        contrast_sum += 0.0
-                    end
-
-                    ext_sub = CUDA.exp(-((1/(CUDA.cos(zenith)))*ext_coeff_gpu))
-                    ext_sum += ext_sub
-                end
-
-                # recalculate value since local vars from wl for loop are lost
-                if !skip_patch
-                    ld_sub = quad_limb_darkening_gpu(μ_sub, u1, u2, u3, u4)
+                # limb darkening of the sub-patch, reduced by the spot intensity deficit where a
+                # spot covers it, and the sub-patch velocity: a spotted sub-patch carries no
+                # convective blueshift. Accumulated once: neither quantity depends on the
+                # wavelength index, so accumulating inside a loop over `wavelength` would scale
+                # ld_sum, ext_sum and contrast_sum by length(wavelength) while they are divided
+                # by `count` below.
+                ld_sub = quad_limb_darkening_gpu(μ_sub, u1, u2, u3, u4)
+                if skip_patch
+                    ld_sub = (1.0 - contrast_value) * ld_sub
+                    projected_v_sum += v_rot_sub_no_cb
+                    z_rot_sub = v_rot_sub_no_cb / GRASS.c_ms
+                    z_rot_sub += (v_orbit_sub / GRASS.c_ms)
+                else
+                    contrast_sum += 1.0
                     projected_v_sum += v_rot_sub
                     z_rot_sub = v_rot_sub / GRASS.c_ms
                     z_rot_sub += (v_orbit_sub / GRASS.c_ms)
                 end
-                if skip_patch
-                    ld_sub = contrast_value*quad_limb_darkening_gpu(μ_sub, u1, u2, u3, u4)
-                    projected_v_sum += v_rot_sub_no_cb
-                    z_rot_sub = v_rot_sub_no_cb / GRASS.c_ms
-                    z_rot_sub += (v_orbit_sub / GRASS.c_ms)
-                end
+                ld_sum += ld_sub
 
                 ext_sub = CUDA.exp(-((1/(CUDA.cos(zenith)))*ext_coeff_gpu))
+                ext_sum += ext_sub
                 z_rot_numerator += z_rot_sub * dA_sub * ld_sub * ext_sub
                 z_rot_denominator += dA_sub * ld_sub * ext_sub
             end
@@ -1135,6 +1127,9 @@ function calc_eclipse_quantities_gpu!(wavelength, μs, z_rot, ax_codes,
 
             @inbounds z_rot[m,n] = z_rot_numerator / z_rot_denominator
 
+            # ld_sum and ext_sum are sums over the unocculted sub-patches, so the mean is per
+            # sub-patch; the same value goes to every wavelength slot because the sub-patch
+            # limb darkening and extinction carry no wavelength dependence here
             for wl in eachindex(wavelength)
                 @inbounds ld[m,n,wl] = ld_sum / count
                 @inbounds ext[m,n,wl] = ext_sum / count

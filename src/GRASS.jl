@@ -152,7 +152,9 @@ function __init__()
     global sun_radius = bodvrd("SUN", "RADII")[1]
     global moon_radius = bodvrd("MOON", "RADII")[1]
 
-    # limb-darkening coefficients and sunspot info (units: nm)
+    # limb-darkening coefficients (wavelength in nm) and the sunspot table: lon and lat in
+    # degrees as body-fixed IAU_SUN angles (Carrington-like), diameter_km, diameter_arcsec,
+    # and contrast as the fractional intensity deficit (I_phot - I_spot) / I_phot
     global quad_ld_coeff_SSD = CSV.read(joinpath(datdir, "LD_coeff_SSD.csv"), DataFrame)
     global quad_ld_coeff_300 = CSV.read(joinpath(datdir, "LD_coeff_300.csv"), DataFrame)
     global quad_ld_coeff_HD = CSV.read(joinpath(datdir, "LD_coeff_HD.csv"), DataFrame)
