@@ -156,7 +156,8 @@ end
 function disk_sim_eclipse_gpu(spec::SpecParams{T1}, disk::DiskParamsEclipse{T1}, 
                                soldata::GPUSolarData{T2}, gpu_allocs::GPUAllocsEclipse{T2},
                                flux_cpu::AA{T1,2}, obs_long::T1, obs_lat::T1, alt::T1, time_stamps::Vector{String}, wavelength,
-                               ext_coeff, CB1, CB2, CB3; skip_times::BitVector=falses(disk.Nt)) where {T1<:AF, T2<:AF}
+                               ext_coeff, CB1, CB2, CB3; skip_times::BitVector=falses(disk.Nt),
+                               data_cbs::Bool=true) where {T1<:AF, T2<:AF}
 
     # get dimensions for memory alloc
     Nt = disk.Nt
@@ -268,8 +269,13 @@ function disk_sim_eclipse_gpu(spec::SpecParams{T1}, disk::DiskParamsEclipse{T1},
                                                                              widall_gpu_loop, bisall_gpu,
                                                                              intall_gpu, widall_gpu)
 
-            # assemble line shape on even int grid
-            CUDA.@sync  @cuda threads=threads3 blocks=blocks3 fill_workspaces_2D_eclipse!(spec.lines[l], spec.variability[l], extra_z[l],
+            # assemble line shape on even int grid. `variability` gates the bisector (line
+            # asymmetry and its time evolution) in trim_bisector_gpu! above; here it also gates
+            # the data-driven convective blueshift z_cbs and the extra_z that re-references it.
+            # data_cbs = false keeps the asymmetry but drops that blueshift, so the CB(mu)
+            # polynomial supplies the whole blueshift rather than adding to it.
+            cbs_gate = spec.variability[l] * data_cbs
+            CUDA.@sync  @cuda threads=threads3 blocks=blocks3 fill_workspaces_2D_eclipse!(spec.lines[l], cbs_gate, extra_z[l],
                                                                            tloop, dat_idx,
                                                                            z_rot, z_cbs, lenall_gpu,
                                                                            bisall_gpu_loop, intall_gpu_loop,

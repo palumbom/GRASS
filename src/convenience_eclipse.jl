@@ -164,7 +164,8 @@ end
 function synth_Eclipse_gpu(spec::SpecParams{T}, disk::DiskParamsEclipse{T},
                             verbose::Bool, precision::DataType, skip_times::BitVector, 
                             obs_long::T, obs_lat::T, alt::T, time_stamps::Vector{String}, 
-                            wavelength, ext_coeff, CB1, CB2, CB3; seed_rng::Bool=false) where T<:AF
+                            wavelength, ext_coeff, CB1, CB2, CB3; seed_rng::Bool=false,
+                            data_cbs::Bool=true) where T<:AF
     # make sure there is actually a GPU to use
     @assert CUDA.functional()
 
@@ -208,7 +209,7 @@ function synth_Eclipse_gpu(spec::SpecParams{T}, disk::DiskParamsEclipse{T},
         # run the simulation and multiply flux by this spectrum
         GRASS.Eclipse.disk_sim_eclipse_gpu(spec_temp, disk, soldata, gpu_allocs, flux, 
                               obs_long, obs_lat, alt, time_stamps, wavelength, 
-                              ext_coeff, CB1, CB2, CB3, skip_times=skip_times)
+                              ext_coeff, CB1, CB2, CB3, skip_times=skip_times, data_cbs=data_cbs)
     end
     return spec.lambdas, flux
 end
