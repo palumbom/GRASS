@@ -32,6 +32,15 @@ function synthesize_spectra(spec::SpecParams{T}, disk::DiskParams{T};
                             skip_times::BitVector=falses(disk.Nt),
                             contiguous_only::Bool=false,
                             show_progress::Bool=true) where T<:AF
+    # a wrong length is a BoundsError or silently wrong flux columns
+    @assert length(skip_times) == disk.Nt
+    @assert precision <: AbstractFloat
+
+    # precision only reaches the gpu allocations; the cpu path is Float64 throughout
+    if !use_gpu && precision != Float64
+        @warn "precision is ignored when use_gpu=false; synthesis will run in Float64"
+    end
+
     # call appropriate simulation function on cpu or gpu
     if use_gpu
         return _synth_gpu(spec, disk, seed_rng, verbose, precision, skip_times, contiguous_only, show_progress)
@@ -44,12 +53,11 @@ function _synth_cpu(spec::SpecParams{T}, disk::DiskParams{T}, seed_rng::Bool,
                     verbose::Bool, skip_times::BitVector, contiguous_only::Bool,
                     show_progress::Bool) where T<:AF
     # parse out dimensions for memory allocation
-    N = disk.N
     Nt = disk.Nt
     Nλ = length(spec.lambdas)
 
     # allocate memory for synthsis
-    prof = ones(Nλ)
+    prof = zeros(Nλ)
     flux = ones(Nλ, Nt)
 
     # pre-allocate memory and pre-compute geometric quantities
@@ -91,8 +99,7 @@ function _synth_cpu(spec::SpecParams{T}, disk::DiskParams{T}, seed_rng::Bool,
 
         # run the simulation and multiply flux by this spectrum
         disk_sim(spec_temp, disk, soldata, wsp, prof, flux, tloop,
-                 skip_times=skip_times, verbose=verbose, 
-                 show_progress=show_progress)
+                 skip_times=skip_times, show_progress=show_progress)
     end
     return spec.lambdas, flux
 end
@@ -109,7 +116,6 @@ function _synth_gpu(spec::SpecParams{T}, disk::DiskParams{T}, seed_rng::Bool,
     end
 
     # parse out dimensions for memory allocation
-    N = disk.N
     Nt = disk.Nt
     Nλ = length(spec.lambdas)
 
@@ -127,10 +133,12 @@ function _synth_gpu(spec::SpecParams{T}, disk::DiskParams{T}, seed_rng::Bool,
         tloop_init = zeros(Int, CUDA.length(gpu_allocs.μs))
         keys_cpu = repeat([(:off,:off)], CUDA.length(gpu_allocs.μs))
 
+        # scratch for get_keys_and_cbs!; eltype must match μs_cpu
+        cbs_cpu = zeros(precision, CUDA.length(gpu_allocs.μs))
+
         # copy data to CPU
         @cusync begin
             μs_cpu = Array(gpu_allocs.μs)
-            cbs_cpu = Array(gpu_allocs.z_cbs)
             ax_codes_cpu = convert.(Int64, Array(gpu_allocs.ax_codes))
         end
     else
@@ -173,8 +181,7 @@ function _synth_gpu(spec::SpecParams{T}, disk::DiskParams{T}, seed_rng::Bool,
 
         # run the simulation and multiply flux by this spectrum
         disk_sim_gpu(spec_temp, disk, soldata, gpu_allocs, flux,
-                     verbose=verbose, skip_times=skip_times,
-                     show_progress=show_progress)
+                     skip_times=skip_times, show_progress=show_progress)
     end
     return spec.lambdas, flux
 end

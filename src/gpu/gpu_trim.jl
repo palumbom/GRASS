@@ -1,3 +1,4 @@
+# the _out buffers persist across lines, so every branch must write every element
 function trim_bisector_gpu!(depth, variability, depcontrast, lenall, bisall_out,
                             intall_out, widall_out, bisall_in, intall_in, widall_in)
     # get indices from GPU blocks + threads
@@ -28,8 +29,14 @@ function trim_bisector_gpu!(depth, variability, depcontrast, lenall, bisall_out,
             bist_out = CUDA.view(bisall_out, :, j, i)
             intt_out = CUDA.view(intall_out, :, j, i)
 
-            # get step size for loop over length of bisector
-            step = dtrim/(CUDA.length(intt_in) - 1)
+            # chop resamples to maximum(intt), scale to 1.0; intt is ascending.
+            # int_top must follow eltype(intt_in): a Float64 literal here makes it
+            # Union{Float64,eltype} under precision=Float32
+            int_top = one(eltype(intt_in))
+            if (1.0 - dtrim) >= CUDA.first(intt_in)
+                int_top = CUDA.last(intt_in)
+            end
+            step = (int_top - (1.0 - dtrim))/(CUDA.length(intt_in) - 1)
 
             if variability
                 # set up interpolator
@@ -40,8 +47,14 @@ function trim_bisector_gpu!(depth, variability, depcontrast, lenall, bisall_out,
                     new_intt = (1.0 - dtrim) + (k-1) * step
                     if (1.0 - dtrim) >= CUDA.first(intt_in)
                         @inbounds bist_out[k] = itp(new_intt)
+                    else
+                        # scaling leaves the bisector untrimmed
+                        @inbounds bist_out[k] = bist_in[k]
                     end
                     @inbounds intt_out[k] = new_intt
+
+                    # variable widths pass through unchanged
+                    @inbounds widall_out[k,j,i] = widall_in[k,j,i]
                 end
             else
                 for k in idz:sdz:CUDA.size(bisall_in, 1)

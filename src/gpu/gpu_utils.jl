@@ -34,6 +34,7 @@ function searchsortednearest_gpu(a,x)
     end
 end
 
+# n is passed by value, so this is only correct on one thread: launch with a bare @cuda
 function filter_array_gpu!(output, input, pred, n)
     # get indices from GPU blocks + threads
     idx = threadIdx().x + blockDim().x * (blockIdx().x-1)

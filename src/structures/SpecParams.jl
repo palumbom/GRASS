@@ -22,15 +22,13 @@ function in_same_group(line1::String, line2::String)
     split1 = get_name_from_filename(line1)
     split2 = get_name_from_filename(line2)
 
-    # check if they are in the same group
+    # check if they are in the same group; unlisted templates match nothing
     for row in line_groups
         if split1 in row
             return split2 in row
-        else
-            continue
         end
     end
-    return nothing
+    return false
 end
 
 function get_template_wavelength(line1::String)
