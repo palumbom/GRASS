@@ -30,6 +30,9 @@ function disk_sim_eclipse_disco_gpu(
     lenall_gpu = soldata.len
 
     n_patches = CUDA.length(μs)
+    # 0. Initialize output flux to continuum (1.0) and profile workspace to 0.0
+    CUDA.fill!(flux, 1.0)
+    CUDA.fill!(prof, 0.0)
 
     # Thread/block configurations matching 2D CUDA grid conventions
     threads1 = 1024
@@ -71,9 +74,10 @@ function disk_sim_eclipse_disco_gpu(
             else
                 CUDA.@sync sum_wts = CUDA.sum(dA .* ld[:,:,l])
             end
+            # Reset line profile workspace to 0 before accumulating patch contributions
+            CUDA.fill!(prof, 0.0)
 
             # 2. DISCO Line Profile Synthesis Kernel
-            # Replaces trim_bisector_gpu!, fill_workspaces_2D_eclipse!, and line_profile_gpu!
             CUDA.@sync @cuda threads=threads4 blocks=blocks4 line_profile_disco_gpu!(
                 l, prof, μs, ld, dA, ext, λs, z_rot, contrast,
                 ext_toggle_val, disco_params, epoch_seed
@@ -89,6 +93,7 @@ function disk_sim_eclipse_disco_gpu(
 
     # Copy output flux matrix from GPU to host CPU
     CUDA.@sync flux_cpu .= Array(flux)
+    flux_cpu[:, skip_times] .= zero(eltype(flux_cpu))
 
     CUDA.synchronize()
     return nothing
@@ -114,7 +119,7 @@ function line_profile_disco_gpu!(
     n_patches = CUDA.length(μs)
     n_λ = CUDA.length(λs)
 
-    # Rest frame limits from DISCO parameter model
+    # Rest frame limits in nm from DISCO parameter model
     rest_lo = p_disco.wavelength[1]
     rest_hi = p_disco.wavelength[Int(p_disco.n_wave)]
     rest_step = (rest_hi - rest_lo) / Float32(p_disco.n_wave - Int32(1))
@@ -146,10 +151,10 @@ function line_profile_disco_gpu!(
         # Parallelized loop over observer wavelength grid points
         for j in idy:sdy:n_λ
             λ_obs = λs[j]
-            # Convert observer wavelength to line rest frame
-            λ_rest = λ_obs / z_tot
+            # Convert GRASS observer wavelength (Å) to DISCO rest frame (nm)
+            λ_rest_nm = (λ_obs / 10.0f0) / z_tot
 
-            pos = (λ_rest - rest_lo) / rest_step
+            pos = (λ_rest_nm - rest_lo) / rest_step
 
             if pos >= 0.0f0 && pos <= Float32(p_disco.n_wave - Int32(1))
                 k = Int32(floor(pos))
