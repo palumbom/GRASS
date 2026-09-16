@@ -112,7 +112,7 @@ end
 function synth_Eclipse_gpu(spec::SpecParams{T}, disk::DiskParamsEclipse{T},
                             verbose::Bool, precision::DataType, skip_times::BitVector, LD_type::String, 
                             obs_long::T, obs_lat::T, alt::T, time_stamps::Vector{String}, 
-                            wavelength, ext_coeff, ext_toggle::Bool, spot_toggle::Bool; seed_rng::Bool=false) where T<:AF
+                            wavelength, ext_coeff, ext_toggle::Bool, spot_toggle::Bool, disco_toggle::Bool, h5_path; seed_rng::Bool=false) where T<:AF
     # make sure there is actually a GPU to use
     @assert CUDA.functional()
 
@@ -153,10 +153,17 @@ function synth_Eclipse_gpu(spec::SpecParams{T}, disk::DiskParamsEclipse{T},
             CUDA.seed!(42)
         end
 
-        # run the simulation and multiply flux by this spectrum
-        GRASS.Eclipse.disk_sim_eclipse_gpu(spec_temp, disk, soldata, gpu_allocs, flux, 
-                              obs_long, obs_lat, alt, time_stamps, wavelength, 
-                              ext_coeff, ext_toggle, spot_toggle, LD_type, skip_times=skip_times)
+        if disco_toggle
+            disco_params = load_disco_fe5250(h5_path)
+            GRASS.Eclipse.disk_sim_eclipse_disco_gpu(spec_temp, disk, soldata, gpu_allocs, flux, 
+                                obs_long, obs_lat, alt, time_stamps, wavelength, 
+                                ext_coeff, ext_toggle, spot_toggle, LD_type, disco_params, skip_times=skip_times)
+        else
+            # run the simulation and multiply flux by this spectrum
+            GRASS.Eclipse.disk_sim_eclipse_gpu(spec_temp, disk, soldata, gpu_allocs, flux, 
+                                obs_long, obs_lat, alt, time_stamps, wavelength, 
+                                ext_coeff, ext_toggle, spot_toggle, LD_type, skip_times=skip_times)
+        end
     end
     return spec.lambdas, flux
 end

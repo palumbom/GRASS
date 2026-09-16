@@ -101,6 +101,9 @@ export SpecParams, DiskParams, LineProperties, SolarData, synthesize_spectra,
 # module GRASSe # eclipse submodule
 module Eclipse # eclipse submodule
 
+include("/storage/home/efg5335/work/sw/DISCO/GRASS/src/disco_fe5250.jl")
+using .DISCOFe5250
+
 # inherit from parent module
 using CSV
 using SPICE
@@ -182,6 +185,7 @@ include("gpu/gpu_physics_eclipse.jl")
 include("gpu/gpu_precomps_eclipse.jl")
 include("gpu/gpu_synthesis_eclipse.jl")
 include("gpu/gpu_sim_eclipse.jl")
+include("gpu/gpu_sim_disco.jl")
 
 # star geometry + thermal/RT physics
 include("star_geometry.jl")
