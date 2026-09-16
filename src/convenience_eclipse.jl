@@ -55,7 +55,8 @@ function synthesize_spectra_eclipse(spec::SpecParams{T}, disk::DiskParamsEclipse
     # call appropriate simulation function on cpu or gpu
     if use_gpu
         return synth_Eclipse_gpu(spec, disk, verbose, precision, skip_times, LD_type,
-                                    obs_long, obs_lat, alt, time_stamps, wavelength, ext_coeff, ext_toggle, false)
+                                    obs_long, obs_lat, alt, time_stamps, wavelength, ext_coeff, ext_toggle, false,
+                                    seed_rng=seed_rng)
     else
         return synth_Eclipse_cpu(spec, disk, seed_rng, verbose, skip_times, LD_type, wavelength, 
                                     time_stamps, obs_long, obs_lat, alt, ext_coeff, ext_toggle)
@@ -111,7 +112,7 @@ end
 function synth_Eclipse_gpu(spec::SpecParams{T}, disk::DiskParamsEclipse{T},
                             verbose::Bool, precision::DataType, skip_times::BitVector, LD_type::String, 
                             obs_long::T, obs_lat::T, alt::T, time_stamps::Vector{String}, 
-                            wavelength, ext_coeff, ext_toggle::Bool, spot_toggle::Bool, disco_toggle::Bool, h5_path) where T<:AF
+                            wavelength, ext_coeff, ext_toggle::Bool, spot_toggle::Bool, disco_toggle::Bool, h5_path; seed_rng::Bool=false) where T<:AF
     # make sure there is actually a GPU to use
     @assert CUDA.functional()
 
@@ -145,6 +146,12 @@ function synth_Eclipse_gpu(spec::SpecParams{T}, disk::DiskParamsEclipse{T},
         end
         soldata_cpu = SolarData(fname=file)
         soldata = GPUSolarData(soldata_cpu, precision=precision)
+
+        # re-seed host and device rngs so the granulation draws are reproducible
+        if seed_rng
+            Random.seed!(42)
+            CUDA.seed!(42)
+        end
 
         if disco_toggle
             disco_params = load_disco_fe5250(h5_path)
@@ -164,7 +171,8 @@ end
 function synth_Eclipse_gpu(spec::SpecParams{T}, disk::DiskParamsEclipse{T},
                             verbose::Bool, precision::DataType, skip_times::BitVector, 
                             obs_long::T, obs_lat::T, alt::T, time_stamps::Vector{String}, 
-                            wavelength, ext_coeff, CB1, CB2, CB3) where T<:AF
+                            wavelength, ext_coeff, CB1, CB2, CB3; seed_rng::Bool=false,
+                            data_cbs::Bool=true) where T<:AF
     # make sure there is actually a GPU to use
     @assert CUDA.functional()
 
@@ -199,10 +207,16 @@ function synth_Eclipse_gpu(spec::SpecParams{T}, disk::DiskParamsEclipse{T},
         soldata_cpu = SolarData(fname=file)
         soldata = GPUSolarData(soldata_cpu, precision=precision)
 
+        # re-seed host and device rngs so the granulation draws are reproducible
+        if seed_rng
+            Random.seed!(42)
+            CUDA.seed!(42)
+        end
+
         # run the simulation and multiply flux by this spectrum
         GRASS.Eclipse.disk_sim_eclipse_gpu(spec_temp, disk, soldata, gpu_allocs, flux, 
                               obs_long, obs_lat, alt, time_stamps, wavelength, 
-                              ext_coeff, CB1, CB2, CB3, skip_times=skip_times)
+                              ext_coeff, CB1, CB2, CB3, skip_times=skip_times, data_cbs=data_cbs)
     end
     return spec.lambdas, flux
 end

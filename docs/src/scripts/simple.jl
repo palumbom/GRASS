@@ -1,6 +1,10 @@
 using GRASS
-using PyPlot
 using Statistics
+
+# PythonPlot comes from the default environment, not from GRASS's dependencies
+import PythonPlot
+const plt = PythonPlot.pyplot
+const mpl = PythonPlot.matplotlib
 
 # parameters for lines in the spectra
 λrest = 5434.5
@@ -21,11 +25,13 @@ resid_flux = flux .- mean(flux, dims=2)
 # get a colormap for time
 cmap = plt.get_cmap("viridis")
 colors = cmap(range(0, 1, length=disk.Nt))
-norm = plt.matplotlib.colors.Normalize(vmin=15, vmax=15*disk.Nt)
-smap = plt.matplotlib.cm.ScalarMappable(norm=norm, cmap=cmap)
+norm = mpl.colors.Normalize(vmin=15, vmax=15*disk.Nt)
+smap = mpl.cm.ScalarMappable(norm=norm, cmap=cmap)
 
-# plot the result
-fig, (ax1, ax2) = plt.subplots(nrows=2, ncols=1, height_ratios=[3,1], sharex=true)
+# plot the result; the axis array comes back as a Python object, so it is indexed from 0
+fig, axs = plt.subplots(nrows=2, ncols=1, height_ratios=[3,1], sharex=true)
+ax1 = axs[0]
+ax2 = axs[1]
 for i in 1:disk.Nt
     xs = wavelengths
     ys1 = view(flux, :, i)
