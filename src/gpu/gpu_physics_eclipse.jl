@@ -12,44 +12,6 @@ function calc_mu_gpu(x, y, z, Ox, Oy, Oz)
     return dp / (n1 * n2)
 end
 
-function calc_mu_eclipse_gpu(x, y, z, OPx, OPy, OPz)
-    # (x, y, z) is the Sun-to-patch vector and OP the observer-to-patch vector;
-    # the cosine of the angle to the observer is minus the cosine between them
-    return -calc_mu_gpu(x, y, z, OPx, OPy, OPz)
-end
-
-function sky_frame_gpu(OS_bary, sun_rot_mat)
-    # unit vectors of the observer's sky frame in the barycentric frame: projected
-    # solar north, and west (to the right with north up; the receding limb).
-    # OS_bary is observer -> Sun; the third column of the IAU_SUN -> J2000
-    # rotation is the solar north pole.
-    ux = OS_bary[1]
-    uy = OS_bary[2]
-    uz = OS_bary[3]
-    un = CUDA.sqrt(ux^2.0 + uy^2.0 + uz^2.0)
-    ux /= un
-    uy /= un
-    uz /= un
-
-    px = sun_rot_mat[7]
-    py = sun_rot_mat[8]
-    pz = sun_rot_mat[9]
-    pu = px * ux + py * uy + pz * uz
-    nx = px - pu * ux
-    ny = py - pu * uy
-    nz = pz - pu * uz
-    nn = CUDA.sqrt(nx^2.0 + ny^2.0 + nz^2.0)
-    nx /= nn
-    ny /= nn
-    nz /= nn
-
-    # west = line of sight x north
-    wx = uy * nz - uz * ny
-    wy = uz * nx - ux * nz
-    wz = ux * ny - uy * nx
-    return nx, ny, nz, wx, wy, wz
-end
-
 function sphere_to_cart_gpu(ρ, ϕ, θ)
     # compute trig quantities
     sinϕ = CUDA.sin(ϕ)
@@ -103,15 +65,15 @@ function quad_limb_darkening_gpu(μ, u1, u2, u3, u4)
     return 1.0 - u1 * (1.0 - μ^0.5) - u2 * (1.0 - μ) - u3 * (1.0 - μ^1.5) - u4 * (1.0 - μ^2.0)
 end
 
-function legendreP(l::Int, x::T) where T<:AF
+function legendreP(l::Int, x::Float64)
     if l == 0
-        return one(T)
+        return 1.0
     elseif l == 1
         return x
     else
-        Pnm2 = one(T)
+        Pnm2 = 1.0
         Pnm1 = x
-        Pn = zero(T)
+        Pn = 0.0
         for n in 2:l
             Pn = ((2n - 1) * x * Pnm1 - (n - 1) * Pnm2) / n
             Pnm2, Pnm1 = Pnm1, Pn
@@ -120,41 +82,57 @@ function legendreP(l::Int, x::T) where T<:AF
     end
 end
 
-function legendre_dtheta_gpu(l::Int, θ::T) where T<:AF
-    # d/dθ of P_l(cos θ) with the normalization of the HMI bulk-velocity fit
-    # (Kashyap et al. 2021, arXiv:2105.12055): sqrt(2l+1) / (sqrt(2) sqrt(l(l+1))).
-    # θ is the colatitude in radians, measured from the north pole.
-    l == 0 && return zero(T)
-    cosθ = cos(θ)
-    sinθ = sin(θ)
+function legendre_for_l(l::Int, θ_deg::Float64)
+    θ = deg2rad(θ_deg)
+    cost = cos(θ)
+    sint = sin(θ)
 
-    # dP_l/dz from (1 - z^2) P_l'(z) = l (P_{l-1}(z) - z P_l(z))
-    P = legendreP(l, cosθ)
-    Plm1 = legendreP(l - 1, cosθ)
-    dP = l * (Plm1 - cosθ * P) / (one(T) - cosθ^2)
+    # geodesy normalization
+    norm_sht = sqrt(2 * l + 1)
 
-    # chain rule dz/dθ = -sin θ, then normalize
-    norm = sqrt(T(2l + 1)) / (sqrt(T(2)) * sqrt(T(l * (l + 1))))
-    return -sinθ * dP * norm
+    # l(l+1) normalization
+    norm_l = sqrt(l * (l + 1))
+    norm_l = norm_l == 0 ? 1.0 : norm_l 
+
+    # evaluate P_l(cost)
+    P = legendreP(l, cost)
+
+    # derivative dP_l/dz
+    if l == 0
+        dP = 0.0
+    else
+        Plm1 = legendreP(l - 1, cost)
+        dP = l * (Plm1 - cost * P) / (1 - cost^2)
+    end
+
+    # apply normalizations
+    leg     = P * norm_sht
+    leg_dz  = dP * norm_sht
+
+    leg_out    = leg / sqrt(2) / norm_l
+    leg_d1_out = -sint * leg_dz / sqrt(2) / norm_l
+
+    return leg_out, leg_d1_out
 end
 
-function colat_tangent_gpu_eclipse(ϕ, θ) #latitude, longitude; same convention as sphere_to_cart_gpu_eclipse
-    # unit vector along increasing colatitude (southward) at the surface point
-    sinϕ = sin(ϕ)
-    sinθ = sin(θ)
-    cosϕ = cos(ϕ)
-    cosθ = cos(θ)
+function meridional_terms(θ_deg::Float64, ϕ_deg::Float64, B0_deg::Float64)
+    θ  = deg2rad(θ_deg)
+    ϕ  = deg2rad(ϕ_deg)
+    B0 = deg2rad(B0_deg)
 
-    x = sinϕ * cosθ
-    y = sinϕ * sinθ
-    z = -cosϕ
-    return x, y, z
-end
+    cosB0, sinB0 = cos(B0), sin(B0)
+    cosθ,  sinθ  = cos(θ),  sin(θ)
+    cosϕ,  sinϕ  = cos(ϕ),  sin(ϕ)
 
-function meridional_velocity_gpu(θ, lt, MF1, MF2)
-    # line-of-sight meridional flow velocity at colatitude θ (radians). lt is the
-    # projection of the southward unit tangent onto the line of sight, positive
-    # away from the observer. MF1, MF2 are the s = 2, 4 coefficients of the HMI
-    # bulk-velocity fit, in m/s.
-    return (MF1 * legendre_dtheta_gpu(2, θ) + MF2 * legendre_dtheta_gpu(4, θ)) * lt
+    # geometric projection factor
+    lt = sinB0 * sinθ - cosB0 * cosθ * cosϕ
+
+    # compute Legendre derivative only for l=2 and l=4
+    _, dt_l2 = legendre_for_l(2, θ_deg)
+    _, dt_l4 = legendre_for_l(4, θ_deg)
+
+    term_s2 = dt_l2 * lt
+    term_s4 = dt_l4 * lt
+
+    return term_s2, term_s4
 end

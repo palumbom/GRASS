@@ -83,31 +83,6 @@ function calc_mu_grid!(A::Matrix, B::Matrix, out::Matrix)
     return out
 end
 
-function calc_mu_eclipse(xyz::AA{T,1}, OP::AA{T,1}) where T
-    # xyz is the Sun-to-patch vector and OP the observer-to-patch vector; the
-    # cosine of the angle to the observer is minus the cosine between them
-    return -calc_mu(xyz, OP)
-end
-
-function calc_mu_grid_eclipse!(A::Matrix, B::Matrix, out::Matrix)
-    for i in eachindex(A)
-        out[i] = calc_mu_eclipse(A[i][1:3], B[i][1:3])
-    end
-    return out
-end
-
-function sky_frame(OS::AA{T,1}, sun_rot_mat::AA{T,2}) where T<:AF
-    # unit vectors of the observer's sky frame: projected solar north, and west
-    # (to the right with north up; the receding limb). OS is observer -> Sun;
-    # the third column of the IAU_SUN -> inertial rotation is the solar north pole.
-    û = OS ./ norm(OS)
-    p̂ = sun_rot_mat[:, 3]
-    n̂ = p̂ .- dot(p̂, û) .* û
-    n̂ ./= norm(n̂)
-    ŵ = cross(û, n̂)
-    return n̂, ŵ
-end
-
 function find_nearest_ax_code_eclipse(y::T, z::T) where T<:AF
     if ((z == zero(T)) & (y == zero(T))) # center
         return 0

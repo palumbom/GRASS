@@ -35,6 +35,3 @@ data/sunspots.csv
 LocalPreferences.toml
 __pycache__
 .vscode
-
-# throwaway diagnostics
-scratch/

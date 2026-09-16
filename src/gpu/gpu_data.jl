@@ -51,8 +51,8 @@ function iterate_tloop_gpu!(tloop, dat_idx, lenall)
     idx = threadIdx().x + blockDim().x * (blockIdx().x-1)
     sdx = blockDim().x * gridDim().x
 
-    # parallelized loop over grid (dat_idx is 1-D or 2-D; cover every tile)
-    for i in idx:sdx:CUDA.length(dat_idx)
+    # parallelized loop over grid
+    for i in idx:sdx:CUDA.size(dat_idx,1)
         if CUDA.iszero(dat_idx[i])
             continue
         end

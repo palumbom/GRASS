@@ -11,7 +11,7 @@ using BenchmarkTools
 
 # # plotting
 # using LaTeXStrings
-# import PythonPlot; plt = PythonPlot.pyplot; mpl = PythonPlot.matplotlib; plt.ioff()
+# import PyPlot; plt = PyPlot; mpl = plt.matplotlib; plt.ioff()
 # mpl.style.use(GRASS.moddir * "fig.mplstyle")
 # mpl.use("Qt5Agg")
 

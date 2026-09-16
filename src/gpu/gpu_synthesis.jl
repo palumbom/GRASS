@@ -21,8 +21,6 @@ function fill_workspaces!(line, variability, extra_z, tloop, dat_idx, z_rot,
         end
         t = tloop[i]
 
-        # absolute wavelengths are computed in Float64 on purpose; storing them in a
-        # Float32 allwavs is the precision-limiting step of the single-precision path
         # calculate shifted line center
         λΔD = line * (1.0 + z_rot[i]) * (1.0 + z_cbs[i] * variability) * (1.0 + extra_z)
 
@@ -84,8 +82,6 @@ function fill_workspaces_2D!(line, variability, extra_z, tloop, dat_idx, z_rot,
         end
         t = tloop[m,n]
 
-        # absolute wavelengths are computed in Float64 on purpose; storing them in a
-        # Float32 allwavs is the precision-limiting step of the single-precision path
         # calculate shifted line center
         λΔD = line * (1.0 + z_rot[m,n]) * (1.0 + z_cbs[m,n] * variability) * (1.0 + extra_z)
 

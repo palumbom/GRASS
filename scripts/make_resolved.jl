@@ -1,6 +1,10 @@
 # get Pkg manager stuff handled
 using Pkg
 
+# install PyPlot in global project
+# Pkg.add("PyPlot")
+using PyPlot
+
 # Pkg.activate("PATH/TO/GRASS")
 Pkg.activate(".")
 

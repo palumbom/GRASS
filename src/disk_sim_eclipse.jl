@@ -56,8 +56,10 @@ function disk_sim_eclipse(spec::SpecParams{T}, disk::DiskParamsEclipse{T}, solda
                     # get rotational shift
                     z_rot = wsp.z_rot[i,j,l]
 
-                    # wrap tloop into the data length of this tile's current key
-                    tloop[i,j] = mod1(tloop[i,j], len)
+                    # check that tloop hasn't exceeded number of epochs
+                    if tloop[i,j] > len
+                        tloop[i,j] -= len
+                    end
 
                     # get views needed for line synthesis
                     wsp.bist .= copy(view(soldata.bis[key], :, tloop[i,j]))

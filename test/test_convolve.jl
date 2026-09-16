@@ -1,17 +1,17 @@
 using Pkg; Pkg.activate(".")
 using CUDA
 using GRASS
+using PyCall
 using Printf
 using Revise
 using Statistics
 using EchelleCCFs
 using BenchmarkTools
 
-# PythonCall and PythonPlot come from the default environment, not from GRASS's dependencies
-using PythonCall
-import PythonPlot
-const plt = PythonPlot.pyplot
-const mpl = PythonPlot.matplotlib
+# # plotting
+# using LaTeXStrings
+# import PyPlot; plt = PyPlot; mpl = plt.matplotlib; plt.ioff()
+# mpl.style.use(GRASS.moddir * "fig.mplstyle")
 
 # get astropy convolution
 astroconv = pyimport("astropy.convolution")
@@ -44,9 +44,8 @@ std = 5434.5232 / 5e4 / 2.354
 pix_width = 5434.5232 / 7e5
 
 kernel = astroconv.Gaussian1DKernel(stddev=std/pix_width)
-# PythonCall returns Python objects; convert back to Julia vectors for plotting and arithmetic
-convoluted1 = pyconvert(Vector{Float64}, astroconv.convolve(outspec1, kernel, normalize_kernel=true, boundary="extend"))
-convoluted2 = pyconvert(Vector{Float64}, astroconv.convolve(outspec2, kernel, normalize_kernel=true, boundary="extend"))
+convoluted1 = astroconv.convolve(outspec1, kernel, normalize_kernel=true, boundary="extend")
+convoluted2 = astroconv.convolve(outspec2, kernel, normalize_kernel=true, boundary="extend")
 
 # do my convolution
 lambdas3, convoluted3 = GRASS.convolve_gauss(lambdas1, outspec1, new_res=5e4, oversampling=7e5/5e4)

@@ -199,7 +199,6 @@ function disk_sim_resolved_gpu(spec::SpecParams{T1}, disk::DiskParams{T1}, solda
         # don't synthesize spectrum if skip_times is true, but iterate t index
         if skip_times[t]
             @cusync @captured @cuda threads=threads1 blocks=blocks1 iterate_tloop_gpu!(tloop, dat_idx, lenall_gpu)
-            next!(p)
             continue
         end
 
@@ -233,9 +232,9 @@ function disk_sim_resolved_gpu(spec::SpecParams{T1}, disk::DiskParams{T1}, solda
         next!(p)
     end
 
-    # copy over flux; skipped epochs are zero, as in disk_sim and disk_sim_gpu
+    # copy over flux
+    # @cusync flux_cpu .= Array(flux)
     copyto!(flux_cpu, flux)
-    flux_cpu[:, :, skip_times] .= zero(eltype(flux_cpu))
 
     # make sure nothing is still running on GPU
     # CUDA.synchronize()

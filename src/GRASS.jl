@@ -112,7 +112,6 @@ using CUDA
 using DataFrames
 using Statistics
 using LinearAlgebra
-using Random
 const datdir = GRASS.datdir
 
 import Base: AbstractArray as AA
@@ -120,7 +119,6 @@ import Base: AbstractFloat as AF
 
 # get kernels for SPICE stuff (defines download_kernels() and furnsh_kernels())
 include("get_kernels.jl")
-include("earth_frame.jl")
 
 # body radii (km) and limb-darkening / sunspot tables — declared here with concrete
 # types for type-stable access, but populated at runtime in __init__ (not at precompile)
@@ -138,15 +136,6 @@ function __init__()
     # download_kernels() is a no-op once Pkg.build has fetched the kernels; it guards the
     # kernels-missing-but-input-present case (config.jl's self-heal only checks data/input/)
     download_kernels()
-
-    # the high-precision Earth PCK expires about three months after NAIF generates it
-    if earth_pck_stale()
-        try
-            download_earth_pck!()
-        catch err
-            @warn "Could not refresh earth_latest_high_prec.bpc from NAIF; ITRF93 may lack coverage for recent epochs" exception=err
-        end
-    end
     furnsh_kernels()
 
     # E, S, M radii (units: km) — requires the kernel pool to be furnished above
@@ -155,9 +144,7 @@ function __init__()
     global sun_radius = bodvrd("SUN", "RADII")[1]
     global moon_radius = bodvrd("MOON", "RADII")[1]
 
-    # limb-darkening coefficients (wavelength in nm) and the sunspot table: lon and lat in
-    # degrees as body-fixed IAU_SUN angles (Carrington-like), diameter_km, diameter_arcsec,
-    # and contrast as the fractional intensity deficit (I_phot - I_spot) / I_phot
+    # limb-darkening coefficients and sunspot info (units: nm)
     global quad_ld_coeff_SSD = CSV.read(joinpath(datdir, "LD_coeff_SSD.csv"), DataFrame)
     global quad_ld_coeff_300 = CSV.read(joinpath(datdir, "LD_coeff_300.csv"), DataFrame)
     global quad_ld_coeff_HD = CSV.read(joinpath(datdir, "LD_coeff_HD.csv"), DataFrame)

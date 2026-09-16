@@ -9,14 +9,10 @@ function trim_bisector_gpu!(depth, variability, depcontrast, lenall, bisall_out,
     idz = threadIdx().z + blockDim().z * (blockIdx().z-1)
     sdz = blockDim().z * gridDim().z
 
-    # scalar arithmetic in the array precision: a Float64 depth or literal would
-    # promote the kernel to double precision whatever precision was requested
-    T = eltype(intall_in)
-
     # loop over disk positions for bisectors
     for i in idx:sdx:CUDA.length(lenall)
         # get depth to trim to
-        dtrim = T(depth) * depcontrast[i]
+        dtrim = depth * depcontrast[i]
 
         # loop over epochs of bisectors
         for j in idy:sdy:CUDA.size(bisall_in, 2)
@@ -33,12 +29,14 @@ function trim_bisector_gpu!(depth, variability, depcontrast, lenall, bisall_out,
             bist_out = CUDA.view(bisall_out, :, j, i)
             intt_out = CUDA.view(intall_out, :, j, i)
 
-            # chop resamples to maximum(intt), scale to 1.0; intt is ascending
-            int_top = one(T)
-            if (one(T) - dtrim) >= CUDA.first(intt_in)
+            # chop resamples to maximum(intt), scale to 1.0; intt is ascending.
+            # int_top must follow eltype(intt_in): a Float64 literal here makes it
+            # Union{Float64,eltype} under precision=Float32
+            int_top = one(eltype(intt_in))
+            if (1.0 - dtrim) >= CUDA.first(intt_in)
                 int_top = CUDA.last(intt_in)
             end
-            step = (int_top - (one(T) - dtrim))/(CUDA.length(intt_in) - 1)
+            step = (int_top - (1.0 - dtrim))/(CUDA.length(intt_in) - 1)
 
             if variability
                 # set up interpolator
@@ -46,8 +44,8 @@ function trim_bisector_gpu!(depth, variability, depcontrast, lenall, bisall_out,
 
                 # loop over the length of the bisector
                 for k in idz:sdz:CUDA.size(bisall_in, 1)
-                    new_intt = (one(T) - dtrim) + (k-1) * step
-                    if (one(T) - dtrim) >= CUDA.first(intt_in)
+                    new_intt = (1.0 - dtrim) + (k-1) * step
+                    if (1.0 - dtrim) >= CUDA.first(intt_in)
                         @inbounds bist_out[k] = itp(new_intt)
                     else
                         # scaling leaves the bisector untrimmed
@@ -60,8 +58,8 @@ function trim_bisector_gpu!(depth, variability, depcontrast, lenall, bisall_out,
                 end
             else
                 for k in idz:sdz:CUDA.size(bisall_in, 1)
-                    @inbounds intt_out[k] = (one(T) - dtrim) + (k-1) * step
-                    @inbounds bist_out[k] = zero(T)
+                    @inbounds intt_out[k] = (1.0 - dtrim) + (k-1) * step
+                    @inbounds bist_out[k] = 0.0
                     @inbounds widall_out[k,j,i] = widall_in[k,1,i]
                 end
             end

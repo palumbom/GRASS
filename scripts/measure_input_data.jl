@@ -5,8 +5,7 @@ using DataFrames
 using Statistics
 using GRASS
 
-# PythonPlot comes from the default environment, not from GRASS's dependencies
-import PythonPlot; const plt = PythonPlot.pyplot; const mpl = PythonPlot.matplotlib; plt.ioff()
+import PyPlot; plt = PyPlot; mpl = plt.matplotlib; plt.ioff()
 using LaTeXStrings
 mpl.style.use(GRASS.moddir * "fig.mplstyle")
 
@@ -121,10 +120,7 @@ function preprocess_line(line_name::String; clobber::Bool=true, verbose::Bool=tr
             noist = view(nois, :, t)
 
             if debug
-                # the axis array is a Python object, so it is indexed from 0
-                fig, axs = plt.subplots(1,2, figsize=(9,6))
-                ax1 = axs[0]
-                ax2 = axs[1]
+                fig, (ax1, ax2) = plt.subplots(1,2, figsize=(9,6))
                 ax1.plot(wavst, fluxt, c="k", label="raw spec")
             end
 

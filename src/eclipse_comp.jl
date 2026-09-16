@@ -91,7 +91,7 @@ function eclipse_compute_quantities!(epoch, t, obs_long::T, obs_lat::T, alt::T, 
     #set earth velocity vectors
     EO_earth = vcat(EO_earth_pos, [0.0, 0.0, 0.0])
     # transform into ICRF frame
-    EO_bary = sxform(earth_frame(epoch), "J2000", epoch) * EO_earth
+    EO_bary = sxform("ITRF93", "J2000", epoch) * EO_earth
 
     # get vector from barycenter to observatory on Earth's surface
     BO_bary = BE_bary .+ EO_bary
@@ -110,9 +110,6 @@ function eclipse_compute_quantities!(epoch, t, obs_long::T, obs_lat::T, alt::T, 
 
     # get rotation matrix for sun
     sun_rot_mat = pxform("IAU_SUN", "J2000", epoch_lt)
-
-    # observer's sky frame: projected solar north and west unit vectors
-    n̂, ŵ = sky_frame(OS_bary[1:3], sun_rot_mat)
 
     # loop over disk positions
     for i in eachindex(disk.ϕc)
@@ -150,7 +147,7 @@ function eclipse_compute_quantities!(epoch, t, obs_long::T, obs_lat::T, alt::T, 
             end
 
             # calculate mu at each point
-            calc_mu_grid_eclipse!(SP_bary, OP_bary, mu_grid)
+            calc_mu_grid!(SP_bary, OP_bary, mu_grid)
             # move on if everything is off the grid
             all(mu_grid .<= zero(T)) && continue
 
@@ -182,23 +179,22 @@ function eclipse_compute_quantities!(epoch, t, obs_long::T, obs_lat::T, alt::T, 
             # assign the mean mu as the mean of visible mus
             μs[i,j,t] = mean(view(mu_grid, idx1))
 
-            # mean visible position of the tile, rotated to the inertial frame
+            # find xz at mean value of mu and get axis code (i.e., N, E, S, W)
             xyz[i,j,1] = mean(view(getindex.(SP_sun_pos,1), idx1))
             xyz[i,j,2] = mean(view(getindex.(SP_sun_pos,2), idx1))
-            xyz[i,j,3] = mean(view(getindex.(SP_sun_pos,3), idx1))
-            xyz_bary = sun_rot_mat * view(xyz, i, j, :)
-
-            # get axis code (i.e., N, E, S, W) from the position on the observer's sky
-            ax_codes[i,j,t] = find_nearest_ax_code_eclipse(dot(xyz_bary, ŵ) / sun_radius, dot(xyz_bary, n̂) / sun_radius)
+            xyz[i,j,3] = mean(view(getindex.(SP_sun_pos,3), idx1)) 
+            if xyz[i,j,2] !== NaN
+                ax_codes[i,j,t] = find_nearest_ax_code_eclipse(xyz[i,j,2]/sun_radius, xyz[i,j,3]/sun_radius) 
+            end
             
             # calculate area element of tile
             dϕ = step(ϕe_sub) 
             dθ = step(θe_sub) 
             dA_sub = map(x -> calc_dA(1.0, getindex(x,1), dϕ, dθ), subgrid)
 
-            # get total projected area of the visible, unocculted part of the tile
+            # get total projected, visible area of larger tile
             dA_total_proj = dA_sub .* mu_grid
-            dA[i,j,t] = sum(view(dA_total_proj, idx3))   
+            dA[i,j,t] = sum(view(dA_total_proj, idx1))   
 
             mean_weight_v_no_cb[i,j,t] = mean(view(projected_velocities_no_cb, idx3))
             mean_weight_v_earth_orb[i,j,t] = mean(view(v_earth_orb_proj, idx3))
