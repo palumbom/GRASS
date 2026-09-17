@@ -269,6 +269,27 @@ function get_keys_and_cbs_eclispe!(wsp::SynthWorkspaceEclipse{T}, soldata::Solar
     return nothing
 end
 
+# bracketing tiles and limb-angle weights for interp_mu; overwrites wsp.cbs with the
+# interpolated value, so call it after get_keys_and_cbs_eclispe!
+function get_interp_keys_eclipse!(wsp::SynthWorkspaceEclipse{T}, soldata::SolarData{T}, t) where T<:AF
+    disc_mu = convert.(T, soldata.mu)
+    disc_ax = soldata.ax
+    μs = view(wsp.μs, :, :, t)
+    ax_codes = view(wsp.ax_codes, :, :, t)
+
+    for i in eachindex(μs)
+        # move on if we are off the grid
+        μs[i] <= zero(T) && continue
+
+        key_lo, key_hi, w = get_interp_keys_for_pos(μs[i], ax_codes[i], disc_mu, disc_ax)
+        wsp.keys_lo[i] = key_lo
+        wsp.keys_hi[i] = key_hi
+        wsp.wts[i] = w
+        wsp.cbs[i] = (one(T) - w) * convert(T, soldata.cbs[key_lo]) + w * convert(T, soldata.cbs[key_hi])
+    end
+    return nothing
+end
+
 
 function get_keys_and_cbs_eclispe!(keys::AA{Tuple{Symbol, Symbol}}, μs::AA{T}, cbs::AA{T},
                            ax_codes::AA{Int}, soldata::SolarData{T2}) where  {T<:AF, T2<:AF}

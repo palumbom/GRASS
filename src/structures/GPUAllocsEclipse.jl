@@ -20,6 +20,11 @@ struct GPUAllocsEclipse{T1<:AF}
 
     allwavs::CuArray{T1,3}
     allints::CuArray{T1,3}
+
+    # bracketing tiles and limb-angle weight for interp_mu; unused when the flag is off
+    dat_idx_lo::CuArray{Int32,2}
+    dat_idx_hi::CuArray{Int32,2}
+    dat_wt::CuArray{T1,2}
 end
 
 function GPUAllocsEclipse(spec::SpecParams, disk::DiskParamsEclipse, lines_number::Int; precision::DataType=Float64, verbose::Bool=true)
@@ -67,6 +72,13 @@ function GPUAllocsEclipse(spec::SpecParams, disk::DiskParamsEclipse, lines_numbe
         allints = CUDA.zeros(precision, Nϕ, Nθ_max, 200)
     end
 
+    # allocate memory for the interpolation tiles
+    CUDA.@sync  begin
+        dat_idx_lo = CUDA.zeros(Int32, Nϕ, Nθ_max)
+        dat_idx_hi = CUDA.zeros(Int32, Nϕ, Nθ_max)
+        dat_wt = CUDA.zeros(precision, Nϕ, Nθ_max)
+    end
+
     return GPUAllocsEclipse(λs_gpu, prof_gpu, flux_gpu, μs, dA, ld, mf, contrast, projected_v, earth_v, ext, z_rot, z_cbs, tloop_gpu,
-                     dat_idx, ax_code, allwavs, allints)
+                     dat_idx, ax_code, allwavs, allints, dat_idx_lo, dat_idx_hi, dat_wt)
 end

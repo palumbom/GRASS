@@ -2,7 +2,8 @@ function disk_sim_eclipse_gpu(spec::SpecParams{T1}, disk::DiskParamsEclipse{T1},
                                soldata::GPUSolarData{T2}, gpu_allocs::GPUAllocsEclipse{T2},
                                flux_cpu::AA{T1,2}, obs_long::T1, obs_lat::T1, alt::T1, time_stamps::Vector{String}, wavelength,
                                ext_coeff, ext_toggle_gpu::Bool, spot_toggle_gpu::Bool, LD_type::String;
-                               skip_times::BitVector=falses(disk.Nt)) where {T1<:AF, T2<:AF}
+                               skip_times::BitVector=falses(disk.Nt),
+                               interp_mu::Bool=false, pool_axes::Bool=false) where {T1<:AF, T2<:AF}
 
     # get dimensions for memory alloc
     Nt = disk.Nt
@@ -69,9 +70,34 @@ function disk_sim_eclipse_gpu(spec::SpecParams{T1}, disk::DiskParamsEclipse{T1},
     threads6 = (4, 16)
     blocks6 = cld(length(lenall_gpu) * 100, prod(threads6))
 
-    CUDA.@sync  @cuda threads=threads6 blocks=blocks6 GRASS.time_average_bis!(lenall_gpu, bisall_mean, intall_mean, 
-                                                                    widall_mean, bisall_gpu, intall_gpu, 
+    CUDA.@sync  @cuda threads=threads6 blocks=blocks6 GRASS.time_average_bis!(lenall_gpu, bisall_mean, intall_mean,
+                                                                    widall_mean, bisall_gpu, intall_gpu,
                                                                     widall_gpu)
+
+    # interp_mu / pool_axes: time means of the TRIMMED arrays, recomputed per line inside the
+    # epoch loop because trim_bisector_gpu! rewrites the _loop arrays per line, and their
+    # axis-pooled copies. Allocated uninitialised: the kernels write every element, and a fill
+    # here would be a kernel launch ahead of generate_tloop_gpu!, which changes the
+    # granulation draw. With both flags off these alias the raw means and are never read.
+    adjust_means = interp_mu | pool_axes
+    if adjust_means
+        bis_mean_trim = CuArray{CUDA.eltype(bisall_gpu)}(undef, 100, CUDA.size(bisall_gpu, 3))
+        int_mean_trim = CuArray{CUDA.eltype(intall_gpu)}(undef, 100, CUDA.size(intall_gpu, 3))
+        wid_mean_trim = CuArray{CUDA.eltype(widall_gpu)}(undef, 100, CUDA.size(widall_gpu, 3))
+    else
+        bis_mean_trim = bisall_mean
+        int_mean_trim = intall_mean
+        wid_mean_trim = widall_mean
+    end
+    if pool_axes
+        bis_mean_src = CuArray{CUDA.eltype(bisall_gpu)}(undef, 100, CUDA.size(bisall_gpu, 3))
+        int_mean_src = CuArray{CUDA.eltype(intall_gpu)}(undef, 100, CUDA.size(intall_gpu, 3))
+        wid_mean_src = CuArray{CUDA.eltype(widall_gpu)}(undef, 100, CUDA.size(widall_gpu, 3))
+    else
+        bis_mean_src = bis_mean_trim
+        int_mean_src = int_mean_trim
+        wid_mean_src = wid_mean_trim
+    end
 
     if ext_toggle_gpu == true
         ext_toggle_gpu = 1.0
@@ -96,6 +122,14 @@ function disk_sim_eclipse_gpu(spec::SpecParams{T1}, disk::DiskParamsEclipse{T1},
         if isone(t)
             # generate the random numbers on the gpu
             CUDA.@sync  @cuda threads=threads1 blocks=blocks1 GRASS.generate_tloop_gpu!(tloop, dat_idx, lenall_gpu)
+        end
+
+        # interp_mu: bracketing tiles and limb-angle weights for this epoch's geometry, and
+        # the interpolated z_cbs. MUST stay below generate_tloop_gpu!: that kernel draws
+        # rand() on the device, the device RNG advances per kernel launch, and an extra launch
+        # ahead of it changes the granulation realization.
+        if interp_mu
+            get_interp_keys_gpu!(gpu_allocs, soldata)
         end
 
         # don't synthesize spectrum if skip_times is true, but iterate t index
@@ -126,12 +160,28 @@ function disk_sim_eclipse_gpu(spec::SpecParams{T1}, disk::DiskParamsEclipse{T1},
                                                                              widall_gpu_loop, bisall_gpu,
                                                                              intall_gpu, widall_gpu)
 
+            # interp_mu / pool_axes: time mean of the trimmed arrays, on their common depth
+            # index, and the axis-pooled copy
+            if adjust_means
+                CUDA.@sync  @cuda threads=threads6 blocks=blocks6 GRASS.time_average_bis!(lenall_gpu, bis_mean_trim, int_mean_trim,
+                                                                                wid_mean_trim, bisall_gpu_loop, intall_gpu_loop,
+                                                                                widall_gpu_loop)
+            end
+            if pool_axes
+                CUDA.@sync  @cuda threads=threads6 blocks=blocks6 GRASS.pool_axis_means_gpu!(bis_mean_src, int_mean_src, wid_mean_src,
+                                                                                bis_mean_trim, int_mean_trim, wid_mean_trim,
+                                                                                soldata.mu)
+            end
+
             # assemble line shape on even int grid
             CUDA.@sync  @cuda threads=threads3 blocks=blocks3 fill_workspaces_2D_eclipse!(spec.lines[l], spec.variability[l], extra_z[l],
                                                                            tloop, dat_idx,
                                                                            z_rot, z_cbs, lenall_gpu,
                                                                            bisall_gpu_loop, intall_gpu_loop,
-                                                                           widall_gpu_loop, allwavs, allints, contrast)
+                                                                           widall_gpu_loop, allwavs, allints, contrast,
+                                                                           interp_mu, pool_axes, gpu_allocs.dat_idx_lo, gpu_allocs.dat_idx_hi,
+                                                                           gpu_allocs.dat_wt, bis_mean_src, int_mean_src, wid_mean_src,
+                                                                           bis_mean_trim, int_mean_trim, wid_mean_trim)
             
             # do the line synthesis, interp back onto wavelength grid
             CUDA.@sync  @cuda threads=threads4 blocks=blocks4 GRASS.line_profile_gpu!(l, prof, μs, ld, dA, ext, λs, allwavs, allints, ext_toggle_gpu)
@@ -158,7 +208,8 @@ function disk_sim_eclipse_gpu(spec::SpecParams{T1}, disk::DiskParamsEclipse{T1},
                                flux_cpu::AA{T1,2}, obs_long::T1, obs_lat::T1, alt::T1, time_stamps::Vector{String}, wavelength,
                                ext_coeff, CB1, CB2, CB3; skip_times::BitVector=falses(disk.Nt),
                                data_cbs::Bool=true,
-                               static_bisector::Bool=false) where {T1<:AF, T2<:AF}
+                               static_bisector::Bool=false,
+                               interp_mu::Bool=false, pool_axes::Bool=false) where {T1<:AF, T2<:AF}
 
     # get dimensions for memory alloc
     Nt = disk.Nt
@@ -225,9 +276,34 @@ function disk_sim_eclipse_gpu(spec::SpecParams{T1}, disk::DiskParamsEclipse{T1},
     threads6 = (4, 16)
     blocks6 = cld(length(lenall_gpu) * 100, prod(threads6))
 
-    CUDA.@sync  @cuda threads=threads6 blocks=blocks6 GRASS.time_average_bis!(lenall_gpu, bisall_mean, intall_mean, 
-                                                                    widall_mean, bisall_gpu, intall_gpu, 
+    CUDA.@sync  @cuda threads=threads6 blocks=blocks6 GRASS.time_average_bis!(lenall_gpu, bisall_mean, intall_mean,
+                                                                    widall_mean, bisall_gpu, intall_gpu,
                                                                     widall_gpu)
+
+    # interp_mu / pool_axes: time means of the TRIMMED arrays, recomputed per line inside the
+    # epoch loop because trim_bisector_gpu! rewrites the _loop arrays per line, and their
+    # axis-pooled copies. Allocated uninitialised: the kernels write every element, and a fill
+    # here would be a kernel launch ahead of generate_tloop_gpu!, which changes the
+    # granulation draw. With both flags off these alias the raw means and are never read.
+    adjust_means = interp_mu | pool_axes
+    if adjust_means
+        bis_mean_trim = CuArray{CUDA.eltype(bisall_gpu)}(undef, 100, CUDA.size(bisall_gpu, 3))
+        int_mean_trim = CuArray{CUDA.eltype(intall_gpu)}(undef, 100, CUDA.size(intall_gpu, 3))
+        wid_mean_trim = CuArray{CUDA.eltype(widall_gpu)}(undef, 100, CUDA.size(widall_gpu, 3))
+    else
+        bis_mean_trim = bisall_mean
+        int_mean_trim = intall_mean
+        wid_mean_trim = widall_mean
+    end
+    if pool_axes
+        bis_mean_src = CuArray{CUDA.eltype(bisall_gpu)}(undef, 100, CUDA.size(bisall_gpu, 3))
+        int_mean_src = CuArray{CUDA.eltype(intall_gpu)}(undef, 100, CUDA.size(intall_gpu, 3))
+        wid_mean_src = CuArray{CUDA.eltype(widall_gpu)}(undef, 100, CUDA.size(widall_gpu, 3))
+    else
+        bis_mean_src = bis_mean_trim
+        int_mean_src = int_mean_trim
+        wid_mean_src = wid_mean_trim
+    end
 
     # static_bisector keeps the line asymmetry but removes its time evolution, by giving every
     # epoch of each tile the time-averaged profile that time_average_bis! just computed. That
@@ -251,6 +327,13 @@ function disk_sim_eclipse_gpu(spec::SpecParams{T1}, disk::DiskParamsEclipse{T1},
         if isone(t)
             # generate the random numbers on the gpu
             CUDA.@sync  @cuda threads=threads1 blocks=blocks1 GRASS.generate_tloop_gpu!(tloop, dat_idx, lenall_gpu)
+        end
+
+        # interp_mu: bracketing tiles and limb-angle weights for this epoch's geometry, and
+        # the interpolated z_cbs (which the data_cbs zeroing below then overrides). MUST stay
+        # below generate_tloop_gpu!, for the reason given at the data_cbs block.
+        if interp_mu
+            get_interp_keys_gpu!(gpu_allocs, soldata)
         end
 
         # data_cbs = false drops the data-driven convective blueshift while keeping the
@@ -295,6 +378,19 @@ function disk_sim_eclipse_gpu(spec::SpecParams{T1}, disk::DiskParamsEclipse{T1},
                                                                              widall_gpu_loop, bisall_gpu,
                                                                              intall_gpu, widall_gpu)
 
+            # interp_mu / pool_axes: time mean of the trimmed arrays, on their common depth
+            # index, and the axis-pooled copy
+            if adjust_means
+                CUDA.@sync  @cuda threads=threads6 blocks=blocks6 GRASS.time_average_bis!(lenall_gpu, bis_mean_trim, int_mean_trim,
+                                                                                wid_mean_trim, bisall_gpu_loop, intall_gpu_loop,
+                                                                                widall_gpu_loop)
+            end
+            if pool_axes
+                CUDA.@sync  @cuda threads=threads6 blocks=blocks6 GRASS.pool_axis_means_gpu!(bis_mean_src, int_mean_src, wid_mean_src,
+                                                                                bis_mean_trim, int_mean_trim, wid_mean_trim,
+                                                                                soldata.mu)
+            end
+
             # assemble line shape on even int grid. `variability` gates the bisector (line
             # asymmetry and its time evolution) in trim_bisector_gpu! above, and here it gates
             # z_cbs and the extra_z that re-references it. The data_cbs switch acts on the
@@ -303,7 +399,10 @@ function disk_sim_eclipse_gpu(spec::SpecParams{T1}, disk::DiskParamsEclipse{T1},
                                                                            tloop, dat_idx,
                                                                            z_rot, z_cbs, lenall_gpu,
                                                                            bisall_gpu_loop, intall_gpu_loop,
-                                                                           widall_gpu_loop, allwavs, allints, contrast)
+                                                                           widall_gpu_loop, allwavs, allints, contrast,
+                                                                           interp_mu, pool_axes, gpu_allocs.dat_idx_lo, gpu_allocs.dat_idx_hi,
+                                                                           gpu_allocs.dat_wt, bis_mean_src, int_mean_src, wid_mean_src,
+                                                                           bis_mean_trim, int_mean_trim, wid_mean_trim)
             
             # do the line synthesis, interp back onto wavelength grid
             CUDA.@sync  @cuda threads=threads4 blocks=blocks4 GRASS.line_profile_gpu!(l, prof, μs, ld, dA, ext, λs, allwavs, allints, ext_toggle_gpu)

@@ -44,28 +44,36 @@ Required SPICE kernels are fetched and furnished on the first call.
 - `use_gpu::Bool=false`: run the GPU implementation (requires a functional CUDA device).
 - `precision::DataType=Float64`: GPU precision (`Float32` or `Float64`); see [Caveats](@ref "Caveats").
 - `skip_times::BitVector=falses(disk.Nt)`: epochs to skip in the simulation loop.
+- `interp_mu::Bool=false`: interpolate each tile's time-mean line shape (bisector, width,
+  depth) and convective blueshift linearly in limb angle between the template's mu tiles,
+  instead of using the nearest tile. The granulation departure from the mean still comes
+  from the nearest tile. Cells below the lowest tile are clamped to it.
+- `pool_axes::Bool=false`: correct each tile's time-mean line shape toward the unweighted
+  mean over the tiles at its mu level, so the shape is axisymmetric while the granulation
+  departure still comes from the tile itself. Composes with `interp_mu`.
 """
-function synthesize_spectra_eclipse(spec::SpecParams{T}, disk::DiskParamsEclipse{T}, wavelength::Vector{Float64}, LD_type::String, 
-                                    obs_long::T, obs_lat::T, alt::T, time_stamps::Vector{String},                              
+function synthesize_spectra_eclipse(spec::SpecParams{T}, disk::DiskParamsEclipse{T}, wavelength::Vector{Float64}, LD_type::String,
+                                    obs_long::T, obs_lat::T, alt::T, time_stamps::Vector{String},
                                     ext_coeff; ext_toggle::Bool=false, seed_rng::Bool=false, verbose::Bool=true,
                                     use_gpu::Bool=false, precision::DataType=Float64,
-                                    skip_times::BitVector=falses(disk.Nt)) where T<:AF
+                                    skip_times::BitVector=falses(disk.Nt), interp_mu::Bool=false, pool_axes::Bool=false) where T<:AF
     # SPICE kernels are furnished at package load time in GRASS.Eclipse.__init__
 
     # call appropriate simulation function on cpu or gpu
     if use_gpu
         return synth_Eclipse_gpu(spec, disk, verbose, precision, skip_times, LD_type,
                                     obs_long, obs_lat, alt, time_stamps, wavelength, ext_coeff, ext_toggle, false,
-                                    seed_rng=seed_rng)
+                                    seed_rng=seed_rng, interp_mu=interp_mu, pool_axes=pool_axes)
     else
-        return synth_Eclipse_cpu(spec, disk, seed_rng, verbose, skip_times, LD_type, wavelength, 
-                                    time_stamps, obs_long, obs_lat, alt, ext_coeff, ext_toggle)
+        return synth_Eclipse_cpu(spec, disk, seed_rng, verbose, skip_times, LD_type, wavelength,
+                                    time_stamps, obs_long, obs_lat, alt, ext_coeff, ext_toggle, interp_mu=interp_mu, pool_axes=pool_axes)
     end
 end
 
 function synth_Eclipse_cpu(spec::SpecParams{T}, disk::DiskParamsEclipse{T}, seed_rng::Bool,
-                            verbose::Bool, skip_times::BitVector, LD_type::String, wavelength::Vector{Float64}, 
-                            time_stamps::Vector{String}, obs_long::T, obs_lat::T, alt::T, ext_coeff, ext_toggle::Bool) where T<:AF
+                            verbose::Bool, skip_times::BitVector, LD_type::String, wavelength::Vector{Float64},
+                            time_stamps::Vector{String}, obs_long::T, obs_lat::T, alt::T, ext_coeff, ext_toggle::Bool;
+                            interp_mu::Bool=false, pool_axes::Bool=false) where T<:AF
 
     # parse out dimensions for memory allocation
     N = disk.N
@@ -104,7 +112,8 @@ function synth_Eclipse_cpu(spec::SpecParams{T}, disk::DiskParamsEclipse{T}, seed
 
         # run the simulation and multiply flux by this spectrum
         GRASS.Eclipse.disk_sim_eclipse(spec_temp, disk, soldata, wsp, prof, flux, tloop, tloop_init, templates, idx, LD_type, wavelength, 
-                        time_stamps, obs_long, obs_lat, alt, ext_coeff, ext_toggle, skip_times=skip_times)
+                        time_stamps, obs_long, obs_lat, alt, ext_coeff, ext_toggle, skip_times=skip_times,
+                        interp_mu=interp_mu, pool_axes=pool_axes)
     end
     return spec.lambdas, flux
 end
@@ -112,7 +121,8 @@ end
 function synth_Eclipse_gpu(spec::SpecParams{T}, disk::DiskParamsEclipse{T},
                             verbose::Bool, precision::DataType, skip_times::BitVector, LD_type::String, 
                             obs_long::T, obs_lat::T, alt::T, time_stamps::Vector{String}, 
-                            wavelength, ext_coeff, ext_toggle::Bool, spot_toggle::Bool; seed_rng::Bool=false) where T<:AF
+                            wavelength, ext_coeff, ext_toggle::Bool, spot_toggle::Bool; seed_rng::Bool=false,
+                            interp_mu::Bool=false, pool_axes::Bool=false) where T<:AF
     # make sure there is actually a GPU to use
     @assert CUDA.functional()
 
@@ -156,7 +166,8 @@ function synth_Eclipse_gpu(spec::SpecParams{T}, disk::DiskParamsEclipse{T},
         # run the simulation and multiply flux by this spectrum
         GRASS.Eclipse.disk_sim_eclipse_gpu(spec_temp, disk, soldata, gpu_allocs, flux, 
                               obs_long, obs_lat, alt, time_stamps, wavelength, 
-                              ext_coeff, ext_toggle, spot_toggle, LD_type, skip_times=skip_times)
+                              ext_coeff, ext_toggle, spot_toggle, LD_type, skip_times=skip_times,
+                              interp_mu=interp_mu, pool_axes=pool_axes)
     end
     return spec.lambdas, flux
 end
@@ -165,7 +176,8 @@ function synth_Eclipse_gpu(spec::SpecParams{T}, disk::DiskParamsEclipse{T},
                             verbose::Bool, precision::DataType, skip_times::BitVector, 
                             obs_long::T, obs_lat::T, alt::T, time_stamps::Vector{String}, 
                             wavelength, ext_coeff, CB1, CB2, CB3; seed_rng::Bool=false,
-                            data_cbs::Bool=true, static_bisector::Bool=false) where T<:AF
+                            data_cbs::Bool=true, static_bisector::Bool=false,
+                            interp_mu::Bool=false, pool_axes::Bool=false) where T<:AF
     # make sure there is actually a GPU to use
     @assert CUDA.functional()
 
@@ -210,7 +222,7 @@ function synth_Eclipse_gpu(spec::SpecParams{T}, disk::DiskParamsEclipse{T},
         GRASS.Eclipse.disk_sim_eclipse_gpu(spec_temp, disk, soldata, gpu_allocs, flux, 
                               obs_long, obs_lat, alt, time_stamps, wavelength, 
                               ext_coeff, CB1, CB2, CB3, skip_times=skip_times, data_cbs=data_cbs,
-                              static_bisector=static_bisector)
+                              static_bisector=static_bisector, interp_mu=interp_mu, pool_axes=pool_axes)
     end
     return spec.lambdas, flux
 end

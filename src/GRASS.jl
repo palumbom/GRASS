@@ -78,6 +78,7 @@ include("observing/ObservationPlan.jl")
 # gpu implementation
 include("gpu/gpu_physics.jl")
 include("gpu/gpu_data.jl")
+include("gpu/gpu_mu_interp.jl")
 include("gpu/gpu_precomps.jl")
 include("gpu/gpu_trim.jl")
 include("gpu/gpu_sim.jl")

@@ -1232,6 +1232,31 @@ function get_keys_and_cbs_gpu!(gpu_allocs::GPUAllocsEclipse{T}, soldata::GPUSola
     return nothing
 end
 
+# bracketing tiles and limb-angle weights for interp_mu; overwrites z_cbs with the
+# interpolated value, so call it after get_keys_and_cbs_gpu!
+function get_interp_keys_gpu!(gpu_allocs::GPUAllocsEclipse{T}, soldata::GPUSolarData{T}) where T<:AF
+    # parse out gpu allocs
+    μs = gpu_allocs.μs
+    z_cbs = gpu_allocs.z_cbs
+    ax_codes = gpu_allocs.ax_codes
+    dat_idx_lo = gpu_allocs.dat_idx_lo
+    dat_idx_hi = gpu_allocs.dat_idx_hi
+    dat_wt = gpu_allocs.dat_wt
+
+    # parse out soldata
+    cbsall = soldata.cbs
+    disc_mu = soldata.mu
+    disc_ax = soldata.ax
+
+    threads1 = 256
+    blocks1 = cld(length(μs), prod(threads1))
+
+    CUDA.@sync  @captured @cuda threads=threads1 blocks=blocks1 GRASS.get_interp_keys_gpu!(dat_idx_lo, dat_idx_hi, dat_wt, z_cbs,
+                                                                                  μs, ax_codes, cbsall, disc_mu, disc_ax)
+    CUDA.synchronize()
+    return nothing
+end
+
 function calc_grid_edge_xyz!(ϕe, θe, xs, ys, zs, sun_radius, sun_rot_mat, OS_bary)
     # get indices from GPU blocks + threads
     idx = threadIdx().x + blockDim().x * (blockIdx().x-1)

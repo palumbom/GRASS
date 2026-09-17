@@ -17,7 +17,12 @@ end
 function find_data_index_gpu(μ, ax_val, disc_mu, disc_ax)
     # find the nearest mu ind and ax code
     mu_ind = searchsortednearest_gpu(disc_mu, μ)
+    return find_data_index_at_mu_gpu(mu_ind, ax_val, disc_mu, disc_ax)
+end
 
+# tile index for the mu level that disc_mu[mu_ind] belongs to: on axis ax_val if that level
+# has it, otherwise the level's first tile. mu_ind may point anywhere inside the level.
+function find_data_index_at_mu_gpu(mu_ind, ax_val, disc_mu, disc_ax)
     # return immediately if nearest mu is disk center
     if mu_ind == CUDA.length(disc_mu)
         return CUDA.length(disc_mu)

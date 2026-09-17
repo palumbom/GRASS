@@ -148,9 +148,15 @@ function get_key_for_pos(μ::T, ax::Int, disc_mu::AA{T,1}, disc_ax::AA{Int,1}) w
         return (:off, :off)
     end
 
-    # find the nearest mu and return early if near disk center
+    # find the nearest mu and return the key at that level
     mu_ind = GRASS.searchsortednearest(disc_mu, μ)
-    if disc_mu[mu_ind] == 1.0
+    return get_key_at_mu_level(disc_mu[mu_ind], ax, disc_mu, disc_ax)
+end
+
+# key for the tile at level mu_val: on axis ax if that level has it, otherwise the level's
+# first axis. Disk centre is the single tile (:c, :mu10).
+function get_key_at_mu_level(mu_val::T, ax::Int, disc_mu::AA{T,1}, disc_ax::AA{Int,1}) where T<:AF
+    if mu_val == 1.0
         return (:c, :mu10)
     end
 
@@ -158,8 +164,7 @@ function get_key_for_pos(μ::T, ax::Int, disc_mu::AA{T,1}, disc_ax::AA{Int,1}) w
     ax_val = copy(ax)
 
     # find subarray of disc_mu and disk_ax matching mu
-    idxs = findall(disc_mu .== disc_mu[mu_ind])
-    mu_view = view(disc_mu, idxs)
+    idxs = findall(disc_mu .== mu_val)
     ax_view = view(disc_ax, idxs)
 
     # move to new axis if it isn't present in the data
@@ -168,9 +173,37 @@ function get_key_for_pos(μ::T, ax::Int, disc_mu::AA{T,1}, disc_ax::AA{Int,1}) w
     end
 
     # convert mu and ax codes to symbol key
-    mu_symb = GRASS.mu_to_symb(disc_mu[mu_ind])
+    mu_symb = GRASS.mu_to_symb(mu_val)
     ax_symb = ax_code_to_symbol(ax_val)
     return (ax_symb, mu_symb)
+end
+
+# Bracketing tiles and weight for interpolating the time-mean line shape over limb angle
+# theta = acos(mu): (key_lo, key_hi, w) with w the weight of key_hi, linear in theta. Beyond
+# either end of the mu grid the cell is clamped to the end tile with w = 0; there is no
+# extrapolation below the lowest tile. Must match get_interp_keys_gpu! exactly.
+function get_interp_keys_for_pos(μ::T, ax::Int, disc_mu::AA{T,1}, disc_ax::AA{Int,1}) where T<:AF
+    if μ <= 0.0
+        return (:off, :off), (:off, :off), zero(T)
+    end
+
+    if μ >= disc_mu[end]
+        return (:c, :mu10), (:c, :mu10), zero(T)
+    elseif μ <= disc_mu[1]
+        key = get_key_at_mu_level(disc_mu[1], ax, disc_mu, disc_ax)
+        return key, key, zero(T)
+    end
+
+    # disc_mu is sorted ascending with repeats: ih is the first tile of the level at or
+    # above μ, ih - 1 the last tile of the level strictly below it
+    ih = searchsortedfirst(disc_mu, μ)
+    il = ih - 1
+    θ_lo = acos(disc_mu[il])
+    θ_hi = acos(disc_mu[ih])
+    w = (θ_lo - acos(μ)) / (θ_lo - θ_hi)
+    key_lo = get_key_at_mu_level(disc_mu[il], ax, disc_mu, disc_ax)
+    key_hi = get_key_at_mu_level(disc_mu[ih], ax, disc_mu, disc_ax)
+    return key_lo, key_hi, w
 end
 
 function key_to_code(key, soldata)

@@ -34,8 +34,13 @@ struct SynthWorkspaceEclipse{T<:AF}
 
     cbs::AA{T,2}
     z_rot::AA{T,3} 
-    ax_codes::AA{Int,3} 
+    ax_codes::AA{Int,3}
     keys::AA{Tuple{Symbol, Symbol},2}
+
+    # bracketing tiles and limb-angle weight for interp_mu; unused when the flag is off
+    keys_lo::AA{Tuple{Symbol, Symbol},2}
+    keys_hi::AA{Tuple{Symbol, Symbol},2}
+    wts::AA{T,2}
 end
 
 function SynthWorkspaceEclipse(disk::DiskParamsEclipse, lines_number::Int, time_number::Int; ndepths::Integer=100, verbose::Bool=true)
@@ -61,6 +66,9 @@ function SynthWorkspaceEclipse(disk::DiskParamsEclipse, lines_number::Int, time_
     ax_codes = zeros(Int, size(disk.θc)..., time_number)
     cbs = zeros(size(disk.θc)...)
     keys = repeat([(:off,:off)], size(disk.θc)...)
+    keys_lo = repeat([(:off,:off)], size(disk.θc)...)
+    keys_hi = repeat([(:off,:off)], size(disk.θc)...)
+    wts = zeros(size(disk.θc)...)
 
     mean_weight_v_no_cb = zeros(length(disk.ϕc), maximum(disk.Nθ), time_number)
     mean_weight_v_earth_orb = zeros(length(disk.ϕc), maximum(disk.Nθ), time_number)
@@ -80,5 +88,6 @@ function SynthWorkspaceEclipse(disk::DiskParamsEclipse, lines_number::Int, time_
     return SynthWorkspaceEclipse(lwavgrid, rwavgrid, allwavs, allints,
                           bist, intt, widt, SP_sun_pos, SP_sun_vel, v_scalar_grid, pole_vector_grid, SP_bary_pos, SP_bary_vel, mu_grid,
                           projected_velocities_no_cb, SP_bary, OP_bary, v_earth_orb_proj, distance, mean_weight_v_no_cb, mean_weight_v_earth_orb,
-                          z_cbs, ϕc, θc, μs, ld, ext, dA, xyz, cbs, z_rot, ax_codes, keys)
+                          z_cbs, ϕc, θc, μs, ld, ext, dA, xyz, cbs, z_rot, ax_codes, keys,
+                          keys_lo, keys_hi, wts)
 end
