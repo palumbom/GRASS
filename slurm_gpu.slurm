@@ -11,11 +11,13 @@
 #SBATCH --chdir=/storage/home/efg5335/work/sw/GRASS/
 #SBATCH --output=/storage/home/efg5335/work/sw/GRASS/DISCO_GRASS_RV.out
 
+set -euo pipefail
+
 echo "About to start: $SLURM_JOB_NAME"
 date
 echo "Job id: $SLURM_JOBID"
 echo "About to change into $SLURM_SUBMIT_DIR"
-cd $SLURM_SUBMIT_DIR
+cd "$SLURM_SUBMIT_DIR"
 echo "About to start Julia"
 export JULIA_NUM_THREADS=$SLURM_CPUS_PER_TASK
 julia DISCO_GRASS_RV.jl

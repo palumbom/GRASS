@@ -29,7 +29,7 @@ lp = GRASS.LineProperties(exclude=["CI_5380", "NaI_5896"])
 airwav = lp.λrest
 vacwav = λ_air_to_vac.(airwav)
 
-h5_path = "/storage/home/efg5335/work/sw/DISCO/GRASS/disco_fe5250_params.h5"
+h5_path = "/storage/home/efg5335/work/sw/DISCO/GRASS/data/disco_Fe5250_params.h5"
 
 ext_coeff_array = [0.1438304560465685, 0.14187742832512693, 0.13654937950870977, 0.14419842183655923, 0.14115839420550458, 0.14047784709222405, 0.14049571462886706, 0.13818879691113792, 0.1379956369831025, 0.13882870569602473, 0.149398324507696, 0.14520869968191066, 0.1313769827201566, 0.14333447289898554, 0.11728672038270234, 0.11659734374312607, 0.11770608713085821, 0.10661103669476844, 0.13294933300463282, 0.1133352805918017, 0.1140511945282083, 0.11058541481581312]
 function neid_all_lines_gpu(time_stamps, granulation_status, LD_type, ext_toggle, spot_toggle)
@@ -53,11 +53,11 @@ function neid_all_lines_gpu(time_stamps, granulation_status, LD_type, ext_toggle
     #original
     rv = Vector{Vector{Float64}}(undef,size(name)...)
     rv_error = Vector{Vector{Float64}}(undef,size(name)...)
-    rv_asymmetric_lsf_inner = Vector{Float64}(undef,size(time_stamps)...)
-    rv_error_asymmetric_lsf_inner = Vector{Float64}(undef,size(time_stamps)...)
     resolution = 7e5
     orders = [57, 57, 60, 60, 60, 60, 61, 61, 61, 61, 61, 61, 64, 64, 74, 74, 75, 75, 75, 75, 77, 77]
     for i in 1:1#eachindex(lp.λrest) 
+        rv_asymmetric_lsf_inner = Vector{Float64}(undef,size(time_stamps)...)
+        rv_error_asymmetric_lsf_inner = Vector{Float64}(undef,size(time_stamps)...)
         data = jldopen("/storage/home/efg5335/work/completed/NEIDEclipse/data/convolution/NEID_convolution_info$(i).jld2", "r") do file
             Dict(var => read(file, var) for var in variable_names)
         end
@@ -102,4 +102,4 @@ function neid_october_eclipse_var_on_gpu(LD_type, ext_toggle, spot_toggle)
     end
 end
 
-neid_october_eclipse_var_on_gpu("SSD_4parameter", false, true)
+neid_october_eclipse_var_on_gpu("SSD_4parameter", true, true)

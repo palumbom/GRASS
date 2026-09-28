@@ -15,6 +15,7 @@
 *.bpc
 *.tf
 *.nfs*
+*.png
 
 # specific files/directories
 docs/src/index.md

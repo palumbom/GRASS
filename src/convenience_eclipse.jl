@@ -131,6 +131,18 @@ function synth_Eclipse_gpu(spec::SpecParams{T}, disk::DiskParamsEclipse{T},
 
     # get number of calls to disk_sim needed
     templates = unique(spec.templates)
+    disco_params = if disco_toggle
+        length(spec.lines) == 1 ||
+            throw(ArgumentError("DISCO synthesis supports exactly one spectral line"))
+        params = DISCOParams(h5_path)
+        line_nm = Float32(spec.lines[1] / 10)
+        params.wavelength[1] <= line_nm <= params.wavelength[end] ||
+            throw(ArgumentError(
+                "Requested line center $(spec.lines[1]) Å is outside the DISCO wavelength range"))
+        to_device(params)
+    else
+        nothing
+    end
 
     # allocate memory needed for rossiter computations
     gpu_allocs = GPUAllocsEclipse(spec, disk, Int(length(wavelength)), precision=precision, verbose=verbose)
@@ -144,9 +156,6 @@ function synth_Eclipse_gpu(spec::SpecParams{T}, disk::DiskParamsEclipse{T},
         if verbose
             println("\t>>> Template: " * splitdir(file)[end])
         end
-        soldata_cpu = SolarData(fname=file)
-        soldata = GPUSolarData(soldata_cpu, precision=precision)
-
         # re-seed host and device rngs so the granulation draws are reproducible
         if seed_rng
             Random.seed!(42)
@@ -154,11 +163,12 @@ function synth_Eclipse_gpu(spec::SpecParams{T}, disk::DiskParamsEclipse{T},
         end
 
         if disco_toggle
-            disco_params = load_disco_fe5250(h5_path)
-            GRASS.Eclipse.disk_sim_eclipse_disco_gpu(spec_temp, disk, soldata, gpu_allocs, flux, 
+            GRASS.Eclipse.disk_sim_eclipse_disco_gpu(spec_temp, disk, gpu_allocs, flux,
                                 obs_long, obs_lat, alt, time_stamps, wavelength, 
                                 ext_coeff, ext_toggle, spot_toggle, LD_type, disco_params, skip_times=skip_times)
         else
+            soldata_cpu = SolarData(fname=file)
+            soldata = GPUSolarData(soldata_cpu, precision=precision)
             # run the simulation and multiply flux by this spectrum
             GRASS.Eclipse.disk_sim_eclipse_gpu(spec_temp, disk, soldata, gpu_allocs, flux, 
                                 obs_long, obs_lat, alt, time_stamps, wavelength, 

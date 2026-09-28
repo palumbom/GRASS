@@ -101,8 +101,8 @@ export SpecParams, DiskParams, LineProperties, SolarData, synthesize_spectra,
 # module GRASSe # eclipse submodule
 module Eclipse # eclipse submodule
 
-include("/storage/home/efg5335/work/sw/DISCO/GRASS/src/disco_fe5250.jl")
-using .DISCOFe5250
+include("/storage/home/efg5335/work/sw/DISCO/GRASS/src/DISCOJulia.jl")
+using .DISCOJulia
 
 # inherit from parent module
 using CSV

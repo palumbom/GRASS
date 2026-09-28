@@ -1,6 +1,6 @@
 function disk_sim_eclipse_disco_gpu(
     spec::SpecParams{T1}, disk::DiskParamsEclipse{T1}, 
-    soldata::GPUSolarData{T2}, gpu_allocs::GPUAllocsEclipse{T2},
+    gpu_allocs::GPUAllocsEclipse{T2},
     flux_cpu::AA{T1,2}, obs_long::T1, obs_lat::T1, alt::T1, time_stamps::Vector{String}, wavelength,
     ext_coeff, ext_toggle_gpu::Bool, spot_toggle_gpu::Bool, LD_type::String,
     disco_params::DISCOParamsDevice;
@@ -16,9 +16,6 @@ function disk_sim_eclipse_disco_gpu(
     prof = gpu_allocs.prof
     flux = gpu_allocs.flux
 
-    tloop = gpu_allocs.tloop
-    dat_idx = gpu_allocs.dat_idx
-
     μs = gpu_allocs.μs
     ld = gpu_allocs.ld
     ext = gpu_allocs.ext
@@ -26,26 +23,20 @@ function disk_sim_eclipse_disco_gpu(
     z_rot = gpu_allocs.z_rot
     contrast = gpu_allocs.contrast
 
-    # Alias length array for random number loop bounds
-    lenall_gpu = soldata.len
-
     n_patches = CUDA.length(μs)
-    # 0. Initialize output flux to continuum (1.0) and profile workspace to 0.0
-    CUDA.fill!(flux, 1.0)
+    # DISCO supplies the line profile; LARS input profiles are not used on this path.
+    # Preserve flux across templates; GPUAllocsEclipse initializes it to continuum.
     CUDA.fill!(prof, 0.0)
 
     # Thread/block configurations matching 2D CUDA grid conventions
-    threads1 = 1024
-    blocks1 = cld(n_patches, prod(threads1))
-
     threads4 = (16, 16)
     blocks4 = (cld(n_patches, 16), cld(Nλ, 16))
 
     threads5 = 1024
     blocks5 = cld(CUDA.length(prof), prod(threads5))
 
-    ext_toggle_val = ext_toggle_gpu ? 1.0 : 0.0
-    spot_toggle_val = spot_toggle_gpu ? 1.0 : 0.0
+    ext_toggle_val = ext_toggle_gpu ? T1(1) : T1(0)
+    spot_toggle_val = spot_toggle_gpu ? T1(1) : T1(0)
 
     # Loop over time steps
     for t in 1:Nt
@@ -55,12 +46,7 @@ function disk_sim_eclipse_disco_gpu(
             ext_toggle_val, ext_coeff, disk, gpu_allocs, spot_toggle_val
         )
 
-        if isone(t)
-            CUDA.@sync @cuda threads=threads1 blocks=blocks1 GRASS.generate_tloop_gpu!(tloop, dat_idx, lenall_gpu)
-        end
-
         if skip_times[t]
-            CUDA.@sync @captured @cuda threads=threads1 blocks=blocks1 GRASS.iterate_tloop_gpu!(tloop, dat_idx, lenall_gpu)
             continue
         end
 
@@ -87,8 +73,6 @@ function disk_sim_eclipse_disco_gpu(
             CUDA.@sync @cuda threads=threads5 blocks=blocks5 GRASS.apply_line!(t, prof, flux, sum_wts)
         end
 
-        # Iterate time loop index
-        CUDA.@sync @captured @cuda threads=threads1 blocks=blocks1 GRASS.iterate_tloop_gpu!(tloop, dat_idx, lenall_gpu)
     end
 
     # Copy output flux matrix from GPU to host CPU
@@ -119,10 +103,9 @@ function line_profile_disco_gpu!(
     n_patches = CUDA.length(μs)
     n_λ = CUDA.length(λs)
 
-    # Rest frame limits in nm from DISCO parameter model
+    # Rest-frame limits and samples in nm from DISCO's wavelength table.
     rest_lo = p_disco.wavelength[1]
     rest_hi = p_disco.wavelength[Int(p_disco.n_wave)]
-    rest_step = (rest_hi - rest_lo) / Float32(p_disco.n_wave - Int32(1))
 
     # Parallelized loop over active disk patches
     for i in idx:sdx:n_patches
@@ -136,6 +119,7 @@ function line_profile_disco_gpu!(
         if μ <= 0.0f0
             continue
         end
+        μ_disco = Float32(μ)
 
         # Patch weight: dA * limb_darkening [* extinction_mask]
         w = dA[m, n] * ld[m, n, l]
@@ -152,18 +136,28 @@ function line_profile_disco_gpu!(
         for j in idy:sdy:n_λ
             λ_obs = λs[j]
             # Convert GRASS observer wavelength (Å) to DISCO rest frame (nm)
-            λ_rest_nm = (λ_obs / 10.0f0) / z_tot
+            λ_rest_nm = Float32((λ_obs / 10.0) / z_tot)
 
-            pos = (λ_rest_nm - rest_lo) / rest_step
+            if λ_rest_nm >= rest_lo && λ_rest_nm <= rest_hi
+                # DISCO's wavelength table is not uniform; locate the actual
+                # bracketing samples instead of dividing by an average step.
+                lo = Int32(1)
+                hi = p_disco.n_wave
+                while hi - lo > Int32(1)
+                    mid = (lo + hi) ÷ Int32(2)
+                    if p_disco.wavelength[Int(mid)] <= λ_rest_nm
+                        lo = mid
+                    else
+                        hi = mid
+                    end
+                end
+                t = (λ_rest_nm - p_disco.wavelength[Int(lo)]) /
+                    (p_disco.wavelength[Int(lo + Int32(1))] -
+                     p_disco.wavelength[Int(lo)])
 
-            if pos >= 0.0f0 && pos <= Float32(p_disco.n_wave - Int32(1))
-                k = Int32(floor(pos))
-                k = min(k, p_disco.n_wave - Int32(2))
-                t = pos - Float32(k)
-
-                # Sample DISCO intensity at wavelength grid points k+1 and k+2
-                f0 = disco_intensity(p_disco, Float32(μ), k + Int32(1), Int32(i), epoch_seed)
-                f1 = disco_intensity(p_disco, Float32(μ), k + Int32(2), Int32(i), epoch_seed)
+                f0 = disco_intensity(p_disco, μ_disco, lo, Int32(i), epoch_seed)
+                f1 = disco_intensity(
+                    p_disco, μ_disco, lo + Int32(1), Int32(i), epoch_seed)
 
                 # Linear interpolation in wavelength
                 I_val = f0 + t * (f1 - f0)
