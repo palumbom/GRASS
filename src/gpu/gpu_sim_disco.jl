@@ -31,9 +31,12 @@ function disk_sim_eclipse_disco_gpu(
     # Thread/block configurations matching 2D CUDA grid conventions
     threads4 = (16, 16)
     blocks4 = (cld(n_patches, 16), cld(Nλ, 16))
+    disco_centroid_offsets = CUDA.zeros(Float32, n_patches)
 
     threads5 = 1024
     blocks5 = cld(CUDA.length(prof), prod(threads5))
+    threads_shift = 256
+    blocks_shift = cld(n_patches, threads_shift)
 
     ext_toggle_val = ext_toggle_gpu ? T1(1) : T1(0)
     spot_toggle_val = spot_toggle_gpu ? T1(1) : T1(0)
@@ -53,6 +56,11 @@ function disk_sim_eclipse_disco_gpu(
         # Seed per timestep for independent stochastic DISCO granulation draws per epoch
         epoch_seed = UInt32(0x12345678 + t)
 
+        CUDA.@sync @cuda threads=threads_shift blocks=blocks_shift disco_centroid_offset_gpu!(
+            disco_centroid_offsets, μs, disco_params, epoch_seed,
+            Float32(spec.lines[1] / 10)
+        )
+
         # Loop over spectral lines to synthesize
         for l in eachindex(spec.lines)
             if ext_toggle_gpu == true
@@ -65,8 +73,8 @@ function disk_sim_eclipse_disco_gpu(
 
             # 2. DISCO Line Profile Synthesis Kernel
             CUDA.@sync @cuda threads=threads4 blocks=blocks4 line_profile_disco_gpu!(
-                l, prof, μs, ld, dA, ext, λs, z_rot, contrast,
-                ext_toggle_val, disco_params, epoch_seed
+                l, prof, disco_centroid_offsets, μs, ld, dA, ext, λs, z_rot,
+                contrast, ext_toggle_val, disco_params, epoch_seed
             )
 
             # 3. Normalize and accumulate spectrum frame into output flux matrix
@@ -83,6 +91,50 @@ function disk_sim_eclipse_disco_gpu(
     return nothing
 end
 
+function disco_centroid_offset_gpu!(
+    offsets, μs, p_disco::DISCOParamsDevice, epoch_seed::UInt32, line_center
+)
+    idx = threadIdx().x + blockDim().x * (blockIdx().x - 1)
+    stride = blockDim().x * gridDim().x
+    nθ_max = CUDA.size(μs, 2)
+    n_wave = Int(p_disco.n_wave)
+    wavelength = p_disco.wavelength
+
+    for patch_id in idx:stride:CUDA.length(μs)
+        row = (patch_id - 1) ÷ nθ_max
+        col = (patch_id - 1) % nθ_max
+        μ = μs[row + 1, col + 1]
+        if μ <= 0.0f0
+            @inbounds offsets[patch_id] = 0.0f0
+            continue
+        end
+
+        μ_disco = Float32(μ)
+        area = 0.0f0
+        moment = 0.0f0
+        f0 = disco_intensity(
+            p_disco, μ_disco, Int32(1), Int32(patch_id), epoch_seed
+        )
+        for k in 1:(n_wave - 1)
+            λ0 = wavelength[k]
+            λ1 = wavelength[k + 1]
+            f1 = disco_intensity(p_disco, μ_disco, Int32(k + 1), Int32(patch_id), epoch_seed)
+            depth0 = max(1.0f0 - f0, 0.0f0)
+            depth1 = max(1.0f0 - f1, 0.0f0)
+            dλ = λ1 - λ0
+
+            area += 0.5f0 * (depth0 + depth1) * dλ
+            moment += 0.5f0 * (
+                (λ0 - line_center) * depth0 + (λ1 - line_center) * depth1
+            ) * dλ
+            f0 = f1
+        end
+        @inbounds offsets[patch_id] = area > 0.0f0 ? moment / area : 0.0f0
+    end
+
+    return nothing
+end
+
 """
     line_profile_disco_gpu!(...)
 
@@ -91,7 +143,7 @@ Applies local limb angle μ, rotation Doppler shift, limb darkening, and lunar o
 Line shape and convective blueshift are naturally produced by DISCO.
 """
 function line_profile_disco_gpu!(
-    l, prof, μs, ld, dA, ext, λs, z_rot, contrast,
+    l, prof, centroid_offsets, μs, ld, dA, ext, λs, z_rot, contrast,
     ext_toggle, p_disco::DISCOParamsDevice, epoch_seed::UInt32
 )
     idx = threadIdx().x + blockDim().x * (blockIdx().x - 1)
@@ -131,12 +183,14 @@ function line_profile_disco_gpu!(
 
         # Compute total Doppler shift factor (rotation)
         z_tot = (1.0f0 + z_rot[m, n])
+        λ_spot_correction_nm =
+            (1.0f0 - Float32(contrast[m, n])) * centroid_offsets[i]
 
         # Parallelized loop over observer wavelength grid points
         for j in idy:sdy:n_λ
             λ_obs = λs[j]
-            # Convert GRASS observer wavelength (Å) to DISCO rest frame (nm)
-            λ_rest_nm = Float32((λ_obs / 10.0) / z_tot)
+            # Scale the DISCO convective shift by the unspotted fraction.
+            λ_rest_nm = Float32((λ_obs / 10.0) / z_tot) + λ_spot_correction_nm
 
             if λ_rest_nm >= rest_lo && λ_rest_nm <= rest_hi
                 # DISCO's wavelength table is not uniform; locate the actual
