@@ -24,6 +24,7 @@ function disk_sim_eclipse_disco_gpu(
     contrast = gpu_allocs.contrast
 
     n_patches = CUDA.length(μs)
+    disco_continuum = CUDA.ones(Float32, n_patches)
     # DISCO supplies the line profile; LARS input profiles are not used on this path.
     # Preserve flux across templates; GPUAllocsEclipse initializes it to continuum.
     CUDA.fill!(prof, 0.0)
@@ -56,8 +57,11 @@ function disk_sim_eclipse_disco_gpu(
         # Seed per timestep for independent stochastic DISCO granulation draws per epoch
         epoch_seed = UInt32(0x12345678 + t)
 
+        CUDA.@sync @cuda threads=threads_shift blocks=blocks_shift disco_continuum_gpu!(
+            disco_continuum, μs, disco_params, epoch_seed
+        )
         CUDA.@sync @cuda threads=threads_shift blocks=blocks_shift disco_centroid_offset_gpu!(
-            disco_centroid_offsets, μs, disco_params, epoch_seed,
+            disco_centroid_offsets, disco_continuum, μs, disco_params, epoch_seed,
             Float32(spec.lines[1] / 10)
         )
 
@@ -73,8 +77,8 @@ function disk_sim_eclipse_disco_gpu(
 
             # 2. DISCO Line Profile Synthesis Kernel
             CUDA.@sync @cuda threads=threads4 blocks=blocks4 line_profile_disco_gpu!(
-                l, prof, disco_centroid_offsets, μs, ld, dA, ext, λs, z_rot,
-                contrast, ext_toggle_val, disco_params, epoch_seed
+                l, prof, disco_continuum, disco_centroid_offsets, μs, ld, dA,
+                ext, λs, z_rot, contrast, ext_toggle_val, disco_params, epoch_seed
             )
 
             # 3. Normalize and accumulate spectrum frame into output flux matrix
@@ -91,8 +95,43 @@ function disk_sim_eclipse_disco_gpu(
     return nothing
 end
 
+function disco_continuum_gpu!(
+    continuum, μs, p_disco::DISCOParamsDevice, epoch_seed::UInt32
+)
+    idx = threadIdx().x + blockDim().x * (blockIdx().x - 1)
+    stride = blockDim().x * gridDim().x
+    nθ_max = CUDA.size(μs, 2)
+    n_edge = 8
+
+    for patch_id in idx:stride:CUDA.length(μs)
+        row = (patch_id - 1) ÷ nθ_max
+        col = (patch_id - 1) % nθ_max
+        μ = μs[row + 1, col + 1]
+        if μ <= 0.0f0
+            @inbounds continuum[patch_id] = 1.0f0
+            continue
+        end
+
+        μ_disco = Float32(μ)
+        continuum_sum = 0.0f0
+        for k in 1:n_edge
+            continuum_sum += disco_intensity(
+                p_disco, μ_disco, Int32(k), Int32(patch_id), epoch_seed
+            )
+            continuum_sum += disco_intensity(
+                p_disco, μ_disco, p_disco.n_wave - Int32(k) + Int32(1),
+                Int32(patch_id), epoch_seed
+            )
+        end
+        @inbounds continuum[patch_id] = continuum_sum / Float32(2 * n_edge)
+    end
+
+    return nothing
+end
+
 function disco_centroid_offset_gpu!(
-    offsets, μs, p_disco::DISCOParamsDevice, epoch_seed::UInt32, line_center
+    offsets, continuum, μs, p_disco::DISCOParamsDevice, epoch_seed::UInt32,
+    line_center
 )
     idx = threadIdx().x + blockDim().x * (blockIdx().x - 1)
     stride = blockDim().x * gridDim().x
@@ -119,8 +158,8 @@ function disco_centroid_offset_gpu!(
             λ0 = wavelength[k]
             λ1 = wavelength[k + 1]
             f1 = disco_intensity(p_disco, μ_disco, Int32(k + 1), Int32(patch_id), epoch_seed)
-            depth0 = max(1.0f0 - f0, 0.0f0)
-            depth1 = max(1.0f0 - f1, 0.0f0)
+            depth0 = max(1.0f0 - f0 / continuum[patch_id], 0.0f0)
+            depth1 = max(1.0f0 - f1 / continuum[patch_id], 0.0f0)
             dλ = λ1 - λ0
 
             area += 0.5f0 * (depth0 + depth1) * dλ
@@ -143,8 +182,8 @@ Applies local limb angle μ, rotation Doppler shift, limb darkening, and lunar o
 Line shape and convective blueshift are naturally produced by DISCO.
 """
 function line_profile_disco_gpu!(
-    l, prof, centroid_offsets, μs, ld, dA, ext, λs, z_rot, contrast,
-    ext_toggle, p_disco::DISCOParamsDevice, epoch_seed::UInt32
+    l, prof, continuum, centroid_offsets, μs, ld, dA, ext, λs, z_rot,
+    contrast, ext_toggle, p_disco::DISCOParamsDevice, epoch_seed::UInt32
 )
     idx = threadIdx().x + blockDim().x * (blockIdx().x - 1)
     sdx = blockDim().x * gridDim().x
@@ -214,7 +253,7 @@ function line_profile_disco_gpu!(
                     p_disco, μ_disco, lo + Int32(1), Int32(i), epoch_seed)
 
                 # Linear interpolation in wavelength
-                I_val = f0 + t * (f1 - f0)
+                I_val = (f0 + t * (f1 - f0)) / continuum[i]
             else
                 # Outside line rest window: unabsorbed continuum (intensity = 1.0)
                 I_val = 1.0f0
