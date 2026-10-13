@@ -53,7 +53,6 @@ function neid_all_lines_gpu(time_stamps, granulation_status, LD_type, ext_toggle
     #original
     rv = Vector{Vector{Float64}}(undef,size(name)...)
     rv_error = Vector{Vector{Float64}}(undef,size(name)...)
-    resolution = 7e5
     orders = [57, 57, 60, 60, 60, 60, 61, 61, 61, 61, 61, 61, 64, 64, 74, 74, 75, 75, 75, 75, 77, 77]
     for i in 1:1#eachindex(lp.λrest) 
         rv_asymmetric_lsf_inner = Vector{Float64}(undef,size(time_stamps)...)
@@ -70,8 +69,21 @@ function neid_all_lines_gpu(time_stamps, granulation_status, LD_type, ext_toggle
         blueshifts = zeros(length(lines))   # set convective blueshift value
 
         # make the spec composite type instances
-        spec = GRASS.SpecParams(lines=lines, depths=depths,
-                        blueshifts=blueshifts, templates=templates, resolution=resolution) 
+        spec_generated = GRASS.SpecParams(lines=lines, depths=depths,
+                        blueshifts=blueshifts, templates=templates)
+        disco_wavelength_nm =
+            GRASS.Eclipse.DISCOJulia.DISCOParams(h5_path).wavelength
+        disco_lambdas = 10.0 .* Float64.(disco_wavelength_nm)
+        spec = GRASS.SpecParams(
+            spec_generated.lines,
+            spec_generated.depths,
+            spec_generated.geffs,
+            spec_generated.conv_blueshifts,
+            spec_generated.variability,
+            spec_generated.templates,
+            spec_generated.resolution,
+            disco_lambdas,
+        )
         
         lambdas, outspec = GRASS.Eclipse.synth_Eclipse_gpu(spec, disk, true, Float64, falses(disk.Nt), LD_type, obs_long, obs_lat, alt, time_stamps, lines, ext_coeff_array[i], ext_toggle, spot_toggle, true, h5_path; seed_rng=true)
         lambdas .= λ_air_to_vac.(lambdas)
