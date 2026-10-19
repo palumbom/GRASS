@@ -80,6 +80,32 @@ function sample_disco_device(p=sample_disco_params())
     )
 end
 
+function measured_core_offset(params, profile, reference_nm)
+    first_wave = searchsortedfirst(params.wavelength, reference_nm - 0.01)
+    last_wave = searchsortedlast(params.wavelength, reference_nm + 0.01)
+    core_idx = first_wave - 1 + argmin(profile[first_wave:last_wave])
+    correction = 0.0
+
+    if 1 < core_idx < length(profile)
+        x0, x1, x2 = Float64.(params.wavelength[core_idx - 1:core_idx + 1])
+        y0, y1, y2 = Float64.(profile[core_idx - 1:core_idx + 1])
+        h0 = x1 - x0
+        h1 = x2 - x1
+        slope0 = (y1 - y0) / h0
+        slope1 = (y2 - y1) / h1
+        quadratic = (slope1 - slope0) / (h0 + h1)
+        if quadratic > 0
+            correction = clamp(
+                -(slope0 + quadratic * h0) / (2 * quadratic),
+                -h0,
+                h1,
+            )
+        end
+    end
+
+    return Float64(params.wavelength[core_idx]) - reference_nm + correction
+end
+
 function expect_loader_error(path)
     try
         DISCOJulia.DISCOParams(path)
@@ -157,6 +183,8 @@ for line in DISCO_LINES
     check(length(model.wavelength) == model.n_wave, "$(line): wavelength shape")
     check(all(diff(model.wavelength) .> 0f0), "$(line): increasing wavelength grid")
     check(all(isfinite, model.mean_profiles[1]), "$(line): finite component profiles")
+    check(length(model.original_cb_offsets_nm) == model.n_mu,
+          "$(line): original CB samples and quadratic fit")
 
     line_device = DISCOJulia.DISCOParamsDevice(
         model.wavelength, model.mu_min, model.mu_max, Int32(model.n_mu),
@@ -166,6 +194,8 @@ for line in DISCO_LINES
         model.pca_coeff_grids[1], model.pca_coeff_grids[2], model.pca_coeff_grids[3],
         model.e1_alpha, model.e1_zeta, model.e1_omega, model.e1_med,
         model.e2_alpha, model.e2_zeta, model.e2_omega, model.e2_med,
+        model.original_cb_offsets_nm, model.cb_poly_c0_nm,
+        model.cb_poly_c1_nm_per_mu, model.cb_poly_c2_nm_per_mu2,
     )
     center_profile = Float32[
         DISCOJulia.disco_intensity(
@@ -173,6 +203,25 @@ for line in DISCO_LINES
         for wave in 1:model.n_wave
     ]
     check(all(isfinite, center_profile), "$(line): finite synthesized profile")
+
+    reference_nm = Dict(
+        "Fe5250" => 5250.2084,
+        "Fe6152" => 6151.6170,
+        "Fe6173" => 6173.3344,
+    )[line] / 10
+    for mu in Float32[0.0, model.mu_min, 0.5, 1.0]
+        profile = Float32[
+            DISCOJulia.disco_intensity(
+                line_device, mu, Int32(wave), Int32(1), UInt32(0))
+            for wave in 1:model.n_wave
+        ]
+        measured = measured_core_offset(model, profile, reference_nm)
+        target = DISCOJulia.cb_polynomial(model, mu)
+        check(
+            abs(measured - target) < 1f-4,
+            "$(line): synthesized CB follows polynomial at μ=$(mu)",
+        )
+    end
 end
 
 println("All DISCO CPU checks passed for: ", join(DISCO_LINES, ", "))
