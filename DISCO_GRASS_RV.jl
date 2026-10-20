@@ -81,7 +81,7 @@ function neid_all_lines_gpu(time_stamps, granulation_status, LD_type, ext_toggle
             spec_generated.conv_blueshifts,
             spec_generated.variability,
             spec_generated.templates,
-            spec_generated.resolution,
+            2e6,
             disco_lambdas,
         )
         
