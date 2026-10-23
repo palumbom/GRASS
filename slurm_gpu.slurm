@@ -1,6 +1,6 @@
 #!/bin/bash
-#SBATCH -A dfc13_mri
-#SBATCH -p mgc-mri
+#SBATCH -A open
+#SBATCH -p standard
 #SBATCH --gres=gpu
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
