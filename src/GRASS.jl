@@ -95,13 +95,12 @@ include("resolved.jl")
 export SpecParams, DiskParams, LineProperties, SolarData, synthesize_spectra,
        calc_ccf, calc_rvs_from_ccf, calc_rms, parse_args, check_plot_dirs,
        read_iag, calc_bisector, calc_bisector_inverse_slope, calc_bisector_span,
-       calc_bisector_bottom, calc_bisector_curvature, moving_average#,
-       #DiskParamsEclipse, simulate_rossiter, Planet
+       calc_bisector_bottom, calc_bisector_curvature, moving_average
 
 # module GRASSe # eclipse submodule
 module Eclipse # eclipse submodule
 
-include("/storage/home/efg5335/work/sw/DISCO/GRASS/src/DISCOJulia.jl")
+include("../../DISCO/line_creation/make_lines.jl")
 using .DISCOJulia
 
 # inherit from parent module

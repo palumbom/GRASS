@@ -112,7 +112,7 @@ end
 function synth_Eclipse_gpu(spec::SpecParams{T}, disk::DiskParamsEclipse{T},
                             verbose::Bool, precision::DataType, skip_times::BitVector, LD_type::String, 
                             obs_long::T, obs_lat::T, alt::T, time_stamps::Vector{String}, 
-                            wavelength, ext_coeff, ext_toggle::Bool, spot_toggle::Bool, disco_toggle::Bool, h5_path; seed_rng::Bool=false) where T<:AF
+                            wavelength, ext_coeff, ext_toggle::Bool, spot_toggle::Bool; seed_rng::Bool=false) where T<:AF
     # make sure there is actually a GPU to use
     @assert CUDA.functional()
 
@@ -131,18 +131,6 @@ function synth_Eclipse_gpu(spec::SpecParams{T}, disk::DiskParamsEclipse{T},
 
     # get number of calls to disk_sim needed
     templates = unique(spec.templates)
-    disco_params = if disco_toggle
-        length(spec.lines) == 1 ||
-            throw(ArgumentError("DISCO synthesis supports exactly one spectral line"))
-        params = DISCOParams(h5_path)
-        line_nm = Float32(spec.lines[1] / 10)
-        params.wavelength[1] <= line_nm <= params.wavelength[end] ||
-            throw(ArgumentError(
-                "Requested line center $(spec.lines[1]) Å is outside the DISCO wavelength range"))
-        to_device(params)
-    else
-        nothing
-    end
 
     # allocate memory needed for rossiter computations
     gpu_allocs = GPUAllocsEclipse(spec, disk, Int(length(wavelength)), precision=precision, verbose=verbose)
@@ -156,24 +144,19 @@ function synth_Eclipse_gpu(spec::SpecParams{T}, disk::DiskParamsEclipse{T},
         if verbose
             println("\t>>> Template: " * splitdir(file)[end])
         end
+        soldata_cpu = SolarData(fname=file)
+        soldata = GPUSolarData(soldata_cpu, precision=precision)
+
         # re-seed host and device rngs so the granulation draws are reproducible
         if seed_rng
             Random.seed!(42)
             CUDA.seed!(42)
         end
 
-        if disco_toggle
-            GRASS.Eclipse.disk_sim_eclipse_disco_gpu(spec_temp, disk, gpu_allocs, flux,
-                                obs_long, obs_lat, alt, time_stamps, wavelength, 
-                                ext_coeff, ext_toggle, spot_toggle, LD_type, disco_params, skip_times=skip_times)
-        else
-            soldata_cpu = SolarData(fname=file)
-            soldata = GPUSolarData(soldata_cpu, precision=precision)
-            # run the simulation and multiply flux by this spectrum
-            GRASS.Eclipse.disk_sim_eclipse_gpu(spec_temp, disk, soldata, gpu_allocs, flux, 
-                                obs_long, obs_lat, alt, time_stamps, wavelength, 
-                                ext_coeff, ext_toggle, spot_toggle, LD_type, skip_times=skip_times)
-        end
+        # run the simulation and multiply flux by this spectrum
+        GRASS.Eclipse.disk_sim_eclipse_gpu(spec_temp, disk, soldata, gpu_allocs, flux, 
+                              obs_long, obs_lat, alt, time_stamps, wavelength, 
+                              ext_coeff, ext_toggle, spot_toggle, LD_type, skip_times=skip_times)
     end
     return spec.lambdas, flux
 end
@@ -181,7 +164,7 @@ end
 function synth_Eclipse_gpu(spec::SpecParams{T}, disk::DiskParamsEclipse{T},
                             verbose::Bool, precision::DataType, skip_times::BitVector, 
                             obs_long::T, obs_lat::T, alt::T, time_stamps::Vector{String}, 
-                            wavelength, ext_coeff, CB1, CB2, CB3; disco_toggle::Bool=false, h5_path::String="None", seed_rng::Bool=false,
+                            wavelength, ext_coeff, CB1, CB2, CB3; seed_rng::Bool=false,
                             data_cbs::Bool=true) where T<:AF
     # make sure there is actually a GPU to use
     @assert CUDA.functional()
@@ -201,18 +184,129 @@ function synth_Eclipse_gpu(spec::SpecParams{T}, disk::DiskParamsEclipse{T},
 
     # get number of calls to disk_sim needed
     templates = unique(spec.templates)
-    disco_params = if disco_toggle
-        length(spec.lines) == 1 ||
-            throw(ArgumentError("DISCO synthesis supports exactly one spectral line"))
-        params = DISCOParams(h5_path)
-        line_nm = Float32(spec.lines[1] / 10)
-        params.wavelength[1] <= line_nm <= params.wavelength[end] ||
-            throw(ArgumentError(
-                "Requested line center $(spec.lines[1]) Å is outside the DISCO wavelength range"))
-        to_device(params)
-    else
-        nothing
-    end    
+
+    # allocate memory needed for rossiter computations
+    gpu_allocs = GPUAllocsEclipse(spec, disk, Int(length(wavelength)), precision=precision, verbose=verbose)
+
+    # run the simulation and return
+    for (idx, file) in enumerate(templates)
+        # get temporary specparams with lines for this run
+        spec_temp = SpecParams(spec, file)
+
+        # load in the appropriate input data
+        if verbose
+            println("\t>>> Template: " * splitdir(file)[end])
+        end
+        soldata_cpu = SolarData(fname=file)
+        soldata = GPUSolarData(soldata_cpu, precision=precision)
+
+        # re-seed host and device rngs so the granulation draws are reproducible
+        if seed_rng
+            Random.seed!(42)
+            CUDA.seed!(42)
+        end
+
+        # run the simulation and multiply flux by this spectrum
+        GRASS.Eclipse.disk_sim_eclipse_gpu(spec_temp, disk, soldata, gpu_allocs, flux, 
+                              obs_long, obs_lat, alt, time_stamps, wavelength, 
+                              ext_coeff, CB1, CB2, CB3, skip_times=skip_times, data_cbs=data_cbs)
+    end
+    return spec.lambdas, flux
+end
+
+function synth_Eclipse_gpu(spec::SpecParams{T}, disk::DiskParamsEclipse{T},
+                            verbose::Bool, precision::DataType, skip_times::BitVector, LD_type::String, 
+                            obs_long::T, obs_lat::T, alt::T, time_stamps::Vector{String}, 
+                            wavelength, ext_coeff, ext_toggle::Bool, spot_toggle::Bool, h5_path; seed_rng::Bool=false) where T<:AF
+    # make sure there is actually a GPU to use
+    @assert CUDA.functional()
+
+    # warn user if precision is single
+    if precision <: Float32
+       @warn "Single-precision GPU implementation produces large flux and velocity errors!"
+    end
+
+    # parse out dimensions for memory allocation
+    N = disk.N
+    Nt = disk.Nt
+    Nλ = length(spec.lambdas)
+
+    # allocate memory
+    flux = ones(Nλ, Nt)
+
+    # get number of calls to disk_sim needed
+    templates = unique(spec.templates)
+    length(spec.lines) == 1 || throw(
+        ArgumentError("DISCO synthesis supports exactly one spectral line")
+    )
+
+    params = DISCOParams(h5_path)
+    line_nm = Float32(spec.lines[1] / 10)
+
+    params.wavelength[1] <= line_nm <= params.wavelength[end] || throw(
+        ArgumentError("Requested line center $(spec.lines[1]) Å is outside the DISCO wavelength range")
+    )
+    disco_params = to_device(params)
+
+    # allocate memory needed for rossiter computations
+    gpu_allocs = GPUAllocsEclipse(spec, disk, Int(length(wavelength)), precision=precision, verbose=verbose)
+
+    # run the simulation and return
+    for (idx, file) in enumerate(templates)
+        # get temporary specparams with lines for this run
+        spec_temp = SpecParams(spec, file)
+
+        # load in the appropriate input data
+        if verbose
+            println("\t>>> Template: " * splitdir(file)[end])
+        end
+        # re-seed host and device rngs so the granulation draws are reproducible
+        if seed_rng
+            Random.seed!(42)
+            CUDA.seed!(42)
+        end
+
+        GRASS.Eclipse.disk_sim_eclipse_disco_gpu(spec_temp, disk, gpu_allocs, flux,
+                                obs_long, obs_lat, alt, time_stamps, wavelength, 
+                                ext_coeff, ext_toggle, spot_toggle, LD_type, disco_params, skip_times=skip_times)
+    end
+    return spec.lambdas, flux
+end
+
+function synth_Eclipse_gpu(spec::SpecParams{T}, disk::DiskParamsEclipse{T},
+                            verbose::Bool, precision::DataType, skip_times::BitVector, 
+                            obs_long::T, obs_lat::T, alt::T, time_stamps::Vector{String}, 
+                            wavelength, ext_coeff, CB1, CB2, CB3, h5_path; seed_rng::Bool=false,
+                            data_cbs::Bool=true) where T<:AF
+    # make sure there is actually a GPU to use
+    @assert CUDA.functional()
+
+    # warn user if precision is single
+    if precision <: Float32
+       @warn "Single-precision GPU implementation produces large flux and velocity errors!"
+    end
+
+    # parse out dimensions for memory allocation
+    N = disk.N
+    Nt = disk.Nt
+    Nλ = length(spec.lambdas)
+
+    # allocate memory
+    flux = ones(Nλ, Nt)
+
+    # get number of calls to disk_sim needed
+    templates = unique(spec.templates)
+    length(spec.lines) == 1 || throw(
+        ArgumentError("DISCO synthesis supports exactly one spectral line")
+    )
+
+    params = DISCOParams(h5_path)
+    line_nm = Float32(spec.lines[1] / 10)
+
+    params.wavelength[1] <= line_nm <= params.wavelength[end] || throw(
+        ArgumentError("Requested line center $(spec.lines[1]) Å is outside the DISCO wavelength range")
+    )
+    disco_params = to_device(params)
 
     # allocate memory needed for rossiter computations
     gpu_allocs = GPUAllocsEclipse(spec, disk, Int(length(wavelength)), precision=precision, verbose=verbose)
@@ -233,18 +327,9 @@ function synth_Eclipse_gpu(spec::SpecParams{T}, disk::DiskParamsEclipse{T},
             CUDA.seed!(42)
         end
 
-        if disco_toggle
-            GRASS.Eclipse.disk_sim_eclipse_disco_gpu(spec_temp, disk, gpu_allocs, flux,
+        GRASS.Eclipse.disk_sim_eclipse_disco_gpu(spec_temp, disk, gpu_allocs, flux,
                                 obs_long, obs_lat, alt, time_stamps, wavelength, 
                                 ext_coeff, disco_params, CB1, CB2, CB3, skip_times=skip_times)
-        else
-            soldata_cpu = SolarData(fname=file)
-            soldata = GPUSolarData(soldata_cpu, precision=precision)
-            # run the simulation and multiply flux by this spectrum
-            GRASS.Eclipse.disk_sim_eclipse_gpu(spec_temp, disk, soldata, gpu_allocs, flux, 
-                                obs_long, obs_lat, alt, time_stamps, wavelength, 
-                                ext_coeff, CB1, CB2, CB3, skip_times=skip_times, data_cbs=data_cbs)
-        end
     end
     return spec.lambdas, flux
 end
