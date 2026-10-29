@@ -32,8 +32,6 @@ function disk_sim_eclipse_disco_gpu(
     # Thread/block configurations matching 2D CUDA grid conventions
     threads4 = (16, 16)
     blocks4 = (cld(n_patches, 16), cld(Nλ, 16))
-    disco_centroid_offsets = CUDA.zeros(Float32, n_patches)
-
     threads5 = 1024
     blocks5 = cld(CUDA.length(prof), prod(threads5))
     threads_shift = 256
@@ -57,12 +55,8 @@ function disk_sim_eclipse_disco_gpu(
         # Seed per timestep for independent stochastic DISCO granulation draws per epoch
         epoch_seed = UInt32(0x12345678 + t)
 
-        CUDA.@sync @cuda threads=threads_shift blocks=blocks_shift disco_continuum_gpu!(
-            disco_continuum, μs, disco_params, epoch_seed
-        )
-        CUDA.@sync @cuda threads=threads_shift blocks=blocks_shift disco_centroid_offset_gpu!(
-            disco_centroid_offsets, disco_continuum, μs, disco_params, epoch_seed,
-            Float32(spec.lines[1] / 10)
+        CUDA.@sync @cuda threads=threads_shift blocks=blocks_shift disco_continuum_gpu_spot_cb!(
+            disco_continuum, μs, contrast, disco_params, epoch_seed
         )
 
         # Loop over spectral lines to synthesize
@@ -76,8 +70,8 @@ function disk_sim_eclipse_disco_gpu(
             CUDA.fill!(prof, 0.0)
 
             # 2. DISCO Line Profile Synthesis Kernel
-            CUDA.@sync @cuda threads=threads4 blocks=blocks4 line_profile_disco_gpu!(
-                l, prof, disco_continuum, disco_centroid_offsets, μs, ld, dA,
+            CUDA.@sync @cuda threads=threads4 blocks=blocks4 line_profile_disco_gpu_spot_cb!(
+                l, prof, disco_continuum, μs, ld, dA,
                 ext, λs, z_rot, contrast, ext_toggle_val, disco_params, epoch_seed
             )
 
@@ -117,7 +111,6 @@ function disk_sim_eclipse_disco_gpu(
     ext = gpu_allocs.ext
     dA = gpu_allocs.dA
     z_rot = gpu_allocs.z_rot
-    contrast = gpu_allocs.contrast
 
     n_patches = CUDA.length(μs)
     disco_continuum = CUDA.ones(Float32, n_patches)
@@ -128,8 +121,6 @@ function disk_sim_eclipse_disco_gpu(
     # Thread/block configurations matching 2D CUDA grid conventions
     threads4 = (16, 16)
     blocks4 = (cld(n_patches, 16), cld(Nλ, 16))
-    disco_centroid_offsets = CUDA.zeros(Float32, n_patches)
-
     threads5 = 1024
     blocks5 = cld(CUDA.length(prof), prod(threads5))
     threads_shift = 256
@@ -152,10 +143,6 @@ function disk_sim_eclipse_disco_gpu(
         CUDA.@sync @cuda threads=threads_shift blocks=blocks_shift disco_continuum_gpu_centered!(
             disco_continuum, μs, disco_params, epoch_seed
         )
-        CUDA.@sync @cuda threads=threads_shift blocks=blocks_shift disco_centroid_offset_gpu_centered!(
-            disco_centroid_offsets, disco_continuum, μs, disco_params, epoch_seed,
-            Float32(spec.lines[1] / 10)
-        )
 
         # Loop over spectral lines to synthesize
         for l in eachindex(spec.lines)
@@ -164,9 +151,9 @@ function disk_sim_eclipse_disco_gpu(
             CUDA.fill!(prof, 0.0)
 
             # 2. DISCO Line Profile Synthesis Kernel
-            CUDA.@sync @cuda threads=threads4 blocks=blocks4 line_profile_disco_gpu_centered!(
-                l, prof, disco_continuum, disco_centroid_offsets, μs, ld, dA,
-                ext, λs, z_rot, contrast, disco_params, epoch_seed
+            CUDA.@sync @cuda threads=threads4 blocks=blocks4 line_profile_disco_gpu_centered_spot_cb!(
+                l, prof, disco_continuum, μs, ld, dA,
+                ext, λs, z_rot, disco_params, epoch_seed
             )
 
             # 3. Normalize and accumulate spectrum frame into output flux matrix
@@ -183,8 +170,8 @@ function disk_sim_eclipse_disco_gpu(
     return nothing
 end
 
-function disco_continuum_gpu!(
-    continuum, μs, p_disco::DISCOParamsDevice, epoch_seed::UInt32
+function disco_continuum_gpu_spot_cb!(
+    continuum, μs, contrast, p_disco::DISCOParamsDevice, epoch_seed::UInt32
 )
     idx = threadIdx().x + blockDim().x * (blockIdx().x - 1)
     stride = blockDim().x * gridDim().x
@@ -202,14 +189,28 @@ function disco_continuum_gpu!(
 
         μ_disco = Float32(μ)
         continuum_sum = 0.0f0
+        unspotted_fraction = Float32(contrast[row + 1, col + 1])
         for k in 1:n_edge
-            continuum_sum += disco_intensity(
-                p_disco, μ_disco, Int32(k), Int32(patch_id), epoch_seed
-            )
-            continuum_sum += disco_intensity(
-                p_disco, μ_disco, p_disco.n_wave - Int32(k) + Int32(1),
-                Int32(patch_id), epoch_seed
-            )
+            for wave in (Int32(k), p_disco.n_wave - Int32(k) + Int32(1))
+                if unspotted_fraction >= 1.0f0
+                    continuum_sum += disco_intensity(
+                        p_disco, μ_disco, wave, Int32(patch_id), epoch_seed
+                    )
+                elseif unspotted_fraction <= 0.0f0
+                    continuum_sum += disco_intensity_centered(
+                        p_disco, μ_disco, wave, Int32(patch_id), epoch_seed
+                    )
+                else
+                    original = disco_intensity(
+                        p_disco, μ_disco, wave, Int32(patch_id), epoch_seed
+                    )
+                    centered = disco_intensity_centered(
+                        p_disco, μ_disco, wave, Int32(patch_id), epoch_seed
+                    )
+                    continuum_sum += unspotted_fraction * original +
+                        (1.0f0 - unspotted_fraction) * centered
+                end
+            end
         end
         @inbounds continuum[patch_id] = continuum_sum / Float32(2 * n_edge)
     end
@@ -217,53 +218,8 @@ function disco_continuum_gpu!(
     return nothing
 end
 
-function disco_centroid_offset_gpu!(
-    offsets, continuum, μs, p_disco::DISCOParamsDevice, epoch_seed::UInt32,
-    line_center
-)
-    idx = threadIdx().x + blockDim().x * (blockIdx().x - 1)
-    stride = blockDim().x * gridDim().x
-    nθ_max = CUDA.size(μs, 2)
-    n_wave = Int(p_disco.n_wave)
-    wavelength = p_disco.wavelength
-
-    for patch_id in idx:stride:CUDA.length(μs)
-        row = (patch_id - 1) ÷ nθ_max
-        col = (patch_id - 1) % nθ_max
-        μ = μs[row + 1, col + 1]
-        if μ <= 0.0f0
-            @inbounds offsets[patch_id] = 0.0f0
-            continue
-        end
-
-        μ_disco = Float32(μ)
-        area = 0.0f0
-        moment = 0.0f0
-        f0 = disco_intensity(
-            p_disco, μ_disco, Int32(1), Int32(patch_id), epoch_seed
-        )
-        for k in 1:(n_wave - 1)
-            λ0 = wavelength[k]
-            λ1 = wavelength[k + 1]
-            f1 = disco_intensity(p_disco, μ_disco, Int32(k + 1), Int32(patch_id), epoch_seed)
-            depth0 = max(1.0f0 - f0 / continuum[patch_id], 0.0f0)
-            depth1 = max(1.0f0 - f1 / continuum[patch_id], 0.0f0)
-            dλ = λ1 - λ0
-
-            area += 0.5f0 * (depth0 + depth1) * dλ
-            moment += 0.5f0 * (
-                (λ0 - line_center) * depth0 + (λ1 - line_center) * depth1
-            ) * dλ
-            f0 = f1
-        end
-        @inbounds offsets[patch_id] = area > 0.0f0 ? moment / area : 0.0f0
-    end
-
-    return nothing
-end
-
-function line_profile_disco_gpu!(
-    l, prof, continuum, centroid_offsets, μs, ld, dA, ext, λs, z_rot,
+function line_profile_disco_gpu_spot_cb!(
+    l, prof, continuum, μs, ld, dA, ext, λs, z_rot,
     contrast, ext_toggle, p_disco::DISCOParamsDevice, epoch_seed::UInt32
 )
     idx = threadIdx().x + blockDim().x * (blockIdx().x - 1)
@@ -303,14 +259,12 @@ function line_profile_disco_gpu!(
 
         # Compute total Doppler shift factor (rotation)
         z_tot = (1.0f0 + z_rot[m, n])
-        λ_spot_correction_nm =
-            (1.0f0 - Float32(contrast[m, n])) * centroid_offsets[i]
+        unspotted_fraction = Float32(contrast[m, n])
 
         # Parallelized loop over observer wavelength grid points
         for j in idy:sdy:n_λ
             λ_obs = λs[j]
-            # Scale the DISCO convective shift by the unspotted fraction.
-            λ_rest_nm = Float32((λ_obs / 10.0) / z_tot) + λ_spot_correction_nm
+            λ_rest_nm = Float32((λ_obs / 10.0) / z_tot)
 
             if λ_rest_nm >= rest_lo && λ_rest_nm <= rest_hi
                 # DISCO's wavelength table is not uniform; locate the actual
@@ -329,12 +283,32 @@ function line_profile_disco_gpu!(
                     (p_disco.wavelength[Int(lo + Int32(1))] -
                      p_disco.wavelength[Int(lo)])
 
-                f0 = disco_intensity(p_disco, μ_disco, lo, Int32(i), epoch_seed)
-                f1 = disco_intensity(
-                    p_disco, μ_disco, lo + Int32(1), Int32(i), epoch_seed)
-
-                # Linear interpolation in wavelength
-                I_val = (f0 + t * (f1 - f0)) / continuum[i]
+                if unspotted_fraction >= 1.0f0
+                    f0 = disco_intensity(p_disco, μ_disco, lo, Int32(i), epoch_seed)
+                    f1 = disco_intensity(
+                        p_disco, μ_disco, lo + Int32(1), Int32(i), epoch_seed)
+                    I_val = (f0 + t * (f1 - f0)) / continuum[i]
+                elseif unspotted_fraction <= 0.0f0
+                    f0 = disco_intensity_centered(
+                        p_disco, μ_disco, lo, Int32(i), epoch_seed)
+                    f1 = disco_intensity_centered(
+                        p_disco, μ_disco, lo + Int32(1), Int32(i), epoch_seed)
+                    I_val = (f0 + t * (f1 - f0)) / continuum[i]
+                else
+                    f0_original = disco_intensity(p_disco, μ_disco, lo, Int32(i), epoch_seed)
+                    f1_original = disco_intensity(
+                        p_disco, μ_disco, lo + Int32(1), Int32(i), epoch_seed)
+                    f0_centered = disco_intensity_centered(
+                        p_disco, μ_disco, lo, Int32(i), epoch_seed)
+                    f1_centered = disco_intensity_centered(
+                        p_disco, μ_disco, lo + Int32(1), Int32(i), epoch_seed)
+                    I_original = f0_original + t * (f1_original - f0_original)
+                    I_centered = f0_centered + t * (f1_centered - f0_centered)
+                    I_val = (
+                        unspotted_fraction * I_original +
+                        (1.0f0 - unspotted_fraction) * I_centered
+                    ) / continuum[i]
+                end
             else
                 # Outside line rest window: unabsorbed continuum (intensity = 1.0)
                 I_val = 1.0f0
@@ -382,54 +356,9 @@ function disco_continuum_gpu_centered!(
     return nothing
 end
 
-function disco_centroid_offset_gpu_centered!(
-    offsets, continuum, μs, p_disco::DISCOParamsDevice, epoch_seed::UInt32,
-    line_center
-)
-    idx = threadIdx().x + blockDim().x * (blockIdx().x - 1)
-    stride = blockDim().x * gridDim().x
-    nθ_max = CUDA.size(μs, 2)
-    n_wave = Int(p_disco.n_wave)
-    wavelength = p_disco.wavelength
-
-    for patch_id in idx:stride:CUDA.length(μs)
-        row = (patch_id - 1) ÷ nθ_max
-        col = (patch_id - 1) % nθ_max
-        μ = μs[row + 1, col + 1]
-        if μ <= 0.0f0
-            @inbounds offsets[patch_id] = 0.0f0
-            continue
-        end
-
-        μ_disco = Float32(μ)
-        area = 0.0f0
-        moment = 0.0f0
-        f0 = disco_intensity_centered(
-            p_disco, μ_disco, Int32(1), Int32(patch_id), epoch_seed
-        )
-        for k in 1:(n_wave - 1)
-            λ0 = wavelength[k]
-            λ1 = wavelength[k + 1]
-            f1 = disco_intensity_centered(p_disco, μ_disco, Int32(k + 1), Int32(patch_id), epoch_seed)
-            depth0 = max(1.0f0 - f0 / continuum[patch_id], 0.0f0)
-            depth1 = max(1.0f0 - f1 / continuum[patch_id], 0.0f0)
-            dλ = λ1 - λ0
-
-            area += 0.5f0 * (depth0 + depth1) * dλ
-            moment += 0.5f0 * (
-                (λ0 - line_center) * depth0 + (λ1 - line_center) * depth1
-            ) * dλ
-            f0 = f1
-        end
-        @inbounds offsets[patch_id] = area > 0.0f0 ? moment / area : 0.0f0
-    end
-
-    return nothing
-end
-
-function line_profile_disco_gpu_centered!(
-    l, prof, continuum, centroid_offsets, μs, ld, dA, ext, λs, z_rot,
-    contrast, p_disco::DISCOParamsDevice, epoch_seed::UInt32
+function line_profile_disco_gpu_centered_spot_cb!(
+    l, prof, continuum, μs, ld, dA, ext, λs, z_rot,
+    p_disco::DISCOParamsDevice, epoch_seed::UInt32
 )
     idx = threadIdx().x + blockDim().x * (blockIdx().x - 1)
     sdx = blockDim().x * gridDim().x
@@ -464,14 +393,11 @@ function line_profile_disco_gpu_centered!(
 
         # Compute total Doppler shift factor (rotation)
         z_tot = (1.0f0 + z_rot[m, n])
-        λ_spot_correction_nm =
-            (1.0f0 - Float32(contrast[m, n])) * centroid_offsets[i]
 
         # Parallelized loop over observer wavelength grid points
         for j in idy:sdy:n_λ
             λ_obs = λs[j]
-            # Scale the DISCO convective shift by the unspotted fraction.
-            λ_rest_nm = Float32((λ_obs / 10.0) / z_tot) + λ_spot_correction_nm
+            λ_rest_nm = Float32((λ_obs / 10.0) / z_tot)
 
             if λ_rest_nm >= rest_lo && λ_rest_nm <= rest_hi
                 # DISCO's wavelength table is not uniform; locate the actual
