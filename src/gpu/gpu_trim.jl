@@ -70,6 +70,34 @@ function trim_bisector_gpu!(depth, variability, depcontrast, lenall, bisall_out,
     return nothing
 end
 
+# Collapse the time axis of the bisector input so every epoch of a tile carries that tile's
+# time-averaged profile. The line keeps its asymmetry and its centre-to-limb variation but
+# loses all granulation jitter, which isolates the two effects that `variability = true`
+# otherwise turns on together.
+#
+# Operates on the raw input arrays before trimming, so everything downstream is unchanged: the
+# tloop index still varies per cell, it just selects among identical epochs.
+function broadcast_mean_bis!(lenall, bisall, intall, widall, bisall_mean, intall_mean, widall_mean)
+    idx = threadIdx().x + blockDim().x * (blockIdx().x-1)
+    sdx = blockDim().x * gridDim().x
+    idy = threadIdx().y + blockDim().y * (blockIdx().y-1)
+    sdy = blockDim().y * gridDim().y
+
+    for i in idx:sdx:CUDA.length(lenall)
+        for k in idy:sdy:CUDA.size(bisall, 1)
+            @inbounds b = bisall_mean[k, i]
+            @inbounds v = intall_mean[k, i]
+            @inbounds w = widall_mean[k, i]
+            for j in 1:lenall[i]
+                @inbounds bisall[k, j, i] = b
+                @inbounds intall[k, j, i] = v
+                @inbounds widall[k, j, i] = w
+            end
+        end
+    end
+    return nothing
+end
+
 function time_average_bis!(lenall, bisall_mean, intall_mean, widall_mean, bisall_in, intall_in, widall_in)
     # get indices from GPU blocks + threads
     idx = threadIdx().x + blockDim().x * (blockIdx().x-1)

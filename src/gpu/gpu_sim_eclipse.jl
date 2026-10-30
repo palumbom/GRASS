@@ -157,7 +157,8 @@ function disk_sim_eclipse_gpu(spec::SpecParams{T1}, disk::DiskParamsEclipse{T1},
                                soldata::GPUSolarData{T2}, gpu_allocs::GPUAllocsEclipse{T2},
                                flux_cpu::AA{T1,2}, obs_long::T1, obs_lat::T1, alt::T1, time_stamps::Vector{String}, wavelength,
                                ext_coeff, CB1, CB2, CB3; skip_times::BitVector=falses(disk.Nt),
-                               data_cbs::Bool=true) where {T1<:AF, T2<:AF}
+                               data_cbs::Bool=true,
+                               static_bisector::Bool=false) where {T1<:AF, T2<:AF}
 
     # get dimensions for memory alloc
     Nt = disk.Nt
@@ -228,6 +229,17 @@ function disk_sim_eclipse_gpu(spec::SpecParams{T1}, disk::DiskParamsEclipse{T1},
                                                                     widall_mean, bisall_gpu, intall_gpu, 
                                                                     widall_gpu)
 
+    # static_bisector keeps the line asymmetry but removes its time evolution, by giving every
+    # epoch of each tile the time-averaged profile that time_average_bis! just computed. That
+    # separates the two things `variability = true` otherwise turns on together: the asymmetry
+    # and the granulation jitter. Placed before the epoch loop, so it costs one launch and
+    # cannot perturb the per-epoch RNG sequence.
+    if static_bisector
+        CUDA.@sync  @cuda threads=threads6 blocks=blocks6 GRASS.broadcast_mean_bis!(lenall_gpu,
+                                                                    bisall_gpu, intall_gpu, widall_gpu,
+                                                                    bisall_mean, intall_mean, widall_mean)
+    end
+
     ext_toggle_gpu = 1.0
     # loop over time
     for t in 1:Nt
@@ -239,6 +251,20 @@ function disk_sim_eclipse_gpu(spec::SpecParams{T1}, disk::DiskParamsEclipse{T1},
         if isone(t)
             # generate the random numbers on the gpu
             CUDA.@sync  @cuda threads=threads1 blocks=blocks1 GRASS.generate_tloop_gpu!(tloop, dat_idx, lenall_gpu)
+        end
+
+        # data_cbs = false drops the data-driven convective blueshift while keeping the
+        # bisector. Zero the array rather than gating the kernel term: the kernel applies one
+        # flag to both z_cbs and extra_z, and extra_z carries spec.conv_blueshifts, so gating
+        # there would silently discard a user-supplied blueshift. With z_cbs zeroed, z_cbs_avg
+        # falls out to zero and extra_z reduces to exactly spec.conv_blueshifts.
+        #
+        # MUST stay below generate_tloop_gpu!. That kernel draws rand() on the device, and the
+        # device RNG advances per kernel launch, so an extra launch ahead of it changes the
+        # granulation realization. Placing this above it shifted Model III by 0.3 m/s while
+        # leaving Models I and II untouched, which is how the ordering requirement was found.
+        if !data_cbs
+            CUDA.@sync  z_cbs .= zero(eltype(z_cbs))
         end
 
         # don't synthesize spectrum if skip_times is true, but iterate t index
@@ -270,12 +296,10 @@ function disk_sim_eclipse_gpu(spec::SpecParams{T1}, disk::DiskParamsEclipse{T1},
                                                                              intall_gpu, widall_gpu)
 
             # assemble line shape on even int grid. `variability` gates the bisector (line
-            # asymmetry and its time evolution) in trim_bisector_gpu! above; here it also gates
-            # the data-driven convective blueshift z_cbs and the extra_z that re-references it.
-            # data_cbs = false keeps the asymmetry but drops that blueshift, so the CB(mu)
-            # polynomial supplies the whole blueshift rather than adding to it.
-            cbs_gate = spec.variability[l] * data_cbs
-            CUDA.@sync  @cuda threads=threads3 blocks=blocks3 fill_workspaces_2D_eclipse!(spec.lines[l], cbs_gate, extra_z[l],
+            # asymmetry and its time evolution) in trim_bisector_gpu! above, and here it gates
+            # z_cbs and the extra_z that re-references it. The data_cbs switch acts on the
+            # z_cbs array above, not on this flag, so spec.conv_blueshifts survives it.
+            CUDA.@sync  @cuda threads=threads3 blocks=blocks3 fill_workspaces_2D_eclipse!(spec.lines[l], spec.variability[l], extra_z[l],
                                                                            tloop, dat_idx,
                                                                            z_rot, z_cbs, lenall_gpu,
                                                                            bisall_gpu_loop, intall_gpu_loop,
