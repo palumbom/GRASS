@@ -9,13 +9,13 @@ GRASS is a Julia package designed to produce time series of stellar spectra with
 
 GRASS v1.0 is described in detail in [Palumbo et al. (2022)](https://arxiv.org/abs/2110.11839); the results of this paper can be reproduced using the [showyourwork workflow](https://github.com/showyourwork/showyourwork) from [this repo](https://github.com/palumbom/palumbo22).
 
-GRASS v2.0 is presented in [Palumbo et al. (2024a)](https://arxiv.org/abs/2405.07945); the figures and quantitative results presented therein are reproducable with [this repo](https://github.com/palumbom/grass-two).
+GRASS v2.0 is presented in [Palumbo et al. (2024a)](https://arxiv.org/abs/2405.07945); the figures and quantitative results presented therein are reproducible with [this repo](https://github.com/palumbom/grass-two).
 
-GRASS v2.1 is presented in [Gonzalez et al. (2026)](); the figures and quantitative results presented therein are reproducable with [this repo]().
+GRASS v2.1 is presented in Gonzalez et al. (in prep.); the figures and quantitative results presented therein are reproducible with [this repo](https://github.com/elizgonz/NEIDEclipse).
 
 ## Installation
 
-GRASS is written entirely in Julia and requires Julia v1.12 or greater. Installation instructions for Julia are available from [julialang.org](https://julialang.org/downloads/).
+GRASS is written entirely in Julia and requires Julia v1.12 (newer minor versions of Julia are not yet supported). Installation instructions for Julia are available from [julialang.org](https://julialang.org/downloads/).
 
 GRASS itself only requires a few steps to install. Simply clone the repo to your desired directory...
 
@@ -54,7 +54,10 @@ Generating synthetic spectra with GRASS only takes a few lines of Julia:
 
 ```julia
 using GRASS
-using PyPlot
+
+# plotting is not a GRASS dependency; add PythonPlot to your own environment
+import PythonPlot
+const plt = PythonPlot.pyplot
 
 # parameters for lines in the spectra
 lines = [5434.5]     # array of line centers in angstroms
@@ -79,11 +82,11 @@ plt.show()
 Additional details and examples can be found in [the documentation](https://palumbom.github.io/GRASS/stable).
 
 ## Citation
-[![DOI](https://zenodo.org/badge/364662564.svg)](https://doi.org/10.5281/zenodo.5512774)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.5512774.svg)](https://doi.org/10.5281/zenodo.5512774)
 [![arXiv](https://img.shields.io/badge/arXiv-2110.11839-b31b1b.svg)](https://arxiv.org/abs/2110.11839)
 [![arXiv](https://img.shields.io/badge/arXiv-2405.07945-b31b1b.svg)](https://arxiv.org/abs/2405.07945)
 
-If you use GRASS in your research, please cite the relevant [software release](https://zenodo.org/badge/latestdoi/364662564) and [paper(s)](https://arxiv.org/abs/2110.11839). The [`cffconvert` tool](https://github.com/citation-file-format/cffconvert) can be used to generate a bibtex entry from the included [CITATION.cff](https://github.com/palumbom/GRASS/blob/main/CITATION.cff) (or just use the "cite this repository" button on the GitHub sidebar).
+If you use GRASS in your research, please cite the relevant [software release](https://doi.org/10.5281/zenodo.5512774) and [paper(s)](https://arxiv.org/abs/2110.11839). The [`cffconvert` tool](https://github.com/citation-file-format/cffconvert) can be used to generate a bibtex entry from the included [CITATION.cff](https://github.com/palumbom/GRASS/blob/main/CITATION.cff) (or just use the "cite this repository" button on the GitHub sidebar).
 
 ## Author & Contact
 [![GitHub followers](https://img.shields.io/github/followers/palumbom?label=Follow&style=social)](https://github.com/palumbom)
