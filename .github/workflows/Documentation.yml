@@ -15,6 +15,10 @@ jobs:
       pull-requests: read
       statuses: write
     runs-on: ubuntu-latest
+    env:
+      # keep the data restored from the cache; skip the Jupiter ephemeris (src/get_kernels.jl)
+      GRASS_KEEP_DATA: true
+      GRASS_SKIP_JUPITER: true
     steps:
       - uses: actions/checkout@v6
       - uses: julia-actions/setup-julia@v2
@@ -22,6 +26,22 @@ jobs:
           # must lie inside the julia compat entry in Project.toml
           version: '1.12'
       - uses: julia-actions/cache@v2
+      - name: Month for the data cache key
+        id: month
+        run: echo "month=$(date -u +%Y-%m)" >> "$GITHUB_OUTPUT"
+      # same key as CI.yml, so the two workflows share one cached copy of the downloaded data
+      - uses: actions/cache@v4
+        with:
+          path: |
+            data/input
+            data/*.bsp
+            data/*.bpc
+            data/*.tls
+            data/*.tpc
+            data/*.tf
+            data/LD_coeff_*.csv
+            data/sunspots.csv
+          key: grass-data-${{ hashFiles('deps/build.jl', 'src/get_kernels.jl') }}-${{ steps.month.outputs.month }}
       - name: Develop project
         shell: julia --color=yes --project=docs {0}
         run: |

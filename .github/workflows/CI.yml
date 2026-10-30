@@ -16,6 +16,10 @@ jobs:
     name: Julia ${{ matrix.version }} - ${{ matrix.os }} - ${{ matrix.arch }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 60
+    env:
+      # keep the data restored from the cache; skip the Jupiter ephemeris (src/get_kernels.jl)
+      GRASS_KEEP_DATA: true
+      GRASS_SKIP_JUPITER: true
     permissions: # needed to allow julia-actions/cache to proactively delete old caches that it has created
       actions: write
       contents: read
@@ -35,5 +39,22 @@ jobs:
           version: ${{ matrix.version }}
           arch: ${{ matrix.arch }}
       - uses: julia-actions/cache@v2
+      - name: Month for the data cache key
+        id: month
+        run: echo "month=$(date -u +%Y-%m)" >> "$GITHUB_OUTPUT"
+      # downloaded files only: restoring tracked files under data/ would overwrite the checkout.
+      # A new month misses the cache, which keeps the cached Earth PCK near GRASS's 30-day refresh.
+      - uses: actions/cache@v4
+        with:
+          path: |
+            data/input
+            data/*.bsp
+            data/*.bpc
+            data/*.tls
+            data/*.tpc
+            data/*.tf
+            data/LD_coeff_*.csv
+            data/sunspots.csv
+          key: grass-data-${{ hashFiles('deps/build.jl', 'src/get_kernels.jl') }}-${{ steps.month.outputs.month }}
       - uses: julia-actions/julia-buildpkg@v1
       - uses: julia-actions/julia-runtest@v1
