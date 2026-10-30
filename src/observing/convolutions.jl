@@ -130,7 +130,10 @@ function convolve_gauss(xs::AA{T,1}, ys::AA{T,1}; new_res::T=1.17e5,
     # get kernel
     σ(x) = x / new_res / (2.0 * sqrt(2 * log(2)))
     g(x, n) = (one(T)/(σ(x) * sqrt(2.0 * π))) * exp(-0.5 * ((x - n)/σ(x))^2)
-    kernel = g.(xs, xs[Int(round(length(xs)/2))])
+    # centre the kernel on the sample that centered() will map to offset 0, namely
+    # (n + 1) ÷ 2; round(n/2) picks the sample below it whenever n ≡ 1 (mod 4), which shifts
+    # the convolved spectrum by one grid step
+    kernel = g.(xs, xs[(length(xs) + 1) ÷ 2])
 
     # pad the signal
     signal = vcat(zeros(100), ys[:,1], zeros(100))
@@ -158,7 +161,10 @@ function convolve_gauss(xs::AA{T,1}, ys::AA{T,2}; new_res::T=1.17e5,
     # get kernel
     σ(x) = x / new_res / (2.0 * sqrt(2 * log(2)))
     g(x, n) = (one(T)/(σ(x) * sqrt(2.0 * π))) * exp(-0.5 * ((x - n)/σ(x))^2)
-    kernel = g.(xs, xs[Int(round(length(xs)/2))])
+    # centre the kernel on the sample that centered() will map to offset 0, namely
+    # (n + 1) ÷ 2; round(n/2) picks the sample below it whenever n ≡ 1 (mod 4), which shifts
+    # the convolved spectrum by one grid step
+    kernel = g.(xs, xs[(length(xs) + 1) ÷ 2])
 
     # create vector to hold padded signal
     signal = zeros(200 + size(ys, 1))

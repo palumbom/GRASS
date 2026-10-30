@@ -237,7 +237,10 @@ function get_keys_and_cbs_gpu!(dat_idx, z_cbs, μs, ax_codes, cbsall, disc_mu, d
     sdy = blockDim().y * gridDim().y
 
     for i in idx:sdx:CUDA.length(μs)
+        # off-disk tiles get no data index, so every downstream kernel skips them
         if μs[i] <= 0.0
+            @inbounds dat_idx[i] = 0
+            @inbounds z_cbs[i] = 0.0
             continue
         end
 
