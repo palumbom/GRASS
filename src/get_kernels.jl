@@ -10,6 +10,12 @@ const TPC = "https://naif.jpl.nasa.gov/pub/naif/generic_kernels/pck/pck00010.tpc
 
 import Downloads.download
 
+# true when the environment variable is set to 1, true or yes (any case)
+env_flag(name::AbstractString) = lowercase(strip(get(ENV, name, ""))) in ("1", "true", "yes")
+
+# GRASS_SKIP_JUPITER=true skips downloading and furnishing the Jupiter satellite ephemeris
+skip_jupiter() = env_flag("GRASS_SKIP_JUPITER")
+
 # NAIF regenerates earth_latest_high_prec.bpc twice a week and its predicted span ends
 # about three months after generation, so a local copy older than this is re-downloaded
 const earth_pck_max_age_days = 30
@@ -40,7 +46,7 @@ function download_kernels()
     if !isfile(joinpath(datdir, "de440.bsp")); download(SPK, joinpath(datdir, "de440.bsp")); end
     if !isfile(joinpath(datdir, "naif0012.tls")); download(LSK, joinpath(datdir, "naif0012.tls")); end
     if !isfile(joinpath(datdir, "pck00010.tpc")); download(TPC, joinpath(datdir, "pck00010.tpc")); end
-    if !isfile(joinpath(datdir, "jup365.bsp")); download(SPK_JUP, joinpath(datdir, "jup365.bsp")); end
+    if !skip_jupiter() && !isfile(joinpath(datdir, "jup365.bsp")); download(SPK_JUP, joinpath(datdir, "jup365.bsp")); end
     if !isfile(joinpath(datdir, "moon_pa_de440_200625.bpc")); download(BPC, joinpath(datdir, "moon_pa_de440_200625.bpc")); end
     if !isfile(joinpath(datdir, "earth_latest_high_prec.bpc")); download(EARTH_BPC, joinpath(datdir, "earth_latest_high_prec.bpc")); end
     if !isfile(joinpath(datdir, "earth_assoc_itrf93.tf")); download(EARTH_default, joinpath(datdir, "earth_assoc_itrf93.tf")); end
@@ -64,7 +70,7 @@ function furnsh_kernels()
 
     furnsh(earth_pck_path())
     furnsh(joinpath(datdir, "earth_assoc_itrf93.tf"))
-    furnsh(joinpath(datdir, "jup365.bsp"))
+    skip_jupiter() || furnsh(joinpath(datdir, "jup365.bsp"))
 
     return nothing
 end
