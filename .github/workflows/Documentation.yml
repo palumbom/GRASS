@@ -16,15 +16,11 @@ jobs:
       statuses: write
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: julia-actions/setup-julia@v2
         with:
-          version: '1'
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-      - name: Install Python deps for PyCall
-        run: python -m pip install --upgrade pip matplotlib
+          # must lie inside the julia compat entry in Project.toml
+          version: '1.12'
       - uses: julia-actions/cache@v2
       - name: Develop project
         shell: julia --color=yes --project=docs {0}
@@ -34,10 +30,7 @@ jobs:
       - uses: julia-actions/julia-buildpkg@v1
         with:
           project: docs
+      - uses: julia-actions/julia-docdeploy@v1
         env:
-          PYTHON: python
-      - uses: julia-actions/julia-docdeploy@latest
-        env:
-          PYTHON: python
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # If authenticating with GitHub Actions token
           DOCUMENTER_KEY: ${{ secrets.DOCUMENTER_KEY }} # If authenticating with SSH deploy key
