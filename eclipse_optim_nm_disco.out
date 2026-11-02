@@ -1,11 +1,8 @@
 About to start: eclipse_optim_nm_disco
-Fri Oct 23 09:43:47 EDT 2026
-Job id: 56689584
+Mon Nov  2 10:24:45 EST 2026
+Job id: 56946096
 About to change into /storage/work/efg5335/sw/GRASS
 About to start Julia
-Precompiling packages...
-  23838.5 ms  ✓ GRASS
-  1 dependency successfully precompiled in 30 seconds. 342 already precompiled.
 	>>> Template: FeI_5250.2.h5
 	>>> Template: FeI_5250.2.h5
 	>>> Template: FeI_5250.2.h5
@@ -146,12 +143,7 @@ Precompiling packages...
 	>>> Template: FeI_5250.2.h5
 	>>> Template: FeI_5250.2.h5
 	>>> Template: FeI_5250.2.h5
-	>>> Template: FeI_5250.2.h5
-	>>> Template: FeI_5250.2.h5
-	>>> Template: FeI_5250.2.h5
-	>>> Template: FeI_5250.2.h5
-	>>> Template: FeI_5250.2.h5
-Optimized Parameters (CB1, CB2): [1.795139264724275, -2.4945155824922773]
+Optimized Parameters (CB1, CB2): [2.0337248809277146, -2.811636178462439]
 Calculating numerical Hessian for error bars...
 	>>> Template: FeI_5250.2.h5
 	>>> Template: FeI_5250.2.h5
@@ -163,7 +155,7 @@ Calculating numerical Hessian for error bars...
 	>>> Template: FeI_5250.2.h5
 	>>> Template: FeI_5250.2.h5
 	>>> Template: FeI_5250.2.h5
-CB1 Error: ±0.003623824411407949
-CB2 Error: ±0.004567447650716377
+CB1 Error: ±0.005480490337373787
+CB2 Error: ±0.005297854734696963
 Julia exited
-Fri Oct 23 11:45:49 EDT 2026
+Mon Nov  2 12:15:03 EST 2026
