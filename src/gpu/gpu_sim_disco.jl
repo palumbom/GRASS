@@ -193,7 +193,7 @@ function disco_continuum_gpu_spot_cb!(
         for k in 1:n_edge
             for wave in (Int32(k), p_disco.n_wave - Int32(k) + Int32(1))
                 if unspotted_fraction >= 1.0f0
-                    continuum_sum += disco_intensity(
+                    continuum_sum += disco_intensity_original(
                         p_disco, μ_disco, wave, Int32(patch_id), epoch_seed
                     )
                 elseif unspotted_fraction <= 0.0f0
@@ -201,7 +201,7 @@ function disco_continuum_gpu_spot_cb!(
                         p_disco, μ_disco, wave, Int32(patch_id), epoch_seed
                     )
                 else
-                    original = disco_intensity(
+                    original = disco_intensity_original(
                         p_disco, μ_disco, wave, Int32(patch_id), epoch_seed
                     )
                     centered = disco_intensity_centered(
@@ -284,8 +284,8 @@ function line_profile_disco_gpu_spot_cb!(
                      p_disco.wavelength[Int(lo)])
 
                 if unspotted_fraction >= 1.0f0
-                    f0 = disco_intensity(p_disco, μ_disco, lo, Int32(i), epoch_seed)
-                    f1 = disco_intensity(
+                    f0 = disco_intensity_original(p_disco, μ_disco, lo, Int32(i), epoch_seed)
+                    f1 = disco_intensity_original(
                         p_disco, μ_disco, lo + Int32(1), Int32(i), epoch_seed)
                     I_val = (f0 + t * (f1 - f0)) / continuum[i]
                 elseif unspotted_fraction <= 0.0f0
@@ -295,8 +295,8 @@ function line_profile_disco_gpu_spot_cb!(
                         p_disco, μ_disco, lo + Int32(1), Int32(i), epoch_seed)
                     I_val = (f0 + t * (f1 - f0)) / continuum[i]
                 else
-                    f0_original = disco_intensity(p_disco, μ_disco, lo, Int32(i), epoch_seed)
-                    f1_original = disco_intensity(
+                    f0_original = disco_intensity_original(p_disco, μ_disco, lo, Int32(i), epoch_seed)
+                    f1_original = disco_intensity_original(
                         p_disco, μ_disco, lo + Int32(1), Int32(i), epoch_seed)
                     f0_centered = disco_intensity_centered(
                         p_disco, μ_disco, lo, Int32(i), epoch_seed)
